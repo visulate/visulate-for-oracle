@@ -72,10 +72,10 @@ async function listObjects(res, oradb, owner, type, name, status ) {
   let conn;
   let result;
   let query = sql['LIST_DBA_OBJECTS'];
-  query.params.p_owner.val = owner;
-  query.params.p_type.val = type;
-  query.params.p_name.val = '%';
-  query.params.p_status.val = '%';
+  query.params.owner.val = owner;
+  query.params.type.val = type;
+  query.params.name.val = '%';
+  query.params.status.val = '%';
 
   try {
     conn = await oracledb.getConnection(connection);
