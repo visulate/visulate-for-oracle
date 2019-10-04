@@ -9,6 +9,8 @@ var expect  = require('chai').expect;
 var request = require('request');
 var app = require('../app')
 
+const CONNECT_STRING = "10.0.0.30:1521/ORCLPDB1";
+
 const HEADERS = {
     "content-type": "application/json",
 };
@@ -33,7 +35,7 @@ it('POST invalid schema should fail with 400 status', (done) => {
 });
 
 it('POST to oradb with invalid credentails should fail', (done) => {
-  var requestBody = {"user": "visulate", "password": "InvalidPassword", "connectString": "localhost:1521/ORCLPDB1"};
+  var requestBody = {"user": "visulate", "password": "InvalidPassword", "connectString": CONNECT_STRING};
   request(
     {
       method: 'post',
@@ -50,7 +52,7 @@ it('POST to oradb with invalid credentails should fail', (done) => {
 });
 
 it('POST to oradb should create new connection', (done) => {
-  var requestBody = {"user": "visulate", "password": "visulate", "connectString": "localhost:1521/ORCLPDB1"};
+  var requestBody = {"user": "visulate", "password": "visulate", "connectString": CONNECT_STRING};
   request(
     {
       method: 'post',
