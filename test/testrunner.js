@@ -14,7 +14,7 @@ const CONNECT_STRING = "10.0.0.30:1521/ORCLPDB1";
 const HEADERS = {
     "content-type": "application/json",
 };
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://localhost:3000/oradb/';
 
 it('POST invalid schema should fail with 400 status', (done) => {
   //var requestBody = {"user": "visulate", "password": "visulate", "connectString": "localhost:1521/ORCLPDB1"};
@@ -23,7 +23,7 @@ it('POST invalid schema should fail with 400 status', (done) => {
   request(
     {
       method: 'post',
-      url: BASE_URL + '/oradb/invalid',
+      url: BASE_URL + 'invalid',
       body: requestBody,
       headers: HEADERS,
       json: true
@@ -39,7 +39,7 @@ it('POST to oradb with invalid credentails should fail', (done) => {
   request(
     {
       method: 'post',
-      url: BASE_URL + '/oradb/local',
+      url: BASE_URL + 'local',
       body: requestBody,
       headers: HEADERS,
       json: true
@@ -56,7 +56,7 @@ it('POST to oradb should create new connection', (done) => {
   request(
     {
       method: 'post',
-      url: BASE_URL + '/oradb/local',
+      url: BASE_URL + 'local',
       body: requestBody,
       headers: HEADERS,
       json: true
@@ -72,7 +72,7 @@ it('GET list of tables', (done) => {
   request(
     {
       method: 'get',
-      url: BASE_URL + '/oradb/local/RNTMGR2/TABLE/*/*',
+      url: BASE_URL + 'local/RNTMGR2/TABLE/*/*',
     }, (error, response, body) => {
       expect(response.statusCode).to.equal(200);
       console.log(body);

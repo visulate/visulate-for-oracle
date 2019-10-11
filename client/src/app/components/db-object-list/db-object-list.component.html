@@ -1,0 +1,5 @@
+<div *ngIf="currentContext.objectType">
+<mat-nav-list *ngFor="let objectName of objectList">
+  <a mat-list-item href="#">{{objectName}}</a>
+</mat-nav-list>
+</div>
