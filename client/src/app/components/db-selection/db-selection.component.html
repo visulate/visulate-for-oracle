@@ -1,10 +1,11 @@
 <mat-form-field>
   <mat-select [(ngModel)]="currentEndpoint" (selectionChange)="setEndpoint($event.value)" placeholder="Database">
-    <mat-option *ngFor="let endpoint of endpoints" [value]="endpoint">
+    <mat-option *ngFor="let endpoint of endpoints.endpoints" [value]="endpoint">
       {{endpoint.endpoint}}
     </mat-option>
   </mat-select>
 </mat-form-field>
+
 
 <mat-form-field>
   <mat-select [(ngModel)]="currentSchema" (selectionChange)="setSchema($event.value)" placeholder="Schema">

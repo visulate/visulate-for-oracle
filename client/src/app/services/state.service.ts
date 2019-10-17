@@ -1,20 +1,36 @@
-// Application State Service
+/*!
+ * Copyright 2019 Visulate LLC. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { EndpointModel } from '../models/endpoint.model';
-import { SchemaModel } from '../models/schema.model';
+import { EndpointListModel, EndpointModel, SchemaModel } from '../models/endpoint.model';
 import { CurrentContextModel } from '../models/current-context.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class StateService {
-  private endpointList = new BehaviorSubject<EndpointModel[]>([]);
-  private selectedEndpoint = new BehaviorSubject<EndpointModel>({});
-  private selectedSchema = new BehaviorSubject<SchemaModel>({});
-  private selectedContext = new BehaviorSubject<CurrentContextModel>({});
-
-  private context = new CurrentContextModel();
+  /**
+   * Application State Service
+   */
+  private context = new CurrentContextModel('', '', '');
+  private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel);
+  private selectedEndpoint = new BehaviorSubject<EndpointModel>(new EndpointModel);
+  private selectedSchema = new BehaviorSubject<SchemaModel>(new SchemaModel);
+  private selectedContext = new BehaviorSubject<CurrentContextModel>(this.context);
 
   endpoints = this.endpointList.asObservable();
   currentEndpoint = this.selectedEndpoint.asObservable();
@@ -23,7 +39,7 @@ export class StateService {
 
   constructor() { }
 
-  setCurrentObjectType(objectType: String) {
+  setCurrentObjectType(objectType: string) {
     this.context.setObjectType(objectType);
     this.selectedContext.next(this.context);
   }
@@ -35,12 +51,14 @@ export class StateService {
   }
 
   setCurrentEndpoint(endpoint: EndpointModel) {
-    this.selectedEndpoint.next(endpoint);
-    this.context.setEndpoint(endpoint.endpoint);
-    this.selectedContext.next(this.context);
+    if (endpoint) {
+      this.selectedEndpoint.next(endpoint);
+      this.context.setEndpoint(endpoint.endpoint);
+      this.selectedContext.next(this.context);
+    }
   }
 
-  saveEndpoints(endpoints: EndpointModel[]) {
+  saveEndpoints(endpoints: EndpointListModel) {
     this.endpointList.next(endpoints);
     this.setCurrentEndpoint(endpoints[0]);
   }

@@ -1,17 +1,33 @@
-const oracledb = require('oracledb')
-oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+/*!
+ * Copyright 2019 Visulate LLC. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
+const oracledb = require('oracledb');
 let statement = {};
+
 statement['COUNT_DBA_OBJECTS'] = {
   'sql' : `select owner, object_type, count(*) as object_count
-   from dba_objects o
-   where not exists (select 1
-                     from dba_logstdby_skip l
-                     where l.owner = o.owner
-                     and l.statement_opt = 'INTERNAL SCHEMA')
-   group by owner, object_type
-   order by owner, object_type`,
-   'params': {}
+           from dba_objects o
+           where not exists (select 1
+                             from dba_logstdby_skip l
+                             where l.owner = o.owner
+                             and l.statement_opt = 'INTERNAL SCHEMA')
+           group by owner, object_type
+           order by owner, object_type`,
+   'params': {
+   }
 };
 
 statement['LIST_DBA_OBJECTS'] = {

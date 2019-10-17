@@ -1,82 +1,42 @@
+//TODO add negative tests + json schema validation for response bodies
 
-// **************************************************************
-// End to End CRUD test for REST APIs.
-// Note: the tests run in sequence and the failure of an early test may
-// impact the result of laters ones.
-// **************************************************************
+const app = require('../app');
+let chai = require('chai'), chaiHttp = require('chai-http');
+let should = chai.should();
+let expect = chai.expect;
+chai.use(chaiHttp);
 
-var expect  = require('chai').expect;
-var request = require('request');
-var app = require('../app')
+const BASE_URL = 'http://localhost:3000/api';
 
-const CONNECT_STRING = "10.0.0.30:1521/ORCLPDB1";
-
-const HEADERS = {
-    "content-type": "application/json",
-};
-const BASE_URL = 'http://localhost:3000/oradb/';
-
-it('POST invalid schema should fail with 400 status', (done) => {
-  //var requestBody = {"user": "visulate", "password": "visulate", "connectString": "localhost:1521/ORCLPDB1"};
-  var requestBody = {"user": "visulate", "password": "visulate"};
-  console.log('Review Error message:');
-  request(
-    {
-      method: 'post',
-      url: BASE_URL + 'invalid',
-      body: requestBody,
-      headers: HEADERS,
-      json: true
-    }, (error, response, body) => {
-      expect(response.statusCode).to.equal(400);
-      done();
-    }
-  );
+before((done) => {
+  app.eventEmitter.on("httpServerStarted", function(){
+    done();
+  });
 });
 
-it('POST to oradb with invalid credentails should fail', (done) => {
-  var requestBody = {"user": "visulate", "password": "InvalidPassword", "connectString": CONNECT_STRING};
-  request(
-    {
-      method: 'post',
-      url: BASE_URL + 'local',
-      body: requestBody,
-      headers: HEADERS,
-      json: true
-    }, (error, response, body) => {
-      expect(response.statusCode).to.equal(401);
-      console.log(body);
-      done();
-    }
-  );
+after(async (done) => {
+  let e;
+  await app.shutdown(e);
+  done();
 });
 
-it('POST to oradb should create new connection', (done) => {
-  var requestBody = {"user": "visulate", "password": "visulate", "connectString": CONNECT_STRING};
-  request(
-    {
-      method: 'post',
-      url: BASE_URL + 'local',
-      body: requestBody,
-      headers: HEADERS,
-      json: true
-    }, (error, response, body) => {
-      expect(response.statusCode).to.equal(201);
-      console.log(body);
-      done();
-    }
-  );
+
+it('GET endpoints should return object type count', (done) => {
+  chai.request(BASE_URL)
+  .get('/')
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    console.log(res.body);
+    done();
+  });
 });
 
-it('GET list of tables', (done) => {
-  request(
-    {
-      method: 'get',
-      url: BASE_URL + 'local/RNTMGR2/TABLE/*/*',
-    }, (error, response, body) => {
-      expect(response.statusCode).to.equal(200);
-      console.log(body);
-      done();
-    }
-  );
+it('GET TABLES should return list of tables', (done) => {
+  chai.request(BASE_URL)
+  .get('/vis19pdb/RNTMGR2/TABLE/*/*')
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    console.log(res.body);
+    done();
+  });
 });
