@@ -13,6 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export interface Deserializable {
-  deserialize(input: any): this;
-}
+
+const express = require('express');
+const router = new express.Router();
+const controller = require('./controller.js');
+
+router.route('/')
+  .get(controller.getEndpoints);
+
+router.route('/:db/:owner/:type/:name/:status')
+  .get(controller.listObjects);  
+
+module.exports = router;

@@ -27,11 +27,13 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "express-json-validator-middleware": "^2.0.0",
+    "morgan": "^1.9.1",
     "node-cache": "^4.2.1",
     "oracledb": "^4.0.1"
   },
   "devDependencies": {
     "chai": "^4.2.0",
+    "chai-http": "^4.3.0",
     "mocha": "^6.2.1",
     "request": "^2.88.0"
   }
