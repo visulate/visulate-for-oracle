@@ -46,7 +46,7 @@ function formatEndpoint(endpoint, objectCountRows) {
 }
 
 async function endpoints() {
-  const query = sql['COUNT_DBA_OBJECTS'].sql;
+  const query = sql.statement['COUNT_DBA_OBJECTS'].sql;
   let rows = [];
   for (const ep of dbConfig.endpoints) {
      const result = await dbService.simpleExecute(ep.connect.poolAlias, query);
@@ -77,11 +77,18 @@ async function listObjects(req, res, next) {
     return;
   }
 
-  let query = sql['LIST_DBA_OBJECTS'];
+  let query = sql.statement['LIST_DBA_OBJECTS'];
+  let filtered_name = req.params.name.replace('*', '%').replace('_', '\\_');
+  let filtered_status = req.params.status.toUpperCase();
+  if (filtered_status !== 'VALID' &&
+      filtered_status !== 'INVALID') {
+        filtered_status = '%';
+      }
+
   query.params.owner.val = req.params.owner;
-  query.params.type.val = req.params.type;
-  query.params.name.val = '%';
-  query.params.status.val = '%';
+  query.params.object_type.val = req.params.type;
+  query.params.object_name.val = filtered_name;
+  query.params.status.val = filtered_status;
 
   const result = await dbService.simpleExecute(poolAlias, query.sql, query.params);
   let objectList = [];
@@ -92,3 +99,68 @@ async function listObjects(req, res, next) {
 }
 
 module.exports.listObjects = listObjects;
+
+////////////////////////////////////////////////////////////////////////////////
+// Show object details
+////////////////////////////////////////////////////////////////////////////////
+
+async function getObjectDetails(poolAlias, owner, object_type, object_name ){
+  let query = sql.statement['OBJECT-DETAILS'];
+  query.params.owner.val = owner;
+  query.params.object_type.val = object_type;
+  query.params.object_name.val = object_name;
+
+  const connection = await dbService.getConnection(poolAlias);
+  let result = await dbService.query(connection, query.sql, query.params);
+  const object_id = result[0]['OBJECT_ID'];
+  let queryCollection = sql.collection[object_type];
+
+  for (let c of queryCollection.objectNameQueries){
+    c.params.owner.val = owner;
+    c.params.object_name.val = object_name;
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({title: c.title, rows: cResult});
+  }
+  for (let c of queryCollection.objectIdQueries){
+    c.params.object_id.val = object_id;
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({title: c.title, rows: cResult});
+  }
+
+  for (let c of queryCollection.objectTypeQueries){
+    c.params.owner.val = owner;
+    c.params.object_type.val = object_type;
+    c.params.object_name.val = object_name;
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({title: c.title, rows: cResult});
+  }
+
+  queryCollection = sql.collection['DEPENDENCIES'];
+  for (let c of queryCollection.objectIdQueries){
+    c.params.object_id.val = object_id;
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({title: c.title, rows: cResult});
+  }
+
+
+
+  await dbService.closeConnection(connection);
+
+  return result;
+}
+
+
+
+async function showObject(req, res, next) {
+  const poolAlias = endpointList[req.params.db];
+  if (!poolAlias) {
+    res.status(401).send("Requested database was not found");
+    return;
+  }
+  const objectDetails = await getObjectDetails(
+    poolAlias,  req.params.owner, req.params.type, req.params.name
+  );
+  res.status(200).json(objectDetails);
+}
+
+module.exports.showObject = showObject;

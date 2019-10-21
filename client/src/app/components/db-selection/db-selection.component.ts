@@ -23,10 +23,10 @@ import { EndpointListModel, EndpointModel, SchemaModel } from '../../models/endp
   templateUrl: './db-selection.component.html',
   styleUrls: ['./db-selection.component.css']
 })
+ /**
+ * Code to Select: Database -> Schema -> Object Type
+ */
 export class DbSelectionComponent implements OnInit {
-  /**
-   * Code to Select: Database -> Schema -> Object Type
-   */
   public endpoints: EndpointListModel;
   public currentEndpoint: EndpointModel;
   public currentSchema: SchemaModel;

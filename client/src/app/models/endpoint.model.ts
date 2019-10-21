@@ -34,6 +34,8 @@ export class EndpointModel implements Deserializable {
    * API endpoint corresponding to a database connection. 
    */
   public endpoint: string;
+  public description: string;
+  public connectString: string;
   public schemas: SchemaModel[];
 
   deserialize(input: any): this {
