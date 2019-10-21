@@ -24,4 +24,6 @@ router.route('/')
 router.route('/:db/:owner/:type/:name/:status')
   .get(controller.listObjects);  
 
+router.route('/:db/:owner/:type/:name')
+  .get(controller.showObject);    
 module.exports = router;

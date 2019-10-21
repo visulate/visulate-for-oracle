@@ -42,7 +42,7 @@ async function close() {
   for (const endpoint of dbConfig.endpoints){
     try {
       console.log(`Disconnecting from poolAlias ${endpoint.connect.poolAlias}`);
-      await oracledb.getPool(endpoint.connect.poolAlias).close();
+      await oracledb.getPool(endpoint.connect.poolAlias).close(10);
     } catch (err) {
       console.error(err);
     }
@@ -62,8 +62,7 @@ module.exports.close = close;
 function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
   return new Promise(async (resolve, reject) => {
     let conn;
-
-    opts.outFormat = oracledb.OBJECT;
+    opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
     opts.autoCommit = true;
 
     try {
@@ -84,5 +83,72 @@ function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
     }
   });
 }
-
 module.exports.simpleExecute = simpleExecute;
+
+/**
+ * Gets a connection from the connection pool  
+ * @param {*} poolAlias - Connection pool alias 
+ * @returns connection - a database connection
+ */
+function getConnection(poolAlias){
+  return new Promise(async (resolve, reject) => {
+    try {
+      const connection = await oracledb.getConnection(poolAlias);
+      resolve(connection);
+    } catch (err) {
+      console.error(err);
+      reject(err);
+    }
+  });
+}
+module.exports.getConnection = getConnection;
+
+/**
+ * Release a connection back to the connection pool
+ * @param {*} connection - The connection to release
+ */
+function closeConnection(connection){
+  return new Promise(async (resolve, reject) => {
+    try {
+      await connection.close();
+      resolve();
+    } catch (err) {
+      console.error(err);
+      reject(err);
+    }
+  });
+}
+module.exports.closeConnection = closeConnection;
+
+/**
+ * Execute query using a result set
+ * @param {*} connection - a pre-establised connection
+ * @param {*} statement - the statement to execute
+ * @param {*} binds - bind variables
+ * @param {*} opts - options
+ */
+function query(connection, statement, binds = [], opts = {}){
+  return new Promise(async (resolve, reject) => {
+    opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
+    opts.resultSet = true;
+
+    try {
+      const result = await connection.execute(
+        statement, binds, opts        
+      );      
+      const rs = result.resultSet;
+      let row;
+      let returnResult = [];
+
+      while ((row = await rs.getRow())) {
+        returnResult.push(row);
+      }
+      await rs.close();
+      resolve(returnResult);
+    } catch (err) {
+      console.error(err);
+      reject(err);
+    }  
+  });
+}
+module.exports.query = query;

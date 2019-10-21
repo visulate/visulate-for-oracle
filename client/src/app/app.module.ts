@@ -32,6 +32,7 @@ import { AppComponent } from './app.component';
 import { DbSelectionComponent } from './components/db-selection/db-selection.component';
 import { MainNavComponent } from './main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
+import { DbContentComponent } from './components/db-content/db-content.component';
 
 
 @NgModule({
@@ -39,7 +40,8 @@ import { DbObjectListComponent } from './components/db-object-list/db-object-lis
     AppComponent,
     DbSelectionComponent,
     MainNavComponent,
-    DbObjectListComponent
+    DbObjectListComponent,
+    DbContentComponent
   ],
   imports: [
     BrowserModule,
