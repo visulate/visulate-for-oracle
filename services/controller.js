@@ -116,25 +116,27 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name ){
   let result = [{title: query.title, display: query.display, rows: r}];
   let queryCollection = sql.collection[object_type];
 
-  for (let c of queryCollection.objectNameQueries){
-    c.params.owner.val = owner;
-    c.params.object_name.val = object_name;
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({title: c.title, display: c.display, rows: cResult});
-  }
-  for (let c of queryCollection.objectIdQueries){
-    c.params.object_id.val = object_id;
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({title: c.title, display: c.display, rows: cResult});
-  }
-
-  for (let c of queryCollection.objectTypeQueries){
-    c.params.owner.val = owner;
-    c.params.object_type.val = object_type;
-    c.params.object_name.val = object_name;
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({title: c.title, display: c.display, rows: cResult});
-  }
+  if (queryCollection) {
+    for (let c of queryCollection.objectNameQueries){
+      c.params.owner.val = owner;
+      c.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({title: c.title, display: c.display, rows: cResult});
+    }
+    for (let c of queryCollection.objectIdQueries){
+      c.params.object_id.val = object_id;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({title: c.title, display: c.display, rows: cResult});
+    }
+  
+    for (let c of queryCollection.objectTypeQueries){
+      c.params.owner.val = owner;
+      c.params.object_type.val = object_type;
+      c.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({title: c.title, display: c.display, rows: cResult});
+    }
+  } 
 
   queryCollection = sql.collection['DEPENDENCIES'];
   for (let c of queryCollection.objectIdQueries){
@@ -142,8 +144,6 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name ){
     const cResult = await dbService.query(connection, c.sql, c.params);
     result.push({title: c.title, display: c.display, rows: cResult});
   }
-
-
 
   await dbService.closeConnection(connection);
 
