@@ -19,6 +19,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule } from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
+import { CdkTableModule } from '@angular/cdk/table';
 
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSelectModule } from '@angular/material/select';
@@ -26,6 +27,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
+import { MatTableModule } from '@angular/material/table';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -47,11 +49,13 @@ import { DbContentComponent } from './components/db-content/db-content.component
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,
+    CdkTableModule,
     HttpClientModule,
     FormsModule,
     MatToolbarModule,
     MatSelectModule,
     MatSidenavModule,
+    MatTableModule,
     LayoutModule,
     MatButtonModule,
     MatIconModule,

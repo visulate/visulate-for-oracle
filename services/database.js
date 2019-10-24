@@ -146,7 +146,7 @@ function query(connection, statement, binds = [], opts = {}){
       await rs.close();
       resolve(returnResult);
     } catch (err) {
-      console.error(err);
+      console.error(`${statement} \n ${err}`);
       reject(err);
     }  
   });

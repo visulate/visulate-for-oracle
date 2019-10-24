@@ -26,7 +26,7 @@ export class StateService {
   /**
    * Application State Service
    */
-  private context = new CurrentContextModel('', '', '');
+  private context = new CurrentContextModel('', '', '', '');
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel);
   private selectedEndpoint = new BehaviorSubject<EndpointModel>(new EndpointModel);
   private selectedSchema = new BehaviorSubject<SchemaModel>(new SchemaModel);
@@ -38,6 +38,11 @@ export class StateService {
   currentContext = this.selectedContext.asObservable();
 
   constructor() { }
+
+  setCurrentObject(objectName: string){
+    this.context.setObjectName(objectName);
+    this.selectedContext.next(this.context);
+  }
 
   setCurrentObjectType(objectType: string) {
     this.context.setObjectType(objectType);

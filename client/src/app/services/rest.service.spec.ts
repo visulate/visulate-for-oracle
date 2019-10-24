@@ -44,6 +44,7 @@ describe('RestService', () => {
     expect(service).toBeTruthy();
   });
 
+  // httpMock code not working as expected
   // describe('#getObjectList', () => {
   //   it('should return an Observable<sting[]>', () => {
   //     //const service: RestService = TestBed.get(RestService);
