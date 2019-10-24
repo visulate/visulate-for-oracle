@@ -36,6 +36,10 @@ export class DbObjectListComponent implements OnInit {
     private restService: RestService,
     private state: StateService) { }
 
+  setObjectName(objectName: string) {
+    this.state.setCurrentObject(objectName);
+  }  
+
   processContextChange( context: CurrentContextModel ) {
     this.currentContext = context;
     if (context.endpoint && context.owner && context.objectType){

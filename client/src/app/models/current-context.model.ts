@@ -20,24 +20,33 @@ export class CurrentContextModel {
    * @param endpoint - API endpoint for a database connection 
    * @param owner - database schema
    * @param objectType - object type (as returned by DBA_OBJECTS)
+   * @param objectName - an object name
    */
   constructor(
     public endpoint: string,
     public owner: string,
-    public objectType: string ) { }
+    public objectType: string, 
+    public objectName: string) { }
 
   public setEndpoint(endpoint: string) {
     this.endpoint = endpoint;
     this.owner = '';
     this.objectType = '';
+    this.objectName = '';
   }
 
   public setOwner(owner: string) {
     this.owner = owner;
     this.objectType = '';
+    this.objectName = '';
   }
 
   public setObjectType(objectType: string) {
     this.objectType = objectType;
+    this.objectName = '';
+  }
+
+  public setObjectName(objectName: string) {
+    this.objectName = objectName;
   }
 }

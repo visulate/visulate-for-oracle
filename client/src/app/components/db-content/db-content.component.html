@@ -1,2 +1,54 @@
-<h3>{{currentEndpoint.connectString}}</h3>
-<p>{{currentEndpoint.description}}</p>
+<div *ngIf="currentContext.objectName; else welcomeMsg">
+    <h1>{{currentContext.objectType}} - {{currentContext.objectName}}</h1>
+    <div *ngIf="objectDetails">
+            <div *ngFor="let property of objectDetails">
+                <div *ngIf="property.rows?.length > 0">
+                        <h3>{{property.title}}</h3>
+                        <table mat-table [dataSource]="property.rows">
+                            <ng-container matColumnDef="{{dColumn}}" 
+                                *ngFor="let dColumn of property.display">
+                                <th mat-header-cell *matHeaderCellDef> {{dColumn}}</th>
+                                <td mat-cell *matCellDef="let element"> {{element[dColumn]}} </td>
+                            </ng-container>
+                                    
+                            <tr mat-header-row *matHeaderRowDef="property.display"></tr>
+                            <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
+                        </table>
+                </div>
+            </div>    
+        </div>
+</div>
+<ng-template #welcomeMsg>
+    <h1>Oracle Data Dictionary Browser</h1>
+    <div *ngIf="!currentContext.endpoint">
+        <h3>Select a Database</h3>
+        <p>Use the Database dropdown to select a database</p>
+    </div>
+    <div *ngFor="let ep of endpointList.endpoints">
+        <div *ngIf="ep.endpoint == currentContext.endpoint">
+                <h3>{{ep.endpoint}} - {{ep.connectString}}</h3>
+                <p *ngIf="ep.description">{{ep.description}}</p>
+                <div *ngFor="let schema of ep.schemas">
+                    <div *ngIf="!currentContext.owner || currentContext.owner == schema.owner">
+                            <h5>Schema: {{schema.owner}}</h5>
+                            <table mat-table [dataSource]="schema.object_types">
+                                <ng-container matColumnDef="type">
+                                    <th mat-header-cell *matHeaderCellDef>Object Type</th>
+                                    <td mat-cell *matCellDef="let element"> {{element.type}} </td>
+                                </ng-container>
+                                <ng-container matColumnDef="count">
+                                    <th mat-header-cell *matHeaderCellDef>Object Count</th>
+                                    <td mat-cell *matCellDef="let element"> {{element.count}} </td>
+                                </ng-container>
+                                <tr mat-header-row *matHeaderRowDef="schemaColumns"></tr>
+                                <tr mat-row *matRowDef="let row; columns: schemaColumns;"></tr>
+                            </table>      
+                    </div>                      
+                </div>
+        </div>
+    </div>
+</ng-template>
+
+
+
+

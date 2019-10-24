@@ -14,12 +14,25 @@
  * limitations under the License.
  */
 
-import { CurrentContextModel } from './current-context.model';
+import { Deserializable } from './deserializable.model';
 
-describe('CurrentContext.Model', () => {
-  it('should create an instance', () => {
-    expect(new CurrentContextModel(
-      "mockEndpoint", "mockOwner", "TABLE" 
-    )).toBeTruthy();
-  });
-});
+export class DatabaseObjectModel implements Deserializable {
+    public objectProperties: ObjectPropertyModel[];
+    deserialize(input: any): this {
+        this.objectProperties = input.endpoints.map (
+          property => new ObjectPropertyModel().deserialize(property)
+        );
+        return this;
+      }
+}
+
+export class ObjectPropertyModel implements Deserializable {
+    public title: string;
+    public display: string[];
+    public rows: any[];
+
+    deserialize(input: any): this {
+        Object.assign(this, input);
+        return this;
+    }
+}

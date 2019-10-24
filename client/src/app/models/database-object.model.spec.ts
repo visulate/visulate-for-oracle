@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import { CurrentContextModel } from './current-context.model';
+import { DatabaseObjectModel } from './database-object.model';
 
-describe('CurrentContext.Model', () => {
+describe('DatabaseObject.Model', () => {
   it('should create an instance', () => {
-    expect(new CurrentContextModel(
-      "mockEndpoint", "mockOwner", "TABLE" 
-    )).toBeTruthy();
+    expect(new DatabaseObjectModel()).toBeTruthy();
   });
 });

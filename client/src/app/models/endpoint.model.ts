@@ -135,9 +135,3 @@ function convertSchema(input: any): SchemaModel[] {
     return Object.assign(this, input);
   }
 }
-
-
-
-
-
-

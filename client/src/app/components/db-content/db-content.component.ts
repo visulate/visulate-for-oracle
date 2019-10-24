@@ -15,8 +15,11 @@
  */
 
 import { Component, OnInit } from '@angular/core';
+import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
-import { EndpointModel } from '../../models/endpoint.model';
+import { EndpointModel, EndpointListModel } from '../../models/endpoint.model';
+import { CurrentContextModel } from '../../models/current-context.model';
+import { DatabaseObjectModel } from '../../models/database-object.model'
 
 @Component({
   selector: 'app-db-content',
@@ -28,12 +31,36 @@ import { EndpointModel } from '../../models/endpoint.model';
  * Content to display in main body
  */
 export class DbContentComponent implements OnInit {
+  public endpointList: EndpointListModel;
   public currentEndpoint: EndpointModel;
-  constructor(private state: StateService) { }
+  public currentContext: CurrentContextModel;
+  public objectDetails: DatabaseObjectModel;
+
+  public schemaColumns: string[] = ['type', 'count'];
+
+  constructor(
+    private restService: RestService,
+    private state: StateService) { }
+
+  processContextChange(context: CurrentContextModel) {
+    this.currentContext = context;
+    if (context.endpoint && context.owner && context.objectType && context.objectName) {
+      this.restService.getObjectDetails
+      (context.endpoint, context.owner, context.objectType, context.objectName)
+        .subscribe(result => { this.objectDetails = result; });
+    }
+  }
 
   ngOnInit() {
+    this.state.endpoints.subscribe(
+      endpoints => { this.endpointList = endpoints; }
+    );
     this.state.currentEndpoint.subscribe(
-      currentEndpoint => { this.currentEndpoint = currentEndpoint;} );
+      currentEndpoint => { this.currentEndpoint = currentEndpoint; }
+    );
+    this.state.currentContext.subscribe(
+      context => { this.processContextChange(context); }
+    );
   }
 
 }

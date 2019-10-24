@@ -22,6 +22,7 @@ let collection = {};
  */
 statement['COUNT_DBA_OBJECTS'] = {
   'title': 'Object Count',
+  'display': [],
   'sql' : `select owner, object_type, count(*) as object_count
            from dba_objects o
            where not exists (select 1
@@ -35,6 +36,7 @@ statement['COUNT_DBA_OBJECTS'] = {
 };
 statement['LIST_DBA_OBJECTS'] = {
   'title': 'Object List',
+  'display': [],
   'sql': `select object_name
           from dba_objects
           where  owner = :owner
@@ -52,16 +54,17 @@ statement['LIST_DBA_OBJECTS'] = {
 };
 statement['OBJECT-DETAILS'] = {
   'title': 'Object Details',
-  'sql': `select object_name
-          ,      object_type
-          ,      owner
+  'display': ["Object Name", "Type", "Owner", "Created"], 
+  'sql': `select object_name as "Object Name"
+          ,      object_type as "Type"
+          ,      owner as "Owner"
           ,      object_id
           ,      data_object_id
           ,      subobject_name
-          ,      created
-          ,      last_ddl_time
-          ,      timestamp
-          ,      status
+          ,      to_char(created, 'Mon dd, yyyy') as "Created"
+          ,      to_char(last_ddl_time, 'Mon dd, yyyy') as "Last DDL"
+          ,      timestamp as "Timestamp"
+          ,      status as "Status"
           ,      temporary
           ,      generated
           ,      secondary
@@ -77,11 +80,13 @@ statement['OBJECT-DETAILS'] = {
 };
 statement['TABLE-DETAILS'] = {
   'title': 'Table Details',
-  'sql': `select table_name
+  'display': ["Name", "Rows", "Tablespace", "Temporary", "Duration"],
+  'sql': `select table_name as "Name"
           ,      num_rows
-          ,      tablespace_name
-          ,      temporary
-          ,      duration
+          ,      to_char(num_rows, 'FM999,999,999,999') as "Rows"
+          ,      tablespace_name as "Tablespace"
+          ,      temporary as "Temporary"
+          ,      duration as "Duration"
           from dba_tables
           where table_name = :object_name
           and owner = :owner
@@ -93,7 +98,8 @@ statement['TABLE-DETAILS'] = {
 };
 statement['TABLE-COMMENTS'] = {
   'title': 'Description',
-  'sql' : `select comments
+  'display': ["Description"],
+  'sql' : `select comments as "Description"
            from dba_tab_comments
            where owner = :owner
            and table_name = :object_name
@@ -105,11 +111,12 @@ statement['TABLE-COMMENTS'] = {
 };
 statement['TABLE-INDEXES'] = {
   'title': 'Indexes',
-  'sql' : `select index_name
-           ,      index_type
-           ,      uniqueness
-           ,      tablespace_name
-           ,      owner
+  'display': ["Index", "Type", "Uniqueness", "Tablespace", "Owner"],
+  'sql' : `select index_name as "Index"
+           ,       index_type as "Type"
+           ,      uniqueness as "Uniqueness"
+           ,      tablespace_name as "Tablespace"
+           ,      owner as "Owner"
            from dba_indexes
            where table_owner = :owner
            and table_name = :object_name
@@ -121,11 +128,12 @@ statement['TABLE-INDEXES'] = {
 };
 statement['INDEX-COLUMNS'] = {
   'title': 'Index Columns',
-  'sql' : `select column_name
+  'display': ["Column"],
+  'sql' : `select column_name as "Column"
            ,      column_length
            from dba_ind_columns
            where index_owner = :owner
-           and index_name :object_name
+           and index_name = :object_name
            order by column_position`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
@@ -134,7 +142,8 @@ statement['INDEX-COLUMNS'] = {
 };
 statement['INDEX-FUNCTION'] = {
   'title': 'Index Expression',
-  'sql' : `select column_expression
+  'display': ["Expression"],
+  'sql' : `select column_expression as "Expression"
            from dba_ind_expressions
            where index_owner = :owner
            and index_name = :object_name
@@ -146,12 +155,25 @@ statement['INDEX-FUNCTION'] = {
 };
 statement['TABLE-KEYS'] = {
   'title': 'Keys',
-  'sql' : `select constraint_type
-           ,      constraint_name
-           from dba_constraints
-           where owner = :owner
-           and table_name = :object_name
-           order by constraint_type, constraint_name`,
+  'display': ["Name", "Constraint Type", "Column", "Search Condition"],
+  'sql' : `select c.constraint_name as "Name"
+          ,       DECODE(c.constraint_type,
+                         'C', 'Check',
+                         'F', 'Foreign key', 
+                         'P', 'Primary key',
+                         'U', 'Unique key',
+                         'R', 'Referential integrity',
+                         'V', 'Constraint on a view',
+                         'O', 'Read-only, on a view') as "Constraint Type"   
+           ,      cc.column_name as "Column"
+           ,      c.search_condition as "Search Condition"
+           from dba_constraints c
+           ,    dba_cons_columns cc
+           where c.owner = :owner
+           and c.table_name = :object_name
+           and c.owner = cc.owner (+)
+           and c.constraint_name = cc.constraint_name (+)
+           order by c.constraint_type, c.constraint_name`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
@@ -159,6 +181,7 @@ statement['TABLE-KEYS'] = {
 };
 statement['CONSTRAINT-COLUMNS'] = {
   'title': 'Key Columns',
+  'display': [],
   'sql': `select column_name
           from dba_cons_columns
           where owner = :owner 
@@ -171,12 +194,13 @@ statement['CONSTRAINT-COLUMNS'] = {
 };
 statement['TABLE-COLUMNS'] = {
   'title': 'Columns',
-  'sql' : `select col.column_name
-           ,      col.data_type
-           ,      col.data_length
-           ,      col.data_precision
-           ,      col.nullable
-           ,      com.comments
+  'display': ["Name", "Type", "Length", "Precision", "Nullable", "Comments"],
+  'sql' : `select col.column_name as "Name"
+           ,      col.data_type as "Type"
+           ,      col.data_length as "Length"
+           ,      col.data_precision as "Precision"
+           ,      col.nullable as "Nullable"
+           ,      com.comments as "Comments"
            from dba_tab_columns col
            ,    dba_col_comments com
            where col.owner = :owner
@@ -191,7 +215,8 @@ statement['TABLE-COLUMNS'] = {
 };
 statement['FK-IN-TABLE'] = {
   'title': 'Foreign Keys',
-  'sql': `select obj.name as table_name
+  'display': ["Table"],
+  'sql': `select obj.name as "Table"
           ,    cdef.robj# object_id
           ,    cdef.con# cons_id
           from sys.cdef$ cdef
@@ -206,7 +231,8 @@ statement['FK-IN-TABLE'] = {
 };
 statement['FK-TO-TABLE'] = {
   'title': 'Foreign Keys to this Table',
-  'sql': `select obj.name as table_name
+  'display': ["Table"],
+  'sql': `select obj.name as "Table"
           ,    cdef.obj# object_id
           ,    cdef.con# cons_id
           from sys.cdef$ cdef
@@ -220,7 +246,8 @@ statement['FK-TO-TABLE'] = {
 };
 statement['VIEW-SOURCE'] = {
   'title': 'Source',
-  'sql': `select text
+  'display': ["Source"],
+  'sql': `select text "Source"
           from dba_views
           where owner = :owner
           and view_name = :object_name  `,
@@ -231,15 +258,17 @@ statement['VIEW-SOURCE'] = {
 };
 statement['MVIEW-DETAILS'] = {
   'title': 'Materialized View Details',
-  'sql' : `select container_name
-           ,      updatable
-           ,      rewrite_enabled
-           ,      rewrite_capability
-           ,      refresh_mode
-           ,      refresh_method
-           ,      build_mode
-           ,      fast_refreshable
-           ,      query
+  'display': ["Container", "Updatable", "Rewrite Enabled", "Rewrite Capacity",
+              "Refresh Mode", "Build Mode", "Fast Refreshable", "Query"],
+  'sql' : `select container_name as "Container"
+           ,      updatable as "Updatable"
+           ,      rewrite_enabled as "Rewrite Enabled"
+           ,      rewrite_capability as "Rewrite Capacity"
+           ,      refresh_mode as "Refresh Mode"
+           ,      refresh_method as "Refresh Method"
+           ,      build_mode as "Build Mode"
+           ,      fast_refreshable as "Fast Refreshable"
+           ,      query as "Query"
            from dba_mviews
            where owner = :owner
            and mview_name = :object_name`,
@@ -250,7 +279,8 @@ statement['MVIEW-DETAILS'] = {
 };
 statement['MVIEW-LOG_DEPENDENCIES'] = {
   'title': 'Log Dependencies',
-  'sql' : `select lpad(' ',5*(LEVEL-1)) || master  tree_entry
+  'display': ["Tree Entry"],
+  'sql' : `select lpad(' ',5*(LEVEL-1)) || master  as "Tree Entry"
            from sys.snap_reftime$ 
            start with sowner = :owner
                   and vname = :object_name
@@ -263,15 +293,18 @@ statement['MVIEW-LOG_DEPENDENCIES'] = {
 };
 statement['TRIGGER-DETAILS'] = {
   'title': 'Trigger Details',
-  'sql' : `select table_owner
-           ,      base_object_type
-           ,      table_name
-           ,      column_name
-           ,      referencing_names
-           ,      when_clause
-           ,      description
-           ,      action_type
-           ,      trigger_body
+  'display': ["Table Owner", "Base Object Type", "Table Name", 
+              "Column", "Referencing Names", "When Clause", 
+              "Description", "Action Type", "Body"],
+  'sql' : `select table_owner as "Table Owner"
+           ,      base_object_type as "Base Object Type"
+           ,      table_name as "Table Name"
+           ,      column_name as "Column"
+           ,      referencing_names as "Referencing Names"
+           ,      when_clause as "When Clause"
+           ,      description as "Description"
+           ,      action_type as "Action Type"
+           ,      trigger_body as "Body"
            from dba_triggers
            where owner = :owner
            and   trigger_name = :object_name`,
@@ -282,9 +315,10 @@ statement['TRIGGER-DETAILS'] = {
 };
 statement['DECODE-SYNONYM'] = {
   'title': 'Synonym for',
-  'sql' : `select table_owner
-           ,      table_name
-           ,      db_link
+  'display': ["Table Owner", "Table Name", "Database Link"],
+  'sql' : `select table_owner as "Table Owner"
+           ,      table_name as "Table Name"
+           ,      db_link as "Database Link"
            from sys.dba_synonyms
            where owner = :owner
            and synonym_name = :object_name`,
@@ -295,14 +329,16 @@ statement['DECODE-SYNONYM'] = {
 };
 statement['QUEUE-DETAILS'] = {
   'title': 'Queue Details',
-  'sql' : `select queue_table
-           ,      queue_type
-           ,      max_retries
-           ,      retry_delay
-           ,      enqueue_enabled
-           ,      dequeue_enabled
-           ,      retention
-           ,      user_comment
+  'display': ["Queue Table", "Queue Type", "Max Retries", "Retry Delay",
+              "Enqueue Enabled", "Dequeue Enabled", "Retention", "User Comments"],
+  'sql' : `select queue_table as "Queue Table"
+           ,      queue_type as "Queue Type"
+           ,      max_retries as "Max Retries"
+           ,      retry_delay as "Retry Delay"
+           ,      enqueue_enabled as "Enqueue Enabled"
+           ,      dequeue_enabled as "Dequeue Enabled"
+           ,      retention as "Retention"
+           ,      user_comment as "User Comments"
            from dba_queues
            where owner = :owner
            and name = :object_name`,
@@ -313,11 +349,12 @@ statement['QUEUE-DETAILS'] = {
 };
 statement['TYPE-DETAILS'] = {
   'title': 'Type Details',
-  'sql' : `select typecode
-           ,      attributes
-           ,      methods
-           ,      predefined
-           ,      incomplete
+  'display': ["Typecode", "Attributes", "Methods", "Pre-Defined", "Incomplete"],
+  'sql' : `select typecode as "Typecode"
+           ,      attributes as "Attributes"
+           ,      methods as "Methods"
+           ,      predefined as "Pre-Defined"
+           ,      incomplete as "Incomplete"
            from dba_types
            where owner = :owner
            and type_name = :object_name`,
@@ -328,19 +365,22 @@ statement['TYPE-DETAILS'] = {
 };
 statement['COLLECTION-TYPE-DETAILS'] = {
   'title': 'Collection Type Details',
+  'display': ["Type Name", "Collection Type", "Upper Bound", "Element Type", 
+              "Element Type Modifier", "Precision", "Scale", "Character Set",
+              "Storage", "Nulls Stored"],
   'sql' : `select owner
-           ,      type_name
-           ,      coll_type
-           ,      upper_bound
-           ,      elem_type_mod
+           ,      type_name as "Type Name"
+           ,      coll_type as "Collection Type"
+           ,      upper_bound as "Upper Bound"
+           ,      elem_type_mod as "Element Type Modifier"
            ,      elem_type_owner
-           ,      elem_type_name
-           ,      length
-           ,      precision
-           ,      scale
-           ,      character_set_name
-           ,      elem_storage
-           ,      nulls_stored
+           ,      elem_type_name as "Element Type"
+           ,      length as "Length"
+           ,      precision as "Precision"
+           ,      scale as "Scale"
+           ,      character_set_name as "Character Set"
+           ,      elem_storage as "Storage"
+           ,      nulls_stored as "Nulls Stored"
            from dba_coll_types
            where owner = :owner
            and type_name= :object_name`,
@@ -351,16 +391,17 @@ statement['COLLECTION-TYPE-DETAILS'] = {
 };
 statement['TYPE-ATTRIBUTES'] = {
   'title': 'Type Attributes',
+  'display': ["Type", "Attribute", "Attribute Type", "Length", "Precision", "Character Set"],
   'sql' : `select owner
-           ,      type_name
-           ,      attr_name
-           ,      attr_type_mod
-           ,      attr_type_owner
-           ,      attr_type_name
-           ,      length
-           ,      precision
-           ,      scale
-           ,      character_set_name
+           ,      type_name as "Type"
+           ,      attr_name as "Attribute"
+           ,      attr_type_mod as "Modifier"
+           ,      attr_type_owner as "Owner"
+           ,      attr_type_name as "Attribute Type"
+           ,      length as "Length"
+           ,      precision as "Precision"
+           ,      scale as "Scale"
+           ,      character_set_name as "Character Set"
            ,      attr_no
            from dba_type_attrs
            where owner = :owner
@@ -373,13 +414,14 @@ statement['TYPE-ATTRIBUTES'] = {
 };
 statement['TYPE-METHODS'] = {
   'title': 'Type Methods',
+  'display': ["Type", "Method", "Method Type", "Parameters", "Results"],
   'sql' : `select owner
-           ,      type_name
-           ,      method_name
+           ,      type_name as "Type"
+           ,      method_name as "Method"
            ,      method_no
-           ,      method_type
-           ,      parameters
-           ,      results
+           ,      method_type as "Method Type"
+           ,      parameters as "Parameters"
+           ,      results as "Results"
            from dba_type_methods
            where owner = :owner
            and type_name = :object_name
@@ -391,9 +433,10 @@ statement['TYPE-METHODS'] = {
 };
 statement['METHOD-PARAMETERS'] = {
   'title': 'Method Parameters',
-  'sql' : `select param_name
+  'display': ["Parameter", "Parameter Type"],
+  'sql' : `select param_name as "Parameter"
            ,      param_no
-           ,      param_type_name
+           ,      param_type_name as "Parameter Type"
            from dba_method_params
            where owner = :owner
            and type_name = :object_name
@@ -409,7 +452,8 @@ statement['METHOD-PARAMETERS'] = {
 };
 statement['METHOD-RESULTS'] = {
   'title': 'Method Results',
-  'sql' : `select result_type_name
+  'display': ["Result Type"],
+  'sql' : `select result_type_name as "Result Type"
            from sys.dba_method_results
            where owner = :owner
            and type_name = :object_name
@@ -424,8 +468,9 @@ statement['METHOD-RESULTS'] = {
 };
 statement['SOURCE'] = {
   'title': 'Source',
-  'sql' : `select line
-           ,      text
+  'display': ["Line", "Text"],
+  'sql' : `select line as "Line"
+           ,      text as "Text"
            from dba_source
            where owner = :owner
            and type = :object_type
@@ -438,9 +483,10 @@ statement['SOURCE'] = {
 };
 statement['ERRORS'] = {
   'title': 'Error Details',
-  'sql' : `select line
-           ,      position
-           ,      text
+  'display': ["Line", "Position", "Text"],
+  'sql' : `select line as "Line"
+           ,      position as "Position"
+           ,      text as "Text"
            from dba_errors
            where owner = :owner
            and type = :object_type
@@ -454,8 +500,9 @@ statement['ERRORS'] = {
 };
 statement['SOURCE-LINE-DEPENDENCY'] = {
   'title': 'Source Dependencies',
-  'sql' : `select line
-    ,      source
+  'display': [ "Line Number", "Text"],
+  'sql' : `select line as "Line Number"
+    ,      source as "Text"
     from sys.source$
     where upper(source) like c_name
     and obj# = :object_id`,
@@ -465,10 +512,11 @@ statement['SOURCE-LINE-DEPENDENCY'] = {
 };
 statement['USED-BY-OBJECTS'] = {
   'title': 'Used By',
+  'display': ["Object Name", "Object Type", "Owner"],
   'sql' : `select d_obj# object_id
-           ,      object_name
-           ,      object_type
-           ,      owner
+           ,      object_name as "Object Name"
+           ,      object_type as "Object Type"
+           ,      owner as "Owner"
            from sys.dependency$
            ,    dba_objects
            where p_obj# = :object_id
@@ -480,10 +528,11 @@ statement['USED-BY-OBJECTS'] = {
 };
 statement['USES-OBJECTS'] = {
   'title': 'Uses',
+  'display': ["Object Name", "Object Type", "Owner"],
   'sql' : `select p_obj#
-           ,      object_name
-           ,      object_type
-           ,      owner
+           ,      object_name as "Object Name"
+           ,      object_type as "Object Type"
+           ,      owner as "Owner"
            from sys.dependency$
            ,    dba_objects
            where d_obj# = :object_id

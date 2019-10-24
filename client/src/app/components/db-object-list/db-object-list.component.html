@@ -1,5 +1,5 @@
 <div *ngIf="currentContext.objectType">
 <mat-nav-list *ngFor="let objectName of objectList">
-  <a mat-list-item href="#">{{objectName}}</a>
+  <a mat-list-item (click)="setObjectName(objectName)">{{objectName}}</a>
 </mat-nav-list>
 </div>
