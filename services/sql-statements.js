@@ -34,6 +34,18 @@ statement['COUNT_DBA_OBJECTS'] = {
    'params': {
    }
 };
+statement['VALIDATE-OWNER-AND-TYPE'] = {
+  'title': 'Validate OWNER + OBJECT_TYPE combination',
+  'display': [],
+  'sql': `select count(*) as object_count
+          from dba_objects
+          where owner = :owner
+          and object_type = :object_type`,
+  'params' : {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_type : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
 statement['LIST_DBA_OBJECTS'] = {
   'title': 'Object List',
   'display': [],
