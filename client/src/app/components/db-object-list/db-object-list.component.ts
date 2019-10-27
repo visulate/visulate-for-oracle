@@ -15,6 +15,7 @@
  */
 
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
 import { CurrentContextModel } from '../../models/current-context.model';
@@ -34,14 +35,12 @@ export class DbObjectListComponent implements OnInit {
 
   constructor(
     private restService: RestService,
-    private state: StateService) { }
-
-  setObjectName(objectName: string) {
-    this.state.setCurrentObject(objectName);
-  }  
+    private state: StateService,
+    private route: ActivatedRoute) { }
 
   processContextChange( context: CurrentContextModel ) {
     this.currentContext = context;
+    console.log(`${this.currentContext.endpoint}/${this.currentContext.owner}/${this.currentContext.objectType}/${this.currentContext.objectName}`);
     if (context.endpoint && context.owner && context.objectType){
       this.restService.getObjectList(context.endpoint, context.owner, context.objectType)
         .subscribe(result => {this.objectList = result;});

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export class CurrentContextModel {
+
+ export class CurrentContextModel {
   /**
    * Maintains the current database, schema and object type selection
    * 
@@ -50,3 +51,4 @@ export class CurrentContextModel {
     this.objectName = objectName;
   }
 }
+

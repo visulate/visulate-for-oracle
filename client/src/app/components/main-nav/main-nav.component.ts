@@ -18,6 +18,10 @@ import { Component } from '@angular/core';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Observable } from 'rxjs';
 import { map, shareReplay } from 'rxjs/operators';
+import { ActivatedRoute } from '@angular/router';
+import { StateService } from '../../services/state.service';
+import { CurrentContextModel } from '../../models/current-context.model';
+import { EndpointListModel, EndpointModel, SchemaModel } from '../../models/endpoint.model';
 
 @Component({
   selector: 'app-main-nav',
@@ -31,13 +35,39 @@ import { map, shareReplay } from 'rxjs/operators';
  * `ng generate @angular/material:materialNav --name main-nav`
  */
 export class MainNavComponent {
-
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.Handset)
     .pipe(
       map(result => result.matches),
       shareReplay()
     );
 
-  constructor(private breakpointObserver: BreakpointObserver) {}
+  constructor(
+    private breakpointObserver: BreakpointObserver,
+    private route: ActivatedRoute,
+    private state: StateService
+    ) {}
+
+  setContext(): void {
+    let context = new CurrentContextModel('', '', '', '');
+
+    this.route.paramMap.subscribe(params => {
+      const db = params.get('db');
+      const schema = params.get('schema');
+      const type = params.get('type');
+      const object = params.get('object');
+
+      if (db != null) { context.setEndpoint(db); }
+      if (schema != null) { context.setOwner(schema.toUpperCase()); }
+      if (type != null) { context.setObjectType(type.toUpperCase()); }
+      if (object != null) { context.setObjectName(object.toUpperCase()); }
+
+      this.state.setCurrentContext(context);
+    });
+    
+  }
+
+  ngOnInit(): void {
+    this.setContext();
+  }
 
 }

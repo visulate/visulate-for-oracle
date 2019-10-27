@@ -19,6 +19,7 @@ import { BehaviorSubject } from 'rxjs';
 import { EndpointListModel, EndpointModel, SchemaModel } from '../models/endpoint.model';
 import { CurrentContextModel } from '../models/current-context.model';
 
+
 @Injectable({
   providedIn: 'root'
 })
@@ -38,6 +39,10 @@ export class StateService {
   currentContext = this.selectedContext.asObservable();
 
   constructor() { }
+
+  setCurrentContext(context: CurrentContextModel) {
+    this.selectedContext.next(context);
+  }
 
   setCurrentObject(objectName: string){
     this.context.setObjectName(objectName);
@@ -67,4 +72,5 @@ export class StateService {
     this.endpointList.next(endpoints);
     this.setCurrentEndpoint(endpoints[0]);
   }
+
 }
