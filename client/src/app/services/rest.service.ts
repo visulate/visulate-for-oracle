@@ -37,7 +37,7 @@ export class RestService {
   /**
    * Gets a list of database endpoints + object type summary
    */
-  public getEndpoints(): Observable<EndpointListModel> {
+  public getEndpoints$(): Observable<EndpointListModel> {
     return this.http.get<EndpointListModel>(environment.apiBase).pipe(
       map(data => new EndpointListModel().deserialize(data))
     );
@@ -51,7 +51,7 @@ export class RestService {
    * @param objectName - object name or wildcard pattern
    * @param objectStatus - Status (VALID, INVALID or *)
    */
-  public getObjectList(
+  public getObjectList$(
     endpoint: string,
     owner: string,
     objectType: string,
@@ -68,7 +68,7 @@ export class RestService {
    * @param objectType - object type
    * @param objectName - object name
    */
-  public getObjectDetails(
+  public getObjectDetails$(
     endpoint: string,
     owner: string,
     objectType: string,

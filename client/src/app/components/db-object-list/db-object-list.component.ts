@@ -18,6 +18,8 @@ import { Component, OnInit } from '@angular/core';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
 import { CurrentContextModel } from '../../models/current-context.model';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-db-object-list',
@@ -30,26 +32,36 @@ export class DbObjectListComponent implements OnInit {
    * for current context selections
    */
   public currentContext: CurrentContextModel;
-  public objectList: String[];
+  private currentObjectType: string;
+  public objectList: string[];
+  private unsubscribe$ = new Subject<void>();
 
   constructor(
     private restService: RestService,
     private state: StateService) { }
 
-  setObjectName(objectName: string) {
-    this.state.setCurrentObject(objectName);
-  }  
-
-  processContextChange( context: CurrentContextModel ) {
+  /**
+   * Update the object list when the current context changes
+   * @param context - current context subscription
+   */
+  processContextChange(context: CurrentContextModel) {
     this.currentContext = context;
-    if (context.endpoint && context.owner && context.objectType){
-      this.restService.getObjectList(context.endpoint, context.owner, context.objectType)
-        .subscribe(result => {this.objectList = result;});
+    if (context.endpoint && context.owner && context.objectType && (this.currentObjectType != context.objectType)) {
+      this.restService.getObjectList$(context.endpoint, context.owner, context.objectType)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => { this.objectList = result; });
     }
+    this.currentObjectType = context.objectType;
   }
 
   ngOnInit() {
-    this.state.currentContext
+    this.state.currentContext$
+      .pipe(takeUntil(this.unsubscribe$))
       .subscribe(context => { this.processContextChange(context); });
+  }
+
+  ngOnDestroy() {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 }

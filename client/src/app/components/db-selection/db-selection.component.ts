@@ -15,8 +15,12 @@
  */
 
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router'
 import { StateService } from '../../services/state.service';
-import { EndpointListModel, EndpointModel, SchemaModel } from '../../models/endpoint.model';
+import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
+import { CurrentContextModel } from '../../models/current-context.model';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-db-selection',
@@ -30,27 +34,77 @@ export class DbSelectionComponent implements OnInit {
   public endpoints: EndpointListModel;
   public currentEndpoint: EndpointModel;
   public currentSchema: SchemaModel;
+  public currentObjectType: ObjectTypeListItem; 
+  private currentContext: CurrentContextModel;
+  private unsubscribe$ = new Subject<void>();
+  
 
-  constructor(private state: StateService) { }
+  constructor(
+    private state: StateService,
+    private router: Router) { }
 
-  setObjectType(objectType: string) {
-    this.state.setCurrentObjectType(objectType);
+  setObjectType(objectType: ObjectTypeListItem) {
+    this.currentObjectType = objectType;
+    this.router.navigate
+      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
   }
 
   setSchema(schema: SchemaModel) {
-    this.state.setCurrentSchema(schema);
+    this.currentSchema = schema;
+    this.router.navigate
+      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
   }
 
   setEndpoint(endpoint: EndpointModel){
-    this.state.setCurrentEndpoint(endpoint);
+    this.currentEndpoint = endpoint;
+    this.router.navigate([`/database/${endpoint.endpoint}`]);
+  }
+
+  /**
+   * Update the object type selection form on initial load
+   * @param endpoints - database endpoint list subscription
+   */
+  processEndpointListChange(endpoints: EndpointListModel) {
+    this.endpoints = endpoints;
+    if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases) {
+      this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
+    }   
+    if (this.currentContext && this.currentEndpoint && this.currentEndpoint.schemas) {
+      this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
+    }
+    if (this.currentContext && this.currentSchema && this.currentSchema.object_types) {
+      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
+    }
+  }
+
+  /**
+   * Update the object type selection form when the current context changes
+   * @param context - Current context (db, schema, object type and name) subscription
+   */
+  processContextChange( context: CurrentContextModel ) {  
+    this.currentContext = context;
+    if (this.endpoints.databases) {
+      this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
+    }
+    if (this.currentEndpoint && this.currentEndpoint.schemas){
+      this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
+    }
+    if (this.currentSchema && this.currentSchema.object_types){
+      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
+    }
   }
 
   ngOnInit() {
-     this.state.endpoints.subscribe(
-       endpoints => { this.endpoints = endpoints; });
-     this.state.currentEndpoint.subscribe(
-       currentEndpoint => { this.currentEndpoint = currentEndpoint;} );
-     this.state.currentSchema.subscribe(
-       currentSchema => { this.currentSchema = currentSchema;} );
+     this.state.endpoints$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(endpoints => { this.processEndpointListChange(endpoints) });
+    this.state.currentContext$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(context => { this.processContextChange(context); });
+  }
+
+  ngOnDestroy() {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 }

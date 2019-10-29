@@ -24,7 +24,7 @@
         <h3>Select a Database</h3>
         <p>Use the Database dropdown to select a database</p>
     </div>
-    <div *ngFor="let ep of endpointList.endpoints">
+    <div *ngFor="let ep of endpointList.databases">
         <div *ngIf="ep.endpoint == currentContext.endpoint">
                 <h3>{{ep.endpoint}} - {{ep.connectString}}</h3>
                 <p *ngIf="ep.description">{{ep.description}}</p>

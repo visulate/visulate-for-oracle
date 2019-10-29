@@ -20,9 +20,9 @@ export class EndpointListModel implements Deserializable {
    * Container for array of API endpoints.  Each endpoint
    * corresponds to a database connection.
    */
-  public endpoints: EndpointModel[];
+  public databases: EndpointModel[];
   deserialize(input: any): this {
-    this.endpoints = input.endpoints.map (
+    this.databases = input.endpoints.map (
       endpoint => new EndpointModel().deserialize(endpoint)
     );
     return this;
@@ -127,7 +127,7 @@ function convertSchema(input: any): SchemaModel[] {
   return(outputSchemas);
 }
 
- class ObjectTypeListItem  implements Deserializable {
+ export class ObjectTypeListItem  implements Deserializable {
   public type: string;
   public count: number;
 

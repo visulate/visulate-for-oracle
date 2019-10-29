@@ -1,5 +1,7 @@
 <div *ngIf="currentContext.objectType">
 <mat-nav-list *ngFor="let objectName of objectList">
-  <a mat-list-item (click)="setObjectName(objectName)">{{objectName}}</a>
+  <a mat-list-item 
+    routerLink="/database/{{currentContext.endpoint}}/{{currentContext.owner}}/{{currentContext.objectType}}/{{objectName}}"
+    [class.active]="objectName==currentContext.objectName" >{{objectName}}</a>
 </mat-nav-list>
 </div>

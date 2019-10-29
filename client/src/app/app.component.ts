@@ -16,6 +16,8 @@
 import { Component } from '@angular/core';
 import { RestService } from './services/rest.service';
 import { StateService } from './services/state.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
@@ -36,11 +38,17 @@ export class AppComponent {
      private state: StateService
    ) { }
 
+   private unsubscribe$ = new Subject<void>();
+
   ngOnInit(): void {
     // call REST API to get list of databases
-     this.restService.getEndpoints()
-      .subscribe(endpoints => {
-        this.state.saveEndpoints(endpoints)
-      });
+     this.restService.getEndpoints$()
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(endpoints => { this.state.saveEndpoints(endpoints) });
+  }
+
+  ngOnDestroy(){
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 }

@@ -17,9 +17,11 @@
 import { Component, OnInit } from '@angular/core';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
-import { EndpointModel, EndpointListModel } from '../../models/endpoint.model';
+import { EndpointListModel } from '../../models/endpoint.model';
 import { CurrentContextModel } from '../../models/current-context.model';
 import { DatabaseObjectModel } from '../../models/database-object.model'
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-db-content',
@@ -32,11 +34,11 @@ import { DatabaseObjectModel } from '../../models/database-object.model'
  */
 export class DbContentComponent implements OnInit {
   public endpointList: EndpointListModel;
-  public currentEndpoint: EndpointModel;
   public currentContext: CurrentContextModel;
   public objectDetails: DatabaseObjectModel;
 
   public schemaColumns: string[] = ['type', 'count'];
+  private unsubscribe$ = new Subject<void>();
 
   constructor(
     private restService: RestService,
@@ -45,22 +47,25 @@ export class DbContentComponent implements OnInit {
   processContextChange(context: CurrentContextModel) {
     this.currentContext = context;
     if (context.endpoint && context.owner && context.objectType && context.objectName) {
-      this.restService.getObjectDetails
+      this.restService.getObjectDetails$
       (context.endpoint, context.owner, context.objectType, context.objectName)
+        .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.objectDetails = result; });
     }
   }
 
   ngOnInit() {
-    this.state.endpoints.subscribe(
-      endpoints => { this.endpointList = endpoints; }
-    );
-    this.state.currentEndpoint.subscribe(
-      currentEndpoint => { this.currentEndpoint = currentEndpoint; }
-    );
-    this.state.currentContext.subscribe(
-      context => { this.processContextChange(context); }
-    );
+    this.state.endpoints$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(endpoints => { this.endpointList = endpoints; } );
+    this.state.currentContext$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe( context => { this.processContextChange(context); } );
+  }
+
+  ngOnDestroy(){
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 
 }
