@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem} from './endpoint.model'
 
  export class CurrentContextModel {
   /**
@@ -49,6 +50,18 @@
 
   public setObjectName(objectName: string) {
     this.objectName = objectName;
+  }
+
+  public findCurrentEndpoint(endpointList: EndpointListModel): EndpointModel {
+    return endpointList.databases.find(database => database.endpoint === this.endpoint);
+  }
+
+  public findCurrentSchema(endpoint: EndpointModel): SchemaModel {
+    return endpoint.schemas.find(schema => schema.owner === this.owner);
+  }
+
+  public findCurrentObjectType(schema: SchemaModel) : ObjectTypeListItem {
+    return schema.object_types.find(object_type => object_type.type === this.objectType);
   }
 }
 

@@ -16,7 +16,7 @@
 
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { EndpointListModel, EndpointModel, SchemaModel } from '../models/endpoint.model';
+import { EndpointListModel } from '../models/endpoint.model';
 import { CurrentContextModel } from '../models/current-context.model';
 
 
@@ -26,51 +26,25 @@ import { CurrentContextModel } from '../models/current-context.model';
 export class StateService {
   /**
    * Application State Service
+   * @description The application uses 2 observables to maintain state:
+   * `endpoint$` holds the current list of database endpoints returned from
+   * the API server.
+   * `currentContext$` holds the menu selection.
    */
-  private context = new CurrentContextModel('', '', '', '');
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel);
-  private selectedEndpoint = new BehaviorSubject<EndpointModel>(new EndpointModel);
-  private selectedSchema = new BehaviorSubject<SchemaModel>(new SchemaModel);
-  private selectedContext = new BehaviorSubject<CurrentContextModel>(this.context);
+  private selectedContext = 
+          new BehaviorSubject<CurrentContextModel>(new CurrentContextModel('', '', '', ''));   
 
-  endpoints = this.endpointList.asObservable();
-  currentEndpoint = this.selectedEndpoint.asObservable();
-  currentSchema = this.selectedSchema.asObservable();
-  currentContext = this.selectedContext.asObservable();
+  endpoints$ = this.endpointList.asObservable();
+  currentContext$ = this.selectedContext.asObservable();
 
   constructor() { }
 
   setCurrentContext(context: CurrentContextModel) {
-    this.selectedContext.next(context);
-  }
-
-  setCurrentObject(objectName: string){
-    this.context.setObjectName(objectName);
-    this.selectedContext.next(this.context);
-  }
-
-  setCurrentObjectType(objectType: string) {
-    this.context.setObjectType(objectType);
-    this.selectedContext.next(this.context);
-  }
-
-  setCurrentSchema(schema: SchemaModel) {
-    this.selectedSchema.next(schema);
-    this.context.setOwner(schema.owner);
-    this.selectedContext.next(this.context);
-  }
-
-  setCurrentEndpoint(endpoint: EndpointModel) {
-    if (endpoint) {
-      this.selectedEndpoint.next(endpoint);
-      this.context.setEndpoint(endpoint.endpoint);
-      this.selectedContext.next(this.context);
-    }
+    this.selectedContext.next(context);    
   }
 
   saveEndpoints(endpoints: EndpointListModel) {
     this.endpointList.next(endpoints);
-    this.setCurrentEndpoint(endpoints[0]);
   }
-
 }
