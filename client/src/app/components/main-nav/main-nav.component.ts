@@ -47,6 +47,7 @@ export class MainNavComponent {
   ) { }
 
   private unsubscribe$ = new Subject<void>();
+  public showObjectListInBody: boolean;
 
 
   /**
@@ -68,6 +69,8 @@ export class MainNavComponent {
         if (type != null) { context.setObjectType(type.toUpperCase()); }
         if (object != null) { context.setObjectName(object.toUpperCase()); }
 
+        // Show a list of objects in the content area if no object has been selected 
+        context.objectName === ""? this.showObjectListInBody = true: this.showObjectListInBody = false;
         this.state.setCurrentContext(context);
       });
 

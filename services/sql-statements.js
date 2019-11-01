@@ -22,6 +22,7 @@ let collection = {};
  */
 statement['COUNT_DBA_OBJECTS'] = {
   'title': 'Object Count',
+  'description': '',
   'display': [],
   'sql' : `select owner, object_type, count(*) as object_count
            from dba_objects o
@@ -29,6 +30,7 @@ statement['COUNT_DBA_OBJECTS'] = {
                              from dba_logstdby_skip l
                              where l.owner = o.owner
                              and l.statement_opt = 'INTERNAL SCHEMA')
+           and owner not in ('PUBLIC')          
            group by owner, object_type
            order by owner, object_type`,
    'params': {
@@ -36,6 +38,7 @@ statement['COUNT_DBA_OBJECTS'] = {
 };
 statement['VALIDATE-OWNER-AND-TYPE'] = {
   'title': 'Validate OWNER + OBJECT_TYPE combination',
+  'description': '',
   'display': [],
   'sql': `select count(*) as object_count
           from dba_objects
@@ -48,6 +51,7 @@ statement['VALIDATE-OWNER-AND-TYPE'] = {
 };
 statement['LIST_DBA_OBJECTS'] = {
   'title': 'Object List',
+  'description': '',
   'display': [],
   'sql': `select object_name
           from dba_objects
@@ -66,7 +70,8 @@ statement['LIST_DBA_OBJECTS'] = {
 };
 statement['OBJECT-DETAILS'] = {
   'title': 'Object Details',
-  'display': ["Object Name", "Type", "Owner", "Created"], 
+  'description': 'from DBA_OBJECTS',
+  'display': ["Object Name", "Type", "Owner", "Created", "Status"], 
   'sql': `select object_name as "Object Name"
           ,      object_type as "Type"
           ,      owner as "Owner"
@@ -92,6 +97,7 @@ statement['OBJECT-DETAILS'] = {
 };
 statement['TABLE-DETAILS'] = {
   'title': 'Table Details',
+  'description': 'from DBA_TABLES',
   'display': ["Name", "Rows", "Tablespace", "Temporary", "Duration"],
   'sql': `select table_name as "Name"
           ,      num_rows
@@ -109,37 +115,45 @@ statement['TABLE-DETAILS'] = {
    }
 };
 statement['TABLE-COMMENTS'] = {
-  'title': 'Description',
+  'title': 'Table Description',
+  'description': 'from DBA_TAB_COMMENTS',
   'display': ["Description"],
   'sql' : `select comments as "Description"
            from dba_tab_comments
            where owner = :owner
            and table_name = :object_name
-           and (table_type = 'TABLE' or table_type = 'VIEW')`,
+           and (table_type = 'TABLE' or table_type = 'VIEW')
+           and comments is not null`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
+
 statement['TABLE-INDEXES'] = {
   'title': 'Indexes',
-  'display': ["Index", "Type", "Uniqueness", "Tablespace", "Owner"],
-  'sql' : `select index_name as "Index"
-           ,       index_type as "Type"
-           ,      uniqueness as "Uniqueness"
-           ,      tablespace_name as "Tablespace"
-           ,      owner as "Owner"
-           from dba_indexes
-           where table_owner = :owner
-           and table_name = :object_name
-           order by uniqueness desc, index_name`,
+  'description': 'from DBA_INDEXES and DBA_IND_COLUMNS',
+  'display': ["Index", "Type", "Uniqueness", "Tablespace", "Column"],
+  'sql' : `select i.index_name as "Index"
+           ,      i.index_type as "Type"
+           ,      i.uniqueness as "Uniqueness"
+           ,      i.tablespace_name as "Tablespace"
+           ,      LISTAGG(ic.column_name, ', ') WITHIN GROUP (ORDER BY ic.column_position ) as "Column"
+           from dba_indexes i 
+           left join dba_ind_columns ic on ic.index_name = i.index_name and ic.index_owner = i.owner
+           where i.table_owner = :owner
+           and i.table_name = :object_name
+           group by i.index_name, i.index_type, i.uniqueness, i.tablespace_name
+           order by i.uniqueness desc, i.index_name`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
+
 statement['INDEX-COLUMNS'] = {
   'title': 'Index Columns',
+  'description': 'from DBA_IND_COLUMNS',
   'display': ["Column"],
   'sql' : `select column_name as "Column"
            ,      column_length
@@ -153,20 +167,23 @@ statement['INDEX-COLUMNS'] = {
   }
 };
 statement['INDEX-FUNCTION'] = {
-  'title': 'Index Expression',
-  'display': ["Expression"],
-  'sql' : `select column_expression as "Expression"
+  'title': 'Functional Index Expressions',
+  'description': 'from DBA_IND_EXPRESSIONS',
+  'display': ["Index", "Expression"],
+  'sql' : `select index_name as "Index" 
+           ,      column_expression as "Expression"
            from dba_ind_expressions
-           where index_owner = :owner
-           and index_name = :object_name
-           order by column_position`,
+           where table_owner = :owner
+           and table_name = :object_name
+           order by index_name, column_position`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
 statement['TABLE-KEYS'] = {
-  'title': 'Keys',
+  'title': 'Constraints',
+  'description': 'from DBA_CONSTRAINTS and DBA_CONS_COLUMNS',
   'display': ["Name", "Constraint Type", "Column", "Search Condition"],
   'sql' : `select c.constraint_name as "Name"
           ,       DECODE(c.constraint_type,
@@ -177,15 +194,24 @@ statement['TABLE-KEYS'] = {
                          'R', 'Referential integrity',
                          'V', 'Constraint on a view',
                          'O', 'Read-only, on a view') as "Constraint Type"   
-           ,      cc.column_name as "Column"
+           , cc.columns as "Column"
            ,      c.search_condition as "Search Condition"
            from dba_constraints c
-           ,    dba_cons_columns cc
+           ,    (select owner, constraint_name, LISTAGG(column_name, ', ') WITHIN GROUP (ORDER BY position ) as columns
+                 from dba_cons_columns
+                 where owner = :owner
+                 group by owner, constraint_name) cc
            where c.owner = :owner
            and c.table_name = :object_name
-           and c.owner = cc.owner (+)
-           and c.constraint_name = cc.constraint_name (+)
-           order by c.constraint_type, c.constraint_name`,
+           and c.constraint_name = cc.constraint_name (+)           
+           order by decode(c.constraint_type, 
+                           'P', 1,
+                           'U', 2,
+                           'F', 3,
+                           'R', 4,
+                           'C', 5,
+                           'V', 6,
+                           'O', 7)  , c.constraint_name`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
@@ -193,6 +219,7 @@ statement['TABLE-KEYS'] = {
 };
 statement['CONSTRAINT-COLUMNS'] = {
   'title': 'Key Columns',
+  'description': 'from DBA_CONS_COLUMNS',
   'display': [],
   'sql': `select column_name
           from dba_cons_columns
@@ -206,6 +233,7 @@ statement['CONSTRAINT-COLUMNS'] = {
 };
 statement['TABLE-COLUMNS'] = {
   'title': 'Columns',
+  'description': 'from DBA_TAB_COLUMNS and DBA_CONS_COLUMNS',
   'display': ["Name", "Type", "Length", "Precision", "Nullable", "Comments"],
   'sql' : `select col.column_name as "Name"
            ,      col.data_type as "Type"
@@ -227,39 +255,48 @@ statement['TABLE-COLUMNS'] = {
 };
 statement['FK-IN-TABLE'] = {
   'title': 'Foreign Keys',
-  'display': ["Table"],
-  'sql': `select obj.name as "Table"
+  'description': 'from SYS.CDEF$',
+  'display': ["Table", "Owner"],
+  'link': "Table",
+  'sql': `select obj.object_name as "Table"
+          ,    obj.owner as "Owner"
           ,    cdef.robj# object_id
           ,    cdef.con# cons_id
+          ,    obj.owner||'/TABLE/'||obj.object_name as link
           from sys.cdef$ cdef
-          ,    sys.obj$ obj
+          ,    dba_objects obj
           where cdef.obj# = :object_id
           and cdef.robj# is not null
-          and cdef.robj# = obj.obj#
-          order by obj.name`,
+          and cdef.robj# = obj.object_id
+          order by obj.object_name`,
   'params': {
     object_id: { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
 statement['FK-TO-TABLE'] = {
   'title': 'Foreign Keys to this Table',
-  'display': ["Table"],
-  'sql': `select obj.name as "Table"
+  'description': 'from SYS.CDEF$',
+  'display': ["Table", "Owner"],
+  'link': "Table",
+  'sql': `select obj.object_name as "Table"
+          ,    obj.owner as "Owner"
           ,    cdef.obj# object_id
           ,    cdef.con# cons_id
+          ,    obj.owner||'/TABLE/'||obj.object_name as link
           from sys.cdef$ cdef
-          ,    sys.obj$ obj
+          ,    dba_objects obj
           where cdef.robj# = :object_id
-          and cdef.obj# = obj.obj#
-          order by obj.name`,
+          and cdef.obj# = obj.object_id
+          order by obj.object_name`,
   'params': {
     object_id: { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
 statement['VIEW-SOURCE'] = {
   'title': 'Source',
-  'display': ["Source"],
-  'sql': `select text "Source"
+  'description': 'from DBA_VIEWS',
+  'display': ["Text"],
+  'sql': `select text "Text"
           from dba_views
           where owner = :owner
           and view_name = :object_name  `,
@@ -270,8 +307,9 @@ statement['VIEW-SOURCE'] = {
 };
 statement['MVIEW-DETAILS'] = {
   'title': 'Materialized View Details',
+  'description': 'from DBA_MVIEWS',
   'display': ["Container", "Updatable", "Rewrite Enabled", "Rewrite Capacity",
-              "Refresh Mode", "Build Mode", "Fast Refreshable", "Query"],
+              "Refresh Mode", "Build Mode", "Fast Refreshable"],
   'sql' : `select container_name as "Container"
            ,      updatable as "Updatable"
            ,      rewrite_enabled as "Rewrite Enabled"
@@ -289,10 +327,27 @@ statement['MVIEW-DETAILS'] = {
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
+
+statement['MVIEW-SOURCE'] = {
+  'title': 'Source',
+  'description': 'from DBA_MVIEWS',
+  'display': ["Text"],
+  'sql' : `select query as "Text"
+           from dba_mviews
+           where owner = :owner
+           and mview_name = :object_name`,
+  'params' : {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+
+
 statement['MVIEW-LOG_DEPENDENCIES'] = {
   'title': 'Log Dependencies',
+  'description': 'from SYS.SNAP_REFTIME$',
   'display': ["Tree Entry"],
-  'sql' : `select lpad(' ',5*(LEVEL-1)) || master  as "Tree Entry"
+  'sql' : `select lpad('-',5*(LEVEL-1)) || master  as "Tree Entry"
            from sys.snap_reftime$ 
            start with sowner = :owner
                   and vname = :object_name
@@ -305,6 +360,7 @@ statement['MVIEW-LOG_DEPENDENCIES'] = {
 };
 statement['TRIGGER-DETAILS'] = {
   'title': 'Trigger Details',
+  'description': 'from DBA_TRIGGERS',
   'display': ["Table Owner", "Base Object Type", "Table Name", 
               "Column", "Referencing Names", "When Clause", 
               "Description", "Action Type", "Body"],
@@ -327,6 +383,7 @@ statement['TRIGGER-DETAILS'] = {
 };
 statement['DECODE-SYNONYM'] = {
   'title': 'Synonym for',
+  'description': 'from DBA_SYNONYMS',
   'display': ["Table Owner", "Table Name", "Database Link"],
   'sql' : `select table_owner as "Table Owner"
            ,      table_name as "Table Name"
@@ -341,6 +398,7 @@ statement['DECODE-SYNONYM'] = {
 };
 statement['QUEUE-DETAILS'] = {
   'title': 'Queue Details',
+  'description': 'from DBA_QUEUES',
   'display': ["Queue Table", "Queue Type", "Max Retries", "Retry Delay",
               "Enqueue Enabled", "Dequeue Enabled", "Retention", "User Comments"],
   'sql' : `select queue_table as "Queue Table"
@@ -361,6 +419,7 @@ statement['QUEUE-DETAILS'] = {
 };
 statement['TYPE-DETAILS'] = {
   'title': 'Type Details',
+  'description': 'from DBA_TYPES',
   'display': ["Typecode", "Attributes", "Methods", "Pre-Defined", "Incomplete"],
   'sql' : `select typecode as "Typecode"
            ,      attributes as "Attributes"
@@ -377,6 +436,7 @@ statement['TYPE-DETAILS'] = {
 };
 statement['COLLECTION-TYPE-DETAILS'] = {
   'title': 'Collection Type Details',
+  'description': 'from DBA_COLL_TYPES',
   'display': ["Type Name", "Collection Type", "Upper Bound", "Element Type", 
               "Element Type Modifier", "Precision", "Scale", "Character Set",
               "Storage", "Nulls Stored"],
@@ -403,6 +463,7 @@ statement['COLLECTION-TYPE-DETAILS'] = {
 };
 statement['TYPE-ATTRIBUTES'] = {
   'title': 'Type Attributes',
+  'description': 'from DBA_TYPE_ATTRS',
   'display': ["Type", "Attribute", "Attribute Type", "Length", "Precision", "Character Set"],
   'sql' : `select owner
            ,      type_name as "Type"
@@ -426,6 +487,7 @@ statement['TYPE-ATTRIBUTES'] = {
 };
 statement['TYPE-METHODS'] = {
   'title': 'Type Methods',
+  'description': 'from DBA_TYPE_METHODS',
   'display': ["Type", "Method", "Method Type", "Parameters", "Results"],
   'sql' : `select owner
            ,      type_name as "Type"
@@ -445,6 +507,7 @@ statement['TYPE-METHODS'] = {
 };
 statement['METHOD-PARAMETERS'] = {
   'title': 'Method Parameters',
+  'description': 'from DBA_METHOD_PARAMS',
   'display': ["Parameter", "Parameter Type"],
   'sql' : `select param_name as "Parameter"
            ,      param_no
@@ -464,9 +527,10 @@ statement['METHOD-PARAMETERS'] = {
 };
 statement['METHOD-RESULTS'] = {
   'title': 'Method Results',
+  'description': 'from DBA_METHOD_RESULTS',
   'display': ["Result Type"],
   'sql' : `select result_type_name as "Result Type"
-           from sys.dba_method_results
+           from dba_method_results
            where owner = :owner
            and type_name = :object_name
            and method_name = :method_name
@@ -480,6 +544,7 @@ statement['METHOD-RESULTS'] = {
 };
 statement['SOURCE'] = {
   'title': 'Source',
+  'description': 'from DBA_SOURCE',
   'display': ["Line", "Text"],
   'sql' : `select line as "Line"
            ,      text as "Text"
@@ -495,6 +560,7 @@ statement['SOURCE'] = {
 };
 statement['ERRORS'] = {
   'title': 'Error Details',
+  'description': 'from DBA_ERRORS',
   'display': ["Line", "Position", "Text"],
   'sql' : `select line as "Line"
            ,      position as "Position"
@@ -512,46 +578,70 @@ statement['ERRORS'] = {
 };
 statement['SOURCE-LINE-DEPENDENCY'] = {
   'title': 'Source Dependencies',
+  'description': 'from SYS.SOURCE$',
   'display': [ "Line Number", "Text"],
   'sql' : `select line as "Line Number"
     ,      source as "Text"
     from sys.source$
-    where upper(source) like c_name
+    where upper(source) like :object_name
     and obj# = :object_id`,
   'params' : {
-    object_id : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    object_id : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
+
+/**
+ * Find dependencies to/from the current object.  
+ * The queries run against the dependency$ table instead of the dba_dependencies
+ * view for performance reasons.  
+ */
+
 statement['USED-BY-OBJECTS'] = {
   'title': 'Used By',
-  'display': ["Object Name", "Object Type", "Owner"],
-  'sql' : `select d_obj# object_id
-           ,      object_name as "Object Name"
-           ,      object_type as "Object Type"
-           ,      owner as "Owner"
-           from sys.dependency$
-           ,    dba_objects
-           where p_obj# = :object_id
-           and d_obj# = object_id
-           order by owner, object_name, object_type`,
+  'description': 'from SYS.DEPENDENCY$ and SYS.SOURCE$',
+  'display': ["Object Name", "Object Type", "Line"],
+  'link': 'Object Name',
+  'sql' : `select d.d_obj# object_id
+           ,      o.object_name as "Object Name"
+           ,      o.object_type as "Object Type"
+           ,      o.owner as "Owner"
+           ,      o.owner||'/'||o.object_type||'/'||o.object_name as link           
+           ,      LISTAGG(s.line, ', ') WITHIN GROUP (ORDER BY s.line ) as "Line"           
+           from dba_objects o
+           ,    sys.dependency$ d
+           left join sys.source$ s on d.d_obj# = s.obj# and upper(s.source) like '%'||:object_name||'%' 
+           where d.p_obj# = :object_id
+           and d.d_obj# = o.object_id           
+           group by d.d_obj#, o.owner, o.object_name, o.object_type, o.owner||'/'||o.object_type||'/'||o.object_name
+           order by o.owner, o.object_name, o.object_type`,
+
+
   'params' : {
-    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
+    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
 statement['USES-OBJECTS'] = {
   'title': 'Uses',
-  'display': ["Object Name", "Object Type", "Owner"],
-  'sql' : `select p_obj#
-           ,      object_name as "Object Name"
-           ,      object_type as "Object Type"
-           ,      owner as "Owner"
-           from sys.dependency$
-           ,    dba_objects
-           where d_obj# = :object_id
-           and p_obj# = object_id
-           order by owner, object_name, object_type`,
+  'description': 'from SYS.DEPENDENCY$ and SYS.SOURCE$',
+  'display': ["Object Name", "Object Type", "Line"],
+  'link': 'Object Name',
+  'sql' : `select d.p_obj#
+           ,      o.object_name as "Object Name"
+           ,      o.object_type as "Object Type"
+           ,      o.owner as "Owner"
+           ,      o.owner||'/'||o.object_type||'/'||o.object_name as link
+           ,      LISTAGG(s.line, ', ') WITHIN GROUP (ORDER BY s.line ) as "Line"  
+           from sys.dependency$ d 
+           left join sys.source$ s on d.d_obj# = s.obj#
+           left join dba_objects o on upper(s.source) like '%'||o.object_name||'%' 
+           where d.d_obj# = :object_id
+           and d.p_obj# = o.object_id
+           group by d.p_obj#, o.owner, o.object_name, o.object_type, o.owner||'/'||o.object_type||'/'||o.object_name
+           order by o.owner, o.object_name, o.object_type`,
   'params' : {
-    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
+    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" },
   }
 };
 module.exports.statement = statement;
@@ -568,6 +658,7 @@ collection['TABLE'] = {
     statement['TABLE-DETAILS'], 
     statement['TABLE-COMMENTS'],
     statement['TABLE-INDEXES'],
+    statement['INDEX-FUNCTION'],
     statement['TABLE-KEYS'],
     statement['TABLE-COLUMNS']
   ],
@@ -643,6 +734,7 @@ collection['JAVA SOURCE'] = {
 collection['MATERIALIZED VIEW'] = {
   objectNameQueries: [
     statement['MVIEW-DETAILS'],
+    statement['MVIEW-SOURCE'],
     statement['MVIEW-LOG_DEPENDENCIES']
   ],
   objectIdQueries: [],
@@ -705,11 +797,8 @@ collection['TYPE'] = {
   ]
 };
 collection['DEPENDENCIES'] = {
-  objectNameQueries: [],
-  objectIdQueries: [
-    statement['USED-BY-OBJECTS'],
-    statement['USES-OBJECTS']
-  ],
+  objectNameIdQueries: [statement['USED-BY-OBJECTS']],
+  objectIdQueries: [ statement['USES-OBJECTS'] ],
   objectTypeQueries: [],
   childObjectQueries: [
     statement['SOURCE-LINE-DEPENDENCY']

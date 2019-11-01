@@ -39,6 +39,7 @@ export class DbContentComponent implements OnInit {
 
   public schemaColumns: string[] = ['type', 'count'];
   private unsubscribe$ = new Subject<void>();
+  public panelOpenState = false;
 
   constructor(
     private restService: RestService,
