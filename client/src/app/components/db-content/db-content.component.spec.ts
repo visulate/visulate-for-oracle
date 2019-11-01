@@ -15,9 +15,9 @@
  */
 
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import {MatTableModule} from '@angular/material'
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import {HttpClientModule} from '@angular/common/http';
+import { MatTableModule, MatExpansionModule} from '@angular/material'
+import { HttpClientTestingModule  } from '@angular/common/http/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 
 import { DbContentComponent } from './db-content.component';
 
@@ -27,7 +27,10 @@ describe('DbContentComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MatTableModule, HttpClientTestingModule],
+      imports: [ MatTableModule, 
+                 HttpClientTestingModule, 
+                 MatExpansionModule,
+                 RouterTestingModule],
       declarations: [ DbContentComponent ]
     })
     .compileComponents();
