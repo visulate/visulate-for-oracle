@@ -31,6 +31,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { HighlightModule} from 'ngx-highlightjs';
 
 
 import { AppRoutingModule } from './app-routing.module';
@@ -40,6 +42,15 @@ import { MainNavComponent } from './components/main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
 import { DbContentComponent } from './components/db-content/db-content.component';
 
+import pgsql from 'highlight.js/lib/languages/pgsql';
+import sql from 'highlight.js/lib/languages/sql';
+
+export function hljsLanguages() {
+  return [
+    {name: 'sql', func: sql},
+    {name: 'pgsql', func: pgsql}
+  ];
+}
 
 @NgModule({
   declarations: [
@@ -66,8 +77,12 @@ import { DbContentComponent } from './components/db-content/db-content.component
     MatButtonModule,
     MatIconModule,
     MatListModule,
-    MatExpansionModule
-  ],
+    MatExpansionModule,
+    MatSlideToggleModule,
+    HighlightModule.forRoot({
+      languages: hljsLanguages
+    })
+    ],
   providers: [],
   bootstrap: [AppComponent]
 })

@@ -1,3 +1,10 @@
 table {
     width: 100%;
   }
+  .hljs {
+    padding: 0;
+  }
+
+#source-code { padding-left: 40px; position: relative; }
+#source-code .line { position: absolute; left: 0; width: 30px; text-align: right; }
+#source-code .toggle { position: absolute; left: 0; text-align: right; }
