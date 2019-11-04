@@ -22,6 +22,7 @@ import { CurrentContextModel } from '../../models/current-context.model';
 import { DatabaseObjectModel } from '../../models/database-object.model'
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { HighlightResult } from 'ngx-highlightjs';
 
 @Component({
   selector: 'app-db-content',
@@ -36,6 +37,7 @@ export class DbContentComponent implements OnInit {
   public endpointList: EndpointListModel;
   public currentContext: CurrentContextModel;
   public objectDetails: DatabaseObjectModel;
+  public showLineNumbers: boolean = true;
 
   public schemaColumns: string[] = ['type', 'count'];
   private unsubscribe$ = new Subject<void>();

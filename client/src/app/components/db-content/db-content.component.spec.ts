@@ -16,6 +16,8 @@
 
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatTableModule, MatExpansionModule} from '@angular/material'
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+
 import { HttpClientTestingModule  } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 
@@ -30,6 +32,7 @@ describe('DbContentComponent', () => {
       imports: [ MatTableModule, 
                  HttpClientTestingModule, 
                  MatExpansionModule,
+                 MatSlideToggleModule,
                  RouterTestingModule],
       declarations: [ DbContentComponent ]
     })

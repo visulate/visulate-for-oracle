@@ -11,10 +11,12 @@
                         <mat-panel-description>
                             {{property.description}}
                         </mat-panel-description>
-                    </mat-expansion-panel-header>
-                    <pre *ngIf="property.title == 'Source'">
-<ng-container *ngFor="let source of property.rows">{{source.Line}} {{source.Text}}</ng-container>
-                    </pre>
+                    </mat-expansion-panel-header>                    
+<pre *ngIf="property.title == 'Source'" id="source-code">
+<mat-slide-toggle *ngIf="property.rows[0]['Line']" (change)="showLineNumbers = !showLineNumbers" [checked]="showLineNumbers" class="toggle">Show Line Numbers</mat-slide-toggle>
+<code highlightChildren="span" >
+<ng-container *ngFor="let source of property.rows" ><a [hidden]="!showLineNumbers" class="line">{{source.Line}}</a><span [textContent]="source.Text"></span></ng-container>
+</code></pre>
                     <table mat-table *ngIf="property.title != 'Source'" [dataSource]="property.rows">
                         <ng-container matColumnDef="{{dColumn}}" *ngFor="let dColumn of property.display">
                             <th mat-header-cell *matHeaderCellDef> {{dColumn}}</th>
