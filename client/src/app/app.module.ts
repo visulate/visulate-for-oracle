@@ -23,6 +23,7 @@ import { LayoutModule } from '@angular/cdk/layout';
 import { CdkTableModule } from '@angular/cdk/table';
 import { CdkAccordionModule } from '@angular/cdk/accordion';
 
+import { MatCardModule } from '@angular/material/card';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -38,6 +39,8 @@ import { HighlightModule} from 'ngx-highlightjs';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { DbSelectionComponent } from './components/db-selection/db-selection.component';
+import { DbStepSelectionComponent } from './components/db-selection/db-step-selection.component';
+
 import { MainNavComponent } from './components/main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
 import { DbContentComponent } from './components/db-content/db-content.component';
@@ -56,6 +59,7 @@ export function hljsLanguages() {
   declarations: [
     AppComponent,
     DbSelectionComponent,
+    DbStepSelectionComponent,
     MainNavComponent,
     DbObjectListComponent,
     DbContentComponent
@@ -66,9 +70,10 @@ export function hljsLanguages() {
     AppRoutingModule,
     BrowserAnimationsModule,
     CdkTableModule,
-    CdkAccordionModule,
+    CdkAccordionModule,   
     HttpClientModule,
-    FormsModule,
+    FormsModule,   
+    MatCardModule,
     MatToolbarModule,
     MatSelectModule,
     MatSidenavModule,
@@ -79,6 +84,7 @@ export function hljsLanguages() {
     MatListModule,
     MatExpansionModule,
     MatSlideToggleModule,
+   
     HighlightModule.forRoot({
       languages: hljsLanguages
     })
