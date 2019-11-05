@@ -35,41 +35,11 @@
             </ng-container>
         </ng-container>
     </mat-accordion>
-
-
 </div>
+
 <ng-template #welcomeMsg>
-    <h1>Oracle Data Dictionary Browser</h1>
-    <ng-container *ngIf="!currentContext.endpoint">
-        <h3>Select a Database</h3>
-        <p>Use the Database dropdown to select a database</p>
-    </ng-container>
-    <ng-container *ngFor="let ep of endpointList.databases">
-        <ng-container *ngIf="ep.endpoint == currentContext.endpoint">
-            <h3>{{ep.endpoint}} - {{ep.connectString}}</h3>
-            <p *ngIf="ep.description">{{ep.description}}</p>
-            <div *ngFor="let schema of ep.schemas">
-                <ng-container *ngIf="!currentContext.owner || currentContext.owner == schema.owner">
-                    <h5>Schema: {{schema.owner}}</h5>
-                    <table mat-table [dataSource]="schema.object_types">
-                        <ng-container matColumnDef="type">
-                            <th mat-header-cell *matHeaderCellDef>Object Type</th>
-                            <td mat-cell *matCellDef="let element">
-                                <a routerLink="/database/{{ep.endpoint}}/{{schema.owner}}/{{element.type}}">
-                                    {{element.type}}
-                                </a>
-                            </td>
-                        </ng-container>
-                        <ng-container matColumnDef="count">
-                            <th mat-header-cell *matHeaderCellDef>Object Count</th>
-                            <td mat-cell *matCellDef="let element"> {{element.count}} </td>
-                        </ng-container>
-                        <tr mat-header-row *matHeaderRowDef="schemaColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: schemaColumns;"></tr>
-                    </table>
-                </ng-container>
-            </div>
-        </ng-container>
-    </ng-container>
-    <h5 *ngIf="currentContext.objectType">Object Type: {{currentContext.objectType}}</h5>
+    <div class="homepage-banner">
+       <h1>Oracle Data Dictionary Browser</h1>
+    </div>
+    <app-db-step-selection></app-db-step-selection>
 </ng-template>

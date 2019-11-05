@@ -20,8 +20,6 @@ import { DbSelectionComponent } from './db-selection.component';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 
-
-
 describe('DbSelectionComponent', () => {
   let component: DbSelectionComponent;
   let fixture: ComponentFixture<DbSelectionComponent>;

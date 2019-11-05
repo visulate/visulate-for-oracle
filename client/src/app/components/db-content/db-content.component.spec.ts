@@ -17,11 +17,19 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatTableModule, MatExpansionModule} from '@angular/material'
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCardModule } from '@angular/material/card';
+import { MatSelectModule } from '@angular/material/select';
+import { FormsModule } from '@angular/forms';
+import { MatListModule} from '@angular/material/list'
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; 
 
 import { HttpClientTestingModule  } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { DbContentComponent } from './db-content.component';
+import { DbSelectionComponent } from '../db-selection/db-selection.component';
+import { DbStepSelectionComponent } from '../db-selection/db-step-selection.component';
+import { DbObjectListComponent} from '../db-object-list/db-object-list.component';
 
 describe('DbContentComponent', () => {
   let component: DbContentComponent;
@@ -31,10 +39,15 @@ describe('DbContentComponent', () => {
     TestBed.configureTestingModule({
       imports: [ MatTableModule, 
                  HttpClientTestingModule, 
+                 BrowserAnimationsModule,               
                  MatExpansionModule,
                  MatSlideToggleModule,
+                 FormsModule,
+                 MatCardModule,
+                 MatListModule,
+                 MatSelectModule,
                  RouterTestingModule],
-      declarations: [ DbContentComponent ]
+      declarations: [ DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent ]
     })
     .compileComponents();
   }));

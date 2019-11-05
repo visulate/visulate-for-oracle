@@ -1,0 +1,39 @@
+<mat-card>
+    <mat-card-title>Database Object Selection</mat-card-title>
+    <mat-card-subtitle>Select a database, schema and object type</mat-card-subtitle>
+    <mat-card-content>
+        <mat-form-field>
+            <mat-select [(ngModel)]="currentEndpoint" placeholder="Database"
+                (selectionChange)="setEndpoint($event.value)">
+                <mat-option *ngFor="let database of endpoints.databases" [value]="database">
+                    {{database.endpoint}}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field *ngIf="currentEndpoint">
+            <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
+                <mat-option *ngFor="let schema of currentEndpoint.schemas" [value]="schema">
+                    {{schema.owner}}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field *ngIf="currentSchema">
+            <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
+                (selectionChange)="setObjectType($event.value)">
+                <mat-option *ngFor="let object_type of currentSchema.object_types" [value]="object_type">
+                    {{object_type.type}} ({{object_type.count}})
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        <p *ngIf="currentEndpoint">{{currentEndpoint.description}} </p>
+    </mat-card-content>
+</mat-card>
+
+<mat-card *ngIf="currentObjectType">
+    <mat-card-subtitle>Object Type: {{currentObjectType.type}} ({{currentObjectType.count}})</mat-card-subtitle>
+    <mat-card-content>
+        <app-db-object-list></app-db-object-list>
+    </mat-card-content>
+</mat-card>

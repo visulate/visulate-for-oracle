@@ -27,6 +27,7 @@ import { takeUntil } from 'rxjs/operators';
   templateUrl: './db-selection.component.html',
   styleUrls: ['./db-selection.component.css']
 })
+
  /**
  * Code to Select: Database -> Schema -> Object Type
  */
@@ -35,7 +36,7 @@ export class DbSelectionComponent implements OnInit {
   public currentEndpoint: EndpointModel;
   public currentSchema: SchemaModel;
   public currentObjectType: ObjectTypeListItem; 
-  private currentContext: CurrentContextModel;
+  public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
   
 

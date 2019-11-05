@@ -1,6 +1,6 @@
 mat-toolbar.mat-toolbar mat-form-field.mat-form-field {
   font-size: 12px;
 }
-mat-form-field {
+#dbSelectMenu mat-form-field {
   width: 100%;
 }
