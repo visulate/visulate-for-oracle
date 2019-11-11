@@ -2,11 +2,11 @@
 Visulate for Oracle is an Oracle data dictionary browsing service to help data engineers understand the structure and dependencies in Oracle databases that they plan to migrate to the Cloud.
 
 ## Functionality
-A configuration file stores connection details for one or more the databases.  Visulate queries the data dictionary for each connection and allows the user to browse the result. 
+A registration file stores connection details for one or more the databases.  Visulate queries the data dictionary for each connection and allows the user to browse the result. 
 
 ![Alt text](/screenshots/object-selection.png?raw=true "Visulate for Oracle database object selection")
 
-A report is generated for each database object by querying the appropriate dictionary views (e.g. DBA_TABLES for table objects or DBA_SOURCE for packages)  
+A report is generated for each database object by querying the appropriate dictionary views (e.g. DBA_TABLES and other views for table objects or DBA_SOURCE for packages)  
 
 ![Alt text](/screenshots/object-details.png?raw=true "Visulate for Oracle object details")
 
@@ -35,3 +35,7 @@ The API server supports cross origin (CORS) requests from locations identified i
 9. (Optional) edit the `src/environments/environment.ts` file if the API server is running on a different port.
 9. Run `ng serve` from the client directory to start the Angular client
 9. Navigate to `localhost:4200` in a browser window to view the result.
+
+## Testing
+1. Run `npm test` from the project root to test the API server
+2. Run `ng test` from the client directory to run unit tests for the client
