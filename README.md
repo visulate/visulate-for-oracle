@@ -34,3 +34,4 @@ The API server supports cross origin (CORS) requests from locations identified i
 8. Make an API call to test the configuration e.g. `curl localhost:3000/api` or `curl localhost:3000/api | json_pp`
 9. (Optional) edit the `src/environments/environment.ts` file if the API server is running on a different port.
 9. Run `ng serve` from the client directory to start the Angular client
+9. Navigate to `localhost:4200` in a browser window to view the result.
