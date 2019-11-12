@@ -28,8 +28,8 @@ import { environment } from '../../environments/environment';
 
 export class RestService {
   /**
-   * Makes requests to API server 
-   * 
+   * Makes requests to API server
+   *
    * @param http - http client
    */
   constructor(private http: HttpClient) { }
@@ -44,7 +44,7 @@ export class RestService {
   }
 
   /**
-   * Gets a list of objects 
+   * Gets a list of objects
    * @param endpoint - the database endpoint
    * @param owner - a database user
    * @param objectType - object type
@@ -72,7 +72,7 @@ export class RestService {
     endpoint: string,
     owner: string,
     objectType: string,
-    objectName: string ): Observable<DatabaseObjectModel>{
+    objectName: string ): Observable<DatabaseObjectModel> {
       return this.http.get<DatabaseObjectModel>
         (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${objectName}/`);
     }

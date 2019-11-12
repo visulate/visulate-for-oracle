@@ -29,9 +29,9 @@ export class EndpointListModel implements Deserializable {
   }
 }
 
-export class EndpointModel implements Deserializable { 
+export class EndpointModel implements Deserializable {
   /**
-   * API endpoint corresponding to a database connection. 
+   * API endpoint corresponding to a database connection
    */
   public endpoint: string;
   public description: string;
@@ -41,7 +41,7 @@ export class EndpointModel implements Deserializable {
   deserialize(input: any): this {
     Object.assign(this, input);
     const convertedSchema = convertSchema(input.schemas);
-     this.schemas = convertedSchema.map (
+    this.schemas = convertedSchema.map (
        schema => new SchemaModel().deserialize(schema)
      );
     return this;
@@ -53,81 +53,80 @@ export class SchemaModel implements Deserializable {
    * Database user/owner and count of objects by type.
    */
   public owner: string;
-  public object_types: ObjectTypeListItem[];
+  public objectTypes: ObjectTypeListItem[];
 
   deserialize(input: any): this {
     Object.assign(this, input);
-    this.object_types
-     = input.object_types.map(
-       object_type => new ObjectTypeListItem().deserialize(object_type));
+    this.objectTypes
+     = input.objectTypes.map(
+       objectType => new ObjectTypeListItem().deserialize(objectType));
     return this;
   }
 }
 
 function convertSchema(input: any): SchemaModel[] {
 /**
-   * Converts schema object from REST API to display model.  
-   * @remarks
-   * Example convert:
-   * ```
-   * "schemas": {
-   * "PUBLIC": [
-   *   {
-   *     "OWNER": "PUBLIC",
-   *     "OBJECT_TYPE": "SYNONYM",
-   *     "OBJECT_COUNT": 11520
-   *   }
-   * ],
-   * "RNTMGR2": [
-   *   {
-   *     "OWNER": "RNTMGR2",
-   *     "OBJECT_TYPE": "INDEX",
-   *     "OBJECT_COUNT": 268
-   *   },
-   *   {
-   *     "OWNER": "RNTMGR2",
-   *     "OBJECT_TYPE": "TABLE",
-   *     "OBJECT_COUNT": 78
-   *   }
-   *  ]
-   * }
-   *```
-   * to:
-   *```
-   * "schemas" : [
-   * {
-   *   "owner": "PUBLIC"
-   *   "object_types": [
-   *     {"type": "SYNONYM", "count": 11520}
-   *   ]
-   *  },
-   *  {
-   *   "owner": "RNTMGR"
-   *   "object_types": [
-   *     {"type": "INDEX", "count": 268},
-   *     {"type": "TABLE", "count": 78}
-   *   ]
-   *  }
-   * ]
-   * ```
-   * @param input - schemas object from REST API
-   * @returns array of SchemaModels
-   * 
-   */
-  let outputSchemas = [];
+ * Converts schema object from REST API to display model
+ * @remarks
+ * Example convert:
+ * ```
+ * "schemas": {
+ * "PUBLIC": [
+ *   {
+ *     "OWNER": "PUBLIC",
+ *     "OBJECT_TYPE": "SYNONYM",
+ *     "OBJECT_COUNT": 11520
+ *   }
+ * ],
+ * "RNTMGR2": [
+ *   {
+ *     "OWNER": "RNTMGR2",
+ *     "OBJECT_TYPE": "INDEX",
+ *     "OBJECT_COUNT": 268
+ *   },
+ *   {
+ *     "OWNER": "RNTMGR2",
+ *     "OBJECT_TYPE": "TABLE",
+ *     "OBJECT_COUNT": 78
+ *   }
+ *  ]
+ * }
+ * ```
+ * to:
+ * ```
+ * "schemas" : [
+ * {
+ *   "owner": "PUBLIC"
+ *   "objectTypes": [
+ *     {"type": "SYNONYM", "count": 11520}
+ *   ]
+ *  },
+ *  {
+ *   "owner": "RNTMGR"
+ *   "objectTypes": [
+ *     {"type": "INDEX", "count": 268},
+ *     {"type": "TABLE", "count": 78}
+ *   ]
+ *  }
+ * ]
+ * ```
+ * @param input - schemas object from REST API
+ * @returns array of SchemaModels
+ *
+ */
+  const outputSchemas = [];
   Object.keys(input).forEach((schema) => {
     const objectTypes = input[schema].map((t) => {
       return {type: t.OBJECT_TYPE, count: t.OBJECT_COUNT};
-    })
+    });
     outputSchemas.push(
-      {owner: schema,
-       object_types: objectTypes}
+      {owner: schema, objectTypes}
     );
   });
   return(outputSchemas);
 }
 
- export class ObjectTypeListItem  implements Deserializable {
+export class ObjectTypeListItem  implements Deserializable {
   public type: string;
   public count: number;
 

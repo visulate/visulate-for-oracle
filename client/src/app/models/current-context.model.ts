@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem} from './endpoint.model'
+import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem} from './endpoint.model';
 
- export class CurrentContextModel {
+export class CurrentContextModel {
   /**
    * Maintains the current database, schema and object type selection
-   * 
-   * @param endpoint - API endpoint for a database connection 
+   *
+   * @param endpoint - API endpoint for a database connection
    * @param owner - database schema
    * @param objectType - object type (as returned by DBA_OBJECTS)
    * @param objectName - an object name
@@ -27,7 +27,7 @@ import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem} from
   constructor(
     public endpoint: string,
     public owner: string,
-    public objectType: string, 
+    public objectType: string,
     public objectName: string) { }
 
   public setEndpoint(endpoint: string) {
@@ -60,8 +60,8 @@ import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem} from
     return endpoint.schemas.find(schema => schema.owner === this.owner);
   }
 
-  public findCurrentObjectType(schema: SchemaModel) : ObjectTypeListItem {
-    return schema.object_types.find(object_type => object_type.type === this.objectType);
+  public findCurrentObjectType(schema: SchemaModel): ObjectTypeListItem {
+    return schema.objectTypes.find(objectType => objectType.type === this.objectType);
   }
 }
 

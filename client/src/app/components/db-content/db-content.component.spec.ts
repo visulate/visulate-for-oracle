@@ -15,13 +15,13 @@
  */
 
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatTableModule, MatExpansionModule} from '@angular/material'
+import { MatTableModule, MatExpansionModule} from '@angular/material';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
-import { MatListModule} from '@angular/material/list'
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; 
+import { MatListModule} from '@angular/material/list';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { HttpClientTestingModule  } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -37,9 +37,9 @@ describe('DbContentComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [ MatTableModule, 
-                 HttpClientTestingModule, 
-                 BrowserAnimationsModule,               
+      imports: [ MatTableModule,
+                 HttpClientTestingModule,
+                 BrowserAnimationsModule,
                  MatExpansionModule,
                  MatSlideToggleModule,
                  FormsModule,

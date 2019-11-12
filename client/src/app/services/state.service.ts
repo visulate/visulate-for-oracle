@@ -31,9 +31,9 @@ export class StateService {
    * the API server.
    * `currentContext$` holds the menu selection.
    */
-  private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel);
-  private selectedContext = 
-          new BehaviorSubject<CurrentContextModel>(new CurrentContextModel('', '', '', ''));   
+  private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
+  private selectedContext =
+          new BehaviorSubject<CurrentContextModel>(new CurrentContextModel('', '', '', ''));
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.selectedContext.asObservable();
@@ -41,7 +41,7 @@ export class StateService {
   constructor() { }
 
   setCurrentContext(context: CurrentContextModel) {
-    this.selectedContext.next(context);    
+    this.selectedContext.next(context);
   }
 
   saveEndpoints(endpoints: EndpointListModel) {

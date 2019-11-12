@@ -25,7 +25,7 @@ describe('RestService', () => {
   let service: RestService;
   let httpMock: HttpTestingController;
 
-  beforeEach(() => { 
+  beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [ HttpClientTestingModule ],
       providers: [RestService]
@@ -40,8 +40,8 @@ describe('RestService', () => {
   });
 
   it('should be created', () => {
-    const service: RestService = TestBed.get(RestService);
-    expect(service).toBeTruthy();
+    const service2: RestService = TestBed.get(RestService);
+    expect(service2).toBeTruthy();
   });
 
   // httpMock code not working as expected
@@ -53,11 +53,9 @@ describe('RestService', () => {
   //       expect(objects.length).toBe(2);
   //       expect(objects).toEqual(dummyObjectList);
   //     });
-  
   //     const req = httpMock.expectOne(`${environment.apiBase}endpoint1/owner2/obtype3`);
   //     expect(req.request.method).toBe('GET');
   //     req.flush(dummyObjectList);
-     
   //   });
   // });
 });
