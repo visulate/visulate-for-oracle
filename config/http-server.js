@@ -1,4 +1,8 @@
+/**
+ * Return environment variable or default value 
+ */
 module.exports = {
   port: process.env.HTTP_PORT || 3000 ,
-  corsOrigin: process.env.CORS_ORIGIN ||'http://localhost:4200'
+  corsOriginWhitelist: process.env.CORS_ORIGIN_WHITELIST ||['http://localhost:4200', 'http://localhost'],
+  logFileLocation: process.env.PWD + '/logs'
 };
