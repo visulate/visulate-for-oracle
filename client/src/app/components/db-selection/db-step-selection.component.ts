@@ -23,8 +23,7 @@ import { DbSelectionComponent } from './db-selection.component';
   styleUrls: ['./db-selection.component.css']
 })
  /**
- * Code to display the object selection menu in the content region when 
- * no object selected.
- */
+  * Code to display the object selection menu in the content region when
+  * no object selected.
+  */
 export class DbStepSelectionComponent extends DbSelectionComponent { }
-

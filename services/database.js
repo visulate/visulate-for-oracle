@@ -16,8 +16,6 @@
 
  const oracledb = require('oracledb');
  const dbConfig = require('../config/database');
-// import { createPool, getPool, OBJECT, getConnection } from 'oracledb';
-// import { endpoints } from '../config/database.js';
 
 /**
  * Creates a connection pool for each endpoint
@@ -27,9 +25,10 @@ async function initialize() {
     try {
       console.log(
         `Creating poolAlias ${endpoint.connect.poolAlias} for ${endpoint.connect.connectString}`);
-      await oracledb.createPool(endpoint.connect);
+        await oracledb.createPool(endpoint.connect);
     } catch (err) {
       console.error(err);
+      console.log(endpoint);
     }
   }
 }
@@ -42,7 +41,8 @@ async function close() {
   for (const endpoint of dbConfig.endpoints){
     try {
       console.log(`Disconnecting from poolAlias ${endpoint.connect.poolAlias}`);
-      await oracledb.getPool(endpoint.connect.poolAlias).close(10);
+      const pool = oracledb.getPool(endpoint.connect.poolAlias);
+      await pool.close(10);
     } catch (err) {
       console.error(err);
     }

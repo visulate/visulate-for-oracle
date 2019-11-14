@@ -43,31 +43,3 @@ const endpoints = [
   },
 ];
 module.exports.endpoints = endpoints;
-
-/**
- * Calculates number of worker threads required to support node-oracledb
- * @returns sum of `poolMax` values 
- */
-function totalDbThreadRequirement(){
-  let threadRequirement = 0;
-  endpoints.forEach(endpoint => {
-    threadRequirement += endpoint.connect.poolMax;
-  });
-  console.log(`Oracle connection pool thread requirement = ${threadRequirement}`)
-  return(threadRequirement);
-}
-module.exports.totalDbThreadRequirement = totalDbThreadRequirement;
-
-
-/**
- * Gets a list of endpoints
- * @returns an endpoint to pool alias  dictionary 
- */
-function getEndpointList(){
-  let endpointList = [];
-  endpoints.forEach(endpoint => {
-    endpointList[endpoint.namespace] = endpoint.connect.poolAlias;
-  });
-  return endpointList;
-}
-module.exports.getEndpointList = getEndpointList;

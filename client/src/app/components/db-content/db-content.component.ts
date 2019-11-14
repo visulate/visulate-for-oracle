@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel } from '../../models/endpoint.model';
 import { CurrentContextModel } from '../../models/current-context.model';
-import { DatabaseObjectModel } from '../../models/database-object.model'
+import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -32,13 +32,11 @@ import { takeUntil } from 'rxjs/operators';
 /**
  * Content to display in main body
  */
-export class DbContentComponent implements OnInit {
+export class DbContentComponent implements OnInit, OnDestroy {
   public endpointList: EndpointListModel;
   public currentContext: CurrentContextModel;
   public objectDetails: DatabaseObjectModel;
-  public showLineNumbers: boolean = true;
-
-
+  public showLineNumbers = true;
   public schemaColumns: string[] = ['type', 'count'];
   private unsubscribe$ = new Subject<void>();
 
@@ -65,9 +63,8 @@ export class DbContentComponent implements OnInit {
       .subscribe( context => { this.processContextChange(context); } );
   }
 
-  ngOnDestroy(){
+  ngOnDestroy() {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
   }
-
 }

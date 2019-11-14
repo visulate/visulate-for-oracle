@@ -18,8 +18,8 @@
   <mat-form-field *ngIf="currentSchema">
     <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
       (selectionChange)="setObjectType($event.value)">
-      <mat-option *ngFor="let object_type of currentSchema.object_types" [value]="object_type">
-        {{object_type.type}} ({{object_type.count}})
+      <mat-option *ngFor="let objectType of currentSchema.objectTypes" [value]="objectType">
+        {{objectType.type}} ({{objectType.count}})
       </mat-option>
     </mat-select>
   </mat-form-field>

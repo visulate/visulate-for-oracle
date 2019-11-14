@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router'
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
 import { CurrentContextModel } from '../../models/current-context.model';
@@ -29,16 +29,15 @@ import { takeUntil } from 'rxjs/operators';
 })
 
  /**
- * Code to Select: Database -> Schema -> Object Type
- */
-export class DbSelectionComponent implements OnInit {
+  * Code to Select: Database -> Schema -> Object Type
+  */
+export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
   public currentEndpoint: EndpointModel;
   public currentSchema: SchemaModel;
-  public currentObjectType: ObjectTypeListItem; 
+  public currentObjectType: ObjectTypeListItem;
   public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
-  
 
   constructor(
     private state: StateService,
@@ -56,7 +55,7 @@ export class DbSelectionComponent implements OnInit {
       ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
   }
 
-  setEndpoint(endpoint: EndpointModel){
+  setEndpoint(endpoint: EndpointModel) {
     this.currentEndpoint = endpoint;
     this.router.navigate([`/database/${endpoint.endpoint}`]);
   }
@@ -69,11 +68,11 @@ export class DbSelectionComponent implements OnInit {
     this.endpoints = endpoints;
     if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
-    }   
+    }
     if (this.currentContext && this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
     }
-    if (this.currentContext && this.currentSchema && this.currentSchema.object_types) {
+    if (this.currentContext && this.currentSchema && this.currentSchema.objectTypes) {
       this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
     }
   }
@@ -82,23 +81,23 @@ export class DbSelectionComponent implements OnInit {
    * Update the object type selection form when the current context changes
    * @param context - Current context (db, schema, object type and name) subscription
    */
-  processContextChange( context: CurrentContextModel ) {  
+  processContextChange( context: CurrentContextModel ) {
     this.currentContext = context;
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
     }
-    if (this.currentEndpoint && this.currentEndpoint.schemas){
+    if (this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
     }
-    if (this.currentSchema && this.currentSchema.object_types){
+    if (this.currentSchema && this.currentSchema.objectTypes) {
       this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
     }
   }
 
   ngOnInit() {
-     this.state.endpoints$
+    this.state.endpoints$
       .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(endpoints => { this.processEndpointListChange(endpoints) });
+      .subscribe(endpoints => { this.processEndpointListChange(endpoints); });
     this.state.currentContext$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(context => { this.processContextChange(context); });

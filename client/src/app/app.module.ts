@@ -35,7 +35,6 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { HighlightModule} from 'ngx-highlightjs';
 
-
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { DbSelectionComponent } from './components/db-selection/db-selection.component';
@@ -70,9 +69,9 @@ export function hljsLanguages() {
     AppRoutingModule,
     BrowserAnimationsModule,
     CdkTableModule,
-    CdkAccordionModule,   
+    CdkAccordionModule,
     HttpClientModule,
-    FormsModule,   
+    FormsModule,
     MatCardModule,
     MatToolbarModule,
     MatSelectModule,
@@ -84,7 +83,6 @@ export function hljsLanguages() {
     MatListModule,
     MatExpansionModule,
     MatSlideToggleModule,
-   
     HighlightModule.forRoot({
       languages: hljsLanguages
     })

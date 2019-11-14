@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Observable, Subject } from 'rxjs';
 import { map, shareReplay, takeUntil } from 'rxjs/operators';
@@ -33,7 +32,7 @@ import { CurrentContextModel } from '../../models/current-context.model';
  * Generated with
  * `ng generate @angular/material:materialNav --name main-nav`
  */
-export class MainNavComponent {
+export class MainNavComponent implements OnInit, OnDestroy {
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.Handset)
     .pipe(
       map(result => result.matches),
@@ -49,12 +48,11 @@ export class MainNavComponent {
   private unsubscribe$ = new Subject<void>();
   public showObjectListInBody: boolean;
 
-
   /**
    * Extract parameter values from the router and pass them to the current context observable
    */
   setContext(): void {
-    let context = new CurrentContextModel('', '', '', '');
+    const context = new CurrentContextModel('', '', '', '');
 
     this.route.paramMap
       .pipe(takeUntil(this.unsubscribe$))
@@ -69,11 +67,10 @@ export class MainNavComponent {
         if (type != null) { context.setObjectType(type.toUpperCase()); }
         if (object != null) { context.setObjectName(object.toUpperCase()); }
 
-        // Show a list of objects in the content area if no object has been selected 
-        context.objectName === ""? this.showObjectListInBody = true: this.showObjectListInBody = false;
+        // Show a list of objects in the content area if no object has been selected
+        context.objectName === '' ? this.showObjectListInBody = true : this.showObjectListInBody = false;
         this.state.setCurrentContext(context);
       });
-
   }
 
   ngOnInit(): void {
@@ -84,5 +81,4 @@ export class MainNavComponent {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
   }
-
 }

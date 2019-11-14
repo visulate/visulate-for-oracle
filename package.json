@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pgoldtho/visulate-for-oracle.git"
+    "url": "git+https://github.com/visulate/visulate-for-oracle.git"
   },
   "keywords": [
     "Oracle",
@@ -19,16 +19,13 @@
   "author": "Peter Goldthorp",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/pgoldtho/visulate-for-oracle/issues"
+    "url": "https://github.com/visulate/visulate-for-oracle/issues"
   },
-  "homepage": "https://github.com/pgoldtho/visulate-for-oracle#readme",
+  "homepage": "https://github.com/visulate/visulate-for-oracle#readme",
   "dependencies": {
-    "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "express": "^4.17.1",
-    "express-json-validator-middleware": "^2.0.0",
     "morgan": "^1.9.1",
-    "node-cache": "^4.2.1",
     "oracledb": "^4.0.1"
   },
   "devDependencies": {

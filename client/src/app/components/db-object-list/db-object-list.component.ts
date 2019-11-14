@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
 import { CurrentContextModel } from '../../models/current-context.model';
@@ -26,7 +26,7 @@ import { takeUntil } from 'rxjs/operators';
   templateUrl: './db-object-list.component.html',
   styleUrls: ['./db-object-list.component.css']
 })
-export class DbObjectListComponent implements OnInit {
+export class DbObjectListComponent implements OnInit, OnDestroy {
   /**
    * Shows result of `select object_name from dba_objects`
    * for current context selections
@@ -46,7 +46,7 @@ export class DbObjectListComponent implements OnInit {
    */
   processContextChange(context: CurrentContextModel) {
     this.currentContext = context;
-    if (context.endpoint && context.owner && context.objectType && (this.currentObjectType != context.objectType)) {
+    if (context.endpoint && context.owner && context.objectType && (this.currentObjectType !== context.objectType)) {
       this.restService.getObjectList$(context.endpoint, context.owner, context.objectType)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.objectList = result; });

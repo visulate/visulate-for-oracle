@@ -17,7 +17,20 @@
 const dbConfig = require('../config/database.js');
 const dbService = require('./database.js');
 const sql = require('./sql-statements');
-const endpointList = dbConfig.getEndpointList();
+const endpointList = getEndpointList(dbConfig.endpoints);
+
+/**
+ * Gets a list of endpoints
+ * @returns an endpoint to pool alias  dictionary 
+ */
+function getEndpointList(endpoints){
+  let endpointList = [];
+  endpoints.forEach(endpoint => {
+    endpointList[endpoint.namespace] = endpoint.connect.poolAlias;
+  });
+  return endpointList;
+}
+
 
 /**
  * Group an array of objects by one of its values

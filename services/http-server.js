@@ -18,6 +18,8 @@ const http = require('http');
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const httpServerConfig = require('../config/http-server.js');
 const router = require('./router.js');
 let httpServer;
@@ -29,12 +31,28 @@ let httpServer;
 function initialize() {
   return new Promise((resolve, reject) => {
     const app = express();
-    app.use(cors({ origin: httpServerConfig.corsOrigin}));
+
+    let corsOptions = {
+      origin: function (origin, callback) {
+        // allow whitelisted cross origin requests + REST tools and server to server 
+        if (httpServerConfig.corsOriginWhitelist.indexOf(origin) !== -1 || !origin) {
+          callback(null, true)
+        } else {
+          callback(new Error('Not allowed by CORS'))
+        }
+      }
+    };
+    app.use(cors(corsOptions));
     httpServer = http.createServer(app);
 
-    // Combine logging info from request and response
-    app.use(morgan('combined'));
+    // Setup logging
+    if (!fs.existsSync(httpServerConfig.logFileLocation)){
+      fs.mkdirSync(httpServerConfig.logFileLocation);
+    }
+    let accessLogStream = fs.createWriteStream(path.join(httpServerConfig.logFileLocation, 'access.log'), { flag: 'a' });
+    app.use(morgan('combined', { stream: accessLogStream }));
 
+    // Start listener
     app.use('/api', router);
     httpServer.listen(httpServerConfig.port)
       .on('listening', () => {
