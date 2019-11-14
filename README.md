@@ -39,3 +39,21 @@ The API server supports cross origin (CORS) requests from locations identified i
 ## Testing
 1. Run `npm test` from the project root to test the API server
 2. Run `ng test` from the client directory to run unit tests for the client
+
+## Deployment
+1. Review apiBase value in `visulate-for-oracle/client/src/environments/environment.ts` and edit to match the API server deployment value 
+2. Build the docker images:
+```
+docker build --rm -t visulate-server:latest .
+docker build --rm -t visulate-client:latest ./client
+```
+3. Deploy the images:
+```
+docker run -d -p 3000:3000/tcp -v /var/log/visulate-for-oracle:/visulate-server/logs visulate-server:latest
+docker run --rm -d -p 80:80/tcp visulate-client:latest
+```
+4. (Optional) Copy the `visulate-for-oracle/config` files to a staging directory before starting the server. This will allow you to edit the database registration file without rebuilding the image. Example:
+```
+docker run -d -p 3000:3000/tcp -v /var/log/visulate-for-oracle:/visulate-server/logs -v /home/pgoldtho/config:/visulate-server/config visulate-server:latest
+
+```
