@@ -37,6 +37,7 @@ The API server supports cross origin (CORS) requests from locations identified i
 9. Navigate to `localhost:4200` in a browser window to view the result.
 
 ## Testing
+Follow the instructions in the test directory to setup the test environment then
 1. Run `npm test` from the project root to test the API server
 2. Run `ng test` from the client directory to run unit tests for the client
 

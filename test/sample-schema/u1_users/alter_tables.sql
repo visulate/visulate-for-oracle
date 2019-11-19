@@ -1,0 +1,6 @@
+alter table rnt_users add
+( USER_LASTNAME       VARCHAR2(50)
+, PRIMARY_PHONE       VARCHAR2(20)
+, SECONDARY_PHONE     VARCHAR2(20)
+, IS_SUBSCRIBED_YN    VARCHAR2(1) not null
+, AGREEMENT_DATE      DATE);
