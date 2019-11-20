@@ -16,6 +16,7 @@
 
  const oracledb = require('oracledb');
  const dbConfig = require('../config/database');
+ const logger = require('./logger.js');
 
 /**
  * Creates a connection pool for each endpoint
@@ -23,12 +24,12 @@
 async function initialize() {
   for (const endpoint of dbConfig.endpoints){
     try {
-      console.log(
+      logger.log('info',
         `Creating poolAlias ${endpoint.connect.poolAlias} for ${endpoint.connect.connectString}`);
         await oracledb.createPool(endpoint.connect);
     } catch (err) {
-      console.error(err);
-      console.log(endpoint);
+      logger.log('error', err);
+      logger.log('error', endpoint);
     }
   }
 }
@@ -40,11 +41,11 @@ module.exports.initialize = initialize;
 async function close() {
   for (const endpoint of dbConfig.endpoints){
     try {
-      console.log(`Disconnecting from poolAlias ${endpoint.connect.poolAlias}`);
+      logger.log('info', `Disconnecting from poolAlias ${endpoint.connect.poolAlias}`);
       const pool = oracledb.getPool(endpoint.connect.poolAlias);
       await pool.close(10);
     } catch (err) {
-      console.error(err);
+      logger.log('error', err);
     }
   }
 }
@@ -70,14 +71,14 @@ function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
       const result = await conn.execute(statement, binds, opts);
       resolve(result);
     } catch (err) {
-      console.error(err);
+      logger.log('error', err);
       reject(err);
     } finally {
       if (conn) { // conn assignment worked, need to close
         try {
           await conn.close();
         } catch (err) {
-          console.log(err);
+          logger.log('error', err);
         }
       }
     }
@@ -96,7 +97,7 @@ function getConnection(poolAlias){
       const connection = await oracledb.getConnection(poolAlias);
       resolve(connection);
     } catch (err) {
-      console.error(err);
+      logger.log('error', err);
       reject(err);
     }
   });
@@ -113,7 +114,7 @@ function closeConnection(connection){
       await connection.close();
       resolve();
     } catch (err) {
-      console.error(err);
+      logger.log('error', err);
       reject(err);
     }
   });
@@ -146,7 +147,7 @@ function query(connection, statement, binds = [], opts = {}){
       await rs.close();
       resolve(returnResult);
     } catch (err) {
-      console.error(`${statement} \n ${err}`);
+      logger.log('error', `${statement} \n ${err}`);
       reject(err);
     }  
   });

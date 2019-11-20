@@ -17,6 +17,7 @@
 const dbConfig = require('../config/database.js');
 const dbService = require('./database.js');
 const sql = require('./sql-statements');
+const logger = require('./logger.js');
 const endpointList = getEndpointList(dbConfig.endpoints);
 
 /**
@@ -199,7 +200,7 @@ async function showObject(req, res, next) {
   const objectDetails = await getObjectDetails(
     poolAlias, req.params.owner, req.params.type, req.params.name
   ).catch((error) => {
-    console.error(error);
+    logger.log('error', error);
     res.status(500).json(error);
   });
   objectDetails === '404'?  

@@ -17,6 +17,7 @@
 const http = require('http');
 const express = require('express');
 const morgan = require('morgan');
+const logger = require('./logger.js');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
@@ -46,17 +47,19 @@ function initialize() {
     httpServer = http.createServer(app);
 
     // Setup logging
-    if (!fs.existsSync(httpServerConfig.logFileLocation)){
+    if (!fs.existsSync(httpServerConfig.logFileLocation)) {
       fs.mkdirSync(httpServerConfig.logFileLocation);
     }
     let accessLogStream = fs.createWriteStream(path.join(httpServerConfig.logFileLocation, 'access.log'), { flag: 'a' });
     app.use(morgan('combined', { stream: accessLogStream }));
 
+
+
     // Start listener
     app.use('/api', router);
     httpServer.listen(httpServerConfig.port)
       .on('listening', () => {
-        console.log(`HTTP Server listening on localhost:${httpServerConfig.port}`);
+        logger.log('info', `HTTP Server listening on localhost:${httpServerConfig.port}`);
         resolve();
       })
       .on('error', err => {
