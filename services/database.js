@@ -65,8 +65,8 @@ function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
     let conn;
     opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
     opts.autoCommit = true;
-
-    try {
+   
+    try {      
       conn = await oracledb.getConnection(poolAlias);
       const result = await conn.execute(statement, binds, opts);
       resolve(result);

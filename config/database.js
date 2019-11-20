@@ -40,6 +40,6 @@ const endpoints = [
                poolMax: 4,
                poolIncrement: 0
              }
-  },
+  }
 ];
 module.exports.endpoints = endpoints;
