@@ -12,12 +12,30 @@
                             {{property.description}}
                         </mat-panel-description>
                     </mat-expansion-panel-header>                    
-<pre *ngIf="property.title == 'Source'" id="source-code">
+<pre *ngIf="property.title === 'Source'" id="source-code">
 <mat-slide-toggle *ngIf="property.rows[0]['Line']" (change)="showLineNumbers = !showLineNumbers" [checked]="showLineNumbers" class="toggle">Show Line Numbers</mat-slide-toggle>
 <code highlightChildren="span" >
 <ng-container *ngFor="let source of property.rows" ><a [hidden]="!showLineNumbers" class="line">{{source.Line}}</a><span [textContent]="source.Text"></span></ng-container>
 </code></pre>
-                    <table mat-table *ngIf="property.title != 'Source'" [dataSource]="property.rows">
+<table mat-table *ngIf="property.title ==='SQL Statements'" [dataSource]="property.rows">
+        <ng-container matColumnDef="Line">
+            <th mat-header-cell *matHeaderCellDef>Line</th>
+            <td mat-cell *matCellDef="let element">
+                <ng-container >{{element.Line}}</ng-container>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="Statement">
+                <th mat-header-cell *matHeaderCellDef>Statement</th>
+                <td mat-cell *matCellDef="let element">
+                    <ng-container >
+                        <pre><code [highlight]="element.Statement"></code></pre>
+                    </ng-container>
+                </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="property.display"></tr>
+        <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
+</table>
+                     <table mat-table *ngIf="property.title !== 'Source'&& property.title !=='SQL Statements'" [dataSource]="property.rows">
                         <ng-container matColumnDef="{{dColumn}}" *ngFor="let dColumn of property.display">
                             <th mat-header-cell *matHeaderCellDef> {{dColumn}}</th>
                             <td mat-cell *matCellDef="let element">

@@ -556,7 +556,8 @@ statement['SOURCE'] = {
     owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
-  }
+  },
+  'callback': 'extractSqlStatements'
 };
 statement['ERRORS'] = {
   'title': 'Error Details',
