@@ -44,13 +44,17 @@ export class DbContentComponent implements OnInit, OnDestroy {
     private restService: RestService,
     private state: StateService) { }
 
+  processObject(objectDetails: DatabaseObjectModel) {
+    this.objectDetails = objectDetails;
+  }
+
   processContextChange(context: CurrentContextModel) {
     this.currentContext = context;
     if (context.endpoint && context.owner && context.objectType && context.objectName) {
       this.restService.getObjectDetails$
       (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => { this.objectDetails = result; });
+        .subscribe(result => { this.processObject(result); });
     }
   }
 

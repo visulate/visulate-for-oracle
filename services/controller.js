@@ -18,6 +18,7 @@ const dbConfig = require('../config/database.js');
 const dbService = require('./database.js');
 const sql = require('./sql-statements');
 const logger = require('./logger.js');
+const util = require('./util');
 const endpointList = getEndpointList(dbConfig.endpoints);
 
 /**
@@ -181,6 +182,17 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
       c.params.object_name.val = object_name;
       const cResult = await dbService.query(connection, c.sql, c.params);
       result.push({ title: c.title, description: c.description, display: c.display, rows: cResult });
+      if (c.callback) {
+          switch (c.callback) {
+            case 'extractSqlStatements':
+              result.push({ title: 'SQL Statements', 
+                            description: `Source lines that include the word: select, insert, update, delete, merge,
+                                          create, alter, drop, truncate, lock table, grant or revoke`, 
+                            display: ["Line", "Statement"], 
+                            rows: util.extractSqlStatements(cResult) });
+              break;
+          }
+      }
     }
   }
 
