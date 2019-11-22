@@ -203,7 +203,8 @@ statement['TABLE-KEYS'] = {
                  group by owner, constraint_name) cc
            where c.owner = :owner
            and c.table_name = :object_name
-           and c.constraint_name = cc.constraint_name (+)           
+           and c.constraint_name = cc.constraint_name (+)      
+           and c.owner = cc.owner (+)     
            order by decode(c.constraint_type, 
                            'P', 1,
                            'U', 2,
@@ -247,6 +248,7 @@ statement['TABLE-COLUMNS'] = {
            and col.table_name = :object_name
            and col.table_name = com.table_name (+)
            and col.column_name = com.column_name (+)
+           and col.owner = com.owner (+)
            order by col.column_id`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
