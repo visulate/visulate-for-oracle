@@ -18,6 +18,7 @@ function extractSqlStatements(source) {
     let sqlStatements = [];
     let currentStatement = '';
     let currentLine = 0;
+    const regexSql = /\b(?:select|insert|update|delete|create|alter|drop|truncate|lock|grant|revoke|merge)\b/gi;
     for (const l of source) {
         if (currentStatement) {
             if (l.Text.includes(';')) {
@@ -28,19 +29,7 @@ function extractSqlStatements(source) {
                 currentStatement += l.Text;                
             }
         } else {
-            if (l.Text.toLowerCase().includes(' select ') ||
-                l.Text.toLowerCase().includes(' insert ') ||
-                l.Text.toLowerCase().includes(' update ') ||
-                l.Text.toLowerCase().includes(' delete ') ||
-                l.Text.toLowerCase().includes(' create ') ||
-                l.Text.toLowerCase().includes(' alter ') ||
-                l.Text.toLowerCase().includes(' drop ') ||
-                l.Text.toLowerCase().includes(' truncate ') ||
-                l.Text.toLowerCase().includes(' lock table ') ||               
-                l.Text.toLowerCase().includes(' grant ') ||
-                l.Text.toLowerCase().includes(' revoke ') ||
-                l.Text.toLowerCase().includes(' merge ')
-            ) {
+            if (l.Text.toLowerCase().match(regexSql)) {
                 currentStatement = l.Text;
                 currentLine = l.Line;
                 if (l.Text.includes(';')) {                   

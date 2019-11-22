@@ -157,12 +157,20 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
     await dbService.closeConnection(connection);
     return ('404');
   }
+  let result = [{ title: query.title, description: query.description, display: query.display, rows: r }];
+  if (r[0]['Status'] === 'INVALID') {
+    query = sql.statement['ERRORS'];
+    query.params.owner.val = owner;
+    query.params.object_type.val = object_type;
+    query.params.object_name.val = object_name;
+    const e = await dbService.query(connection, query.sql, query.params);
+    result.push({ title: query.title, description: query.description, display: query.display, rows: e });
+  }
 
   // Store the object_id for  use in queries that require it
   const object_id = r[0]['OBJECT_ID'];
-  let result = [{ title: query.title, description: query.description, display: query.display, rows: r }];
-  let queryCollection = sql.collection[object_type];
 
+  let queryCollection = sql.collection[object_type];
   if (queryCollection) {
     for (let c of queryCollection.objectNameQueries) {
       c.params.owner.val = owner;
@@ -183,15 +191,17 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
       const cResult = await dbService.query(connection, c.sql, c.params);
       result.push({ title: c.title, description: c.description, display: c.display, rows: cResult });
       if (c.callback) {
-          switch (c.callback) {
-            case 'extractSqlStatements':
-              result.push({ title: 'SQL Statements', 
-                            description: `Source lines that include the word: select, insert, update, delete, merge,
-                                          create, alter, drop, truncate, lock table, grant or revoke`, 
-                            display: ["Line", "Statement"], 
-                            rows: util.extractSqlStatements(cResult) });
-              break;
-          }
+        switch (c.callback) {
+          case 'extractSqlStatements':
+            result.push({
+              title: 'SQL Statements',
+              description: `Source lines that include the word: select, insert, update, delete, merge,
+                                          create, alter, drop, truncate, lock, grant or revoke`,
+              display: ["Line", "Statement"],
+              rows: util.extractSqlStatements(cResult)
+            });
+            break;
+        }
       }
     }
   }

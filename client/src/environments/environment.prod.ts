@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBase: 'http://localhost:3000/api/'
+  apiBase: 'http://demo.visulate.net:3000/api/'
 };

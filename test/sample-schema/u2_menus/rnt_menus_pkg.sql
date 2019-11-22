@@ -47,7 +47,7 @@ create or replace package body RNT_MENUS_PKG as
   procedure lock_row( X_TAB_NAME IN RNT_MENUS.TAB_NAME%TYPE
                        , X_MENU_NAME IN RNT_MENUS.MENU_NAME%TYPE) is
      cursor c is
-     select * from RNT_MENUS
+select * from RNT_MENUS
      where TAB_NAME = X_TAB_NAME
     and MENU_NAME = X_MENU_NAME
      for update nowait;
