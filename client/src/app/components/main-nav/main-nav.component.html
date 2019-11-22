@@ -2,7 +2,7 @@
   <mat-sidenav #drawer class="sidenav" fixedInViewport
       [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
       [mode]="(isHandset$ | async) ? 'over' : 'side'"
-      [opened]="(isHandset$ | async) === false">
+      [opened]="showObjectListInBody === false">
     <app-db-selection></app-db-selection>
     <app-db-object-list></app-db-object-list>
 
@@ -17,7 +17,7 @@
         *ngIf="isHandset$ | async">
         <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
       </button>
-      <span>Visulate for Oracle</span>
+      <a routerLink="/">Visulate for Oracle</a>
     </mat-toolbar>
     <app-db-content></app-db-content>    
   </mat-sidenav-content>
