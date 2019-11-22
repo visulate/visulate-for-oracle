@@ -22,6 +22,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { MatListModule} from '@angular/material/list';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { HighlightModule} from 'ngx-highlightjs';
 
 import { HttpClientTestingModule  } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -42,6 +43,7 @@ describe('DbContentComponent', () => {
                  BrowserAnimationsModule,
                  MatExpansionModule,
                  MatSlideToggleModule,
+                 HighlightModule,
                  FormsModule,
                  MatCardModule,
                  MatListModule,

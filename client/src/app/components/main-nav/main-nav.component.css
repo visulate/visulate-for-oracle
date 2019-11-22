@@ -15,3 +15,8 @@
   top: 0;
   z-index: 1;
 }
+
+.mat-toolbar a {
+  color: #ffffff;
+  text-decoration: none;
+}
