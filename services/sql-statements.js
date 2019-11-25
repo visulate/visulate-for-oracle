@@ -654,7 +654,6 @@ module.exports.statement = statement;
  * @param objectNameQueries - queries that accept owner + object_name as input
  * @param objectIdQueries - queries that accept object_id as input
  * @param objectTypeQueries - queries that accept owner, object_name + object_type
- * @param childObjectQueries - drill down from an earlier query e.g. columns in an index
  */
 collection['TABLE'] = {
   objectNameQueries: [
@@ -669,11 +668,7 @@ collection['TABLE'] = {
     statement['FK-IN-TABLE'],
     statement['FK-TO-TABLE']
   ],
-  objectTypeQueries: [],
-  childObjectQueries: [
-    collection['INDEX'],
-    statement['CONSTRAINT-COLUMNS']
-  ]
+  objectTypeQueries: []
 };
 collection['VIEW'] = {
   objectNameQueries: [
@@ -683,56 +678,49 @@ collection['VIEW'] = {
     statement['VIEW-SOURCE']
   ],
   objectTypeQueries: [],
-  objectIdQueries: [],
-  childObjectQueries: []
+  objectIdQueries: []
 };
 collection['PACKAGE'] = {
   objectNameQueries: [],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
-  ],
-  childObjectQueries: []
+  ]
 };
 collection['PACKAGE BODY'] = {
   objectNameQueries: [],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
-  ],
-  childObjectQueries: []
+  ]
 };
 collection['PROCEDURE'] = {
   objectNameQueries: [],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
-  ],
-  childObjectQueries: []
+  ]
 };
 collection['FUNCTION'] = {
   objectNameQueries: [],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
-  ],
-  childObjectQueries: []
+  ]
 };
 collection['TYPE BODY'] = {
   objectNameQueries: [],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
-  ],
-  childObjectQueries: []
+  ]
 };
 collection['JAVA SOURCE'] = {
   objectNameQueries: [],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
-  ],
-  childObjectQueries: []
+  ]
 };
 collection['MATERIALIZED VIEW'] = {
   objectNameQueries: [
@@ -741,16 +729,14 @@ collection['MATERIALIZED VIEW'] = {
     statement['MVIEW-LOG_DEPENDENCIES']
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: []
+  objectTypeQueries: []
 };
 collection['TRIGGER'] = {
   objectNameQueries: [
     statement['TRIGGER-DETAILS']
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: []
+  objectTypeQueries: []
 };
 collection['INDEX'] = {
   objectNameQueries: [
@@ -758,32 +744,28 @@ collection['INDEX'] = {
     statement['INDEX-FUNCTION'],
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: []
+  objectTypeQueries: []
 };
 collection['QUEUE'] = {
   objectNameQueries: [
     statement['QUEUE-DETAILS']
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: []
+  objectTypeQueries: []
 };
 collection['SYNONYM'] = {
   objectNameQueries: [
     statement['DECODE-SYNONYM']
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: []
+  objectTypeQueries: []
 };
 collection['CLUSTER'] = {
   objectNameQueries: [
     statement['TABLE-COLUMNS']
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: []
+  objectTypeQueries: []
 };
 collection['TYPE'] = {
   objectNameQueries: [
@@ -793,18 +775,11 @@ collection['TYPE'] = {
     statement['TYPE-METHODS']
   ],
   objectIdQueries: [],
-  objectTypeQueries: [],
-  childObjectQueries: [
-    statement['METHOD-PARAMETERS'],
-    statement['METHOD-RESULTS']
-  ]
+  objectTypeQueries: []
 };
 collection['DEPENDENCIES'] = {
   objectNameIdQueries: [statement['USED-BY-OBJECTS']],
   objectIdQueries: [ statement['USES-OBJECTS'] ],
-  objectTypeQueries: [],
-  childObjectQueries: [
-    statement['SOURCE-LINE-DEPENDENCY']
-  ]
+  objectTypeQueries: []
 }
 module.exports.collection = collection;
