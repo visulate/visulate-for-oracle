@@ -89,6 +89,25 @@ module.exports.getEndpoints = getEndpoints;
 ////////////////////////////////////////////////////////////////////////////////
 // List object for a given database, schemea, object type and filter conditions
 ////////////////////////////////////////////////////////////////////////////////
+async function getObjectList(connection, owner, type, name, status) {
+  // Get the list of object types
+  query = sql.statement['LIST_DBA_OBJECTS'];
+  const filtered_name = name.replace('*', '%').replace('_', '\\_');
+  const filtered_type = type.replace('*', '%');
+  let filtered_status = status.toUpperCase();
+  if (filtered_status !== 'VALID' &&
+    filtered_status !== 'INVALID') {
+    filtered_status = '%';
+  }
+  query.params.owner.val = owner;
+  query.params.object_type.val = filtered_type;
+  query.params.object_name.val = filtered_name;
+  query.params.status.val = filtered_status;
+
+  const result = await dbService.query(connection, query.sql, query.params);
+  return result;
+}
+
 async function listObjects(req, res, next) {
 
   // Validate the database parameter 
@@ -145,6 +164,13 @@ module.exports.listObjects = listObjects;
 // Show object details
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Run object detail queries
+ * @param {*} poolAlias - database connection
+ * @param {*} owner - schema
+ * @param {*} object_type - database object type
+ * @param {*} object_name - database object name
+ */
 async function getObjectDetails(poolAlias, owner, object_type, object_name) {
   let query = sql.statement['OBJECT-DETAILS'];
   query.params.owner.val = owner;
@@ -222,6 +248,13 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
   return result;
 }
 
+/**
+ * Implements GET /:db/:owner/:type/:name endpoint
+ * @param {*} req - request
+ * @param {*} res - reponse
+ * @param {*} next - next matching route
+ */
+
 async function showObject(req, res, next) {
   const poolAlias = endpointList[req.params.db];
   if (!poolAlias) {
@@ -242,3 +275,82 @@ async function showObject(req, res, next) {
 }
 
 module.exports.showObject = showObject;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Object collections
+////////////////////////////////////////////////////////////////////////////////
+
+async function getUsesDependencies(connection, object) {
+  query = sql.statement['USES-OBJECTS-NOLINE'];
+  query.params.object_id.val = object['OBJECT_ID'];
+  const result = await dbService.query(connection, query.sql, query.params);
+  return result;
+}
+
+/**
+ * Implements POST /collection/:db endpoint.   Returns a list of matched objects
+ * @param {*} req - request
+ * @param {*} res - reponse
+ * @param {*} next - next matching route
+ */
+async function getCollection(req, res, next) {
+  const poolAlias = endpointList[req.params.db];
+  if (!poolAlias) {
+    res.status(401).send("Requested database was not found");
+    return;
+  }
+  const connection = await dbService.getConnection(poolAlias);
+
+  /**
+   * Process each owner/type/name/status object in the POST body.
+   * Find matching objects + their "Uses" dependencies. Stringify the
+   * result and store in a Set to remove duplicate entries. Create a Map
+   * of uses dependencies keyed on the object_id
+   */
+
+  let objectIdSet = new Set();
+  let consolidatedSet = new Set();
+  let dependencyMap = new Map();
+  let result;
+
+  for (let object of req.body) {
+    const objectList = await getObjectList(connection, object.owner, object.type, object.name, object.status);
+
+    for (let object of objectList) {
+      objectIdSet.add(object.OBJECT_ID);    
+      consolidatedSet.add(JSON.stringify(object));
+      let dependencies = await getUsesDependencies(connection, object);
+
+      for (let d of dependencies) {
+        consolidatedSet.add(JSON.stringify(d));
+        if (dependencyMap.has(d.OBJECT_ID)) {
+          let value = dependencyMap.get(d.OBJECT_ID);
+          value.push(object);
+          dependencyMap.set(d.OBJECT_ID, value);
+        } else {
+          dependencyMap.set(d.OBJECT_ID, [object]);
+        }
+      }
+    }
+
+    /**
+     * Create an object from the stringified Set entries. Add a "USED_BY"
+     * property to dependant objects to identify the primary objects that use them.
+     */
+    const depArr = Array.from(consolidatedSet);
+
+    result = depArr.map(entry => {
+      let obj = JSON.parse(entry);
+      if (dependencyMap.has(obj.OBJECT_ID) && !objectIdSet.has(obj.OBJECT_ID)){
+        obj.USED_BY = dependencyMap.get(obj.OBJECT_ID)
+      }
+      return obj;
+    });
+  }
+
+  await dbService.closeConnection(connection);
+  res.status(200).json(result);
+}
+module.exports.getCollection = getCollection;
+

@@ -53,10 +53,10 @@ statement['LIST_DBA_OBJECTS'] = {
   'title': 'Object List',
   'description': '',
   'display': [],
-  'sql': `select object_name
+  'sql': `select  object_id, object_name, object_type, owner
           from dba_objects
           where  owner = :owner
-          and object_type = :object_type
+          and object_type like :object_type
           and object_name like :object_name ESCAPE :esc
           and status like :status
           order by object_name`,
@@ -645,6 +645,38 @@ statement['USES-OBJECTS'] = {
            order by o.owner, o.object_name, o.object_type`,
   'params' : {
     object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" },
+  }
+};
+statement['USED-BY-OBJECTS-NOLINE'] = {
+  'title': 'Used By',
+  'display': ["Object Name", "Object Type", "Owner"],
+  'sql' : `select d_obj# as object_id
+           ,      object_name as "Object Name"
+           ,      object_type as "Object Type"
+           ,      owner as "Owner"
+           from sys.dependency$
+           ,    dba_objects
+           where p_obj# = :object_id
+           and d_obj# = object_id
+           order by owner, object_name, object_type`,
+  'params' : {
+    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
+  }
+};
+statement['USES-OBJECTS-NOLINE'] = {
+  'title': 'Uses',
+  'display': [],
+  'sql' : `select p_obj# as object_id
+           ,      object_name 
+           ,      object_type 
+           ,      owner
+           from sys.dependency$
+           ,    dba_objects
+           where d_obj# = :object_id
+           and p_obj# = object_id
+           order by owner, object_name, object_type`,
+  'params' : {
+    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
 module.exports.statement = statement;

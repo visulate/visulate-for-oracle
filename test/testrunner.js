@@ -345,3 +345,140 @@ it('11i Get request for object with no collection SQL should not fail', (done) =
     done();
   });
 });
+
+it('Invalid schema collection query', (done) => {
+  const queryCollection = 
+      [{OWNER: "WIKI",
+        type: "VIEW", 
+        name: "RNT_MENUS_V",
+        status: "VALID",
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(400);
+    done();
+  });
+});
+
+it('19c single object collection query', (done) => {
+  const queryCollection = 
+      [{owner: "WIKI",
+        type: "VIEW", 
+        name: "RNT_MENUS_V",
+        status: "VALID",
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(200);    
+    res.body.should.be.a('array');
+    res.body.length.should.equal(3);
+    res.body[2]["OBJECT_NAME"].should.equal("RNT_SYS_CHECKSUM_REC_PKG")
+    done();
+  });
+});
+
+it('11i single object collection query', (done) => {
+  const queryCollection = 
+      [{owner: "WIKI",
+        type: "VIEW", 
+        name: "RNT_MENUS_V",
+        status: "VALID",
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${NON_PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(3);
+    res.body[2]["OBJECT_NAME"].should.equal("RNT_SYS_CHECKSUM_REC_PKG")
+    done();
+  });
+});
+
+it('19c multi object collection query', (done) => {
+  const queryCollection = 
+      [{"owner": "WIKI",
+        "type": "VIEW", 
+        "name": "RNT_MENUS_V",
+        "status": "VALID",
+        "dependencies": "Y"
+      },
+      {"owner": "WIKI",
+        "type": "PACKAGE BODY", 
+        "name": "RNT_SYS_CHECKSUM_REC_PKG",
+        "status": "VALID",
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(7);
+    done();
+  });
+});
+
+it('11i multi object collection query', (done) => {
+  const queryCollection = 
+      [{"owner": "WIKI",
+        "type": "VIEW", 
+        "name": "RNT_MENUS_V",
+        "status": "VALID",
+        "dependencies": "Y"
+      },
+      {"owner": "WIKI",
+        "type": "PACKAGE BODY", 
+        "name": "RNT_SYS_CHECKSUM_REC_PKG",
+        "status": "VALID",
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${NON_PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(7);
+    done();
+  });
+});
+
+it('19c wildcard collection query', (done) => {
+  const queryCollection = 
+      [{"owner": "WIKI",
+        "type": "*", 
+        "name": "RNT_MENUS*",
+        "status": "*"
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    //console.log(JSON.stringify(res.body, null, 2));
+    res.body.length.should.equal(8);
+    done();
+  });
+});
+
+it('11i wildcard collection query', (done) => {
+  const queryCollection = 
+      [{"owner": "WIKI",
+        "type": "*", 
+        "name": "RNT_MENUS*",
+        "status": "*"
+      }];
+  chai.request(BASE_URL)
+  .post(`/collection/${NON_PDB}/`)
+  .send(queryCollection)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.length.should.equal(8);
+    done();
+  });
+});
