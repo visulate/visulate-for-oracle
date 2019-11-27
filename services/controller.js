@@ -336,7 +336,7 @@ async function getCollection(req, res, next) {
 
     /**
      * Create an object from the stringified Set entries. Add a "USED_BY"
-     * property to dependant objects to identify the primary objects that use them.
+     * property to dependent objects to identify the primary objects that use them.
      */
     const depArr = Array.from(consolidatedSet);
 
