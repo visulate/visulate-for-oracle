@@ -15,15 +15,49 @@
  */
 
 const express = require('express');
+const bodyparser = require("body-parser");
 const router = new express.Router();
 const controller = require('./controller.js');
+router.use(bodyparser.json());
+
+const { Validator, ValidationError } = require('express-json-validator-middleware');
+const validator = new Validator({ allErrors: true });
+const validate = validator.validate;
+const util = require('util');
+
+const collectionSchema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    required: ['owner', 'type', 'name', 'status'],
+    properties: {
+      owner: { type: 'string' },
+      type: { type: 'string' },
+      name: { type: 'string' },
+      status: { type: 'string' }
+    }
+  }
+};
 
 router.route('/')
   .get(controller.getEndpoints);
 
 router.route('/:db/:owner/:type/:name/:status')
-  .get(controller.listObjects);  
+  .get(controller.listObjects);
 
 router.route('/:db/:owner/:type/:name')
-  .get(controller.showObject);    
+  .get(controller.showObject);
+
+router.route('/collection/:db')
+  .post(validate({ body: collectionSchema }), controller.getCollection);
+
+// Error handler JSON Schema errors
+router.use((err, req, res, next) => {
+  if (err instanceof ValidationError) {
+    res.status(400).json(util.inspect(err.validationErrors, { showHidden: false, depth: null }));
+    next();
+  }
+  else next(err); // pass error on if not a validation error
+});
+
 module.exports = router;
