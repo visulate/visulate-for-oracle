@@ -665,11 +665,17 @@ statement['USED-BY-OBJECTS-NOLINE'] = {
 };
 statement['USES-OBJECTS-NOLINE'] = {
   'title': 'Uses',
-  'display': [],
+  'description': 'from SYS.DEPENDENCY$',
+  'display': ["Object Name", "Object Type"],
+  'link': 'Object Name',
   'sql' : `select p_obj# as object_id
            ,      object_name 
            ,      object_type 
            ,      owner
+           ,      object_name as "Object Name"
+           ,      object_type as "Object Type"
+           ,      owner as "Owner"
+           ,      owner||'/'||object_type||'/'||object_name as link
            from sys.dependency$
            ,    dba_objects
            where d_obj# = :object_id
@@ -707,7 +713,7 @@ collection['VIEW'] = {
     statement['TABLE-DETAILS'], 
     statement['TABLE-COMMENTS'],
     statement['TABLE-COLUMNS'],
-    statement['VIEW-SOURCE']
+    statement['VIEW-SOURCE']  
   ],
   objectTypeQueries: [],
   objectIdQueries: []
@@ -814,4 +820,10 @@ collection['DEPENDENCIES'] = {
   objectIdQueries: [ statement['USES-OBJECTS'] ],
   objectTypeQueries: []
 }
+collection['DEPENDENCIES-NOSOURCE'] = {
+  objectNameIdQueries: [statement['USED-BY-OBJECTS']],
+  objectIdQueries: [ statement['USES-OBJECTS-NOLINE'] ],
+  objectTypeQueries: []
+}
+
 module.exports.collection = collection;
