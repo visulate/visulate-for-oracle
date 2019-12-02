@@ -312,6 +312,36 @@ it('11i Show Table', (done) => {
   });
 });
 
+it('19c VIEW object should have USES dependencies', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${PDB}/WIKI/VIEW/RNT_MENUS_V`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    //console.log(JSON.stringify(res.body, null, 2));
+    res.body.should.be.a('array');
+    res.body[6].title.should.equal("Uses");
+    res.body[6].rows.length.should.equal(2);
+    res.body[6].rows[0]["Object Name"].should.equal("RNT_MENUS");
+    res.body[6].rows[1]["Object Name"].should.equal("RNT_SYS_CHECKSUM_REC_PKG");
+    done();
+  });
+});
+
+it('11i VIEW object should have USES dependencies', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${NON_PDB}/WIKI/VIEW/RNT_MENUS_V`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    //console.log(JSON.stringify(res.body, null, 2));
+    res.body.should.be.a('array');
+    res.body[6].title.should.equal("Uses");
+    res.body[6].rows.length.should.equal(2);
+    res.body[6].rows[0]["Object Name"].should.equal("RNT_MENUS");
+    res.body[6].rows[1]["Object Name"].should.equal("RNT_SYS_CHECKSUM_REC_PKG");
+    done();
+  });
+});
+
 it('19c Get request for object with no collection SQL should not fail', (done) => {
   chai.request(BASE_URL)
   .get(`/${PDB}/WIKI/SEQUENCE/RNT_USERS_SEQ`)
@@ -461,7 +491,7 @@ it('19c wildcard collection query', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     //console.log(JSON.stringify(res.body, null, 2));
-    res.body.length.should.equal(8);
+    res.body.length.should.equal(11);
     done();
   });
 });
@@ -478,7 +508,7 @@ it('11i wildcard collection query', (done) => {
   .send(queryCollection)
   .end((err, res) => {
     expect(res).to.have.status(200);
-    res.body.length.should.equal(8);
+    res.body.length.should.equal(11);
     done();
   });
 });

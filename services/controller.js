@@ -232,7 +232,14 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
     }
   }
 
-  queryCollection = sql.collection['DEPENDENCIES'];
+
+/**
+ * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
+ */
+  ['PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TRIGGER', 'TYPE', 'TYPE BODY', 'LIBRARY', 'ASSEMBLY']
+    .includes(object_type) ? queryCollection = sql.collection['DEPENDENCIES'] :
+    queryCollection = sql.collection['DEPENDENCIES-NOSOURCE'];
+
   for (let c of queryCollection.objectNameIdQueries) {
     c.params.object_id.val = object_id;
     c.params.object_name.val = object_name;
@@ -318,7 +325,7 @@ async function getCollection(req, res, next) {
     const objectList = await getObjectList(connection, object.owner, object.type, object.name, object.status);
 
     for (let object of objectList) {
-      objectIdSet.add(object.OBJECT_ID);    
+      objectIdSet.add(object.OBJECT_ID);
       consolidatedSet.add(JSON.stringify(object));
       let dependencies = await getUsesDependencies(connection, object);
 
@@ -342,7 +349,7 @@ async function getCollection(req, res, next) {
 
     result = depArr.map(entry => {
       let obj = JSON.parse(entry);
-      if (dependencyMap.has(obj.OBJECT_ID) && !objectIdSet.has(obj.OBJECT_ID)){
+      if (dependencyMap.has(obj.OBJECT_ID) && !objectIdSet.has(obj.OBJECT_ID)) {
         obj.USED_BY = dependencyMap.get(obj.OBJECT_ID)
       }
       return obj;
