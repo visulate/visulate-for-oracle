@@ -265,7 +265,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
 async function showObject(req, res, next) {
   const poolAlias = endpointList[req.params.db];
   if (!poolAlias) {
-    res.status(401).send("Requested database was not found");
+    res.status(404).send("Requested database was not found");
     return;
   }
   const objectDetails = await getObjectDetails(
@@ -289,7 +289,7 @@ module.exports.showObject = showObject;
 ////////////////////////////////////////////////////////////////////////////////
 
 async function getUsesDependencies(connection, object) {
-  query = sql.statement['USES-OBJECTS-NOLINE'];
+  query = sql.statement['DEPENDS-ON'];
   query.params.object_id.val = object['OBJECT_ID'];
   const result = await dbService.query(connection, query.sql, query.params);
   return result;
@@ -304,7 +304,7 @@ async function getUsesDependencies(connection, object) {
 async function getCollection(req, res, next) {
   const poolAlias = endpointList[req.params.db];
   if (!poolAlias) {
-    res.status(401).send("Requested database was not found");
+    res.status(404).send("Requested database was not found");
     return;
   }
   const connection = await dbService.getConnection(poolAlias);
@@ -342,7 +342,7 @@ async function getCollection(req, res, next) {
     }
 
     /**
-     * Create an object from the stringified Set entries. Add a "USED_BY"
+     * Create an object from the stringified Set entries. Add a "REQUIRED_BY"
      * property to dependent objects to identify the primary objects that use them.
      */
     const depArr = Array.from(consolidatedSet);
@@ -350,7 +350,7 @@ async function getCollection(req, res, next) {
     result = depArr.map(entry => {
       let obj = JSON.parse(entry);
       if (dependencyMap.has(obj.OBJECT_ID) && !objectIdSet.has(obj.OBJECT_ID)) {
-        obj.USED_BY = dependencyMap.get(obj.OBJECT_ID)
+        obj.REQUIRED_BY = dependencyMap.get(obj.OBJECT_ID)
       }
       return obj;
     });

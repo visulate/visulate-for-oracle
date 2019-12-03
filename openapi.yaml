@@ -1,0 +1,277 @@
+openapi: 3.0.1
+info:
+  title: Visulate for Oracle
+  version: 1.0.0
+  description: >-
+    Visulate for Oracle is an Oracle data dictionary browsing service to help
+    data engineers understand the structure and dependencies in Oracle databases
+    that they plan to migrate to the Cloud.
+  contact:
+    name: Peter Goldthorp
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+servers:
+  - url: 'http://demo.visulate.net:3000/api'
+paths:
+  /:
+    summary: Database endpoints
+    get:
+      summary: List database endpoints
+      description: >-
+        List each registered database along with a count of object types by
+        schema
+      operationId: ''
+      responses:
+        200:
+          description: List of registered databases
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoints: 
+                    type: array
+                    items: 
+                      type: object
+                      properties:
+                        endpoint:
+                          type: string
+                          example: oracle18XE
+                        description:
+                          type: string
+                          example: An Oracle XE database
+                        connectString:
+                          type: string
+                          example: db.visulate.net:1521/XEPDB1
+                        schemas:
+                          type: object
+                          properties:
+                            owner:
+                              type: array
+                              items: 
+                                type: object
+                                properties:
+                                  OWNER: 
+                                    type: string
+                                    example: HR
+                                  OBJECT_TYPE: 
+                                    type: string
+                                    example: PROCEDURE
+                                  OBJECT_COUNT:
+                                    type: integer
+                                    example: 2
+        404:
+          description: No objects match the database, owner + object_type combination
+        503:
+          description: Database connection failure
+                          
+              
+  /{db}/{owner}/{type}/{name}/{status}: 
+    get:
+      summary: List database objects
+      description: >-
+        Retreive a list of database objects using the following query:
+          ```
+          select  object_id, object_name, object_type, owner
+          from dba_objects
+          where  owner = :owner
+          and object_type like :object_type
+          and object_name like :object_name ESCAPE \_
+          and status like :status
+          order by object_name
+          ```
+      parameters: 
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: WIKI
+        - in: path
+          name: type
+          description: database object type 
+          required: true
+          schema:
+            type: string
+            example: PACKAGE
+        - in: path
+          name: name
+          description: database object name or wildcard 
+          required: true
+          schema:
+            type: string
+            example: RNT*    
+        - in: path
+          name: status
+          description: database object name or wildcard 
+          required: true
+          schema:
+            type: string
+            example: VALID 
+      responses:
+        200:
+          description: Returns an array of object names
+          content:
+            application/json:
+              schema:
+                example: ["RNT_MENUS_PKG", "RNT_MENU_LINKS_PKG"]
+                type: array
+                items:
+                  type: string
+        404:
+          description: No objects match the database, owner + object_type combination
+        503:
+          description: Database connection failure
+  /{db}/{owner}/{type}/{name}: 
+    get:
+      summary: Database object report
+      parameters: 
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: WIKI
+        - in: path
+          name: type
+          description: database object type
+          required: true
+          schema:
+            type: string
+            example: PACKAGE BODY
+        - in: path
+          name: name
+          description: database object name 
+          required: true
+          schema:
+            type: string
+            example: RNT_MENUS_PKG 
+      responses:
+        200:
+          description: Returns an array of query results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                      example: Object Details
+                    description:
+                      type: string
+                      example: "Database object details"
+                    display:
+                      type: array
+                      items:
+                        type: string
+                        example: Object Name
+                    rows:
+                      type: array
+                      items: 
+                        type: object
+                        properties:
+                          name-value: 
+                            type: string
+                          name-value2: 
+                            type: string
+                    
+        404:
+          description: No objects match the database, owner + object_type combination
+        503:
+          description: Database connection failure
+  /collection/{db}:
+    post:
+      summary: Database object collection
+      description: Identify a collection of database objects matching one or more object paterns
+      parameters: 
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required: [owner, type, name, status]
+                properties:
+                  owner: 
+                    type: string
+                    example: WIKI
+                  type:
+                    type: string
+                    example: '*'
+                  name:
+                    type: string
+                    example: RNT_MENUS*
+                  status:
+                    type: string
+                    example: '*'
+                  
+      responses:
+        200:
+          description: List of marching objects and their "uses" dependencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    OBJECT_ID:
+                      type: integer
+                      example: 22733
+                    OBJECT_NAME:
+                      type: string
+                      example: DBMS_STANDARD
+                    OBJECT_TYPE:
+                      type: string
+                      example: PACKAGE
+                    OWNER:
+                      type: string
+                      example: SYS
+                    REQUIRED_BY:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          OBJECT_ID:
+                            type: integer
+                            example: 22783
+                          OBJECT_NAME:
+                            type: string
+                            example: RNT_MENUES_PKG
+                          OBJECT_TYPE:
+                            type: string
+                            example: PACKAGE
+                          OWNER:
+                            type: string
+                            example: WIKI
+        404:
+          description: Requested database was not found
+          

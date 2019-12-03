@@ -685,6 +685,26 @@ statement['USES-OBJECTS-NOLINE'] = {
     object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
+
+// used by collections query
+statement['DEPENDS-ON'] = {
+  'title': 'Depends On',
+  'description': 'from SYS.DEPENDENCY$',
+  'display': ["Object Name", "Object Type"],
+  'link': 'Object Name',
+  'sql' : `select p_obj# as object_id
+           ,      object_name 
+           ,      object_type 
+           ,      owner
+           from sys.dependency$
+           ,    dba_objects
+           where d_obj# = :object_id
+           and p_obj# = object_id
+           order by owner, object_name, object_type`,
+  'params' : {
+    object_id : { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
+  }
+};
 module.exports.statement = statement;
 
 /**
