@@ -70,7 +70,7 @@ statement['LIST_DBA_OBJECTS'] = {
 };
 statement['OBJECT-DETAILS'] = {
   'title': 'Object Details',
-  'description': 'from DBA_OBJECTS',
+  'description': '',
   'display': ["Object Name", "Type", "Owner", "Created", "Status"], 
   'sql': `select object_name as "Object Name"
           ,      object_type as "Type"
@@ -97,11 +97,13 @@ statement['OBJECT-DETAILS'] = {
 };
 statement['TABLE-DETAILS'] = {
   'title': 'Table Details',
-  'description': 'from DBA_TABLES',
-  'display': ["Name", "Rows", "Tablespace", "Temporary", "Duration"],
+  'description': '',
+  'display': ["Tablespace", "Last Analyzed", "Rows", "Backed Up", "Temporary", "Duration"],
   'sql': `select table_name as "Name"
           ,      num_rows
+          ,      to_char(last_analyzed, 'Mon dd, yyyy') as "Last Analyzed"
           ,      to_char(num_rows, 'FM999,999,999,999') as "Rows"
+          ,      backed_up as "Backed Up"
           ,      tablespace_name as "Tablespace"
           ,      temporary as "Temporary"
           ,      duration as "Duration"
@@ -116,7 +118,7 @@ statement['TABLE-DETAILS'] = {
 };
 statement['TABLE-COMMENTS'] = {
   'title': 'Table Description',
-  'description': 'from DBA_TAB_COMMENTS',
+  'description': '',
   'display': ["Description"],
   'sql' : `select comments as "Description"
            from dba_tab_comments
@@ -132,7 +134,7 @@ statement['TABLE-COMMENTS'] = {
 
 statement['TABLE-INDEXES'] = {
   'title': 'Indexes',
-  'description': 'from DBA_INDEXES and DBA_IND_COLUMNS',
+  'description': '',
   'display': ["Index", "Type", "Uniqueness", "Tablespace", "Column"],
   'sql' : `select i.index_name as "Index"
            ,      i.index_type as "Type"
@@ -153,7 +155,7 @@ statement['TABLE-INDEXES'] = {
 
 statement['INDEX-COLUMNS'] = {
   'title': 'Index Columns',
-  'description': 'from DBA_IND_COLUMNS',
+  'description': '',
   'display': ["Column"],
   'sql' : `select column_name as "Column"
            ,      column_length
@@ -168,7 +170,7 @@ statement['INDEX-COLUMNS'] = {
 };
 statement['INDEX-FUNCTION'] = {
   'title': 'Functional Index Expressions',
-  'description': 'from DBA_IND_EXPRESSIONS',
+  'description': '',
   'display': ["Index", "Expression"],
   'sql' : `select index_name as "Index" 
            ,      column_expression as "Expression"
@@ -183,7 +185,7 @@ statement['INDEX-FUNCTION'] = {
 };
 statement['TABLE-KEYS'] = {
   'title': 'Constraints',
-  'description': 'from DBA_CONSTRAINTS and DBA_CONS_COLUMNS',
+  'description': 'Primary, foreign and unique keys + referential integrity and check constraints ',
   'display': ["Name", "Constraint Type", "Column", "Search Condition"],
   'sql' : `select c.constraint_name as "Name"
           ,       DECODE(c.constraint_type,
@@ -220,7 +222,7 @@ statement['TABLE-KEYS'] = {
 };
 statement['CONSTRAINT-COLUMNS'] = {
   'title': 'Key Columns',
-  'description': 'from DBA_CONS_COLUMNS',
+  'description': '',
   'display': [],
   'sql': `select column_name
           from dba_cons_columns
@@ -234,7 +236,7 @@ statement['CONSTRAINT-COLUMNS'] = {
 };
 statement['TABLE-COLUMNS'] = {
   'title': 'Columns',
-  'description': 'from DBA_TAB_COLUMNS and DBA_CONS_COLUMNS',
+  'description': '',
   'display': ["Name", "Type", "Length", "Precision", "Nullable", "Comments"],
   'sql' : `select col.column_name as "Name"
            ,      col.data_type as "Type"
@@ -257,7 +259,7 @@ statement['TABLE-COLUMNS'] = {
 };
 statement['FK-IN-TABLE'] = {
   'title': 'Foreign Keys',
-  'description': 'from SYS.CDEF$',
+  'description': 'Parent/lookup tables',
   'display': ["Table", "Owner"],
   'link': "Table",
   'sql': `select obj.object_name as "Table"
@@ -277,7 +279,7 @@ statement['FK-IN-TABLE'] = {
 };
 statement['FK-TO-TABLE'] = {
   'title': 'Foreign Keys to this Table',
-  'description': 'from SYS.CDEF$',
+  'description': 'Child/detail tables',
   'display': ["Table", "Owner"],
   'link': "Table",
   'sql': `select obj.object_name as "Table"
@@ -296,7 +298,7 @@ statement['FK-TO-TABLE'] = {
 };
 statement['VIEW-SOURCE'] = {
   'title': 'Source',
-  'description': 'from DBA_VIEWS',
+  'description': 'Source query for the view',
   'display': ["Text"],
   'sql': `select text "Text"
           from dba_views
@@ -309,7 +311,7 @@ statement['VIEW-SOURCE'] = {
 };
 statement['MVIEW-DETAILS'] = {
   'title': 'Materialized View Details',
-  'description': 'from DBA_MVIEWS',
+  'description': '',
   'display': ["Container", "Updatable", "Rewrite Enabled", "Rewrite Capacity",
               "Refresh Mode", "Build Mode", "Fast Refreshable"],
   'sql' : `select container_name as "Container"
@@ -332,7 +334,7 @@ statement['MVIEW-DETAILS'] = {
 
 statement['MVIEW-SOURCE'] = {
   'title': 'Source',
-  'description': 'from DBA_MVIEWS',
+  'description': 'Materialized view source query',
   'display': ["Text"],
   'sql' : `select query as "Text"
            from dba_mviews
@@ -347,7 +349,7 @@ statement['MVIEW-SOURCE'] = {
 
 statement['MVIEW-LOG_DEPENDENCIES'] = {
   'title': 'Log Dependencies',
-  'description': 'from SYS.SNAP_REFTIME$',
+  'description': '',
   'display': ["Tree Entry"],
   'sql' : `select lpad('-',5*(LEVEL-1)) || master  as "Tree Entry"
            from sys.snap_reftime$ 
@@ -362,7 +364,7 @@ statement['MVIEW-LOG_DEPENDENCIES'] = {
 };
 statement['TRIGGER-DETAILS'] = {
   'title': 'Trigger Details',
-  'description': 'from DBA_TRIGGERS',
+  'description': '',
   'display': ["Table Owner", "Base Object Type", "Table Name", 
               "Column", "Referencing Names", "When Clause", 
               "Description", "Action Type", "Body"],
@@ -385,7 +387,7 @@ statement['TRIGGER-DETAILS'] = {
 };
 statement['DECODE-SYNONYM'] = {
   'title': 'Synonym for',
-  'description': 'from DBA_SYNONYMS',
+  'description': 'Table aliases',
   'display': ["Table Owner", "Table Name", "Database Link"],
   'sql' : `select table_owner as "Table Owner"
            ,      table_name as "Table Name"
@@ -400,7 +402,7 @@ statement['DECODE-SYNONYM'] = {
 };
 statement['QUEUE-DETAILS'] = {
   'title': 'Queue Details',
-  'description': 'from DBA_QUEUES',
+  'description': '',
   'display': ["Queue Table", "Queue Type", "Max Retries", "Retry Delay",
               "Enqueue Enabled", "Dequeue Enabled", "Retention", "User Comments"],
   'sql' : `select queue_table as "Queue Table"
@@ -421,7 +423,7 @@ statement['QUEUE-DETAILS'] = {
 };
 statement['TYPE-DETAILS'] = {
   'title': 'Type Details',
-  'description': 'from DBA_TYPES',
+  'description': '',
   'display': ["Typecode", "Attributes", "Methods", "Pre-Defined", "Incomplete"],
   'sql' : `select typecode as "Typecode"
            ,      attributes as "Attributes"
@@ -438,7 +440,7 @@ statement['TYPE-DETAILS'] = {
 };
 statement['COLLECTION-TYPE-DETAILS'] = {
   'title': 'Collection Type Details',
-  'description': 'from DBA_COLL_TYPES',
+  'description': '',
   'display': ["Type Name", "Collection Type", "Upper Bound", "Element Type", 
               "Element Type Modifier", "Precision", "Scale", "Character Set",
               "Storage", "Nulls Stored"],
@@ -465,7 +467,7 @@ statement['COLLECTION-TYPE-DETAILS'] = {
 };
 statement['TYPE-ATTRIBUTES'] = {
   'title': 'Type Attributes',
-  'description': 'from DBA_TYPE_ATTRS',
+  'description': '',
   'display': ["Type", "Attribute", "Attribute Type", "Length", "Precision", "Character Set"],
   'sql' : `select owner
            ,      type_name as "Type"
@@ -489,7 +491,7 @@ statement['TYPE-ATTRIBUTES'] = {
 };
 statement['TYPE-METHODS'] = {
   'title': 'Type Methods',
-  'description': 'from DBA_TYPE_METHODS',
+  'description': '',
   'display': ["Type", "Method", "Method Type", "Parameters", "Results"],
   'sql' : `select owner
            ,      type_name as "Type"
@@ -509,7 +511,7 @@ statement['TYPE-METHODS'] = {
 };
 statement['METHOD-PARAMETERS'] = {
   'title': 'Method Parameters',
-  'description': 'from DBA_METHOD_PARAMS',
+  'description': '',
   'display': ["Parameter", "Parameter Type"],
   'sql' : `select param_name as "Parameter"
            ,      param_no
@@ -529,7 +531,7 @@ statement['METHOD-PARAMETERS'] = {
 };
 statement['METHOD-RESULTS'] = {
   'title': 'Method Results',
-  'description': 'from DBA_METHOD_RESULTS',
+  'description': '',
   'display': ["Result Type"],
   'sql' : `select result_type_name as "Result Type"
            from dba_method_results
@@ -546,7 +548,7 @@ statement['METHOD-RESULTS'] = {
 };
 statement['SOURCE'] = {
   'title': 'Source',
-  'description': 'from DBA_SOURCE',
+  'description': 'PL/SQL source code',
   'display': ["Line", "Text"],
   'sql' : `select line as "Line"
            ,      text as "Text"
@@ -563,7 +565,7 @@ statement['SOURCE'] = {
 };
 statement['ERRORS'] = {
   'title': 'Error Details',
-  'description': 'from DBA_ERRORS',
+  'description': '',
   'display': ["Line", "Position", "Text"],
   'sql' : `select line as "Line"
            ,      position as "Position"
@@ -581,7 +583,7 @@ statement['ERRORS'] = {
 };
 statement['SOURCE-LINE-DEPENDENCY'] = {
   'title': 'Source Dependencies',
-  'description': 'from SYS.SOURCE$',
+  'description': '',
   'display': [ "Line Number", "Text"],
   'sql' : `select line as "Line Number"
     ,      source as "Text"
@@ -602,7 +604,7 @@ statement['SOURCE-LINE-DEPENDENCY'] = {
 
 statement['USED-BY-OBJECTS'] = {
   'title': 'Used By',
-  'description': 'from SYS.DEPENDENCY$ and SYS.SOURCE$',
+  'description': 'Dependencies other objects have on this one',
   'display': ["Object Name", "Object Type", "Line"],
   'link': 'Object Name',
   'sql' : `select d.d_obj# object_id
@@ -627,7 +629,7 @@ statement['USED-BY-OBJECTS'] = {
 };
 statement['USES-OBJECTS'] = {
   'title': 'Uses',
-  'description': 'from SYS.DEPENDENCY$ and SYS.SOURCE$',
+  'description': 'Dependencies this object has on others',
   'display': ["Object Name", "Object Type", "Line"],
   'link': 'Object Name',
   'sql' : `select d.p_obj#
@@ -665,7 +667,7 @@ statement['USED-BY-OBJECTS-NOLINE'] = {
 };
 statement['USES-OBJECTS-NOLINE'] = {
   'title': 'Uses',
-  'description': 'from SYS.DEPENDENCY$',
+  'description': 'Dependencies this object has on others',
   'display': ["Object Name", "Object Type"],
   'link': 'Object Name',
   'sql' : `select p_obj# as object_id
@@ -689,7 +691,7 @@ statement['USES-OBJECTS-NOLINE'] = {
 // used by collections query
 statement['DEPENDS-ON'] = {
   'title': 'Depends On',
-  'description': 'from SYS.DEPENDENCY$',
+  'description': 'Dependencies this object has on others',
   'display': ["Object Name", "Object Type"],
   'link': 'Object Name',
   'sql' : `select p_obj# as object_id
