@@ -491,7 +491,7 @@ it('19c wildcard collection query', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     //console.log(JSON.stringify(res.body, null, 2));
-    res.body.length.should.equal(11);
+    res.body.length.should.equal(8);
     done();
   });
 });
@@ -508,7 +508,7 @@ it('11i wildcard collection query', (done) => {
   .send(queryCollection)
   .end((err, res) => {
     expect(res).to.have.status(200);
-    res.body.length.should.equal(11);
+    res.body.length.should.equal(8);
     done();
   });
 });
