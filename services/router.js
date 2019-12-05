@@ -42,6 +42,9 @@ const collectionSchema = {
 router.route('/')
   .get(controller.getEndpoints);
 
+router.route('/:db')
+  .get(controller.getDbDetails);
+
 router.route('/:db/:owner/:type/:name/:status')
   .get(controller.listObjects);
 

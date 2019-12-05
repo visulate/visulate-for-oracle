@@ -284,6 +284,25 @@ async function showObject(req, res, next) {
 module.exports.showObject = showObject;
 
 
+async function getDbDetails(req, res, next) {
+  const poolAlias = endpointList[req.params.db];
+  if (!poolAlias) {
+    res.status(404).send("Requested database was not found");
+    return;
+  }
+  const connection = await dbService.getConnection(poolAlias);
+  let queryCollection = sql.collection['DATABASE'];
+  let result = [];
+  for (let c of queryCollection.noParamQueries) {
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+  }
+  await dbService.closeConnection(connection);
+  res.status(200).json(result);
+}
+module.exports.getDbDetails = getDbDetails;
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Object collections
 ////////////////////////////////////////////////////////////////////////////////

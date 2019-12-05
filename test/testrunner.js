@@ -63,6 +63,20 @@ it('GET 11i invalid schema should return 404', (done) => {
 });
 
 /**
+ * Database Report 
+ */
+it('GET 19c Database summary', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${PDB}`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+
+
+/**
  * Find Objects
  */
 it('GET 19c TABLES should return list of tables', (done) => {
