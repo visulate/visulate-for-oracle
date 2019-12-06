@@ -15,10 +15,12 @@
  */
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { RestService } from '../../services/rest.service';
 import { Router } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
 import { CurrentContextModel } from '../../models/current-context.model';
+import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 

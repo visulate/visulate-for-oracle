@@ -13,6 +13,7 @@ info:
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
 servers:
   - url: 'http://demo.visulate.net:3000/api'
+  - url: 'http://localhost:3000/api'
 paths:
   /:
     summary: Database endpoints
@@ -65,11 +66,98 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
-                          
-              
-  /{db}/{owner}/{type}/{name}/{status}: 
+  /{db}:
+    get:
+      summary: List database characteristics
+      parameters: 
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+      responses:
+        200:
+          description: Returns an array of query results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResult"
+        404:
+          description: Invalid database           
+  /{db}/{owner}:
+    get:
+      summary: Schema object summary
+      parameters: 
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: WIKI            
+      responses:
+        200:
+          description: Returns an array of query results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResult"
+        404:
+          description: No objects match the database, owner combination     
+  /{db}/{owner}/{type}: 
     get:
       summary: List database objects
+      description: >-
+        Retreive a list of database objects for the given db, owner and object_type combination
+      parameters: 
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: WIKI
+        - in: path
+          name: type
+          description: database object type 
+          required: true
+          schema:
+            type: string
+            example: PACKAGE
+      responses:
+        200:
+          description: Returns an array of object names
+          content:
+            application/json:
+              schema:
+                example: ["RNT_MENUS_PKG", "RNT_MENU_LINKS_PKG"]
+                type: array
+                items:
+                  type: string
+        404:
+          description: No objects match the database, owner + object_type combination
+        503:
+          description: Database connection failure          
+          
+  /{db}/{owner}/{type}/{name}/{status}: 
+    get:
+      summary: Filtered list of database objects
       description: >-
         Retreive a list of database objects using the following query:
           ```
@@ -169,31 +257,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    title:
-                      type: string
-                      example: Object Details
-                    description:
-                      type: string
-                      example: "Database object details"
-                    display:
-                      type: array
-                      items:
-                        type: string
-                        example: Object Name
-                    rows:
-                      type: array
-                      items: 
-                        type: object
-                        properties:
-                          name-value: 
-                            type: string
-                          name-value2: 
-                            type: string
-                    
+                $ref: "#/components/schemas/QueryResult"
         404:
           description: No objects match the database, owner + object_type combination
         503:
@@ -274,4 +338,36 @@ paths:
                             example: WIKI
         404:
           description: Requested database was not found
+          
+components:
+  schemas:
+    QueryResult:
+      type: array
+      items:
+        type: object
+        properties:
+          title:
+            type: string
+            example: Object Details
+          description:
+            type: string
+            example: "Database object details"
+          display:
+            type: array
+            items:
+              type: string
+              example: Object Name
+          link:
+            type: string
+            example: Table
+          rows:
+            type: array
+            items: 
+              type: object
+              properties:
+                name-value: 
+                  type: string
+                name-value2: 
+                  type: string
+                    
           

@@ -28,6 +28,7 @@ module.exports.statement = statement;
 /**
  * Collect statments by object type.  
  * @param noParamQueries - queries that do not require input parameters
+ * @param ownerNameQueries - queries that accept owner as input
  * @param objectNameQueries - queries that accept owner + object_name as input
  * @param objectIdQueries - queries that accept object_id as input
  * @param objectTypeQueries - queries that accept owner, object_name + object_type
@@ -38,12 +39,22 @@ let collection = {};
 collection['DATABASE'] = {
   noParamQueries: [
     statement['DB-VERSION'],
-    statement['DB-FEATURES'],
-    statement['DB-FEATURE-USAGE'],
-    statement['DB-OS-STAT'],
     statement['DB-SGA-SIZE'],
     statement['DB-SGA-FREE'],
-    statement['DB-SEGMENTS']
+    statement['DB-SEGMENTS'],
+    statement['DB-OS-STAT'],
+    statement['DB-FEATURES'],
+    statement['DB-FEATURE-USAGE']
+  ]
+};
+
+collection['SCHEMA'] = {
+  ownerNameQueries: [
+    statement['SCHEMA-USER'],
+    statement['SCHEMA-DATATYPES'],
+    statement['SCHEMA-SPATIAL-USAGE'],
+    statement['SCHEMA-INDEXES'],
+    statement['SCHEMA-DBMS-USAGE']    
   ]
 };
 

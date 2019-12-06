@@ -57,7 +57,7 @@ statement['DB-FEATURES'] = {
 };
 
 statement['DB-FEATURE-USAGE'] = {
-  'title': 'Database Features',
+  'title': 'Database Feature Usage',
   'description': '',
   'display': ["Feature", "Detected Usages"],
   'sql': `select name as "Feature"
@@ -68,8 +68,6 @@ statement['DB-FEATURE-USAGE'] = {
    'params': {
    }
 };
-
-//select name, detected_usages from dba_feature_usage_statistics where detected_usages > 0 order by 2 desc
 
 statement['DB-OS-STAT'] = {
   'title': 'System Utilization Statistics ',
@@ -120,6 +118,92 @@ statement['DB-SEGMENTS'] = {
            group by s.owner 
            order by 2 desc`,
    'params': {
+   }
+};
+
+statement['SCHEMA-USER'] = {
+  'title': 'Schema Status',
+  'description': '',
+  'display': ["Status", "Default Tablespace", "Temporary Tablespace"],
+  'sql' : `select account_status as "Status"
+           ,      default_tablespace as "Default Tablespace"
+           ,      temporary_tablespace as "Temporary Tablespace"
+           from dba_users
+           where username = :owner`,
+   'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+   }
+};
+
+statement['SCHEMA-INDEXES'] = {
+  'title': 'Non Standard Indexes',
+  'description': 'Indexes that are not of type NORMAL or LOB',
+  'display': ["Index", "Type"],
+  'link': "Index",
+  'sql' : `select index_type as "Type"
+           ,      index_name as "Index"
+           ,      owner||'/INDEX/'||index_name as link
+           from dba_indexes
+           where owner = :owner
+           and index_type not in ('NORMAL', 'LOB')
+           order by index_name, index_type`,
+   'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+   }
+};
+
+statement['SCHEMA-DATATYPES'] = {
+  'title': 'Data Types',
+  'description': 'Column data type usage in tables and views',
+  'display': ["Data Type", "Count"],
+  'sql' : `select data_type as "Data Type"
+           ,      count(*) as "Count"
+           from dba_tab_columns
+           where owner = :owner
+           group by data_type
+           order by data_type`,
+   'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+   }
+};
+
+statement['SCHEMA-DBMS-USAGE'] = {
+  'title': 'DBMS and UTL Usage',
+  'description': 'Stored procedures using DBMS_ and UTL_ packages',
+  'display': ["Name", "Type", "Count"],
+  'link': "Name",
+  'sql' : `select name as "Name"
+           ,      type as "Type"
+           ,      owner||'/'||type||'/'||name as link
+           ,      count(*) as "Count"           
+           from dba_source
+           where owner = :owner
+           and (TEXT LIKE '%UTL%' OR TEXT LIKE '%DBMS%')
+           group by name, type, owner||'/'||type||'/'||name
+           order by name, type`,
+   'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+   }
+};
+
+statement['SCHEMA-SPATIAL-USAGE'] = {
+  'title': 'Spatial',
+  'description': 'Tables and views with spatial columns',
+  'display': ["Object Name", "Type", "Column"],
+  'link': "Object Name",
+  'sql' : `select c.table_name as "Object Name"
+           ,      o.object_type as "Type"
+           ,      c.column_name as "Column"
+           ,      c.owner||'/'||o.object_type||'/'||c.table_name as link
+           from dba_tab_columns c
+           ,    dba_objects o
+           where c.owner = :owner
+           and c.data_type= 'SDO_GEOMETRY'
+           and o.owner = c.owner
+           and o.object_name = c.table_name
+           order by c.table_name, o.object_type, c.column_name`,
+   'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
    }
 };
 

@@ -1,5 +1,18 @@
 <div *ngIf="currentContext.objectName; else welcomeMsg">
-    <h1>{{currentContext.objectType}} - {{currentContext.objectName}}</h1>    
+    <h1>{{currentContext.objectType}} - {{currentContext.objectName}}</h1>   
+    <ng-container *ngTemplateOutlet="queryResults"></ng-container>
+
+</div>
+
+<ng-template #welcomeMsg>
+    <div class="homepage-banner">
+       <h1>Oracle Data Dictionary Browser</h1>
+    </div>
+    <app-db-step-selection></app-db-step-selection>
+    <ng-container *ngTemplateOutlet="queryResults"></ng-container>
+</ng-template>
+
+<ng-template #queryResults>
     <mat-accordion multi="true" *ngIf="objectDetails">
         <ng-container *ngFor="let property of objectDetails">
             <ng-container *ngIf="property.rows?.length > 0">
@@ -53,11 +66,4 @@
             </ng-container>
         </ng-container>
     </mat-accordion>
-</div>
-
-<ng-template #welcomeMsg>
-    <div class="homepage-banner">
-       <h1>Oracle Data Dictionary Browser</h1>
-    </div>
-    <app-db-step-selection></app-db-step-selection>
 </ng-template>

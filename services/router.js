@@ -45,6 +45,12 @@ router.route('/')
 router.route('/:db')
   .get(controller.getDbDetails);
 
+router.route('/:db/:owner')
+  .get(controller.getSchemaDetails);
+
+router.route('/:db/:owner/:type')
+  .get(controller.listObjects);  
+
 router.route('/:db/:owner/:type/:name/:status')
   .get(controller.listObjects);
 
