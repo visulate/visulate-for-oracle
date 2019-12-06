@@ -63,11 +63,113 @@ it('GET 11i invalid schema should return 404', (done) => {
 });
 
 /**
+ * Database Report 
+ */
+it('GET 19c Database summary', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${PDB}`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(7);
+    //console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+it('GET 11i Database summary', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${NON_PDB}`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(7);
+    done();
+  });
+});
+
+it('GET invalid DB should return 404', (done) => {
+  chai.request(BASE_URL)
+  .get(`/invalidDB`)
+  .end((err, res) => {
+    expect(res).to.have.status(404);
+    done();
+  });
+});
+
+/**
+ * Schema Report
+ */
+it('GET 19c schema summary', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${PDB}/WIKI`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(5);
+    //console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+it('GET 11i schema summary', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${NON_PDB}/WIKI`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(5);
+    //console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+it('GET invalid 19c schema should return 404', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${PDB}/InValid`)
+  .end((err, res) => {
+    expect(res).to.have.status(404);
+    done();
+  });
+});
+it('GET invalid 11i schema should return 404', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${NON_PDB}/InValid`)
+  .end((err, res) => {
+    expect(res).to.have.status(404);
+    done();
+  });
+});
+
+/**
  * Find Objects
  */
 it('GET 19c TABLES should return list of tables', (done) => {
   chai.request(BASE_URL)
+  .get(`/${PDB}/WIKI/TABLE`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(10);
+    res.body[0].should.equal("RNT_LOOKUP_TYPES");
+    res.body[9].should.equal("RNT_USER_ROLES");
+    done();
+  });
+});
+
+it('GET 19c TABLES + wildcard should return list of tables', (done) => {
+  chai.request(BASE_URL)
   .get(`/${PDB}/WIKI/TABLE/*/*`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(10);
+    res.body[0].should.equal("RNT_LOOKUP_TYPES");
+    res.body[9].should.equal("RNT_USER_ROLES");
+    done();
+  });
+});
+
+it('GET 11i TABLES should return list of tables', (done) => {
+  chai.request(BASE_URL)
+  .get(`/${NON_PDB}/WIKI/TABLE`)
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');

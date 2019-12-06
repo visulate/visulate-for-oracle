@@ -55,6 +55,14 @@ export class DbContentComponent implements OnInit, OnDestroy {
       (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
+    } else if (context.endpoint && context.owner && !context.objectType && !context.objectName ) {
+      this.restService.getSchemaProperties$(context.endpoint, context.owner)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => {this.processObject(result);});
+    } else if (context.endpoint && !context.owner && !context.objectType && !context.objectName) {
+      this.restService.getDatabaseProperties$(context.endpoint)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => {this.processObject(result);});
     }
   }
 

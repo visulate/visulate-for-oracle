@@ -86,6 +86,57 @@ async function getEndpoints(req, res, next) {
 
 module.exports.getEndpoints = getEndpoints;
 
+/**
+ * Implements GET /:db endpoint.   
+ * @param {*} req - request
+ * @param {*} res - reponse
+ * @param {*} next - next matching route
+ */
+
+async function getDbDetails(req, res, next) {
+  const poolAlias = endpointList[req.params.db];
+  if (!poolAlias) {
+    res.status(404).send("Requested database was not found");
+    return;
+  }
+  const connection = await dbService.getConnection(poolAlias);
+  let queryCollection = sql.collection['DATABASE'];
+  let result = [];
+  for (let c of queryCollection.noParamQueries) {
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+  }
+  await dbService.closeConnection(connection);  
+  res.status(200).json(result);
+}
+module.exports.getDbDetails = getDbDetails;
+
+/**
+ * Implements GET /:db/:owner endpoint.   
+ * @param {*} req - request
+ * @param {*} res - reponse
+ * @param {*} next - next matching route
+ */
+async function getSchemaDetails(req, res, next) {
+  const poolAlias = endpointList[req.params.db];
+  if (!poolAlias) {
+    res.status(404).send("Requested database was not found");
+    return;
+  }
+  const connection = await dbService.getConnection(poolAlias);
+  let queryCollection = sql.collection['SCHEMA'];
+  let result = [];
+  for (let c of queryCollection.ownerNameQueries) {
+    c.params.owner.val = req.params.owner;
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+  }
+  await dbService.closeConnection(connection);
+  result[0].rows.length === 0? res.status(404).send("Invalid database username"): res.status(200).json(result);
+}
+module.exports.getSchemaDetails = getSchemaDetails;
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // List object for a given database, schemea, object type and filter conditions
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +159,14 @@ async function getObjectList(connection, owner, type, name, status) {
   return result;
 }
 
+/**
+ * Implements GET /:db/:owner/:type and /:db/:owner/:type/:name/:status endpoints.
+ * The first form returns a list of objects for the given db, owner and type combination.
+ * The second allows this list to be filtered by status or name wildcard (e.g. AR_*)
+ * @param {*} req - request
+ * @param {*} res - reponse
+ * @param {*} next - next matching route
+ */
 async function listObjects(req, res, next) {
 
   // Validate the database parameter 
@@ -129,11 +188,16 @@ async function listObjects(req, res, next) {
       res.status(404).send("No objects match the owner + object_type combination");
       return;
     }
-
-    // Get the list of object types
+    /**
+     * Get the list of object types. 
+     * Use default values for name and status for GET /:db/:owner/:type calls 
+     */   
     query = sql.statement['LIST_DBA_OBJECTS'];
-    let filtered_name = req.params.name.replace('*', '%').replace('_', '\\_');
-    let filtered_status = req.params.status.toUpperCase();
+    const name = req.params.name? req.params.name: '*';
+    const filtered_name = name.replace('*', '%').replace('_', '\\_');
+    const status = req.params.status? req.params.status : '*';
+    let filtered_status = status.toUpperCase();
+
     if (filtered_status !== 'VALID' &&
       filtered_status !== 'INVALID') {
       filtered_status = '%';

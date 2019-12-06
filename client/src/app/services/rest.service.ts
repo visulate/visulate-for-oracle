@@ -44,6 +44,29 @@ export class RestService {
   }
 
   /**
+   * Get database summary
+   * @param endpoint - the database endpoint
+   */
+  public getDatabaseProperties$(
+    endpoint: string
+  ): Observable<DatabaseObjectModel> {
+    return this.http.get<DatabaseObjectModel>
+    (`${environment.apiBase}${endpoint}/`);
+  }
+
+  /**
+   * Get database summary
+   * @param endpoint - the database endpoint
+   */
+  public getSchemaProperties$(
+    endpoint: string,
+    owner: string
+  ): Observable<DatabaseObjectModel> {
+    return this.http.get<DatabaseObjectModel>
+    (`${environment.apiBase}${endpoint}/${owner}/`);
+  }
+
+  /**
    * Gets a list of objects
    * @param endpoint - the database endpoint
    * @param owner - a database user
