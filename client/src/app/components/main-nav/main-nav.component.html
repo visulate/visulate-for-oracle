@@ -4,7 +4,7 @@
       [mode]="(isHandset$ | async) ? 'over' : 'side'"
       [opened]="showObjectListInBody === false">
     <app-db-selection></app-db-selection>
-    <app-db-object-list></app-db-object-list>
+    <app-db-object-list *ngIf="!showObjectListInBody"></app-db-object-list>
 
   </mat-sidenav>
   <mat-sidenav-content>
