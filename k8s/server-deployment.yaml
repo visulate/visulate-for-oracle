@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: visulate-for-oracle
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: visulate-for-oracle
+  template:
+    metadata:
+      labels:
+        app: visulate-for-oracle
+    spec:
+      containers:
+      - name: visulate-for-oracle-server
+        image: gcr.io/visulate-for-oracle/server:0.1.10b
+        volumeMounts:
+          - name: config-database-volume
+            mountPath: /visulate-server/config/database.js
+            subPath: database.js
+        ports:
+          - containerPort: 3000
+        env:
+          - name: CORS_ORIGIN_WHITELIST
+            value: "['http://demo.visulate.net']"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 20
+      volumes:
+        - name: config-database-volume
+          configMap:
+            name: database-js            

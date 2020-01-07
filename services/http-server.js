@@ -56,7 +56,7 @@ function initialize() {
 
 
     // Start listener
-    app.use('/api', router);
+    app.use('/', router);
     httpServer.listen(httpServerConfig.port)
       .on('listening', () => {
         logger.log('info', `HTTP Server listening on localhost:${httpServerConfig.port}`);
