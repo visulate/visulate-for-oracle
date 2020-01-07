@@ -42,22 +42,25 @@ const collectionSchema = {
 router.route('/')
   .get(controller.getEndpoints);
 
-router.route('/:db')
+router.route('/api')
+  .get(controller.getEndpoints);  
+
+router.route('/api/:db')
   .get(controller.getDbDetails);
 
-router.route('/:db/:owner')
+router.route('/api/:db/:owner')
   .get(controller.getSchemaDetails);
 
-router.route('/:db/:owner/:type')
+router.route('/api/:db/:owner/:type')
   .get(controller.listObjects);  
 
-router.route('/:db/:owner/:type/:name/:status')
+router.route('/api/:db/:owner/:type/:name/:status')
   .get(controller.listObjects);
 
-router.route('/:db/:owner/:type/:name')
+router.route('/api/:db/:owner/:type/:name')
   .get(controller.showObject);
 
-router.route('/collection/:db')
+router.route('/api/collection/:db')
   .post(validate({ body: collectionSchema }), controller.getCollection);
 
 // Error handler JSON Schema errors

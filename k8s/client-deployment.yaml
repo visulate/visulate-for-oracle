@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: visulate-for-oracle-client
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: visulate-for-oracle-client
+  template:
+    metadata:
+      labels:
+        app: visulate-for-oracle-client
+    spec:
+      containers:
+      - name: visulate-for-oracle-client
+        image: gcr.io/visulate-for-oracle/client:0.1.10b
+        ports:
+         - containerPort: 80
