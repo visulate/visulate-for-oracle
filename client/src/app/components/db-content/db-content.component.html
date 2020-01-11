@@ -1,5 +1,5 @@
 <div *ngIf="currentContext.objectName; else welcomeMsg">
-    <h1>{{currentContext.objectType}} - {{currentContext.objectName}}</h1>   
+    <h1 class="currentContext">{{currentContext.objectType}} - {{currentContext.objectName}}</h1>   
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 
 </div>
