@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: visulate-for-oracle-client
-        image: gcr.io/visulate-for-oracle/client:0.1.10b
+        image: gcr.io/visulate-for-oracle/client:0.1.11a
         ports:
          - containerPort: 80

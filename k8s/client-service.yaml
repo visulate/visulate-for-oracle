@@ -13,4 +13,8 @@ spec:
       port: 80
       targetPort: 80
       name: visulate-for-oracle-client
+    - protocol: TCP
+      port: 443
+      targetPort: 80
+      name: visulate-for-oracle-client-https
     
