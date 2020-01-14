@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+ /**
+  * Parse PL/SQL source code to find SQL statements. Returns an array of statements and line numbers
+  * @param {*} source - source code to parse
+  */
 function extractSqlStatements(source) {
     let sqlStatements = [];
     let currentStatement = '';

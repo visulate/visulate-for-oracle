@@ -66,7 +66,7 @@ async function endpoints() {
   for (const ep of dbConfig.endpoints) {
     try {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query);
-      const endpoint = formatEndpoint(ep, result.rows);
+      const endpoint = formatEndpoint(ep, result);
       rows.push(endpoint);
     } catch (err) {
       logger.log('error', `controller.js endpoints() connection failed for ${ep.connect.poolAlias}`);
@@ -74,7 +74,12 @@ async function endpoints() {
   }
   return rows;
 }
-
+/**
+ * Implements GET /
+ * @param {*} req - request
+ * @param {*} res - response
+ * @param {*} next - next matching route
+ */
 async function getEndpoints(req, res, next) {
   try {
     const databaseList = await endpoints();
@@ -86,8 +91,39 @@ async function getEndpoints(req, res, next) {
 
 module.exports.getEndpoints = getEndpoints;
 
+async function executeSearch(searchCondition) {
+  let query = sql.statement['FIND-DBA-OBJECTS']
+  query.params.object_name = searchCondition.toUpperCase();
+  let rows = [];
+  for (const ep of dbConfig.endpoints) {
+    try {
+      const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
+      rows.push({database: ep.connect.poolAlias, objects: result});
+    } catch (err) {
+      logger.log('error', `controller.js executeSearch() failed for ${ep.connect.poolAlias}`);    }
+  }
+  return rows;
+}
 /**
- * Implements GET /:db endpoint.   
+ * Implements /find/:name
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ */
+
+async function dbSearch(req, res, next) {
+  try {
+    const searchCondition = req.params.name;
+    const rows = await executeSearch(searchCondition);  
+    res.status(200).json({find: searchCondition, result: rows});
+  } catch (err) {
+    next(err);
+  }  
+}
+module.exports.dbSearch = dbSearch;
+
+/**
+ * Implements GET /api/:db endpoint.   
  * @param {*} req - request
  * @param {*} res - reponse
  * @param {*} next - next matching route
@@ -112,7 +148,7 @@ async function getDbDetails(req, res, next) {
 module.exports.getDbDetails = getDbDetails;
 
 /**
- * Implements GET /:db/:owner endpoint.   
+ * Implements GET /api/:db/:owner endpoint.   
  * @param {*} req - request
  * @param {*} res - reponse
  * @param {*} next - next matching route
@@ -160,7 +196,7 @@ async function getObjectList(connection, owner, type, name, status) {
 }
 
 /**
- * Implements GET /:db/:owner/:type and /:db/:owner/:type/:name/:status endpoints.
+ * Implements GET /api/:db/:owner/:type and /api/:db/:owner/:type/:name/:status endpoints.
  * The first form returns a list of objects for the given db, owner and type combination.
  * The second allows this list to be filtered by status or name wildcard (e.g. AR_*)
  * @param {*} req - request
@@ -190,7 +226,7 @@ async function listObjects(req, res, next) {
     }
     /**
      * Get the list of object types. 
-     * Use default values for name and status for GET /:db/:owner/:type calls 
+     * Use default values for name and status for GET /api/:db/:owner/:type calls 
      */   
     query = sql.statement['LIST_DBA_OBJECTS'];
     const name = req.params.name? req.params.name: '*';
@@ -320,7 +356,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
 }
 
 /**
- * Implements GET /:db/:owner/:type/:name endpoint
+ * Implements GET /api/:db/:owner/:type/:name endpoint
  * @param {*} req - request
  * @param {*} res - reponse
  * @param {*} next - next matching route
@@ -360,7 +396,7 @@ async function getUsesDependencies(connection, object) {
 }
 
 /**
- * Implements POST /collection/:db endpoint.   Returns a list of matched objects
+ * Implements POST /api/collection/:db endpoint.   Returns a list of matched objects
  * @param {*} req - request
  * @param {*} res - reponse
  * @param {*} next - next matching route

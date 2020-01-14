@@ -60,29 +60,11 @@ module.exports.close = close;
  * @param {*} binds - Bind variables for the SQL
  * @param {*} opts - Execution options 
  */
-function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
-  return new Promise(async (resolve, reject) => {
-    let conn;
-    opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
-    opts.autoCommit = true;
-   
-    try {      
-      conn = await oracledb.getConnection(poolAlias);
-      const result = await conn.execute(statement, binds, opts);
-      resolve(result);
-    } catch (err) {
-      logger.log('error', err);
-      reject(err);
-    } finally {
-      if (conn) { // conn assignment worked, need to close
-        try {
-          await conn.close();
-        } catch (err) {
-          logger.log('error', err);
-        }
-      }
-    }
-  });
+async function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
+      const conn = await getConnection(poolAlias);
+      const result = await query(conn, statement, binds, opts);
+      await closeConnection(conn);
+      return result;
 }
 module.exports.simpleExecute = simpleExecute;
 

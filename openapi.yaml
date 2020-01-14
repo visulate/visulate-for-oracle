@@ -12,10 +12,10 @@ info:
     name: Apache 2.0
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
 servers:
-  - url: 'http://demo.visulate.net:3000/api'
-  - url: 'http://localhost:3000/api'
+  - url: 'https://demo.visulate.net:3000'
+  - url: 'http://localhost:3000'
 paths:
-  /:
+  /api/:
     summary: Database endpoints
     get:
       summary: List database endpoints
@@ -66,7 +66,25 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
-  /{db}:
+  /find/{name}:
+    get:
+      summary: Find objects in multiple databases
+      parameters:
+        - in: path
+          name: name
+          description: database object name
+          required: true
+          schema:
+            type: string
+            example: dbms_output
+      responses:
+        200:
+          description: Returns a list of objects found in each database
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindResult"
+  /api/{db}:
     get:
       summary: List database characteristics
       parameters: 
@@ -86,7 +104,7 @@ paths:
                 $ref: "#/components/schemas/QueryResult"
         404:
           description: Invalid database           
-  /{db}/{owner}:
+  /api/{db}/{owner}:
     get:
       summary: Schema object summary
       parameters: 
@@ -113,7 +131,7 @@ paths:
                 $ref: "#/components/schemas/QueryResult"
         404:
           description: No objects match the database, owner combination     
-  /{db}/{owner}/{type}: 
+  /api/{db}/{owner}/{type}: 
     get:
       summary: List database objects
       description: >-
@@ -155,7 +173,7 @@ paths:
         503:
           description: Database connection failure          
           
-  /{db}/{owner}/{type}/{name}/{status}: 
+  /api/{db}/{owner}/{type}/{name}/{status}: 
     get:
       summary: Filtered list of database objects
       description: >-
@@ -219,7 +237,7 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
-  /{db}/{owner}/{type}/{name}: 
+  /api/{db}/{owner}/{type}/{name}: 
     get:
       summary: Database object report
       parameters: 
@@ -262,7 +280,7 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
-  /collection/{db}:
+  /api/collection/{db}:
     post:
       summary: Database object collection
       description: Identify a collection of database objects matching one or more object paterns
@@ -341,6 +359,32 @@ paths:
           
 components:
   schemas:
+    FindResult:
+      type: object
+      properties:
+        find:
+          type: string
+          example: "dbms_output"
+        result:
+          type: array
+          items:
+            type: object
+            properties:
+              OBJECT_ID:
+                type: integer
+                example: 20105
+              Owner:
+                type: string
+                example: PUBLIC
+              Object Name:
+                type: string
+                example: DBMS_OUTPUT
+              Object Type:
+                type: string
+                example: SYNONYM
+              Status:
+                type: string
+                example: VALID
     QueryResult:
       type: array
       items:
