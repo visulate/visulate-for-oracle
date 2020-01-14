@@ -43,7 +43,10 @@ router.route('/')
   .get(controller.getEndpoints);
 
 router.route('/api')
-  .get(controller.getEndpoints);  
+  .get(controller.getEndpoints);
+
+router.route('/find/:name')
+  .get(controller.dbSearch);
 
 router.route('/api/:db')
   .get(controller.getDbDetails);

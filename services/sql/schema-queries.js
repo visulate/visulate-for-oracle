@@ -239,6 +239,24 @@ statement['LIST_DBA_OBJECTS'] = {
     status: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" }
   }
 };
+
+statement['FIND-DBA-OBJECTS'] = {
+  'title': 'Search Results',
+  'description': 'Database objects matching the search condition',
+  'display': ["Owner", "Object Name", "Object Type", "Status"],
+  'sql': `select object_id
+          ,      owner as "Owner"
+          ,      object_name as "Object Name"
+          ,      object_type as "Object Type"
+          ,      status as "Status"
+          from dba_objects
+          where object_name = :object_name
+          order by owner, object_name, object_type`,
+  'params': {
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+
 statement['OBJECT-DETAILS'] = {
   'title': 'Object Details',
   'description': '',
