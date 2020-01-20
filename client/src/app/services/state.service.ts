@@ -19,14 +19,13 @@ import { BehaviorSubject } from 'rxjs';
 import { EndpointListModel } from '../models/endpoint.model';
 import { CurrentContextModel } from '../models/current-context.model';
 
-
 @Injectable({
   providedIn: 'root'
 })
 export class StateService {
   /**
    * Application State Service
-   * @description The application uses 2 observables to maintain state:
+   * @description The application uses 3 observables to maintain state:
    * `endpoint$` holds the current list of database endpoints returned from
    * the API server.
    * `currentContext$` holds the menu selection.

@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { Observable, Subject } from 'rxjs';
-import { map, shareReplay, takeUntil } from 'rxjs/operators';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { MediaMatcher} from '@angular/cdk/layout';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { CurrentContextModel } from '../../models/current-context.model';
+
 
 @Component({
   selector: 'app-main-nav',
@@ -31,22 +32,27 @@ import { CurrentContextModel } from '../../models/current-context.model';
  * @remarks
  * Generated with
  * `ng generate @angular/material:materialNav --name main-nav`
+ * Follows Responsive sidenav example from https://material.angular.io/components/sidenav/examples
  */
 export class MainNavComponent implements OnInit, OnDestroy {
-  isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.Handset)
-    .pipe(
-      map(result => result.matches),
-      shareReplay()
-    );
+
+  mobileQuery: MediaQueryList;
+  private _mobileQueryListener: () => void;
 
   constructor(
-    private breakpointObserver: BreakpointObserver,
+    changeDetectorRef: ChangeDetectorRef, media: MediaMatcher,
     private route: ActivatedRoute,
-    private state: StateService
-  ) { }
+    private state: StateService ) 
+    { 
+      this.mobileQuery = media.matchMedia('(max-width: 600px)');
+      this._mobileQueryListener = () => changeDetectorRef.detectChanges();
+      this.mobileQuery.addListener(this._mobileQueryListener);
+    }
 
   private unsubscribe$ = new Subject<void>();
   public showObjectListInBody: boolean;
+  public displaySearchForm: boolean = false;
+  
 
   /**
    * Extract parameter values from the router and pass them to the current context observable
@@ -73,6 +79,14 @@ export class MainNavComponent implements OnInit, OnDestroy {
       });
   }
 
+  toggleSearchForm() {
+    this.displaySearchForm = !this.displaySearchForm;
+  } 
+
+  hideSearchForm(){
+    this.displaySearchForm = false;
+  }
+
   ngOnInit(): void {
     this.setContext();
   }
@@ -80,5 +94,6 @@ export class MainNavComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
+    this.mobileQuery.removeListener(this._mobileQueryListener);
   }
 }

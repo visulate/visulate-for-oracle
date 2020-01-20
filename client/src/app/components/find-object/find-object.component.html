@@ -1,0 +1,24 @@
+<mat-card>
+  <form (keydown.enter)="processSearchRequest(searchTerm)">
+    <mat-form-field class="search-box" appearance="outline">
+      <input matInput [(ngModel)]="searchTerm" [ngModelOptions]="{standalone: true}"
+             placeholder="Enter a database object name" #searchBox>
+    </mat-form-field>
+  </form>
+<ng-container *ngIf="searchResult">
+  <ng-container *ngFor="let res of searchResult.result">
+    <mat-nav-list>
+      <ng-container *ngFor="let object of res.objects">
+        <a mat-list-item 
+           routerLink="/database/{{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}">
+           {{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}
+          </a>          
+      </ng-container>          
+      <p *ngIf="res.objects?.length==0">Not found in {{res.database}}</p>
+    </mat-nav-list>        
+  </ng-container>
+</ng-container>
+
+<button mat-icon-button aria-hidden="false" aria-label="cancel icon" 
+        (click)="processCancel()"> <mat-icon>cancel</mat-icon> </button>
+</mat-card>
