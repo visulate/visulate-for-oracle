@@ -8,7 +8,7 @@ const routes: Routes = [
   { path: 'database/:db/:schema', component: MainNavComponent },
   { path: 'database/:db/:schema/:type', component: MainNavComponent },
   { path: 'database/:db/:schema/:type/:object', component: MainNavComponent },
-  { path: '', redirectTo: '/database', pathMatch: 'full'}
+  { path: '', redirectTo: '/database', pathMatch: 'full'},
 ];
 
 @NgModule({

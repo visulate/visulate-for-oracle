@@ -21,7 +21,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule } from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
 import { CdkTableModule } from '@angular/cdk/table';
-import { CdkAccordionModule } from '@angular/cdk/accordion';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -33,19 +32,22 @@ import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { HighlightModule} from 'ngx-highlightjs';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { DbSelectionComponent } from './components/db-selection/db-selection.component';
 import { DbStepSelectionComponent } from './components/db-selection/db-step-selection.component';
-
 import { MainNavComponent } from './components/main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
 import { DbContentComponent } from './components/db-content/db-content.component';
+import { FindObjectComponent } from './components/find-object/find-object.component';
 
+import { HighlightModule} from 'ngx-highlightjs';
 import pgsql from 'highlight.js/lib/languages/pgsql';
 import sql from 'highlight.js/lib/languages/sql';
+
 
 export function hljsLanguages() {
   return [
@@ -61,7 +63,8 @@ export function hljsLanguages() {
     DbStepSelectionComponent,
     MainNavComponent,
     DbObjectListComponent,
-    DbContentComponent
+    DbContentComponent,
+    FindObjectComponent
   ],
   imports: [
     BrowserModule,
@@ -69,7 +72,6 @@ export function hljsLanguages() {
     AppRoutingModule,
     BrowserAnimationsModule,
     CdkTableModule,
-    CdkAccordionModule,
     HttpClientModule,
     FormsModule,
     MatCardModule,
@@ -83,6 +85,8 @@ export function hljsLanguages() {
     MatListModule,
     MatExpansionModule,
     MatSlideToggleModule,
+    MatFormFieldModule,
+    MatInputModule,
     HighlightModule.forRoot({
       languages: hljsLanguages
     })

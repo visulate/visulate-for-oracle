@@ -3,5 +3,6 @@
  */
 export const environment = {
   production: true,
-  apiBase: '/api/'
+  apiBase: '/api/',
+  findObjectBase: '/find/'
 };

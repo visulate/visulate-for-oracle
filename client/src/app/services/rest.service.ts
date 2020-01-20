@@ -20,6 +20,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EndpointListModel } from '../models/endpoint.model';
 import { DatabaseObjectModel } from '../models/database-object.model';
+import { FindObjectModel } from '../models/find-object.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -64,6 +65,15 @@ export class RestService {
   ): Observable<DatabaseObjectModel> {
     return this.http.get<DatabaseObjectModel>
     (`${environment.apiBase}${endpoint}/${owner}/`);
+  }
+
+
+/**
+ * Find objects in each registered database
+ * @param searchTerm - database object name (DBA_OBJECTS.OBJECT_NAME)
+ */
+  public getSearchResults$(searchTerm: string): Observable<FindObjectModel> {
+    return this.http.get<FindObjectModel>(`${environment.findObjectBase}${searchTerm}`);
   }
 
   /**
