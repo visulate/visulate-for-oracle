@@ -12,7 +12,7 @@ info:
     name: Apache 2.0
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
 servers:
-  - url: 'https://demo.visulate.net:3000'
+  - url: 'https://demo.visulate.net'
   - url: 'http://localhost:3000'
 paths:
   /api/:
@@ -370,19 +370,19 @@ components:
           items:
             type: object
             properties:
-              OBJECT_ID:
+              object_id:
                 type: integer
                 example: 20105
-              Owner:
+              owner:
                 type: string
                 example: PUBLIC
-              Object Name:
+              object_name:
                 type: string
                 example: DBMS_OUTPUT
-              Object Type:
+              object_type:
                 type: string
                 example: SYNONYM
-              Status:
+              status:
                 type: string
                 example: VALID
     QueryResult:
