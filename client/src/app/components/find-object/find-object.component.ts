@@ -29,6 +29,7 @@ import { takeUntil } from 'rxjs/operators';
 export class FindObjectComponent implements OnInit { 
   public searchResult: FindObjectModel;
   private unsubscribe$ = new Subject<void>();
+  public searchTerm: string = '';
 
   @ViewChild('searchBox', null) searchBox: ElementRef; 
   @Output() cancelSearchForm: EventEmitter<boolean> = new EventEmitter();

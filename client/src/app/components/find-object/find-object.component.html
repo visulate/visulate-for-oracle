@@ -1,8 +1,8 @@
 <mat-card>
   <form (keydown.enter)="processSearchRequest(searchTerm)">
     <mat-form-field class="search-box" appearance="outline">
-      <input matInput [(ngModel)]="searchTerm" [ngModelOptions]="{standalone: true}"
-             placeholder="Enter a database object name" #searchBox>
+      <input [(ngModel)]="searchTerm" [ngModelOptions]="{standalone: true}"
+              matInput placeholder="Enter a database object name" #searchBox>
     </mat-form-field>
   </form>
 <ng-container *ngIf="searchResult">

@@ -1,21 +1,24 @@
 apiVersion: "extensions/v1beta1"
-  kind: "Ingress"
-  metadata:
-    name: "visulate-for-oracle-ingress2"
-    namespace: "default"
-  spec:
-    backend:
-      serviceName: "visulate-for-oracle-client"
-      servicePort: 80
-    rules:
+kind: "Ingress"
+metadata:
+  name: "visulate-for-oracle-ingress2"
+  namespace: "default"
+spec:
+  backend:
+    serviceName: "visulate-for-oracle-client"
+    servicePort: 80
+  rules:
     - http:
         paths:
-        - path: "/api/*"
-          backend:
-            serviceName: "visulate-for-oracle"
-            servicePort: 3000
-        - path: "/database/*"
-          backend:
-            serviceName: "visulate-for-oracle-client"
-            servicePort: 80
-  
+          - path: "/api/*"
+            backend:
+              serviceName: "visulate-for-oracle"
+              servicePort: 3000
+          - path: "/find/*"
+            backend:
+              serviceName: "visulate-for-oracle"
+              servicePort: 3000
+          - path: "/database/*"
+            backend:
+              serviceName: "visulate-for-oracle-client"
+              servicePort: 80
