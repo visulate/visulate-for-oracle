@@ -73,7 +73,7 @@ export class RestService {
  * @param searchTerm - database object name (DBA_OBJECTS.OBJECT_NAME)
  */
   public getSearchResults$(searchTerm: string): Observable<FindObjectModel> {
-    return this.http.get<FindObjectModel>(`${environment.findObjectBase}${searchTerm}`);
+    return this.http.get<FindObjectModel>(`${environment.findObjectBase}${encodeURIComponent(searchTerm)}`);
   }
 
   /**
@@ -91,7 +91,7 @@ export class RestService {
     objectName: string = '*',
     objectStatus: string = '*'): Observable<string[]> {
       return this.http.get<string[]>
-        (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${objectName}/${objectStatus}/`);
+        (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}/`);
   }
 
   /**
@@ -107,7 +107,7 @@ export class RestService {
     objectType: string,
     objectName: string ): Observable<DatabaseObjectModel> {
       return this.http.get<DatabaseObjectModel>
-        (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${objectName}/`);
+        (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/`);
     }
 
 
