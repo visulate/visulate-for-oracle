@@ -196,6 +196,60 @@ async function getObjectList(connection, owner, type, name, status) {
 }
 
 /**
+ * Format result from LIST_DBA_OBJECTS query that return more than one owner
+ * or object_type.  For example, a query where owner='*', type='*' and name='RNT_MENU*PKG':
+ * 
+ * { owners: [
+ *  { owner: "WIKI", 
+ *    object_types: [
+ *      { type: "PACKAGE",
+ *        count: 2
+ *        objects:[
+ *          "RNT_MENU_PKG",
+ *          "RNT_MENU_LINKS_PKG"
+ *      ]},
+ *      { type: "PACKAGE BODY",
+ *        count: 2
+ *        objects:[
+ *          "RNT_MENU_PKG",
+ *          "RNT_MENU_LINKS_PKG"
+ *      ]}
+ *    ]}
+ *  ]
+ * }
+ * @param {*} result 
+ */
+function formatWildCardQuery(result) {
+  let objectList = [];  
+  let currentOwner = '';
+  let currentType = '';
+  let ownerList = [];
+  let currentTypes = [];
+  let currentObjects = [];
+  result.forEach(element => {
+    if (currentOwner === '' && currentType === '') {
+      currentOwner = element.OWNER;
+      currentType = element.OBJECT_TYPE;
+    }
+    if (currentOwner !== element.OWNER) {
+      ownerList.push({owner: currentOwner, objectTypes: currentTypes});
+      currentTypes = [];
+      currentOwner = element.OWNER;
+    }
+    if (currentType !== element.OBJECT_TYPE) {
+      currentTypes.push({type: currentType, count: currentObjects.length, objects: currentObjects});
+      currentObjects = [];
+      currentType = element.OBJECT_TYPE;
+    }
+    currentObjects.push(element.OBJECT_NAME);
+  });
+  currentTypes.push({type: currentType, count: currentObjects.length, objects: currentObjects});
+  ownerList.push({owner: currentOwner, objectTypes: currentTypes});
+  objectList = ownerList;
+  return objectList;
+}
+
+/**
  * Implements GET /api/:db/:owner/:type and /api/:db/:owner/:type/:name/:status endpoints.
  * The first form returns a list of objects for the given db, owner and type combination.
  * The second allows this list to be filtered by status or name wildcard (e.g. AR_*)
@@ -211,12 +265,22 @@ async function listObjects(req, res, next) {
     res.status(404).send("Requested database was not found");
     return;
   }
+  const filtered_owner = req.params.owner.replace('*', '%');
+  const filtered_type = req.params.type.replace('*', '%');
+  const name = req.params.name? req.params.name: '*';
+  const filtered_name = name.replace('*', '%').replace('_', '\\_');
+  const status = req.params.status? req.params.status : '*';
+  let filtered_status = status.toUpperCase();
+  if (filtered_status !== 'VALID' && filtered_status !== 'INVALID') {
+    filtered_status = '%';
+  }
+
   try {
     const connection = await dbService.getConnection(poolAlias);
     // Validate the owner and object_type parameters
     let query = sql.statement['VALIDATE-OWNER-AND-TYPE'];
-    query.params.owner.val = req.params.owner;
-    query.params.object_type.val = req.params.type;
+    query.params.owner.val = filtered_owner;
+    query.params.object_type.val = filtered_type;
 
     const r = await dbService.query(connection, query.sql, query.params);
     if (r[0]['OBJECT_COUNT'] === 0) {
@@ -229,26 +293,22 @@ async function listObjects(req, res, next) {
      * Use default values for name and status for GET /api/:db/:owner/:type calls 
      */   
     query = sql.statement['LIST_DBA_OBJECTS'];
-    const name = req.params.name? req.params.name: '*';
-    const filtered_name = name.replace('*', '%').replace('_', '\\_');
-    const status = req.params.status? req.params.status : '*';
-    let filtered_status = status.toUpperCase();
 
-    if (filtered_status !== 'VALID' &&
-      filtered_status !== 'INVALID') {
-      filtered_status = '%';
-    }
-    query.params.owner.val = req.params.owner;
-    query.params.object_type.val = req.params.type;
+    query.params.owner.val = filtered_owner;
+    query.params.object_type.val = filtered_type;
     query.params.object_name.val = filtered_name;
     query.params.status.val = filtered_status;
 
     const result = await dbService.query(connection, query.sql, query.params);
-    let objectList = [];
-    result.forEach(element => {
-      objectList.push(element.OBJECT_NAME);
-    });
     await dbService.closeConnection(connection);
+    let objectList = [];
+
+    if (filtered_type === req.params.type && filtered_owner === req.params.owner) {
+      result.forEach(element => { objectList.push(element.OBJECT_NAME); });
+    } else { 
+     // result may include more than one owner or object type 
+     objectList = formatWildCardQuery(result);
+    }
     res.status(200).json(objectList);
 
   } catch (err) {

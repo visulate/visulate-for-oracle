@@ -39,6 +39,7 @@ let collection = {};
 collection['DATABASE'] = {
   noParamQueries: [
     statement['DB-VERSION'],
+    statement['EBS-SCHEMA'],
     statement['DB-SGA-SIZE'],
     statement['DB-SGA-FREE'],
     statement['DB-SEGMENTS'],

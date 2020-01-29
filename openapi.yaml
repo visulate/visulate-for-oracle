@@ -181,7 +181,7 @@ paths:
           ```
           select  object_id, object_name, object_type, owner
           from dba_objects
-          where  owner = :owner
+          where  owner = like :owner
           and object_type like :object_type
           and object_name like :object_name ESCAPE \_
           and status like :status
@@ -225,14 +225,13 @@ paths:
             example: VALID 
       responses:
         200:
-          description: Returns an array of object names
+          description: >-
+            Returns an array of object names if the owner and type parameters do not
+            include wildcard (*) characters. An object is returned for wildcard requests
           content:
             application/json:
               schema:
-                example: ["RNT_MENUS_PKG", "RNT_MENU_LINKS_PKG"]
-                type: array
-                items:
-                  type: string
+                $ref: "#/components/schemas/WildCardQueryResult"
         404:
           description: No objects match the database, owner + object_type combination
         503:
@@ -359,6 +358,27 @@ paths:
           
 components:
   schemas:
+    WildCardQueryResult:
+      type: object
+      properties:
+        owner:
+          type: string
+        objectTypes:
+          type: array
+          items:
+            type: object
+            properties:
+              type: 
+                type: string
+                example: FUNCTION
+              count:
+                type: integer
+                example: 53
+              objects:
+                example: ["AR_AGING_BUCKETS=", "AR_APP_RULES="]
+                type: array
+                items:
+                  type: string
     FindResult:
       type: object
       properties:

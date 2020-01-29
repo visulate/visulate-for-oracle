@@ -45,6 +45,19 @@ statement['DB-VERSION'] = {
    }
 };
 
+statement['EBS-SCHEMA'] = {
+  'title': 'E-Business Suite Schema Detected',
+  'description': '',
+  'display': ["EBS Schema"],
+  'sql': `select decode(count(*), 1, 'Yes', 
+                                     'No') as "EBS Schema" 
+          from dba_tables 
+          where owner='APPLSYS' 
+          and table_name = 'FND_APPLICATION'`,
+  'params': {
+  }
+}
+
 statement['DB-FEATURES'] = {
   'title': 'Database Features',
   'description': '',
@@ -213,8 +226,8 @@ statement['VALIDATE-OWNER-AND-TYPE'] = {
   'display': [],
   'sql': `select count(*) as object_count
           from dba_objects
-          where owner = :owner
-          and object_type = :object_type`,
+          where owner like :owner
+          and object_type like :object_type`,
   'params' : {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_type : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
@@ -226,11 +239,11 @@ statement['LIST_DBA_OBJECTS'] = {
   'display': [],
   'sql': `select  object_id, object_name, object_type, owner
           from dba_objects
-          where  owner = :owner
+          where  owner like :owner
           and object_type like :object_type
           and object_name like :object_name ESCAPE :esc
           and status like :status
-          order by object_name`,
+          order by owner, object_type, object_name`,
   'params': {
     owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
