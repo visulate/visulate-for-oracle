@@ -38,8 +38,9 @@ export class RestService {
   /**
    * Gets a list of database endpoints + object type summary
    */
-  public getEndpoints$(): Observable<EndpointListModel> {
-    return this.http.get<EndpointListModel>(environment.apiBase).pipe(
+  public getEndpoints$( filter: string = '*'): Observable<EndpointListModel> {
+    const filterParam: any = {'filter': filter};
+    return this.http.get<EndpointListModel>(environment.apiBase, {params: filterParam}).pipe(
       map(data => new EndpointListModel().deserialize(data))
     );
   }
@@ -49,10 +50,11 @@ export class RestService {
    * @param endpoint - the database endpoint
    */
   public getDatabaseProperties$(
-    endpoint: string
+    endpoint: string   
   ): Observable<DatabaseObjectModel> {
+    
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}${endpoint}/`);
+    (`${environment.apiBase}/${endpoint}`);
   }
 
   /**
@@ -61,10 +63,12 @@ export class RestService {
    */
   public getSchemaProperties$(
     endpoint: string,
-    owner: string
+    owner: string,
+    filter: string = '*'
   ): Observable<DatabaseObjectModel> {
+    const filterParam: any = {'filter': filter};
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}${endpoint}/${owner}/`);
+    (`${environment.apiBase}/${endpoint}/${owner}`, {params: filterParam});
   }
 
 
@@ -73,7 +77,7 @@ export class RestService {
  * @param searchTerm - database object name (DBA_OBJECTS.OBJECT_NAME)
  */
   public getSearchResults$(searchTerm: string): Observable<FindObjectModel> {
-    return this.http.get<FindObjectModel>(`${environment.findObjectBase}${encodeURIComponent(searchTerm)}`);
+    return this.http.get<FindObjectModel>(`${environment.findObjectBase}/${encodeURIComponent(searchTerm)}`);
   }
 
   /**
@@ -91,7 +95,7 @@ export class RestService {
     objectName: string = '*',
     objectStatus: string = '*'): Observable<string[]> {
       return this.http.get<string[]>
-        (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}/`);
+        (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
   }
 
   /**
@@ -107,7 +111,7 @@ export class RestService {
     objectType: string,
     objectName: string ): Observable<DatabaseObjectModel> {
       return this.http.get<DatabaseObjectModel>
-        (`${environment.apiBase}${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/`);
+        (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`);
     }
 
 

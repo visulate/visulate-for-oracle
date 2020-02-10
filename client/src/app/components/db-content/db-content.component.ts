@@ -18,7 +18,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel } from '../../models/endpoint.model';
-import { CurrentContextModel } from '../../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -42,31 +42,81 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   constructor(
     private restService: RestService,
-    private state: StateService) { }
+    private state: StateService) { 
+      
+
+    }
 
   processObject(objectDetails: DatabaseObjectModel) {
     this.objectDetails = objectDetails;
   }
 
-  processContextChange(context: CurrentContextModel) {
-    this.currentContext = context;
-    if (context.endpoint && context.owner && context.objectType && context.objectName) {
-      this.restService.getObjectDetails$
-      (context.endpoint, context.owner, context.objectType, context.objectName)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => { this.processObject(result); });
-    } else if (context.endpoint && context.owner && !context.objectType && !context.objectName ) {
-      this.restService.getSchemaProperties$(context.endpoint, context.owner)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => {this.processObject(result);});
-    } else if (context.endpoint && !context.owner && !context.objectType && !context.objectName) {
+  processContextChange(subjectContext: ContextBehaviorSubjectModel) {
+    const context = subjectContext.currentContext;    
+    this.currentContext = context;   
+    console.log(subjectContext.changeSummary);
+    console.log(subjectContext.priorContext);
+
+    if (subjectContext.priorContext.endpoint === '' || 
+        subjectContext.changeSummary.filterDiff ||
+        subjectContext.currentContext.endpoint === '') {
+          this.restService.getEndpoints$(context.filter)
+            .pipe(takeUntil(this.unsubscribe$))
+            .subscribe(endpoints => { this.state.saveEndpoints(endpoints); });
+    }
+
+    if (context.endpoint && subjectContext.changeSummary.endpointDiff) {
       this.restService.getDatabaseProperties$(context.endpoint)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => {this.processObject(result);});
     }
+
+    if (context.owner && (subjectContext.changeSummary.ownerDiff || subjectContext.changeSummary.filterDiff) ) {
+      this.restService.getSchemaProperties$(context.endpoint, context.owner, context.filter)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => {this.processObject(result);});
+    }
+
+
+
+    if (context.endpoint && context.owner && context.objectType && context.objectName && subjectContext.changeSummary.objectNameDiff) {
+      this.restService.getObjectDetails$
+      (context.endpoint, context.owner, context.objectType, context.objectName)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => { this.processObject(result); });
+    } 
+    
+
+
+
+
+
+    
+
+    // if (context.endpoint && context.owner && context.objectType && context.objectName) {
+    //   this.restService.getObjectDetails$
+    //   (context.endpoint, context.owner, context.objectType, context.objectName)
+    //     .pipe(takeUntil(this.unsubscribe$))
+    //     .subscribe(result => { this.processObject(result); });
+    // } else if (context.endpoint && context.owner && !context.objectType && !context.objectName ) {
+    //   this.restService.getSchemaProperties$(context.endpoint, context.owner, context.filter)
+    //     .pipe(takeUntil(this.unsubscribe$))
+    //     .subscribe(result => {this.processObject(result);});
+    // } else if (context.endpoint && !context.owner && !context.objectType && !context.objectName) {
+    //   this.restService.getDatabaseProperties$(context.endpoint)
+    //     .pipe(takeUntil(this.unsubscribe$))
+    //     .subscribe(result => {this.processObject(result);});
+    // }
+
+
+
+
   }
 
   ngOnInit() {
+    
+    
+    this.currentContext = this.state.getCurrentContext();
     this.state.endpoints$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(endpoints => { this.endpointList = endpoints; } );

@@ -23,12 +23,14 @@ export class CurrentContextModel {
    * @param owner - database schema
    * @param objectType - object type (as returned by DBA_OBJECTS)
    * @param objectName - an object name
+   * @param filter - object name filter e.g. 'dba_*'
    */
   constructor(
     public endpoint: string,
     public owner: string,
     public objectType: string,
-    public objectName: string) { }
+    public objectName: string,
+    public filter: string) { }
 
   public setEndpoint(endpoint: string) {
     this.endpoint = endpoint;
@@ -52,6 +54,10 @@ export class CurrentContextModel {
     this.objectName = objectName;
   }
 
+  public setFilter(filter: string) {
+    this.filter = filter;
+  }
+
   public findCurrentEndpoint(endpointList: EndpointListModel): EndpointModel {
     return endpointList.databases.find(database => database.endpoint === this.endpoint);
   }
@@ -63,5 +69,13 @@ export class CurrentContextModel {
   public findCurrentObjectType(schema: SchemaModel): ObjectTypeListItem {
     return schema.objectTypes.find(objectType => objectType.type === this.objectType);
   }
+}
+
+export class ContextBehaviorSubjectModel {
+  constructor(
+    public currentContext: CurrentContextModel,
+    public priorContext: CurrentContextModel,
+    public changeSummary: any
+  ){}
 }
 

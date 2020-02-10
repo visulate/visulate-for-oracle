@@ -18,7 +18,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
-import { CurrentContextModel } from '../../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -39,25 +39,43 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
 
+
   constructor(
     private state: StateService,
     private router: Router) { }
 
   setObjectType(objectType: ObjectTypeListItem) {
     this.currentObjectType = objectType;
-    this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
+    if (this.currentContext.filter !== ''){
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
+          {queryParams: {filter: this.currentContext.filter}});
+    } else {
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
+    }    
   }
 
   setSchema(schema: SchemaModel) {
     this.currentSchema = schema;
-    this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
+    if (this.currentContext.filter !== '') {
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`],
+          {queryParams: {filter: this.currentContext.filter}});
+    } else {
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
+    }    
   }
 
   setEndpoint(endpoint: EndpointModel) {
     this.currentEndpoint = endpoint;
-    this.router.navigate([`/database/${endpoint.endpoint}`]);
+    if (this.currentContext.filter !== '') {
+      this.router.navigate([`/database/${endpoint.endpoint}`],
+        {queryParams: {filter: this.currentContext.filter}});
+    } else {
+      this.router.navigate([`/database/${endpoint.endpoint}`]);
+    }
   }
 
   /**
@@ -81,8 +99,11 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * Update the object type selection form when the current context changes
    * @param context - Current context (db, schema, object type and name) subscription
    */
-  processContextChange( context: CurrentContextModel ) {
-    this.currentContext = context;
+  processContextChange( subjectContext: ContextBehaviorSubjectModel ) {
+    this.currentContext = subjectContext.currentContext;
+    console.log(subjectContext.changeSummary);
+    console.log(subjectContext.priorContext);
+
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
     }

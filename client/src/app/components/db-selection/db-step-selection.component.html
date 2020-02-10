@@ -1,6 +1,7 @@
 <mat-card>
-    <mat-card-title>Database Object Selection</mat-card-title>
+    <mat-card-title>Database Object Selection</mat-card-title>    
     <mat-card-subtitle>Select a database, schema and object type</mat-card-subtitle>
+    <app-filter-objects [currentEndpoint]=currentEndpoint></app-filter-objects>
     <mat-card-content>
         <mat-form-field>
             <mat-select [(ngModel)]="currentEndpoint" placeholder="Database"
@@ -27,6 +28,7 @@
                 </mat-option>
             </mat-select>
         </mat-form-field>
+
         <p *ngIf="currentEndpoint">{{currentEndpoint.description}} </p>
     </mat-card-content>
 </mat-card>

@@ -18,7 +18,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { FormsModule } from '@angular/forms';
+import { FormsModule,  ReactiveFormsModule} from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
 import { CdkTableModule } from '@angular/cdk/table';
 
@@ -34,6 +34,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -43,10 +44,11 @@ import { MainNavComponent } from './components/main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
 import { DbContentComponent } from './components/db-content/db-content.component';
 import { FindObjectComponent } from './components/find-object/find-object.component';
-
+ 
 import { HighlightModule} from 'ngx-highlightjs';
 import pgsql from 'highlight.js/lib/languages/pgsql';
 import sql from 'highlight.js/lib/languages/sql';
+import { FilterObjectsComponent } from './components/filter-objects/filter-objects.component';
 
 
 export function hljsLanguages() {
@@ -64,7 +66,8 @@ export function hljsLanguages() {
     MainNavComponent,
     DbObjectListComponent,
     DbContentComponent,
-    FindObjectComponent
+    FindObjectComponent,
+    FilterObjectsComponent
   ],
   imports: [
     BrowserModule,
@@ -74,6 +77,7 @@ export function hljsLanguages() {
     CdkTableModule,
     HttpClientModule,
     FormsModule,
+    ReactiveFormsModule,
     MatCardModule,
     MatToolbarModule,
     MatSelectModule,
@@ -87,11 +91,11 @@ export function hljsLanguages() {
     MatSlideToggleModule,
     MatFormFieldModule,
     MatInputModule,
+    MatAutocompleteModule,
     HighlightModule.forRoot({
       languages: hljsLanguages
     })
     ],
-  providers: [],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

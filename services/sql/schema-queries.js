@@ -29,10 +29,25 @@ statement['COUNT_DBA_OBJECTS'] = {
                              from dba_logstdby_skip l
                              where l.owner = o.owner
                              and l.statement_opt = 'INTERNAL SCHEMA')
-           and owner not in ('PUBLIC')          
+           and owner not in ('PUBLIC')     
            group by owner, object_type
            order by owner, object_type`,
    'params': {
+   }
+};
+
+statement['COUNT_DBA_OBJECTS_FILTER'] = {
+  'title': 'Object Count',
+  'description': '',
+  'display': [],
+  'sql' : `select owner, object_type, count(*) as object_count
+           from dba_objects o
+           where object_name like :object_name ESCAPE :esc       
+           group by owner, object_type
+           order by owner, object_type`,
+   'params': {
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
    }
 };
 
@@ -158,10 +173,13 @@ statement['SCHEMA-INDEXES'] = {
            ,      owner||'/INDEX/'||index_name as link
            from dba_indexes
            where owner = :owner
+           and index_name like :object_name ESCAPE :esc
            and index_type not in ('NORMAL', 'LOB')
            order by index_name, index_type`,
    'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
    }
 };
 
@@ -173,10 +191,13 @@ statement['SCHEMA-DATATYPES'] = {
            ,      count(*) as "Count"
            from dba_tab_columns
            where owner = :owner
+           and table_name like :object_name ESCAPE :esc
            group by data_type
            order by data_type`,
    'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
    }
 };
 
@@ -191,11 +212,14 @@ statement['SCHEMA-DBMS-USAGE'] = {
            ,      count(*) as "Count"           
            from dba_source
            where owner = :owner
+           and name like :object_name ESCAPE :esc
            and (TEXT LIKE '%UTL%' OR TEXT LIKE '%DBMS%')
            group by name, type, owner||'/'||type||'/'||name
            order by name, type`,
    'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
    }
 };
 
@@ -214,9 +238,12 @@ statement['SCHEMA-SPATIAL-USAGE'] = {
            and c.data_type= 'SDO_GEOMETRY'
            and o.owner = c.owner
            and o.object_name = c.table_name
+           and o.object_name like :object_name ESCAPE :esc
            order by c.table_name, o.object_type, c.column_name`,
    'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
    }
 };
 
@@ -239,10 +266,11 @@ statement['LIST_DBA_OBJECTS'] = {
   'display': [],
   'sql': `select  object_id, object_name, object_type, owner
           from dba_objects
-          where  owner like :owner
+          where  owner = :owner
           and object_type like :object_type
           and object_name like :object_name ESCAPE :esc
           and status like :status
+          and rownum < 3000
           order by owner, object_type, object_name`,
   'params': {
     owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },

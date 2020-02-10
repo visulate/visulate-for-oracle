@@ -36,11 +36,13 @@ export class EndpointModel implements Deserializable {
   public endpoint: string;
   public description: string;
   public connectString: string;
+  public ebsInstance: boolean;
   public schemas: SchemaModel[];
 
   deserialize(input: any): this {
     Object.assign(this, input);
     const convertedSchema = convertSchema(input.schemas);
+    this.ebsInstance = ((input.schemas.APPLSYS)? true: false);
     this.schemas = convertedSchema.map (
        schema => new SchemaModel().deserialize(schema)
      );

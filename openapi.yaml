@@ -19,6 +19,14 @@ paths:
     summary: Database endpoints
     get:
       summary: List database endpoints
+      parameters:
+        - in: query
+          name: filter
+          description: object_name filter
+          required: false
+          schema:
+            type: string
+            example: dba_*
       description: >-
         List each registered database along with a count of object types by
         schema
@@ -121,7 +129,14 @@ paths:
           required: true
           schema:
             type: string
-            example: WIKI            
+            example: WIKI
+        - in: query
+          name: filter
+          description: object_name filter
+          required: false
+          schema:
+            type: string
+            example: rnt_*
       responses:
         200:
           description: Returns an array of query results
@@ -158,6 +173,13 @@ paths:
           schema:
             type: string
             example: PACKAGE
+        - in: query
+          name: filter
+          description: object_name filter
+          required: false
+          schema:
+            type: string
+            example: rnt_*
       responses:
         200:
           description: Returns an array of object names
@@ -222,7 +244,7 @@ paths:
           required: true
           schema:
             type: string
-            example: VALID 
+            example: VALID
       responses:
         200:
           description: >-

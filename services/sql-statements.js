@@ -51,7 +51,12 @@ collection['DATABASE'] = {
 
 collection['SCHEMA'] = {
   ownerNameQueries: [
-    statement['SCHEMA-USER'],
+    statement['SCHEMA-USER']
+  ]
+};
+
+collection['SCHEMA-FILTERED'] = {
+  ownerNameQueries: [
     statement['SCHEMA-DATATYPES'],
     statement['SCHEMA-SPATIAL-USAGE'],
     statement['SCHEMA-INDEXES'],

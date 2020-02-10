@@ -17,7 +17,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
-import { CurrentContextModel } from '../../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -32,7 +32,7 @@ export class DbObjectListComponent implements OnInit, OnDestroy {
    * for current context selections
    */
   public currentContext: CurrentContextModel;
-  private currentObjectType: string;
+  //private currentObjectType: string;
   public objectList: string[];
   private unsubscribe$ = new Subject<void>();
 
@@ -44,14 +44,21 @@ export class DbObjectListComponent implements OnInit, OnDestroy {
    * Update the object list when the current context changes
    * @param context - current context subscription
    */
-  processContextChange(context: CurrentContextModel) {
+  processContextChange(subjectContext: ContextBehaviorSubjectModel) {
+    const context = subjectContext.currentContext;
+    console.log(subjectContext.changeSummary);
+    console.log(subjectContext.priorContext);
+    
     this.currentContext = context;
-    if (context.endpoint && context.owner && context.objectType && (this.currentObjectType !== context.objectType)) {
-      this.restService.getObjectList$(context.endpoint, context.owner, context.objectType)
+    const callParamsSet: boolean = ((context.endpoint && context.owner && context.objectType)? true : false);
+    const filter: string = (context.filter)? context.filter: '*';
+
+    if (callParamsSet && subjectContext.changeSummary.objectTypeDiff) {
+      this.restService.getObjectList$(context.endpoint, context.owner, context.objectType, filter)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.objectList = result; });
     }
-    this.currentObjectType = context.objectType;
+    //this.currentObjectType = context.objectType;
   }
 
   ngOnInit() {

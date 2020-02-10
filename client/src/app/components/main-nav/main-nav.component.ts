@@ -15,11 +15,10 @@
  */
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { MediaMatcher} from '@angular/cdk/layout';
-import { Subject } from 'rxjs';
+import { Subject, combineLatest } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute } from '@angular/router';
 import { StateService } from '../../services/state.service';
-import { CurrentContextModel } from '../../models/current-context.model';
 
 
 @Component({
@@ -58,20 +57,23 @@ export class MainNavComponent implements OnInit, OnDestroy {
    * Extract parameter values from the router and pass them to the current context observable
    */
   setContext(): void {
-    const context = new CurrentContextModel('', '', '', '');
-
-    this.route.paramMap
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(params => {
+    const context = this.state.getCurrentContext();
+    combineLatest([
+      this.route.paramMap,
+      this.route.queryParamMap
+    ]).pipe(takeUntil(this.unsubscribe$))
+      .subscribe(([params, queryParams])=> {
         const db = params.get('db');
         const schema = params.get('schema');
         const type = params.get('type');
         const object = params.get('object');
+        const filter = queryParams.get('filter');
 
-        if (db != null) { context.setEndpoint(db); }
+        context.setEndpoint(db);
         if (schema != null) { context.setOwner(schema.toUpperCase()); }
         if (type != null) { context.setObjectType(type.toUpperCase()); }
         if (object != null) { context.setObjectName(object.toUpperCase()); }
+        if (filter != null) {context.setFilter(filter);}
 
         // Show a list of objects in the content area if no object has been selected
         context.objectName === '' ? this.showObjectListInBody = true : this.showObjectListInBody = false;
