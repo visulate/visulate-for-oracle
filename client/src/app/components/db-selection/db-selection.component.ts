@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,9 @@ import { takeUntil } from 'rxjs/operators';
 })
 
  /**
-  * Code to Select: Database -> Schema -> Object Type
+  * Code to maintain the Database -> Schema -> Object Type form
+  * Displays the current selections on startup and triggers a router
+  * navigation event when the current selection changes. 
   */
 export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
@@ -101,8 +103,6 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    */
   processContextChange( subjectContext: ContextBehaviorSubjectModel ) {
     this.currentContext = subjectContext.currentContext;
-    console.log(subjectContext.changeSummary);
-    console.log(subjectContext.priorContext);
 
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);

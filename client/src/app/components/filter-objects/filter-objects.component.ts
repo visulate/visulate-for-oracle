@@ -1,3 +1,19 @@
+/*!
+ * Copyright 2020 Visulate LLC. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { Component, OnInit, Input } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Observable } from 'rxjs';
@@ -19,6 +35,15 @@ export interface EbsPrefixes {
   templateUrl: './filter-objects.component.html',
   styleUrls: ['./filter-objects.component.css']
 })
+
+/**
+ * Code to control the object type filter.  This is maintained in a separate component to
+ * the db-selection component because the filter contains custom logic to support 
+ * E-Business Suite (EBS) databases.  EBS databases have a large number of database objects
+ * in a common APPS schema.  The ownership of these objects is determined by a naming convention
+ * that uses a product prefix in the object name. The custom logic provides a lookup for these 
+ * prefixes. 
+ */
 export class FilterObjectsComponent implements OnInit {
   
   @Input() currentEndpoint: EndpointModel;
@@ -322,8 +347,6 @@ export class FilterObjectsComponent implements OnInit {
       this.objectFilter.setValue(`${productEntry.code}_*`);
     }    
   }
-
-
 
   constructor(private state: StateService) { }
 

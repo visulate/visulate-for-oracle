@@ -19,6 +19,7 @@ import { Subject, combineLatest } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute } from '@angular/router';
 import { StateService } from '../../services/state.service';
+import { CurrentContextModel } from 'src/app/models/current-context.model';
 
 
 @Component({
@@ -28,6 +29,9 @@ import { StateService } from '../../services/state.service';
 })
 /**
  * Navigation component
+ * The app-routing module routes all requests to this component. It parses the route's path and query 
+ * parameters to extract the database, schema, object type, object name and filter then sets the
+ * current context observable.
  * @remarks
  * Generated with
  * `ng generate @angular/material:materialNav --name main-nav`
@@ -56,13 +60,17 @@ export class MainNavComponent implements OnInit, OnDestroy {
   /**
    * Extract parameter values from the router and pass them to the current context observable
    */
-  setContext(): void {
-    const context = this.state.getCurrentContext();
+  setContext(): void {    
     combineLatest([
       this.route.paramMap,
       this.route.queryParamMap
     ]).pipe(takeUntil(this.unsubscribe$))
       .subscribe(([params, queryParams])=> {
+        const context = this.state.getCurrentContext();
+        const priorContext = new CurrentContextModel
+                (context.endpoint, context.owner, context.objectType, 
+                 context.objectName, context.filter, context.objectList);
+
         const db = params.get('db');
         const schema = params.get('schema');
         const type = params.get('type');
@@ -75,8 +83,12 @@ export class MainNavComponent implements OnInit, OnDestroy {
         if (object != null) { context.setObjectName(object.toUpperCase()); }
         if (filter != null) {context.setFilter(filter);}
 
-        // Show a list of objects in the content area if no object has been selected
-        context.objectName === '' ? this.showObjectListInBody = true : this.showObjectListInBody = false;
+        // Preserve the current object list if context has not changed 
+        // (e.g when navigating from one object to the next)
+        const changeSummary = this.state.getContextDiff(context, priorContext);
+        if ((!changeSummary['objectTypeDiff']) && (!changeSummary['filterDiff']))
+         {context.setObjectList(priorContext.objectList);}
+
         this.state.setCurrentContext(context);
       });
   }

@@ -24,30 +24,35 @@ export class CurrentContextModel {
    * @param objectType - object type (as returned by DBA_OBJECTS)
    * @param objectName - an object name
    * @param filter - object name filter e.g. 'dba_*'
+   * @param objectList - list of objects that match the other parameters
    */
   constructor(
     public endpoint: string,
     public owner: string,
     public objectType: string,
     public objectName: string,
-    public filter: string) { }
+    public filter: string,
+    public objectList: string[]) { }
 
   public setEndpoint(endpoint: string) {
     this.endpoint = endpoint;
     this.owner = '';
     this.objectType = '';
     this.objectName = '';
+    this.objectList = [];
   }
 
   public setOwner(owner: string) {
     this.owner = owner;
     this.objectType = '';
     this.objectName = '';
+    this.objectList = [];
   }
 
   public setObjectType(objectType: string) {
     this.objectType = objectType;
     this.objectName = '';
+    this.objectList = [];
   }
 
   public setObjectName(objectName: string) {
@@ -58,14 +63,21 @@ export class CurrentContextModel {
     this.filter = filter;
   }
 
+  public setObjectList(list: string[]){
+    this.objectList = list;
+  }
+
+  // Return the current selected endpoint from an endpoint list
   public findCurrentEndpoint(endpointList: EndpointListModel): EndpointModel {
     return endpointList.databases.find(database => database.endpoint === this.endpoint);
   }
 
+  // Return the current selected schema from a selected endpoint
   public findCurrentSchema(endpoint: EndpointModel): SchemaModel {
     return endpoint.schemas.find(schema => schema.owner === this.owner);
   }
 
+  // Return the current object type selection from a schema
   public findCurrentObjectType(schema: SchemaModel): ObjectTypeListItem {
     return schema.objectTypes.find(objectType => objectType.type === this.objectType);
   }

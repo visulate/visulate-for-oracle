@@ -12,8 +12,8 @@
     <mat-sidenav #snav [mode]="mobileQuery.matches ? 'over' : 'side'" class="app-sidebar"
                 [fixedInViewport]="mobileQuery.matches" >
       <app-db-selection></app-db-selection>
-      <!-- <app-db-object-list *ngIf="!showObjectListInBody"></app-db-object-list> -->
       <app-db-object-list></app-db-object-list>
+     
   
     </mat-sidenav>
     <mat-sidenav-content>

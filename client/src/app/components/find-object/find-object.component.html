@@ -10,7 +10,8 @@
     <mat-nav-list>
       <ng-container *ngFor="let object of res.objects">
         <a mat-list-item 
-           routerLink="/database/{{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}">
+           routerLink="/database/{{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}"
+           [queryParams]="{filter: object.object_name}">
            {{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}
           </a>          
       </ng-container>          

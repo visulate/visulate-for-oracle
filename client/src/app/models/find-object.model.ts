@@ -16,6 +16,11 @@
 
 import { Deserializable } from './deserializable.model';
 
+/**
+ * Supports the quick find feature that searches for objects of a given
+ * name in each registered database
+ */
+
 export class FindObjectModel implements Deserializable {
   public find: string;
   public result: ResultModel[];

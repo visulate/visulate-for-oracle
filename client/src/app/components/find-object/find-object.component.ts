@@ -25,7 +25,10 @@ import { takeUntil } from 'rxjs/operators';
   styleUrls: ['./find-object.component.css']
 })
 
-
+/**
+ * Quick find feature tied to search icon in toolbar. Finds objects of
+ * a given name in each registered database
+ */
 export class FindObjectComponent implements OnInit { 
   public searchResult: FindObjectModel;
   private unsubscribe$ = new Subject<void>();

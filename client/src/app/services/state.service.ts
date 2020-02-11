@@ -35,12 +35,13 @@ export class StateService {
   private _objectType: string = '';
   private _objectName: string = '';
   private _filter: string = '';
+  private _objectList: string[];
 
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
   private subjectContext =
           new BehaviorSubject<ContextBehaviorSubjectModel> (new ContextBehaviorSubjectModel(
-            new  CurrentContextModel('', '', '', '', ''),
-            new  CurrentContextModel('', '', '', '', ''),
+            new  CurrentContextModel('', '', '', '', '', []),
+            new  CurrentContextModel('', '', '', '', '', []),
             []));
 
   endpoints$ = this.endpointList.asObservable();
@@ -66,16 +67,18 @@ export class StateService {
     this._objectType = context.objectType;
     this._objectName = context.objectName;
     this._filter = context.filter;
+    this._objectList = context.objectList;
   }
 
   getStoredContext(){
     return new CurrentContextModel(this._endpoint, this._owner, this._objectType, 
-      this._objectName, this._filter);
+      this._objectName, this._filter, this._objectList);
   }
 
   setCurrentContext(context: CurrentContextModel) {
     const priorContext = this.getStoredContext();
     const changeSummary = this.getContextDiff(context, priorContext);
+    //if  (!changeSummary['objectTypeDiff'] && priorContext.objectList) { context.objectList = priorContext.objectList;}
     this.storeContextValues(context);
     this.subjectContext.next(new ContextBehaviorSubjectModel(context, priorContext, changeSummary));
   }

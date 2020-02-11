@@ -19,7 +19,7 @@ import { CurrentContextModel } from './current-context.model';
 describe('CurrentContext.Model', () => {
   it('should create an instance', () => {
     expect(new CurrentContextModel(
-      'mockEndpoint', 'mockOwner', 'TABLE', '', '*'
+      'mockEndpoint', 'mockOwner', 'TABLE', '', '*', []
     )).toBeTruthy();
   });
 });
