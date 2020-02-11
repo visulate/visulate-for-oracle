@@ -44,6 +44,18 @@ it('GET /api endpoints should return object type count', (done) => {
   });
 });
 
+it('GET filtered /api endpoints should return filtered object type count', (done) => {
+  chai.request(BASE_URL)
+  .get('/api?filter=DBA_*')
+  .end((err, res) => {
+    //console.log(JSON.stringify(res.body, null, 2));
+    expect(res).to.have.status(200);
+    res.body.should.be.a('object');
+    res.body.endpoints.should.be.a('array');
+    done();
+  });
+});
+
 it('GET invalid endpoint should return 404', (done) => {
   chai.request(BASE_URL)
   .get('/api/xxInvalidxx/WIKI/TABLE/*/*')
@@ -54,12 +66,12 @@ it('GET invalid endpoint should return 404', (done) => {
   });
 });
 
-it('GET 19c invalid schema should return 404', (done) => {
+it('GET PDB invalid schema should return 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/xxInvalidSchema/TABLE/*/*`)
   .end((err, res) => {
     expect(res).to.have.status(404);
-    res.text.should.eql('No objects match the owner + object_type combination');
+    res.text.should.eql('No objects found for the requested owner, type, name and status');
     done();
   });
 });
@@ -69,7 +81,7 @@ it('GET 11i invalid schema should return 404', (done) => {
   .get(`/api/${NON_PDB}/xxInvalidSchema/TABLE/*/*`)
   .end((err, res) => {
     expect(res).to.have.status(404);
-    res.text.should.eql('No objects match the owner + object_type combination');
+    res.text.should.eql('No objects found for the requested owner, type, name and status');
     done();
   });
 });
@@ -81,11 +93,11 @@ it('GET Simple Search', (done) => {
   chai.request(BASE_URL)
   .get(`/find/rnt_menus_pkg`)
   .end((err, res) => {
- //   console.log(JSON.stringify(res.body, null, 2));
+  //  console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(200);
     res.body.result.should.be.a('array');
-    res.body.result.length.should.equal(2);
-    res.body.result[0].objects.length.should.equal(2);
+    res.body.result.length.should.equal(3);
+    res.body.result[1].objects.length.should.equal(2);
     done();
   }); 
 });
@@ -97,8 +109,8 @@ it('GET find with no results', (done) => {
     //console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(200);
     res.body.result.should.be.a('array');
-    res.body.result.length.should.equal(2);
-    res.body.result[0].objects.length.should.equal(0);
+    res.body.result.length.should.equal(3);
+    res.body.result[1].objects.length.should.equal(0);
     done();
   }); 
 });
@@ -106,14 +118,13 @@ it('GET find with no results', (done) => {
 /**
  * Database Report 
  */
-it('GET 19c Database summary', (done) => {
+it('GET PDB Database summary', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}`)
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(7);
-    //console.log(JSON.stringify(res.body, null, 2));
+    res.body.length.should.equal(8);
     done();
   });
 });
@@ -123,7 +134,7 @@ it('GET 11i Database summary', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(7);
+    res.body.length.should.equal(8);
     done();
   });
 });
@@ -140,14 +151,14 @@ it('GET invalid DB should return 404', (done) => {
 /**
  * Schema Report
  */
-it('GET 19c schema summary', (done) => {
+it('GET PDB schema summary', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI`)
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
     res.body.length.should.equal(5);
-    //console.log(JSON.stringify(res.body, null, 2));
+    console.log(JSON.stringify(res.body, null, 2));
     done();
   });
 });
@@ -162,7 +173,21 @@ it('GET 11i schema summary', (done) => {
     done();
   });
 });
-it('GET invalid 19c schema should return 404', (done) => {
+
+it('GET PDB schema summary with query filter', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${PDB}/WIKI?filter=rnt_user*`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('array');
+    res.body.length.should.equal(5);
+    console.log(JSON.stringify(res.body, null, 2));
+    res.body[4].rows.length.should.equal(0);
+    done();
+  });
+});
+
+it('GET invalid PDB schema should return 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/InValid`)
   .end((err, res) => {
@@ -174,6 +199,7 @@ it('GET invalid 11i schema should return 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${NON_PDB}/InValid`)
   .end((err, res) => {
+    //console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(404);
     done();
   });
@@ -182,7 +208,7 @@ it('GET invalid 11i schema should return 404', (done) => {
 /**
  * Find Objects
  */
-it('GET 19c TABLES should return list of tables', (done) => {
+it('GET PDB TABLES should return list of tables', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/TABLE`)
   .end((err, res) => {
@@ -195,7 +221,7 @@ it('GET 19c TABLES should return list of tables', (done) => {
   });
 });
 
-it('GET 19c TABLES + wildcard should return list of tables', (done) => {
+it('GET PDB TABLES + wildcard should return list of tables', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/TABLE/*/*`)
   .end((err, res) => {
@@ -235,7 +261,7 @@ it('GET 11i TABLES should return list of tables', (done) => {
   });
 });
 
-it('Filtered 19c GET PACKAGE BODY should a filtered return list', (done) => {
+it('Filtered PDB GET PACKAGE BODY should a filtered return list', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/RNT_MENU*/*`)
   .end((err, res) => {
@@ -259,30 +285,26 @@ it('Filtered 11i GET PACKAGE BODY should a filtered return list', (done) => {
   });
 });
 
-it('GET 19c invalid object_name should return an empty list', (done) => {
+it('GET PDB invalid object_name should return a 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/xxInvalidObjectName/*`)
   .end((err, res) => {
-    expect(res).to.have.status(200);
-    res.body.should.be.a('array');
-    res.body.length.should.equal(0);   
+    expect(res).to.have.status(404);  
     done();
   });
 });
 
-it('GET 11i invalid object_name should return an empty list', (done) => {
+it('GET 11i invalid object_name should return a 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY/xxInvalidObjectName/*`)
   .end((err, res) => {
-    expect(res).to.have.status(200);
-    res.body.should.be.a('array');
-    res.body.length.should.equal(0);   
+    expect(res).to.have.status(404);  
     done();
   });
 });
 
 
-it('Filtered 19c GET list of invalid package bodies should a filtered return list', (done) => {
+it('Filtered PDB GET list of invalid package bodies should a filtered return list', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/*/invalid`)
   .end((err, res) => {
@@ -305,10 +327,95 @@ it('Filtered 11i GET list of invalid package bodies should a filtered return lis
   });
 });
 
+it('PDB GET with filter query', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${PDB}/WIKI/PACKAGE BODY?filter=rnt_users_*`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.length.should.equal(1);
+    res.body[0].should.equal("RNT_USERS_PKG");
+    //console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+
+it('11i GET with filter query', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY?filter=rnt_users_*`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.length.should.equal(1);
+    res.body[0].should.equal("RNT_USERS_PKG");
+    //console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+
+
+// it('Wildcard PDB GET list', (done) => {
+//   chai.request(BASE_URL)
+//   .get(`/api/${PDB}/*/*/RNT_*/valid`)
+//   .end((err, res) => {
+//     expect(res).to.have.status(200);
+//     //console.log(JSON.stringify(res.body, null, 2));
+//     res.body.length.should.equal(1);
+//     res.body[0].owner.should.equal("WIKI");
+//     res.body[0].objectTypes.length.should.equal(6);
+//     res.body[0].objectTypes[2].type.should.equal("PACKAGE BODY");
+//     res.body[0].objectTypes[2].count.should.equal(7);    
+//     done();
+//   });
+// });
+
+// it('Wildcard 11i GET list', (done) => {
+//   chai.request(BASE_URL)
+//   .get(`/api/${NON_PDB}/*/*/RNT_*/valid`)
+//   .end((err, res) => {
+//     expect(res).to.have.status(200);
+//     //console.log(JSON.stringify(res.body, null, 2));
+//     res.body.length.should.equal(1);
+//     res.body[0].owner.should.equal("WIKI");
+//     res.body[0].objectTypes.length.should.equal(6);
+//     res.body[0].objectTypes[2].type.should.equal("PACKAGE BODY");
+//     res.body[0].objectTypes[2].count.should.equal(7);    
+//     done();
+//   });
+// });
+
+// it('Wildcard PDB GET Object Type list', (done) => {
+//   chai.request(BASE_URL)
+//   .get(`/api/${PDB}/*/TABLE/*/valid`)
+//   .end((err, res) => {
+//     expect(res).to.have.status(200);
+// //    console.log(JSON.stringify(res.body, null, 2));
+//     res.body.length.should.equal(20);
+//     res.body[0].owner.should.equal("APPQOSSYS");
+//     res.body[0].objectTypes.length.should.equal(1);
+//     res.body[0].objectTypes[0].type.should.equal("TABLE");
+//     res.body[0].objectTypes[0].count.should.equal(5);    
+//     done();
+//   });
+// });
+
+// it('Wildcard 11i GET Object Type list', (done) => {
+//   chai.request(BASE_URL)
+//   .get(`/api/${NON_PDB}/*/TABLE/*/valid`)
+//   .end((err, res) => {
+//     expect(res).to.have.status(200);
+//     //console.log(JSON.stringify(res.body, null, 2));
+//     res.body.length.should.equal(10);
+//     res.body[0].owner.should.equal("APEX_040000");
+//     res.body[0].objectTypes.length.should.equal(1);
+//     res.body[0].objectTypes[0].type.should.equal("TABLE");
+//     res.body[0].objectTypes[0].count.should.equal(426);    
+//     done();
+//   });
+// });
+
 /**
  * Show Object
  */
-it('19c SQL injection attempt should return 404', (done) => {
+it('PDB SQL injection attempt should return 404', (done) => {
   chai.request(BASE_URL)
   .get('/api/' + PDB + "/WIKI/TABLE/ OR 1=1;")
   .end((err, res) => {
@@ -328,7 +435,7 @@ it('11i SQL injection attempt should return 404', (done) => {
   });
 });
 
-it('19c Show package body', (done) => {
+it('PDB Show package body', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/RNT_MENUS_PKG`)
   .end((err, res) => {
@@ -361,7 +468,7 @@ it('11i Show package body', (done) => {
   });
 });
 
-it('19c Invalid package body should show errors', (done) => {
+it('PDB Invalid package body should show errors', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/RNT_USERS_PKG`)
   .end((err, res) => {
@@ -385,7 +492,7 @@ it('11i Invalid package body should show errors', (done) => {
   });
 });
 
-it('19c Show Table', (done) => {
+it('PDB Show Table', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/TABLE/RNT_MENUS`)
   .end((err, res) => {
@@ -455,7 +562,7 @@ it('11i Show Table', (done) => {
   });
 });
 
-it('19c VIEW object should have USES dependencies', (done) => {
+it('PDB VIEW object should have USES dependencies', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/VIEW/RNT_MENUS_V`)
   .end((err, res) => {
@@ -485,7 +592,7 @@ it('11i VIEW object should have USES dependencies', (done) => {
   });
 });
 
-it('19c Get request for object with no collection SQL should not fail', (done) => {
+it('PDB Get request for object with no collection SQL should not fail', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/SEQUENCE/RNT_USERS_SEQ`)
   .end((err, res) => {
@@ -535,7 +642,7 @@ it('Invalid schema collection query', (done) => {
   });
 });
 
-it('19c single object collection query', (done) => {
+it('PDB single object collection query', (done) => {
   const queryCollection = 
       [{owner: "WIKI",
         type: "VIEW", 
@@ -573,7 +680,7 @@ it('11i single object collection query', (done) => {
   });
 });
 
-it('19c multi object collection query', (done) => {
+it('PDB multi object collection query', (done) => {
   const queryCollection = 
       [{"owner": "WIKI",
         "type": "VIEW", 
@@ -621,7 +728,7 @@ it('11i multi object collection query', (done) => {
   });
 });
 
-it('19c wildcard collection query', (done) => {
+it('PDB wildcard collection query', (done) => {
   const queryCollection = 
       [{"owner": "WIKI",
         "type": "*", 

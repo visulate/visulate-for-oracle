@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,12 @@ import { MatTableModule, MatExpansionModule} from '@angular/material';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatSelectModule } from '@angular/material/select';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule} from '@angular/forms';
 import { MatListModule} from '@angular/material/list';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HighlightModule} from 'ngx-highlightjs';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatInputModule} from '@angular/material/input';
 
 import { HttpClientTestingModule  } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -31,6 +33,7 @@ import { DbContentComponent } from './db-content.component';
 import { DbSelectionComponent } from '../db-selection/db-selection.component';
 import { DbStepSelectionComponent } from '../db-selection/db-step-selection.component';
 import { DbObjectListComponent} from '../db-object-list/db-object-list.component';
+import { FilterObjectsComponent } from '../filter-objects/filter-objects.component'
 
 describe('DbContentComponent', () => {
   let component: DbContentComponent;
@@ -47,9 +50,10 @@ describe('DbContentComponent', () => {
                  FormsModule,
                  MatCardModule,
                  MatListModule,
-                 MatSelectModule,
+                 MatSelectModule, ReactiveFormsModule,
+                 MatAutocompleteModule, MatInputModule,
                  RouterTestingModule],
-      declarations: [ DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent ]
+      declarations: [ DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent, FilterObjectsComponent  ]
     })
     .compileComponents();
   }));

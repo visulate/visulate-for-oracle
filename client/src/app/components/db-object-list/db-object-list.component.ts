@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { StateService } from '../../services/state.service';
-import { RestService } from '../../services/rest.service';
-import { CurrentContextModel } from '../../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -32,26 +31,20 @@ export class DbObjectListComponent implements OnInit, OnDestroy {
    * for current context selections
    */
   public currentContext: CurrentContextModel;
-  private currentObjectType: string;
   public objectList: string[];
   private unsubscribe$ = new Subject<void>();
 
   constructor(
-    private restService: RestService,
     private state: StateService) { }
 
   /**
    * Update the object list when the current context changes
    * @param context - current context subscription
    */
-  processContextChange(context: CurrentContextModel) {
+  processContextChange(subjectContext: ContextBehaviorSubjectModel) {
+    const context = subjectContext.currentContext;
     this.currentContext = context;
-    if (context.endpoint && context.owner && context.objectType && (this.currentObjectType !== context.objectType)) {
-      this.restService.getObjectList$(context.endpoint, context.owner, context.objectType)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => { this.objectList = result; });
-    }
-    this.currentObjectType = context.objectType;
+    this.objectList = context.objectList;
   }
 
   ngOnInit() {

@@ -17,7 +17,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { EndpointListModel } from '../models/endpoint.model';
-import { CurrentContextModel } from '../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../models/current-context.model';
 
 @Injectable({
   providedIn: 'root'
@@ -25,22 +25,62 @@ import { CurrentContextModel } from '../models/current-context.model';
 export class StateService {
   /**
    * Application State Service
-   * @description The application uses 3 observables to maintain state:
+   * @description The application uses 2 observables to maintain state:
    * `endpoint$` holds the current list of database endpoints returned from
    * the API server.
    * `currentContext$` holds the menu selection.
    */
+  private _endpoint: string = '';
+  private _owner: string = '';
+  private _objectType: string = '';
+  private _objectName: string = '';
+  private _filter: string = '';
+  private _objectList: string[];
+
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
-  private selectedContext =
-          new BehaviorSubject<CurrentContextModel>(new CurrentContextModel('', '', '', ''));
+  private subjectContext =
+          new BehaviorSubject<ContextBehaviorSubjectModel> (new ContextBehaviorSubjectModel(
+            new  CurrentContextModel('', '', '', '', '', []),
+            new  CurrentContextModel('', '', '', '', '', []),
+            []));
 
   endpoints$ = this.endpointList.asObservable();
-  currentContext$ = this.selectedContext.asObservable();
+  currentContext$ = this.subjectContext.asObservable();
 
-  constructor() { }
+  getCurrentContext() {
+    return this.getStoredContext();
+  }
+
+  getContextDiff(c1: CurrentContextModel, c2: CurrentContextModel){
+    let returnValue = [];
+    returnValue['endpointDiff'] = (c1.endpoint !== c2.endpoint);
+    returnValue['ownerDiff'] = (c1.owner !== c2.owner);
+    returnValue['objectTypeDiff'] = (c1.objectType !== c2.objectType);
+    returnValue['objectNameDiff'] = (c1.objectName !== c2.objectName);
+    returnValue['filterDiff'] = (c1.filter !== c2.filter);
+    return(returnValue);
+  }
+
+  storeContextValues(context: CurrentContextModel) {
+    this._endpoint = context.endpoint;
+    this._owner = context.owner;
+    this._objectType = context.objectType;
+    this._objectName = context.objectName;
+    this._filter = context.filter;
+    this._objectList = context.objectList;
+  }
+
+  getStoredContext(){
+    return new CurrentContextModel(this._endpoint, this._owner, this._objectType, 
+      this._objectName, this._filter, this._objectList);
+  }
 
   setCurrentContext(context: CurrentContextModel) {
-    this.selectedContext.next(context);
+    const priorContext = this.getStoredContext();
+    const changeSummary = this.getContextDiff(context, priorContext);
+    //if  (!changeSummary['objectTypeDiff'] && priorContext.objectList) { context.objectList = priorContext.objectList;}
+    this.storeContextValues(context);
+    this.subjectContext.next(new ContextBehaviorSubjectModel(context, priorContext, changeSummary));
   }
 
   saveEndpoints(endpoints: EndpointListModel) {

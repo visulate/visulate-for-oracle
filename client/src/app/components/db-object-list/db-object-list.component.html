@@ -2,6 +2,7 @@
 <mat-nav-list *ngFor="let objectName of objectList">
   <a mat-list-item 
     routerLink="/database/{{currentContext.endpoint}}/{{currentContext.owner}}/{{currentContext.objectType}}/{{objectName}}"
+    [queryParams]="{filter: currentContext.filter}"
     [class.active]="objectName==currentContext.objectName" >{{objectName}}</a>
 </mat-nav-list>
 </div>

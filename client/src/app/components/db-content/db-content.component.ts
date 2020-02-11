@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel } from '../../models/endpoint.model';
-import { CurrentContextModel } from '../../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -42,31 +42,74 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   constructor(
     private restService: RestService,
-    private state: StateService) { }
+    private state: StateService) {      
+
+    }
 
   processObject(objectDetails: DatabaseObjectModel) {
     this.objectDetails = objectDetails;
   }
 
-  processContextChange(context: CurrentContextModel) {
-    this.currentContext = context;
-    if (context.endpoint && context.owner && context.objectType && context.objectName) {
-      this.restService.getObjectDetails$
-      (context.endpoint, context.owner, context.objectType, context.objectName)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => { this.processObject(result); });
-    } else if (context.endpoint && context.owner && !context.objectType && !context.objectName ) {
-      this.restService.getSchemaProperties$(context.endpoint, context.owner)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => {this.processObject(result);});
-    } else if (context.endpoint && !context.owner && !context.objectType && !context.objectName) {
+  /**
+   * Respond to state changes in the currentContext$ observable
+   * @param subjectContext - the Current behavior subject context
+   * The context state changes when the user selects items in the db-selection component.
+   */
+  processContextChange(subjectContext: ContextBehaviorSubjectModel) {
+    let context = subjectContext.currentContext;    
+    this.currentContext = context;   
+
+    // Call the Endpoints API on startup and when the object filter changes
+    if (subjectContext.priorContext.endpoint === '' || 
+        subjectContext.changeSummary.filterDiff ||
+        subjectContext.currentContext.endpoint === '') {
+          this.restService.getEndpoints$(context.filter)
+            .pipe(takeUntil(this.unsubscribe$))
+            .subscribe(endpoints => { this.state.saveEndpoints(endpoints); });
+    }
+
+    // Call the database summary API when the user selects an endpoint
+    if (context.endpoint  && (! context.objectName)
+        && subjectContext.changeSummary.endpointDiff) {
       this.restService.getDatabaseProperties$(context.endpoint)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => {this.processObject(result);});
     }
+
+    // Call the schema summary API when the user selects a new schema or the object filter changes
+    if (context.owner && (! context.objectName)
+        && (subjectContext.changeSummary.ownerDiff || subjectContext.changeSummary.filterDiff) ) {
+      this.restService.getSchemaProperties$(context.endpoint, context.owner, context.filter)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => {this.processObject(result);});
+    }
+
+    // Call the object list API when the object type selection changes or a new filter is applied.
+    if (context.endpoint && context.owner && context.objectType 
+         && (subjectContext.changeSummary.objectTypeDiff || subjectContext.changeSummary.filterDiff)) {
+      const filter = (context.filter)? context.filter: '*';
+      this.restService.getObjectList$(context.endpoint, context.owner, context.objectType, filter)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => { 
+          context.objectList = result; 
+          this.state.setCurrentContext(context);        
+        });
+    }
+
+    // Call the database object API on on object selection
+    if (context.endpoint && context.owner && context.objectType && context.objectName 
+        && (subjectContext.changeSummary.objectNameDiff ||
+          subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff )) {
+      this.restService.getObjectDetails$
+      (context.endpoint, context.owner, context.objectType, context.objectName)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => { this.processObject(result); });
+    } 
+    
   }
 
-  ngOnInit() {
+  ngOnInit() {    
+    this.currentContext = this.state.getCurrentContext();
     this.state.endpoints$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(endpoints => { this.endpointList = endpoints; } );

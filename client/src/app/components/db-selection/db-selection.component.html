@@ -1,4 +1,5 @@
 <div id="dbSelectMenu">
+  <app-filter-objects></app-filter-objects>
   <mat-form-field>
     <mat-select [(ngModel)]="currentEndpoint" placeholder="Database" (selectionChange)="setEndpoint($event.value)">
       <mat-option *ngFor="let database of endpoints.databases" [value]="database">

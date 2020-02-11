@@ -39,6 +39,7 @@ let collection = {};
 collection['DATABASE'] = {
   noParamQueries: [
     statement['DB-VERSION'],
+    statement['EBS-SCHEMA'],
     statement['DB-SGA-SIZE'],
     statement['DB-SGA-FREE'],
     statement['DB-SEGMENTS'],
@@ -50,7 +51,12 @@ collection['DATABASE'] = {
 
 collection['SCHEMA'] = {
   ownerNameQueries: [
-    statement['SCHEMA-USER'],
+    statement['SCHEMA-USER']
+  ]
+};
+
+collection['SCHEMA-FILTERED'] = {
+  ownerNameQueries: [
     statement['SCHEMA-DATATYPES'],
     statement['SCHEMA-SPATIAL-USAGE'],
     statement['SCHEMA-INDEXES'],

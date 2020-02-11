@@ -1,4 +1,4 @@
-<div *ngIf="currentContext.objectName; else welcomeMsg">
+<div *ngIf="currentContext && currentContext.objectName; else welcomeMsg">
     <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}} [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>   
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 </div>

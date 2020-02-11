@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
-import { CurrentContextModel } from '../../models/current-context.model';
+import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -29,7 +29,9 @@ import { takeUntil } from 'rxjs/operators';
 })
 
  /**
-  * Code to Select: Database -> Schema -> Object Type
+  * Code to maintain the Database -> Schema -> Object Type form
+  * Displays the current selections on startup and triggers a router
+  * navigation event when the current selection changes. 
   */
 export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
@@ -39,25 +41,43 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
 
+
   constructor(
     private state: StateService,
     private router: Router) { }
 
   setObjectType(objectType: ObjectTypeListItem) {
     this.currentObjectType = objectType;
-    this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
+    if (this.currentContext.filter !== ''){
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
+          {queryParams: {filter: this.currentContext.filter}});
+    } else {
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
+    }    
   }
 
   setSchema(schema: SchemaModel) {
     this.currentSchema = schema;
-    this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
+    if (this.currentContext.filter !== '') {
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`],
+          {queryParams: {filter: this.currentContext.filter}});
+    } else {
+      this.router.navigate
+        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
+    }    
   }
 
   setEndpoint(endpoint: EndpointModel) {
     this.currentEndpoint = endpoint;
-    this.router.navigate([`/database/${endpoint.endpoint}`]);
+    if (this.currentContext.filter !== '') {
+      this.router.navigate([`/database/${endpoint.endpoint}`],
+        {queryParams: {filter: this.currentContext.filter}});
+    } else {
+      this.router.navigate([`/database/${endpoint.endpoint}`]);
+    }
   }
 
   /**
@@ -81,8 +101,9 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * Update the object type selection form when the current context changes
    * @param context - Current context (db, schema, object type and name) subscription
    */
-  processContextChange( context: CurrentContextModel ) {
-    this.currentContext = context;
+  processContextChange( subjectContext: ContextBehaviorSubjectModel ) {
+    this.currentContext = subjectContext.currentContext;
+
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
     }

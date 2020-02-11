@@ -60,14 +60,21 @@ function formatEndpoint(endpoint, objectCountRows) {
   return epObj;
 }
 
-async function endpoints() {
-  const query = sql.statement['COUNT_DBA_OBJECTS'].sql;
+async function endpoints(filter) {
+  let query = sql.statement['COUNT_DBA_OBJECTS'];
+  if (filter && filter !== '*'){
+    query = sql.statement['COUNT_DBA_OBJECTS_FILTER'];
+    query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+  }
+  
   let rows = [];
   for (const ep of dbConfig.endpoints) {
     try {
-      const result = await dbService.simpleExecute(ep.connect.poolAlias, query);
-      const endpoint = formatEndpoint(ep, result);
-      rows.push(endpoint);
+      const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
+      if (result.length > 0) {
+        const endpoint = formatEndpoint(ep, result);
+        rows.push(endpoint);
+      }    
     } catch (err) {
       logger.log('error', `controller.js endpoints() connection failed for ${ep.connect.poolAlias}`);
     }
@@ -82,7 +89,8 @@ async function endpoints() {
  */
 async function getEndpoints(req, res, next) {
   try {
-    const databaseList = await endpoints();
+    const filter= req.query.filter;
+    const databaseList = await endpoints(filter);
     res.status(200).json({ endpoints: databaseList });
   } catch (err) {
     next(err);
@@ -135,10 +143,14 @@ async function getDbDetails(req, res, next) {
     res.status(404).send("Requested database was not found");
     return;
   }
-  const connection = await dbService.getConnection(poolAlias);
+  
   let queryCollection = sql.collection['DATABASE'];
   let result = [];
+  const connection = await dbService.getConnection(poolAlias);
   for (let c of queryCollection.noParamQueries) {
+ 
+    
+
     const cResult = await dbService.query(connection, c.sql, c.params);
     result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
   }
@@ -159,11 +171,26 @@ async function getSchemaDetails(req, res, next) {
     res.status(404).send("Requested database was not found");
     return;
   }
-  const connection = await dbService.getConnection(poolAlias);
   let queryCollection = sql.collection['SCHEMA'];
   let result = [];
+  let connection = await dbService.getConnection(poolAlias);
   for (let c of queryCollection.ownerNameQueries) {
     c.params.owner.val = req.params.owner;
+    const cResult = await dbService.query(connection, c.sql, c.params);
+    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+  }
+  await dbService.closeConnection(connection);
+
+
+  // Queries that support object_name filters
+  const filter = req.query.filter;
+  queryCollection = sql.collection['SCHEMA-FILTERED'];
+  connection = await dbService.getConnection(poolAlias);
+  for (let c of queryCollection.ownerNameQueries) {
+    c.params.owner.val = req.params.owner;
+    if (filter){
+      c.params.object_name.val = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+    } 
     const cResult = await dbService.query(connection, c.sql, c.params);
     result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
   }
@@ -179,9 +206,9 @@ module.exports.getSchemaDetails = getSchemaDetails;
 async function getObjectList(connection, owner, type, name, status) {
   // Get the list of object types
   query = sql.statement['LIST_DBA_OBJECTS'];
-  const filtered_name = name.replace('*', '%').replace('_', '\\_');
-  const filtered_type = type.replace('*', '%');
-  let filtered_status = status.toUpperCase();
+  const filtered_name = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+  const filtered_type = type.toString().replace('*', '%');
+  let filtered_status = status.toString().toUpperCase();
   if (filtered_status !== 'VALID' &&
     filtered_status !== 'INVALID') {
     filtered_status = '%';
@@ -194,6 +221,7 @@ async function getObjectList(connection, owner, type, name, status) {
   const result = await dbService.query(connection, query.sql, query.params);
   return result;
 }
+
 
 /**
  * Implements GET /api/:db/:owner/:type and /api/:db/:owner/:type/:name/:status endpoints.
@@ -212,44 +240,28 @@ async function listObjects(req, res, next) {
     return;
   }
   try {
-    const connection = await dbService.getConnection(poolAlias);
-    // Validate the owner and object_type parameters
-    let query = sql.statement['VALIDATE-OWNER-AND-TYPE'];
-    query.params.owner.val = req.params.owner;
-    query.params.object_type.val = req.params.type;
-
-    const r = await dbService.query(connection, query.sql, query.params);
-    if (r[0]['OBJECT_COUNT'] === 0) {
-      await dbService.closeConnection(connection);
-      res.status(404).send("No objects match the owner + object_type combination");
-      return;
-    }
     /**
      * Get the list of object types. 
      * Use default values for name and status for GET /api/:db/:owner/:type calls 
-     */   
-    query = sql.statement['LIST_DBA_OBJECTS'];
-    const name = req.params.name? req.params.name: '*';
-    const filtered_name = name.replace('*', '%').replace('_', '\\_');
-    const status = req.params.status? req.params.status : '*';
-    let filtered_status = status.toUpperCase();
-
-    if (filtered_status !== 'VALID' &&
-      filtered_status !== 'INVALID') {
-      filtered_status = '%';
+     */
+    let name = req.params.name? req.params.name : '*';
+    if (name === '*' && req.query.filter) {
+      name = req.query.filter;
     }
-    query.params.owner.val = req.params.owner;
-    query.params.object_type.val = req.params.type;
-    query.params.object_name.val = filtered_name;
-    query.params.status.val = filtered_status;
+    const status = req.params.status? req.params.status : '*';
 
-    const result = await dbService.query(connection, query.sql, query.params);
-    let objectList = [];
-    result.forEach(element => {
-      objectList.push(element.OBJECT_NAME);
-    });
+    const connection = await dbService.getConnection(poolAlias);   
+    const result = await getObjectList(connection, req.params.owner, req.params.type, name, status);
     await dbService.closeConnection(connection);
-    res.status(200).json(objectList);
+    
+    if (result.length === 0) {
+      res.status(404).send("No objects found for the requested owner, type, name and status");
+    } else {
+      let objectList = [];
+      result.forEach(element => { objectList.push(element.OBJECT_NAME); });
+      res.status(200).json(objectList);
+    }
+    
 
   } catch (err) {
     logger.log('error', `controller.js listObjects connection failed for ${poolAlias}`);
