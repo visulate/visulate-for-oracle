@@ -11,7 +11,6 @@
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 </ng-template>
 
-<div id="pageTop"></div>
 <ng-template #queryResults>
     <mat-accordion multi="true" *ngIf="objectDetails">
         <ng-container *ngFor="let property of objectDetails">
