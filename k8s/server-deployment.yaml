@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: visulate-for-oracle-server
-        image: gcr.io/visulate-for-oracle/server:0.1.12
+        image: gcr.io/visulate-for-oracle/server:0.1.13
         volumeMounts:
           - name: config-database-volume
             mountPath: /visulate-server/config/database.js

@@ -4,7 +4,7 @@ metadata:
   name: database-js
 data:
   database.js: |-
-    const endpoints = [
+    const endpoints = [      
       { namespace: 'oracle18XE',
         description: '18c XE pluggable database instance running in a docker container',
         connect: { poolAlias: 'oracle18XE',
@@ -26,6 +26,17 @@ data:
                    poolMax: 4,
                    poolIncrement: 0
                  }
-      },
+      }, 
+      { namespace: 'ebsDemo',
+      description: 'E-Business Suite demo instance',
+      connect: { poolAlias: 'ebsDemo',
+                 user: 'visulate',
+                 password: 'visulate',
+                 connectString: '129.213.115.103:1521/ebsdb',
+                 poolMin: 4,
+                 poolMax: 4,
+                 poolIncrement: 0
+               }
+      }
     ];
     module.exports.endpoints = endpoints; 
