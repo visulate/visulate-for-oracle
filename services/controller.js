@@ -290,7 +290,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
   query.params.object_name.val = object_name;
 
   const connection = await dbService.getConnection(poolAlias);
-  const r = await dbService.query(connection, query.sql, query.params);
+  let r = await dbService.query(connection, query.sql, query.params);
   if (!r[0]) {
     await dbService.closeConnection(connection);
     return ('404');
@@ -344,7 +344,20 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
     }
   }
 
+  /**
+   * Dependency queries do not work in an Oracle Autonomous database instance.
+   * Need to write custom queries for ADB that do not access internal sys tables.
+   * The current queries do this to improve performance and as a workaround to
+   * limits on the number of outer joins in a single query (the DBA_ views include
+   * outer joins in their source)
+   *  
+   * */ 
 
+  query = sql.statement['ADB-YN'];
+  r = await dbService.query(connection, query.sql, query.params);
+  const absDb = (r[0]['Autonomous Database'] === 'Yes')? true: false;
+
+  if (! absDb ) {
 /**
  * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
  */
@@ -363,6 +376,8 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
     const cResult = await dbService.query(connection, c.sql, c.params);
     result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
   }
+
+}  
   await dbService.closeConnection(connection);
   return result;
 }

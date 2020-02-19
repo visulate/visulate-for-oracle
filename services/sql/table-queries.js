@@ -201,6 +201,28 @@ statement['FK-IN-TABLE'] = {
     object_id: { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
+
+statement['FK-IN-TABLE-NAME'] = {
+  'title': 'Foreign Keys',
+  'description': 'Parent/lookup tables',
+  'display': ["Table", "Owner"],
+  'link': "Table",
+  'sql': `select rcons.table_name as "Table"
+          ,      rcons.owner as "Owner"
+          ,      rcons.owner||'/TABLE/'||rcons.table_name as link
+          from dba_constraints cons
+          ,    dba_constraints rcons
+          where cons.owner = :owner
+          and cons.table_name = :object_name
+          and cons.r_constraint_name = rcons.constraint_name
+          and cons.r_owner = rcons.owner
+          order by rcons.table_name`,
+  'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+
 statement['FK-TO-TABLE'] = {
   'title': 'Foreign Keys to this Table',
   'description': 'Child/detail tables',
@@ -220,4 +242,26 @@ statement['FK-TO-TABLE'] = {
     object_id: { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
+
+statement['FK-TO-TABLE-NAME'] = {
+  'title': 'Foreign Keys to this Table',
+  'description': 'Child/detail tables',
+  'display': ["Table", "Owner"],
+  'link': "Table",
+  'sql': `select cons.table_name as "Table"
+          ,      cons.owner as "Owner"
+          ,      cons.owner||'/TABLE/'||cons.table_name as link
+          from dba_constraints cons
+          ,    dba_constraints rcons
+          where rcons.owner = :owner
+          and rcons.table_name = :object_name
+          and cons.r_constraint_name = rcons.constraint_name
+          and cons.r_owner = rcons.owner
+          order by cons.table_name`,
+  'params': {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+
 module.exports.statement = statement;

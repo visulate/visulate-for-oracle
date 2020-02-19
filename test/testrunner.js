@@ -122,9 +122,10 @@ it('GET PDB Database summary', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}`)
   .end((err, res) => {
+  //  console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(8);
+  //  res.body.length.should.equal(9);
     done();
   });
 });
@@ -134,7 +135,7 @@ it('GET 11i Database summary', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(8);
+  //  res.body.length.should.equal(9);
     done();
   });
 });
@@ -158,7 +159,7 @@ it('GET PDB schema summary', (done) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
     res.body.length.should.equal(5);
-    console.log(JSON.stringify(res.body, null, 2));
+  //  console.log(JSON.stringify(res.body, null, 2));
     done();
   });
 });
@@ -181,7 +182,7 @@ it('GET PDB schema summary with query filter', (done) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
     res.body.length.should.equal(5);
-    console.log(JSON.stringify(res.body, null, 2));
+  //  console.log(JSON.stringify(res.body, null, 2));
     res.body[4].rows.length.should.equal(0);
     done();
   });
@@ -352,65 +353,28 @@ it('11i GET with filter query', (done) => {
 });
 
 
-// it('Wildcard PDB GET list', (done) => {
-//   chai.request(BASE_URL)
-//   .get(`/api/${PDB}/*/*/RNT_*/valid`)
-//   .end((err, res) => {
-//     expect(res).to.have.status(200);
-//     //console.log(JSON.stringify(res.body, null, 2));
-//     res.body.length.should.equal(1);
-//     res.body[0].owner.should.equal("WIKI");
-//     res.body[0].objectTypes.length.should.equal(6);
-//     res.body[0].objectTypes[2].type.should.equal("PACKAGE BODY");
-//     res.body[0].objectTypes[2].count.should.equal(7);    
-//     done();
-//   });
-// });
+it('Wildcard PDB GET list', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${PDB}/WIKI/*/RNT_*/invalid`)
+  .end((err, res) => {
+//    console.log(JSON.stringify(res.body, null, 2));
+    expect(res).to.have.status(200);
+    res.body.length.should.equal(1);
+    done();
+  });
+});
 
-// it('Wildcard 11i GET list', (done) => {
-//   chai.request(BASE_URL)
-//   .get(`/api/${NON_PDB}/*/*/RNT_*/valid`)
-//   .end((err, res) => {
-//     expect(res).to.have.status(200);
-//     //console.log(JSON.stringify(res.body, null, 2));
-//     res.body.length.should.equal(1);
-//     res.body[0].owner.should.equal("WIKI");
-//     res.body[0].objectTypes.length.should.equal(6);
-//     res.body[0].objectTypes[2].type.should.equal("PACKAGE BODY");
-//     res.body[0].objectTypes[2].count.should.equal(7);    
-//     done();
-//   });
-// });
-
-// it('Wildcard PDB GET Object Type list', (done) => {
-//   chai.request(BASE_URL)
-//   .get(`/api/${PDB}/*/TABLE/*/valid`)
-//   .end((err, res) => {
-//     expect(res).to.have.status(200);
-// //    console.log(JSON.stringify(res.body, null, 2));
-//     res.body.length.should.equal(20);
-//     res.body[0].owner.should.equal("APPQOSSYS");
-//     res.body[0].objectTypes.length.should.equal(1);
-//     res.body[0].objectTypes[0].type.should.equal("TABLE");
-//     res.body[0].objectTypes[0].count.should.equal(5);    
-//     done();
-//   });
-// });
-
-// it('Wildcard 11i GET Object Type list', (done) => {
-//   chai.request(BASE_URL)
-//   .get(`/api/${NON_PDB}/*/TABLE/*/valid`)
-//   .end((err, res) => {
-//     expect(res).to.have.status(200);
-//     //console.log(JSON.stringify(res.body, null, 2));
-//     res.body.length.should.equal(10);
-//     res.body[0].owner.should.equal("APEX_040000");
-//     res.body[0].objectTypes.length.should.equal(1);
-//     res.body[0].objectTypes[0].type.should.equal("TABLE");
-//     res.body[0].objectTypes[0].count.should.equal(426);    
-//     done();
-//   });
-// });
+it('Wildcard 11i GET list', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/*/RNT_*/invalid`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    //console.log(JSON.stringify(res.body, null, 2));
+    expect(res).to.have.status(200);
+    res.body.length.should.equal(1);
+    done();
+  });
+});
 
 /**
  * Show Object

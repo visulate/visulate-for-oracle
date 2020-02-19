@@ -39,7 +39,9 @@ let collection = {};
 collection['DATABASE'] = {
   noParamQueries: [
     statement['DB-VERSION'],
+    statement['ADB-YN'],
     statement['EBS-SCHEMA'],
+    statement['COUNT-INVALID-OBJECTS'],
     statement['DB-SGA-SIZE'],
     statement['DB-SGA-FREE'],
     statement['DB-SEGMENTS'],
@@ -71,14 +73,15 @@ collection['TABLE'] = {
     statement['TABLE-INDEXES'],
     statement['INDEX-FUNCTION'],
     statement['TABLE-KEYS'],
-    statement['TABLE-COLUMNS']
+    statement['TABLE-COLUMNS'],
+    statement['FK-IN-TABLE-NAME'],
+    statement['FK-TO-TABLE-NAME']
   ],
-  objectIdQueries: [
-    statement['FK-IN-TABLE'],
-    statement['FK-TO-TABLE']
+  objectIdQueries: [    
   ],
   objectTypeQueries: []
 };
+
 collection['VIEW'] = {
   objectNameQueries: [
     statement['TABLE-DETAILS'],
@@ -89,6 +92,7 @@ collection['VIEW'] = {
   objectTypeQueries: [],
   objectIdQueries: []
 };
+
 collection['PACKAGE'] = {
   objectNameQueries: [],
   objectIdQueries: [],
@@ -96,6 +100,7 @@ collection['PACKAGE'] = {
     statement['SOURCE']
   ]
 };
+
 collection['PACKAGE BODY'] = {
   objectNameQueries: [],
   objectIdQueries: [],
@@ -103,6 +108,7 @@ collection['PACKAGE BODY'] = {
     statement['SOURCE']
   ]
 };
+
 collection['PROCEDURE'] = {
   objectNameQueries: [],
   objectIdQueries: [],
@@ -110,6 +116,7 @@ collection['PROCEDURE'] = {
     statement['SOURCE']
   ]
 };
+
 collection['FUNCTION'] = {
   objectNameQueries: [],
   objectIdQueries: [],
@@ -117,6 +124,7 @@ collection['FUNCTION'] = {
     statement['SOURCE']
   ]
 };
+
 collection['TYPE BODY'] = {
   objectNameQueries: [],
   objectIdQueries: [],
@@ -124,6 +132,7 @@ collection['TYPE BODY'] = {
     statement['SOURCE']
   ]
 };
+
 collection['JAVA SOURCE'] = {
   objectNameQueries: [],
   objectIdQueries: [],
@@ -131,6 +140,7 @@ collection['JAVA SOURCE'] = {
     statement['SOURCE']
   ]
 };
+
 collection['MATERIALIZED VIEW'] = {
   objectNameQueries: [
     statement['MVIEW-DETAILS'],
@@ -140,6 +150,7 @@ collection['MATERIALIZED VIEW'] = {
   objectIdQueries: [],
   objectTypeQueries: []
 };
+
 collection['TRIGGER'] = {
   objectNameQueries: [
     statement['TRIGGER-DETAILS']
@@ -147,6 +158,7 @@ collection['TRIGGER'] = {
   objectIdQueries: [],
   objectTypeQueries: []
 };
+
 collection['INDEX'] = {
   objectNameQueries: [
     statement['INDEX-COLUMNS'],
@@ -155,6 +167,7 @@ collection['INDEX'] = {
   objectIdQueries: [],
   objectTypeQueries: []
 };
+
 collection['QUEUE'] = {
   objectNameQueries: [
     statement['QUEUE-DETAILS']
@@ -162,6 +175,7 @@ collection['QUEUE'] = {
   objectIdQueries: [],
   objectTypeQueries: []
 };
+
 collection['SYNONYM'] = {
   objectNameQueries: [
     statement['DECODE-SYNONYM']
@@ -169,6 +183,7 @@ collection['SYNONYM'] = {
   objectIdQueries: [],
   objectTypeQueries: []
 };
+
 collection['CLUSTER'] = {
   objectNameQueries: [
     statement['TABLE-COLUMNS']
@@ -176,6 +191,7 @@ collection['CLUSTER'] = {
   objectIdQueries: [],
   objectTypeQueries: []
 };
+
 collection['TYPE'] = {
   objectNameQueries: [
     statement['TYPE-DETAILS'],

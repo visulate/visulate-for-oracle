@@ -60,6 +60,16 @@ statement['DB-VERSION'] = {
    }
 };
 
+statement['ADB-YN'] = {
+  'title': 'Oracle Cloud Autonomous Database Instance',
+  'display': ["Autonomous Database"],
+  'sql' : `select decode( count(*), 0, 'No', 
+                                       'Yes') as "Autonomous Database" 
+           from dba_objects 
+           where object_name = 'DBMS_CLOUD'`,
+  'params' : { }
+}
+
 statement['EBS-SCHEMA'] = {
   'title': 'E-Business Suite Schema Detected',
   'description': '',
@@ -71,6 +81,20 @@ statement['EBS-SCHEMA'] = {
           and table_name = 'FND_APPLICATION'`,
   'params': {
   }
+};
+
+statement['COUNT-INVALID-OBJECTS'] = {
+  'title': 'Invalid Objects',
+  'description': '',
+  'display': ["Owner", "Object Type", "Count"],
+  'sql': `select owner as "Owner"
+          ,      object_type as "Object Type"
+          ,      count(*) as "Count"
+          from dba_objects
+          where status = 'INVALID'
+          group by owner, object_type
+          order by owner, object_type`,
+  'params': {}
 }
 
 statement['DB-FEATURES'] = {
