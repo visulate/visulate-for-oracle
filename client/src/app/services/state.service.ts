@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,10 @@ export class StateService {
    * `endpoint$` holds the current list of database endpoints returned from
    * the API server.
    * `currentContext$` holds the menu selection.
+   * The currentContext$ observable records the current menu selection,
+   * the previous selection and a summary of what changed. Subscribers
+   * use the change summary and previous context to determine whether an API 
+   * call is required.
    */
   private _endpoint: string = '';
   private _owner: string = '';
@@ -78,7 +82,6 @@ export class StateService {
   setCurrentContext(context: CurrentContextModel) {
     const priorContext = this.getStoredContext();
     const changeSummary = this.getContextDiff(context, priorContext);
-    //if  (!changeSummary['objectTypeDiff'] && priorContext.objectList) { context.objectList = priorContext.objectList;}
     this.storeContextValues(context);
     this.subjectContext.next(new ContextBehaviorSubjectModel(context, priorContext, changeSummary));
   }
