@@ -1,12 +1,13 @@
+---
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: database-js
 data:
   database.js: |-
-    const endpoints = [      
+    const endpoints = [
       { namespace: 'oracle18XE',
-        description: '18c XE pluggable database instance running in a docker container',
+        description: '18c XE PDB instance running in a docker container',
         connect: { poolAlias: 'oracle18XE',
                    user: 'visulate',
                    password: '',
@@ -26,7 +27,7 @@ data:
                    poolMax: 4,
                    poolIncrement: 0
                  }
-      }, 
+      },
       { namespace: 'ebsDemo',
       description: 'E-Business Suite demo instance',
       connect: { poolAlias: 'ebsDemo',
@@ -39,4 +40,4 @@ data:
                }
       }
     ];
-    module.exports.endpoints = endpoints; 
+    module.exports.endpoints = endpoints;

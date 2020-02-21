@@ -40,7 +40,7 @@ export class RestService {
    */
   public getEndpoints$( filter: string = '*'): Observable<EndpointListModel> {
     const filterParam: any = {'filter': filter};
-    return this.http.get<EndpointListModel>(environment.apiBase, {params: filterParam}).pipe(
+    return this.http.get<EndpointListModel>(`${environment.apiBase}/`, {params: filterParam}).pipe(
       map(data => new EndpointListModel().deserialize(data))
     );
   }
