@@ -2,8 +2,11 @@
 apiVersion: "extensions/v1beta1"
 kind: "Ingress"
 metadata:
-  name: "visulate-for-oracle-ingress"
+  name: "visulate-for-oracle-ingress2"
   namespace: "default"
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: 34.107.221.54
+    networking.gke.io/managed-certificates: demo3-visulate-net-certificate
 spec:
   backend:
     serviceName: "visulate-for-oracle-client"

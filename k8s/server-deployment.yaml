@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,23 +14,39 @@ spec:
         app: visulate-for-oracle
     spec:
       containers:
-      - name: visulate-for-oracle-server
-        image: gcr.io/visulate-for-oracle/server:0.1.12
-        volumeMounts:
-          - name: config-database-volume
-            mountPath: /visulate-server/config/database.js
-            subPath: database.js
-        ports:
-          - containerPort: 3000
-        env:
-          - name: CORS_ORIGIN_WHITELIST
-            value: "['http://demo.visulate.net']"
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 20
+        - name: visulate-for-oracle-server
+          image: gcr.io/visulate-for-oracle/server:0.1.13a
+          volumeMounts:
+            - name: config-database-volume
+              mountPath: /visulate-server/config/database.js
+              subPath: database.js
+            - name: logfiles
+              mountPath: /visulate-server/logs
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CORS_ORIGIN_WHITELIST
+              value: "['http://demo.visulate.net']"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+        - name: access-log
+          image: gcr.io/visulate-for-oracle/server:0.1.13a
+          args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/access.log']
+          volumeMounts:
+            - name: logfiles
+              mountPath: /visulate-server/logs
+        - name: message-log
+          image: gcr.io/visulate-for-oracle/server:0.1.13a
+          args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/combined.log']
+          volumeMounts:
+            - name: logfiles
+              mountPath: /visulate-server/logs
       volumes:
         - name: config-database-volume
           configMap:
-            name: database-js            
+            name: database-js
+        - name: logfiles
+          emptyDir: {}

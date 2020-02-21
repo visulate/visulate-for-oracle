@@ -1,6 +1,6 @@
 # Kubernetes deployment instructions
 Edit `server-config-map.yaml` to specify connect strings for the databases 
-you want to describe then run the following:
+you want to register then run the following:
 ```
 kubectl apply -f server-config-map.yaml
 kubectl apply -f server-deployment.yaml
