@@ -15,20 +15,20 @@ spec:
     spec:
       containers:
         - name: visulate-for-oracle-client
-          image: gcr.io/visulate-for-oracle/client:0.1.14
+          image: gcr.io/visulate-for-oracle/client:0.1.15
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
           ports:
             - containerPort: 80
         - name: access-log
-          image: gcr.io/visulate-for-oracle/client:0.1.14
+          image: gcr.io/visulate-for-oracle/client:0.1.15
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/access.log']
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
         - name: error-log
-          image: gcr.io/visulate-for-oracle/client:0.1.14
+          image: gcr.io/visulate-for-oracle/client:0.1.15
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/error.log']
           volumeMounts:
             - name: logfiles

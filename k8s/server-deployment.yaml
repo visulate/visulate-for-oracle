@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: visulate-for-oracle-server
-          image: gcr.io/visulate-for-oracle/server:0.1.14
+          image: gcr.io/visulate-for-oracle/server:0.1.15
           volumeMounts:
             - name: config-database-volume
               mountPath: /visulate-server/config/database.js
@@ -33,13 +33,13 @@ spec:
               port: 3000
             initialDelaySeconds: 20
         - name: access-log
-          image: gcr.io/visulate-for-oracle/server:0.1.14
+          image: gcr.io/visulate-for-oracle/server:0.1.15
           args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/access.log']
           volumeMounts:
             - name: logfiles
               mountPath: /visulate-server/logs
         - name: message-log
-          image: gcr.io/visulate-for-oracle/server:0.1.14
+          image: gcr.io/visulate-for-oracle/server:0.1.15
           args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/combined.log']
           volumeMounts:
             - name: logfiles
