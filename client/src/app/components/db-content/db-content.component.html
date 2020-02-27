@@ -1,5 +1,7 @@
 <div *ngIf="currentContext && currentContext.objectName; else welcomeMsg">
     <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}} [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>   
+    <a href="{{ddlBase}}/{{currentContext.endpoint}}/{{currentContext.owner}}/{{currentContext.objectType}}/{{currentContext.objectName}}/*">
+      Download DDL</a>
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 </div>
 
