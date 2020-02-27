@@ -21,6 +21,7 @@ import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } fro
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-db-selection',
@@ -40,22 +41,31 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   public currentObjectType: ObjectTypeListItem;
   public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
+  public ddlLink: string;
 
 
   constructor(
     private state: StateService,
     private router: Router) { }
 
+  setDdlLink(){
+    if (this.currentContext) {
+      const filter = (this.currentContext.filter === '')? '*': this.currentContext.filter;
+      this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0)?
+        `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : ''    
+    }    
+  }
+
   setObjectType(objectType: ObjectTypeListItem) {
     this.currentObjectType = objectType;
-    if (this.currentContext.filter !== ''){
+    if (this.currentContext.filter !== ''){      
       this.router.navigate
         ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
           {queryParams: {filter: this.currentContext.filter}});
-    } else {
+    } else {      
       this.router.navigate
         ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
-    }    
+    }     
   }
 
   setSchema(schema: SchemaModel) {
@@ -86,6 +96,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    */
   processEndpointListChange(endpoints: EndpointListModel) {
     this.endpoints = endpoints;
+    
     if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
     }
@@ -93,8 +104,9 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
     }
     if (this.currentContext && this.currentSchema && this.currentSchema.objectTypes) {
-      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
+      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);     
     }
+    this.setDdlLink();  
   }
 
   /**
@@ -102,7 +114,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * @param context - Current context (db, schema, object type and name) subscription
    */
   processContextChange( subjectContext: ContextBehaviorSubjectModel ) {
-    this.currentContext = subjectContext.currentContext;
+    this.currentContext = subjectContext.currentContext;   
 
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
@@ -110,9 +122,10 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     if (this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
     }
-    if (this.currentSchema && this.currentSchema.objectTypes) {
-      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
+    if (this.currentSchema && this.currentSchema.objectTypes) {      
+      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);      
     }
+    this.setDdlLink();
   }
 
   ngOnInit() {

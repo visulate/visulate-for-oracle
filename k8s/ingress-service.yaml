@@ -4,6 +4,8 @@ kind: "Ingress"
 metadata:
   name: "visulate-for-oracle-ingress"
   namespace: "default"
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "k8s-lbr"
 spec:
   backend:
     serviceName: "visulate-for-oracle-client"
@@ -19,6 +21,10 @@ spec:
             backend:
               serviceName: "visulate-for-oracle"
               servicePort: 3000
+          - path: "/ddl/*"
+            backend:
+              serviceName: "visulate-for-oracle"
+              servicePort: 3000              
           - path: "/database/*"
             backend:
               serviceName: "visulate-for-oracle-client"

@@ -203,9 +203,9 @@ module.exports.getSchemaDetails = getSchemaDetails;
 ////////////////////////////////////////////////////////////////////////////////
 // List object for a given database, schemea, object type and filter conditions
 ////////////////////////////////////////////////////////////////////////////////
-async function getObjectList(connection, owner, type, name, status) {
+async function getObjectList(connection, owner, type, name, status, query) {
   // Get the list of object types
-  query = sql.statement['LIST_DBA_OBJECTS'];
+  query = sql.statement[query];
   const filtered_name = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
   const filtered_type = type.toString().replace('*', '%');
   let filtered_status = status.toString().toUpperCase();
@@ -251,7 +251,7 @@ async function listObjects(req, res, next) {
     const status = req.params.status? req.params.status : '*';
 
     const connection = await dbService.getConnection(poolAlias);   
-    const result = await getObjectList(connection, req.params.owner, req.params.type, name, status);
+    const result = await getObjectList(connection, req.params.owner, req.params.type, name, status, 'LIST_DBA_OBJECTS');
     await dbService.closeConnection(connection);
     
     if (result.length === 0) {
@@ -271,6 +271,49 @@ async function listObjects(req, res, next) {
 }
 
 module.exports.listObjects = listObjects;
+
+/**
+ * Call DBMS_METADATA to generate DLL
+ * @param {*} req - request
+ * @param {*} res - reponse
+ * @param {*} next - next matching route
+ */
+
+async function generateDDL(req, res, next) {
+  const poolAlias = endpointList[req.params.db];
+  if (!poolAlias) {
+    res.status(404).send("Requested database was not found");
+    return;
+  }
+
+  try {
+    let name = req.params.name? req.params.name : '*';
+    if (name === '*' && req.query.filter) {
+      name = req.query.filter;
+    }
+    const status = req.params.status? req.params.status : '*';
+
+    const connection = await dbService.getConnection(poolAlias);   
+    const result = await getObjectList(connection, req.params.owner, req.params.type, name, status, 'DDL-GEN');
+    await dbService.closeConnection(connection);
+    
+    if (result.length === 0) {
+      res.status(404).send("No objects found for the requested owner, type, name and status");
+    } else {
+      res.set({"Content-Disposition":"attachment; filename=\"ddl.sql\""})
+      result.forEach(element => { res.write(element.DDL) });
+      res.status(200).send();
+    }
+    
+
+  } catch (err) {
+    logger.log('error', `controller.js generateDDL connection failed for ${poolAlias}`);
+    res.status(503).send(`Database connection failed for ${poolAlias}`);
+    next(err);
+  }
+
+}
+module.exports.generateDDL = generateDDL;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Show object details
@@ -449,7 +492,7 @@ async function getCollection(req, res, next) {
   let result;
 
   for (let object of req.body) {
-    const objectList = await getObjectList(connection, object.owner, object.type, object.name, object.status);
+    const objectList = await getObjectList(connection, object.owner, object.type, object.name, object.status, 'LIST_DBA_OBJECTS');
 
     for (let object of objectList) {
       objectIdSet.add(object.OBJECT_ID);

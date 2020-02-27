@@ -5,7 +5,8 @@
 export const environment = {
   production: false,
   apiBase: 'http://localhost:3000/api',
-  findObjectBase: 'http://localhost:3000/find'
+  findObjectBase: 'http://localhost:3000/find',
+  ddlGenBase: 'http://localhost:3000/ddl'
 };
 
 /*

@@ -22,6 +22,8 @@ import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/c
 import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
+
 
 @Component({
   selector: 'app-db-content',
@@ -39,6 +41,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public showLineNumbers = true;
   public schemaColumns: string[] = ['type', 'count'];
   private unsubscribe$ = new Subject<void>();
+  public ddlBase = environment.ddlGenBase;
 
   constructor(
     private restService: RestService,

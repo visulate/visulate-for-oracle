@@ -207,6 +207,19 @@ it('GET invalid 11i schema should return 404', (done) => {
 });
 
 /**
+ * DDL Generation
+ */
+it('GET PDB DDL', (done) => {
+  chai.request(BASE_URL)
+  .get(`/ddl/${PDB}/WIKI/PACKAGE BODY/*/*`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    done();
+  });
+});
+
+
+/**
  * Find Objects
  */
 it('GET PDB TABLES should return list of tables', (done) => {

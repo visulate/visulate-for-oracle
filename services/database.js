@@ -114,6 +114,7 @@ function query(connection, statement, binds = [], opts = {}){
   return new Promise(async (resolve, reject) => {
     opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
     opts.resultSet = true;
+    oracledb.fetchAsString = [ oracledb.CLOB ];
 
     try {
       const result = await connection.execute(

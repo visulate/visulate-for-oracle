@@ -4,5 +4,6 @@
 export const environment = {
   production: true,
   apiBase: '/api',
-  findObjectBase: '/find'
+  findObjectBase: '/find',
+  ddlGenBase: '/ddl'
 };

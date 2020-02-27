@@ -26,9 +26,10 @@
                 <mat-option *ngFor="let objectType of currentSchema.objectTypes" [value]="objectType">
                     {{objectType.type}} ({{objectType.count}})
                 </mat-option>
-            </mat-select>
+            </mat-select>            
         </mat-form-field>
 
+        <a *ngIf="ddlLink" href="{{ddlLink}}">Download DDL</a>
         <p *ngIf="currentEndpoint">{{currentEndpoint.description}} </p>
     </mat-card-content>
 </mat-card>

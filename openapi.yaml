@@ -301,6 +301,91 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
+  /ddl/{db}/{owner}/{type}:
+    get:
+      summary: Generate DDL
+      description: Generate DDL for the specified owner and object type
+      parameters :
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: WIKI
+        - in: path
+          name: type
+          description: database object type
+          required: true
+          schema:
+            type: string
+            example: PACKAGE BODY
+      responses:
+        200:
+          description: DDL output produced by DBMS_METADATA
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  CREATE TABLE "WIKI"."RNT_LOOKUP_TYPES" ...
+  /ddl/{db}/{owner}/{type}/{name}/{status}:
+    get:
+      summary: Generate DDL
+      description: Generate DDL for the specified owner, object type, name and status
+      parameters :
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: WIKI
+        - in: path
+          name: type
+          description: database object type
+          required: true
+          schema:
+            type: string
+            example: PACKAGE BODY
+        - in: path
+          name: name
+          description: database object name or wildcard 
+          required: true
+          schema:
+            type: string
+            example: RNT*    
+        - in: path
+          name: status
+          description: database object name or wildcard 
+          required: true
+          schema:
+            type: string
+            example: VALID
+      responses:
+        200:
+          description: DDL output produced by DBMS_METADATA
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  CREATE TABLE "WIKI"."RNT_LOOKUP_TYPES" ...
+        
   /api/collection/{db}:
     post:
       summary: Database object collection

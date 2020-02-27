@@ -29,7 +29,9 @@ statement['COUNT_DBA_OBJECTS'] = {
                              from dba_logstdby_skip l
                              where l.owner = o.owner
                              and l.statement_opt = 'INTERNAL SCHEMA')
-           and owner not in ('PUBLIC')     
+           and owner not in ('PUBLIC')
+           and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+                'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
            group by owner, object_type
            order by owner, object_type`,
    'params': {
@@ -42,7 +44,9 @@ statement['COUNT_DBA_OBJECTS_FILTER'] = {
   'display': [],
   'sql' : `select owner, object_type, count(*) as object_count
            from dba_objects o
-           where object_name like :object_name ESCAPE :esc       
+           where object_name like :object_name ESCAPE :esc
+           and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+                'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')  
            group by owner, object_type
            order by owner, object_type`,
    'params': {
@@ -295,6 +299,8 @@ statement['LIST_DBA_OBJECTS'] = {
           and object_name like :object_name ESCAPE :esc
           and status like :status
           and rownum < 3000
+          and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+                'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
           order by owner, object_type, object_name`,
   'params': {
     owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
@@ -304,6 +310,63 @@ statement['LIST_DBA_OBJECTS'] = {
     status: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" }
   }
 };
+
+// https://stackoverflow.com/questions/10886450/how-to-generate-entire-ddl-of-an-oracle-schema-scriptable
+statement['DDL-GEN'] = {
+  'title': 'DDL',
+  'description': '',
+  'display': [],
+  'sql': `select dbms_metadata.get_ddl(object_type, object_name, owner) as ddl
+          from
+          ( select owner
+            ,      object_name
+            ,      decode(object_type,
+                            'DATABASE LINK',      'DB_LINK',
+                            'JOB',                'PROCOBJ',
+                            'RULE SET',           'PROCOBJ',
+                            'RULE',               'PROCOBJ',
+                            'EVALUATION CONTEXT', 'PROCOBJ',
+                            'CREDENTIAL',         'PROCOBJ',
+                            'CHAIN',              'PROCOBJ',
+                            'PROGRAM',            'PROCOBJ',
+                            'PACKAGE',            'PACKAGE_SPEC',
+                            'PACKAGE BODY',       'PACKAGE_BODY',
+                            'TYPE',               'TYPE_SPEC',
+                            'TYPE BODY',          'TYPE_BODY',
+                            'MATERIALIZED VIEW',  'MATERIALIZED_VIEW',
+                            'QUEUE',              'AQ_QUEUE',
+                            'JAVA CLASS',         'JAVA_CLASS',
+                            'JAVA TYPE',          'JAVA_TYPE',
+                            'JAVA SOURCE',        'JAVA_SOURCE',
+                            'JAVA RESOURCE',      'JAVA_RESOURCE',
+                            'XML SCHEMA',         'XMLSCHEMA',
+                            object_type
+                          ) as object_type
+            from dba_objects 
+            where owner = :owner
+            and object_type like :object_type
+            and object_name like :object_name ESCAPE :esc
+            and status like :status
+            and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+                'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
+            and not (object_type = 'TYPE' and object_name like 'SYS_PLSQL_%')
+            and (owner, object_name) not in 
+                      (select owner, table_name 
+                      from dba_nested_tables)
+            and (owner, object_name) not in 
+                      (select owner, table_name 
+                      from dba_tables 
+                      where iot_type = 'IOT_OVERFLOW')
+            )
+          order by owner, object_type, object_name`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
+    status: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" }
+  }
+}
 
 statement['FIND-DBA-OBJECTS'] = {
   'title': 'Search Results',

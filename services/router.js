@@ -60,6 +60,12 @@ router.route('/api/:db/:owner/:type')
 router.route('/api/:db/:owner/:type/:name/:status')
   .get(controller.listObjects);
 
+router.route('/ddl/:db/:owner/:type')
+  .get(controller.generateDDL);    
+
+router.route('/ddl/:db/:owner/:type/:name/:status')
+  .get(controller.generateDDL);  
+
 router.route('/api/:db/:owner/:type/:name')
   .get(controller.showObject);
 
