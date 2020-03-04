@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: visulate-for-oracle
+  name: {{ .Release.Name }}-visulate-for-oracle
   labels:
     app: visulate-for-oracle
 spec:

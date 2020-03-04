@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: visulate-for-oracle
+  name: {{ .Release.Name }}-visulate-for-oracle
 spec:
   replicas: 1
   selector:
