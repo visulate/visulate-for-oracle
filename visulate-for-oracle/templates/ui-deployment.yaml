@@ -2,33 +2,33 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-visulate-for-oracle-client
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.uiReplicaCount }}
   selector:
     matchLabels:
-      app: visulate-for-oracle-client
+      app: {{ .Chart.Name }}-{{ .Values.uiLabel }}
   template:
     metadata:
       labels:
-        app: visulate-for-oracle-client
+        app: {{ .Chart.Name }}-{{ .Values.uiLabel }}
     spec:
       containers:
-        - name: visulate-for-oracle-client
-          image: gcr.io/visulate-for-oracle/client:0.1.15
+        - name: {{ .Chart.Name }}-{{ .Values.uiLabel }}
+          image: {{ .Values.image.registry }}/{{ .Values.image.uiRepository }}:{{ .Chart.AppVersion }}
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
           ports:
-            - containerPort: 80
+            - containerPort: {{ .Values.service.uiPort }}
         - name: access-log
-          image: gcr.io/visulate-for-oracle/client:0.1.15
+          image: {{ .Values.image.registry }}/{{ .Values.image.uiRepository }}:{{ .Chart.AppVersion }}
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/access.log']
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
         - name: error-log
-          image: gcr.io/visulate-for-oracle/client:0.1.15
+          image: {{ .Values.image.registry }}/{{ .Values.image.uiRepository }}:{{ .Chart.AppVersion }}
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/error.log']
           volumeMounts:
             - name: logfiles

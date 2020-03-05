@@ -2,30 +2,30 @@
 apiVersion: "extensions/v1beta1"
 kind: "Ingress"
 metadata:
-  name: {{ .Release.Name }}-visulate-for-oracle-ingress
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
   namespace: "default"
   annotations:
     kubernetes.io/ingress.global-static-ip-name: "k8s-lbr"
 spec:
   backend:
-    serviceName: {{ .Release.Name }}-visulate-for-oracle-client
-    servicePort: 80
+    serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
+    servicePort: {{ .Values.service.uiPort }}
   rules:
     - http:
         paths:
           - path: "/api/*"
             backend:
-              serviceName: {{ .Release.Name }}-visulate-for-oracle
-              servicePort: 3000
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+              servicePort: {{ .Values.service.apiServerPort }}
           - path: "/find/*"
             backend:
-              serviceName: {{ .Release.Name }}-visulate-for-oracle
-              servicePort: 3000
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+              servicePort: {{ .Values.service.apiServerPort }}
           - path: "/ddl/*"
             backend:
-              serviceName: {{ .Release.Name }}-visulate-for-oracle
-              servicePort: 3000              
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+              servicePort: {{ .Values.service.apiServerPort }}
           - path: "/database/*"
             backend:
-              serviceName: {{ .Release.Name }}-visulate-for-oracle-client
-              servicePort: 80
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
+              servicePort: {{ .Values.service.uiPort }}
