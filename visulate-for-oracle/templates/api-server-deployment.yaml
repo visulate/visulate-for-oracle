@@ -26,7 +26,7 @@ spec:
             - containerPort: {{ .Values.service.apiServerPort }}
           env:
             - name: CORS_ORIGIN_WHITELIST
-              value: "['http://demo.visulate.net']"
+              value: "{{ .Values.corsOriginWhitelist }}"
           readinessProbe:
             httpGet:
               path: /

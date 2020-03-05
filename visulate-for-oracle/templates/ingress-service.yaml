@@ -5,7 +5,7 @@ metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
   namespace: "default"
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: "k8s-lbr"
+    kubernetes.io/ingress.global-static-ip-name: "{{ .Values.ingress.staticIpAddressName }}"
 spec:
   backend:
     serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
