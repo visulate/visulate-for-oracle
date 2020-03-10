@@ -1,0 +1,19 @@
+applicationApiVersion: v1beta1
+x-google-marketplace: 
+  # IMPORTANT: These IDs must match your listing ID in Marketplace.
+  partnerId: visulate-llc-public
+  solutionId: visulate-for-oracle
+  
+properties:
+  name:
+    type: string
+    x-google-marketplace:
+      type: NAME
+  namespace:
+    type: string
+    x-google-marketplace:
+      type: NAMESPACE
+
+required:
+- name
+- namespace
