@@ -1,4 +1,4 @@
-Visulate for Oracle is a data dictionary browsing service to help data engineers understand the structure and dependencies in Oracle databases that they plan to migrate to the Cloud.
+Visulate for Oracle is a data dictionary browsing application to help data engineers understand the structure and dependencies in Oracle databases that they plan to migrate to the Cloud.
 
 Users supply read-only connection details for one or more the databases. Visulate queries the data dictionary for each connection. Results can be viewed via a browser based UI or REST API calls. Interactive reports are generated for each database object by querying the appropriate dictionary views (e.g. DBA_TABLES and other views for table objects or DBA_SOURCE for packages)
 

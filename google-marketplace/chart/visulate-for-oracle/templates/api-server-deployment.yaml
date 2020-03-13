@@ -2,20 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
 spec:
-  replicas: {{ .Values.apiServerReplicaCount }}
+  replicas: {{ .Values.apiServer.replicas }}
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+      app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
   template:
     metadata:
       labels:
-        app: {{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+        app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
     spec:
       containers:
-        - name: {{ .Chart.Name }}-{{ .Values.apiServerLabel }}
-          image: {{ .Values.image.registry }}/{{ .Values.image.apiServerRepository }}:{{ .Chart.AppVersion }}
+        - name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+          image: "{{ .Values.apiServer.image.registry }}/{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
           volumeMounts:
             - name: config-database-volume
               mountPath: /visulate-server/config/database.js
@@ -23,23 +23,23 @@ spec:
             - name: logfiles
               mountPath: /visulate-server/logs
           ports:
-            - containerPort: {{ .Values.service.apiServerPort }}
+            - containerPort: {{ .Values.apiServer.port }}
           env:
             - name: CORS_ORIGIN_WHITELIST
               value: "{{ .Values.corsOriginWhitelist }}"
           readinessProbe:
             httpGet:
-              path: /
-              port: {{ .Values.service.apiServerPort }}
+              path: /api/
+              port: {{ .Values.apiServer.port }}
             initialDelaySeconds: 20
         - name: access-log
-          image: {{ .Values.image.registry }}/{{ .Values.image.apiServerRepository }}:{{ .Chart.AppVersion }}
+          image: "{{ .Values.apiServer.image.registry }}/{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
           args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/access.log']
           volumeMounts:
             - name: logfiles
               mountPath: /visulate-server/logs
         - name: message-log
-          image: {{ .Values.image.registry }}/{{ .Values.image.apiServerRepository }}:{{ .Chart.AppVersion }}
+          image: "{{ .Values.apiServer.image.registry }}/{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
           args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/combined.log']
           volumeMounts:
             - name: logfiles
@@ -47,6 +47,6 @@ spec:
       volumes:
         - name: config-database-volume
           configMap:
-            name: database-js
+            name: {{ .Release.Name }}-database-js
         - name: logfiles
           emptyDir: {}

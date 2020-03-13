@@ -1,24 +1,20 @@
-apiServerReplicaCount: 1
-apiServerLabel: api
-corsOriginWhitelist: |
-  ['http://demo.visulate.net','https://demo.visulate.net']
+---
+apiServer:
+  label: api
+  image:
+    registry: null
+    repository: null
+    tag: null
+  replicas: null  
+  corsOriginWhitelist: []
+  port: null
 
-uiReplicaCount: 1
-uiLabel: ui
-
-
-image:
-  registry: gcr.io
-  uiRepository: visulate-for-oracle/client
-  apiServerRepository: visulate-for-oracle/server
-
-
-
-service:
-  type: NodePort
-  uiPort: 80
-  tlsPort: 443
-  apiServerPort: 3000
-
-ingress:
-  staticIpAddressName: k8s-lbr
+ui:
+  label: ui
+  image:
+    registry: null
+    repository: null
+    tag: null
+  replicas: null  
+  port: null
+  tlsPort: null

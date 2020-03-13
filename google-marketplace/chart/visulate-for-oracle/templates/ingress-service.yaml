@@ -1,31 +1,43 @@
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-tls
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+data:
+  tls.key: |
+{{ .Values.tls.base64EncodedPrivateKey | indent 4 }}
+  tls.crt: |
+{{ .Values.tls.base64EncodedCertificate | indent 4 }}
+type: kubernetes.io/tls
+---
 apiVersion: "extensions/v1beta1"
 kind: "Ingress"
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
-  namespace: "default"
-  annotations:
-    kubernetes.io/ingress.global-static-ip-name: "{{ .Values.ingress.staticIpAddressName }}"
 spec:
+  tls:
+    - secretName: {{ .Release.Name }}-tls
   backend:
-    serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
-    servicePort: {{ .Values.service.uiPort }}
+    serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+    servicePort: {{ .Values.ui.port }}
   rules:
     - http:
         paths:
           - path: "/api/*"
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
-              servicePort: {{ .Values.service.apiServerPort }}
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+              servicePort: {{ .Values.apiServer.port }}
           - path: "/find/*"
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
-              servicePort: {{ .Values.service.apiServerPort }}
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+              servicePort: {{ .Values.apiServer.port }}
           - path: "/ddl/*"
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
-              servicePort: {{ .Values.service.apiServerPort }}
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+              servicePort: {{ .Values.apiServer.port }}
           - path: "/database/*"
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
-              servicePort: {{ .Values.service.uiPort }}
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+              servicePort: {{ .Values.ui.port }}

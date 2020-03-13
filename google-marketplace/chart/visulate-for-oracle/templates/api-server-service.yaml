@@ -2,15 +2,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
   labels:
-    app: {{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
 spec:
-  type: {{ .Values.service.type }}
+  type: NodePort
   selector:
-    app: {{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
   ports:
     - protocol: TCP
-      port: {{ .Values.service.apiServerPort }}
-      targetPort: {{ .Values.service.apiServerPort }}
-      name: {{ .Chart.Name }}-{{ .Values.apiServerLabel }}
+      port: {{ .Values.apiServer.port }}
+      targetPort: {{ .Values.apiServer.port }}
+      name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}

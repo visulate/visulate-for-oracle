@@ -1,3 +1,4 @@
+---
 apiVersion: app.k8s.io/v1beta1
 kind: Application
 metadata:
@@ -6,14 +7,56 @@ metadata:
   labels:
     app.kubernetes.io/name: "{{ .Release.Name }}"
   annotations:
+    kubernetes-engine.cloud.google.com/icon: >-
+      data:image/png;base64,{{ .Files.Get "logo.png" | b64enc }}
     marketplace.cloud.google.com/deploy-info: '{"partner_id": "visulate-llc-public", "product_id": "visulate-for-oracle", "partner_name": "Visulate"}'
 spec:
   descriptor:
-    type: visulate-for-oracle
-    version: '1'
+    type: Visulate for Oracle
+    version: "{{ .Values.apiServer.image.tag }}"
+    description: |-
+      Visulate for Oracle is a data dictionary browsing application to help data engineers understand the structure and dependencies in Oracle databases that they plan to migrate to the Cloud.
+
+      # Support
+      Open a [GitHub issue](https://github.com/visulate/visulate-for-oracle/issues) and apply a "gcp" label.
+    maintainers:
+    - name: Visulate
+      url: https://github.com/visulate/visulate-for-oracle
+    links:
+    - description: 'Database setup instructions'
+      url: https://github.com/visulate/visulate-for-oracle/tree/master/setup
+    notes: |-
+      # Open your Visulate for Oracle site
+
+      Get the external IP of your WordPress site using the following command:
+
+      ```
+      SERVICE_IP=$(kubectl get ingress {{ .Release.Name }}-{{ .Chart.Name }}-ingress \
+        --namespace {{ .Release.Namespace }} \
+        --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
+      echo "https://${SERVICE_IP}/"
+      ```
+      The command shows you the URL of your site.
+    info:
+    - name: Visulate for Oracle Site Address
+      type: Reference
+      valueFrom:
+        ingressRef:
+          name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
+          protocol: HTTPS
   selector:
     matchLabels:
       app.kubernetes.io/name: "{{ .Release.Name }}"
   componentKinds:
-  - group: batch/v1
-    kind: Job
+    - group: batch/v1
+      kind: Job
+    - group: v1
+      kind: Service
+    - group: apps/v1
+      kind: Deployment
+    - group: extensions/v1beta1
+      kind: Ingress
+    - group: v1
+      kind: ConfigMap
+    - group: v1
+      kind: Secret

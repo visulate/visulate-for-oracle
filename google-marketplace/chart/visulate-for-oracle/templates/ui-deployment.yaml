@@ -2,33 +2,33 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.uiLabel }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
 spec:
-  replicas: {{ .Values.uiReplicaCount }}
+  replicas: {{ .Values.ui.replicas }}
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}-{{ .Values.uiLabel }}
+      app: {{ .Chart.Name }}-{{ .Values.ui.label }}
   template:
     metadata:
       labels:
-        app: {{ .Chart.Name }}-{{ .Values.uiLabel }}
+        app: {{ .Chart.Name }}-{{ .Values.ui.label }}
     spec:
       containers:
-        - name: {{ .Chart.Name }}-{{ .Values.uiLabel }}
-          image: {{ .Values.image.registry }}/{{ .Values.image.uiRepository }}:{{ .Chart.AppVersion }}
+        - name: {{ .Chart.Name }}-{{ .Values.ui.label }}
+          image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
           ports:
-            - containerPort: {{ .Values.service.uiPort }}
+            - containerPort: {{ .Values.ui.port }}
         - name: access-log
-          image: {{ .Values.image.registry }}/{{ .Values.image.uiRepository }}:{{ .Chart.AppVersion }}
+          image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/access.log']
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
         - name: error-log
-          image: {{ .Values.image.registry }}/{{ .Values.image.uiRepository }}:{{ .Chart.AppVersion }}
+          image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/error.log']
           volumeMounts:
             - name: logfiles
