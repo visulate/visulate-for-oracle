@@ -1,0 +1,83 @@
+applicationApiVersion: v1beta1
+x-google-marketplace: 
+  # IMPORTANT: These IDs must match your listing ID in Marketplace.
+  partnerId: visulate-llc-public
+  solutionId: visulate-for-oracle
+  
+properties:
+  name:
+    type: string
+    x-google-marketplace:
+      type: NAME
+  namespace:
+    type: string
+    x-google-marketplace:
+      type: NAMESPACE
+  controller.serviceAccount:
+    type: string
+    x-google-marketplace:
+      type: SERVICE_ACCOUNT
+      serviceAccount:
+        roles:
+        - type: ClusterRole
+          rulesType: PREDEFINED
+          rulesFromRoleName: edit
+  apiServerImage:
+    type: string
+    default: gcr.io/visulate-for-oracle/server:0.1.16
+    x-google-marketplace:
+      type: IMAGE
+      image:
+        generatedProperties:
+          splitToRegistryRepoTag:
+            registry: apiServer.image.registry
+            repo: apiServer.image.repository
+            tag: apiServer.image.tag
+  uiImage:
+    type: string
+    default: gcr.io/visulate-for-oracle/client:0.1.16
+    x-google-marketplace:
+      type: IMAGE
+      image:
+        generatedProperties:
+          splitToRegistryRepoTag:
+            registry: ui.image.registry
+            repo: ui.image.repository
+            tag: ui.image.tag
+  apiServer.replicas:
+    type: integer
+    default: 1
+    description: Desired number of API server Pods
+  apiServer.corsOriginWhitelist:
+    type: string
+    default: "[]"
+    description: List of UI origin servers that are allowed to make API calls
+  apiServer.port:
+    type: integer
+    default: 3000
+    description: The API Server's network port 
+  ui.replicas:
+    type: integer
+    default: 1
+    description: Desired number of UI Pods
+  ui.port:
+    type: integer
+    default: 80
+    description: The network port for UI requests
+  ui.tlsPort:
+    type: integer
+    default: 443
+    description: The network port for SSL/TLS requests
+  certificate:
+    type: string
+    x-google-marketplace:
+      type: TLS_CERTIFICATE
+      tlsCertificate:
+        generatedProperties:
+          base64EncodedPrivateKey: tls.base64EncodedPrivateKey
+          base64EncodedCertificate: tls.base64EncodedCertificate
+
+required:
+- name
+- namespace
+- certificate

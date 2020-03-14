@@ -1,0 +1,24 @@
+---
+apiServer:
+  label: api
+  image:
+    registry: null
+    repository: null
+    tag: null
+  replicas: null  
+  corsOriginWhitelist: []
+  port: null
+
+ui:
+  label: ui
+  image:
+    registry: null
+    repository: null
+    tag: null
+  replicas: null  
+  port: null
+  tlsPort: null
+
+tls:
+  base64EncodedPrivateKey: null
+  base64EncodedCertificate: null
