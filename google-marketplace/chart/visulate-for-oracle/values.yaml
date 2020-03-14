@@ -18,3 +18,7 @@ ui:
   replicas: null  
   port: null
   tlsPort: null
+
+tls:
+  base64EncodedPrivateKey: null
+  base64EncodedCertificate: null
