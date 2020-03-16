@@ -102,7 +102,7 @@ stringData:
     ];
     module.exports.endpoints = endpoints;
 ```
-Edit the downloaded deployment manifest. Update the configMap name with the value from the previous step.
+Edit the downloaded deployment manifest. Update the secretName with the value from the previous step.
 ```
 apiVersion: extensions/v1beta1
 kind: Deployment
