@@ -52,7 +52,7 @@ The initial deployment from GCP Marketplace provisions an API Server with no reg
 
 ![Update Database Connections](images/update-database-connections.png)
 
-Download and edit the api-server-secret.yaml and api-server-deployment.yaml manifest files. Edit the secret manifest file to supply connection details for one or more databases, update the metadata name for the ConfigMap. Use `kubectl` to apply the file. Edit the deployment manifest to reference the name used in the Secret.  Apply the deployment file to rollout a new deployment with registered databases. 
+Download and edit the api-server-secret.yaml and api-server-deployment.yaml manifest files. Edit the secret manifest file to supply connection details for one or more databases, update the metadata name for the Secret. Use `kubectl` to apply the file. Edit the deployment manifest to reference the name used in the Secret.  Apply the deployment file to rollout a new deployment with registered databases. 
 
 #### Example
 Find the API Server deployment name. (in this example the application was deployed in a namespace called 'test-ns')
@@ -66,7 +66,7 @@ Download the API Server deployment manifest
 ```
 kubectl get deploy test-deployment-visulate-for-oracle-api --namespace=test-ns -o yaml --export > deployment.yaml
 ```
-Create a ConfigMap manifest to identify the database connections. Make a note of the metadata name (test-deployment-database-js-update in the example below) for use in the next step
+Create a Secret manifest to identify the database connections. Make a note of the metadata name (test-deployment-database-js-update in the example below) for use in the next step
 ```
 ---
 apiVersion: v1
