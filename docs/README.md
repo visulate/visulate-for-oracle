@@ -53,3 +53,77 @@ The initial deployment from GCP Marketplace provisions an API Server with no reg
 ![Update Database Connections](images/update-database-connections.png)
 
 Download and edit the api-server-config-map.yaml and api-server-deployment.yaml files. Edit the config map file to supply connection details for one or more databases, update the metadata name for the ConfigMap. Use `kubectl` to apply the file. Edit the deployment file to reference the name used in the ConfigMap.  Apply the deployment file to rollout a new deployment with registered databases. 
+
+#### Example
+Find the API Server deployment name. (in this example the application was deployed in a namespace called 'test-ns')
+```
+$ kubectl get deploy --namespace=test-ns
+NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
+test-deployment-visulate-for-oracle-api   1/1     1            1           43h
+test-deployment-visulate-for-oracle-ui    1/1     1            1           43h
+```
+Download the API Server deployment manifest 
+```
+kubectl get deploy test-deployment-visulate-for-oracle-api --namespace=test-ns -o yaml --export > deployment.yaml
+```
+Create a ConfigMap manifest to identify the database connections. Make a note of the metadata name (test-deployment-database-js-update in the example below) for use in the next step
+```
+---
+  kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: test-deployment-database-js-update
+  data:
+    database.js: |-
+      const endpoints = [
+      { namespace: 'oracle18XE',
+        description: '18c XE pluggable database instance running in a docker container',
+        connect: { poolAlias: 'oracle18XE',
+                  user: 'visulate',
+                  password: 'HtuUDK%?4JY#]L3:',
+                  connectString: 'db20.visulate.net:41521/XEPDB1',
+                  poolMin: 4,
+                  poolMax: 4,
+                  poolIncrement: 0
+                }
+      },
+      { namespace: 'oracle11XE',
+        description: '11.2 XE database',
+        connect: { poolAlias: 'oracle11XE',
+                  user: 'visulate',
+                  password: '7>rC4P?!~U42tS^^',
+                  connectString: 'db20.visulate.net:49161/XE',
+                  poolMin: 4,
+                  poolMax: 4,
+                  poolIncrement: 0
+                }
+      }
+      ];
+      module.exports.endpoints = endpoints;
+```
+Edit the downloaded deployment manifest. Update the configMap name with the value from the previous step.
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+
+...
+
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: test-deployment-database-js-update
+        name: config-database-volume
+      - emptyDir: {}
+        name: logfiles
+status: {}
+```
+
+Apply the config map and deployment manifests:
+
+```
+$ kubectl apply --namespace=test-ns -f configMap.yaml 
+$ kubectl apply --namespace=test-ns -f deployment.yaml 
+```
