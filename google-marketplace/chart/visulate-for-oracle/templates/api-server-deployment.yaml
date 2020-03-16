@@ -46,7 +46,7 @@ spec:
               mountPath: /visulate-server/logs
       volumes:
         - name: config-database-volume
-          configMap:
-            name: {{ .Release.Name }}-database-js
+          secret:
+            secretName: {{ .Release.Name }}-database-js
         - name: logfiles
           emptyDir: {}
