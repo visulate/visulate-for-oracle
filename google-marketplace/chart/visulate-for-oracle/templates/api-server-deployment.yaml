@@ -3,17 +3,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+  labels: &AppDeploymentLabels
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+
 spec:
   replicas: {{ .Values.apiServer.replicas }}
   selector:
-    matchLabels:
-      app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+    matchLabels: *AppDeploymentLabels
   template:
     metadata:
-      labels:
-        app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+      labels: *AppDeploymentLabels
     spec:
       containers:
+        # API Server
         - name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
           image: "{{ .Values.apiServer.image.registry }}/{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
           volumeMounts:
@@ -22,6 +26,10 @@ spec:
               subPath: database.js
             - name: logfiles
               mountPath: /visulate-server/logs
+            - name: ubbagent-config
+              mountPath: /etc/ubbagent/
+            - name: ubbagent-state
+              mountPath: /var/lib/ubbagent
           ports:
             - containerPort: {{ .Values.apiServer.port }}
           env:
@@ -32,21 +40,54 @@ spec:
               path: /api/
               port: {{ .Values.apiServer.port }}
             initialDelaySeconds: 20
-        - name: access-log
-          image: "{{ .Values.apiServer.image.registry }}/{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
-          args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/access.log']
-          volumeMounts:
-            - name: logfiles
-              mountPath: /visulate-server/logs
+        # Sidecar containers
+        # Echo logs to stdout where Stackdriver can access them
         - name: message-log
-          image: "{{ .Values.apiServer.image.registry }}/{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
-          args: [/bin/sh, -c, 'tail -n+1 -f /visulate-server/logs/combined.log']
+          image: "{{ .Values.util.image.registry }}/{{ .Values.util.image.repository }}:{{ .Values.util.image.tag }}"
+          command: ["/bin/sh"]
+          args: ["-c", "tail -n+1 -f /visulate-server/logs/*.log"]
           volumeMounts:
             - name: logfiles
               mountPath: /visulate-server/logs
+        # Google ubbagent
+        - name: ubbagent-db-connections
+          image: "{{ .Values.util.image.registry }}/{{ .Values.util.image.repository }}:{{ .Values.util.image.tag }}"
+          command: ["/bin/sh"]
+          args: ["-c", "while sleep 60; do (./ubbagent-database_connections.sh 'http://localhost:{{ .Values.apiServer.port }}/api' 'http://localhost:4567/report' &) ; done"]
+        - name: ubbagent
+          image: "{{ .Values.ubbagent.image.registry }}/{{ .Values.ubbagent.image.repository }}:{{ .Values.ubbagent.image.tag }}"
+          env:
+          - name: AGENT_CONFIG_FILE
+            value: /etc/ubbagent/config.yaml
+          - name: AGENT_LOCAL_PORT
+            value: "4567"
+          - name: AGENT_STATE_DIR
+            value: /var/lib/ubbagent
+          - name: AGENT_REPORT_DIR
+            value: /var/lib/ubbagent/reports
+          - name: AGENT_ENCODED_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.reportingSecret }}
+                key: reporting-key
+          - name: AGENT_CONSUMER_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.reportingSecret }}
+                key: consumer-id
+          volumeMounts:
+            - name: ubbagent-config
+              mountPath: /etc/ubbagent
+            - name: ubbagent-state
+              mountPath: /var/lib/ubbagent      
       volumes:
         - name: config-database-volume
           secret:
             secretName: {{ .Release.Name }}-database-js
         - name: logfiles
           emptyDir: {}
+        - name: ubbagent-state
+          emptyDir: {}
+        - name: ubbagent-config
+          configMap:
+            name: {{ .Release.Name }}-ubbagent-config

@@ -3,15 +3,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+  labels: &AppDeploymentLabels
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.ui.label }}
+    app: {{ .Chart.Name }}-{{ .Values.ui.label }}
 spec:
   replicas: {{ .Values.ui.replicas }}
   selector:
-    matchLabels:
-      app: {{ .Chart.Name }}-{{ .Values.ui.label }}
+    matchLabels: *AppDeploymentLabels
   template:
     metadata:
-      labels:
-        app: {{ .Chart.Name }}-{{ .Values.ui.label }}
+      labels: *AppDeploymentLabels
     spec:
       containers:
         - name: {{ .Chart.Name }}-{{ .Values.ui.label }}
@@ -21,15 +23,11 @@ spec:
               mountPath: /var/log/nginx
           ports:
             - containerPort: {{ .Values.ui.port }}
-        - name: access-log
+        # Sidecar containers
+        # Echo logs to stdout where Stackdriver can access them
+        - name: message-log
           image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
-          args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/access.log']
-          volumeMounts:
-            - name: logfiles
-              mountPath: /var/log/nginx
-        - name: error-log
-          image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
-          args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/error.log']
+          args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/*.log']
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx

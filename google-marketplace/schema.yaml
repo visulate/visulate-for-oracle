@@ -1,9 +1,10 @@
+---
 applicationApiVersion: v1beta1
-x-google-marketplace: 
+x-google-marketplace:
   # IMPORTANT: These IDs must match your listing ID in Marketplace.
   partnerId: visulate-llc-public
   solutionId: visulate-for-oracle
-  
+
 properties:
   name:
     type: string
@@ -19,9 +20,9 @@ properties:
       type: SERVICE_ACCOUNT
       serviceAccount:
         roles:
-        - type: ClusterRole
-          rulesType: PREDEFINED
-          rulesFromRoleName: edit
+          - type: ClusterRole
+            rulesType: PREDEFINED
+            rulesFromRoleName: edit
   apiServerImage:
     type: string
     default: gcr.io/visulate-for-oracle/server:0.1.16
@@ -44,6 +45,28 @@ properties:
             registry: ui.image.registry
             repo: ui.image.repository
             tag: ui.image.tag
+  utilImage:
+    type: string
+    default: gcr.io/visulate-for-oracle/visulate-for-oracle/util:latest
+    x-google-marketplace:
+      type: IMAGE
+      image:
+        generatedProperties:
+          splitToRegistryRepoTag:
+            registry: util.image.registry
+            repo: util.image.repository
+            tag: util.image.tag
+  imageUbbagent:
+    type: string
+    default: gcr.io/cloud-marketplace-tools/metering/ubbagent:latest
+    x-google-marketplace:
+      type: IMAGE
+      image:
+        generatedProperties:
+          splitToRegistryRepoTag:
+            registry: ubbagent.image.registry
+            repo: ubbagent.image.repository
+            tag: ubbagent.image.tag
   apiServer.replicas:
     type: integer
     default: 1
@@ -55,7 +78,7 @@ properties:
   apiServer.port:
     type: integer
     default: 3000
-    description: The API Server's network port 
+    description: The API Server's network port
   ui.replicas:
     type: integer
     default: 1
@@ -76,8 +99,12 @@ properties:
         generatedProperties:
           base64EncodedPrivateKey: tls.base64EncodedPrivateKey
           base64EncodedCertificate: tls.base64EncodedCertificate
+  reportingSecret:
+    type: string
+    x-google-marketplace:
+      type: REPORTING_SECRET
 
 required:
-- name
-- namespace
-- certificate
+  - name
+  - namespace
+  - certificate

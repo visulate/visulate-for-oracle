@@ -28,7 +28,7 @@ spec:
     notes: |-
       # Open your Visulate for Oracle site
 
-      Get the external IP of your WordPress site using the following command:
+      Get the external IP of your site using the following command:
 
       ```
       SERVICE_IP=$(kubectl get ingress {{ .Release.Name }}-{{ .Chart.Name }}-ingress \
