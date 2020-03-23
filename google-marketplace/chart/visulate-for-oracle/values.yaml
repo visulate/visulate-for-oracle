@@ -19,6 +19,19 @@ ui:
   port: null
   tlsPort: null
 
+util:
+  image:
+    registry: null
+    repository: null
+    tag: null
+
 tls:
   base64EncodedPrivateKey: null
   base64EncodedCertificate: null
+
+reportingSecret: null
+ubbagent:
+  image:
+    registry: null
+    repository: null
+    tag: null
