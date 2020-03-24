@@ -58,7 +58,7 @@ properties:
             tag: util.image.tag
   imageUbbagent:
     type: string
-    default: gcr.io/cloud-marketplace-tools/metering/ubbagent:latest
+    default: gcr.io/visulate-llc-public/visulate-for-oracle/ubbagent:1.0.1
     x-google-marketplace:
       type: IMAGE
       image:
