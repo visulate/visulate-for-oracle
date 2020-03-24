@@ -5,4 +5,6 @@ Users supply read-only connection details for one or more the databases. Visulat
 This report also queries database's dependency model to identify dependencies to and from the object (e.g a view "uses" the tables it is based on and is "used by" a procedure that selects from it).
 
 
+Support is available for GCP customers via Git issues
+
 Pricing is based on an hourly rate per database connection

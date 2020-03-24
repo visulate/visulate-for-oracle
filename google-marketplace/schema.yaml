@@ -25,7 +25,7 @@ properties:
             rulesFromRoleName: edit
   apiServerImage:
     type: string
-    default: gcr.io/visulate-for-oracle/server:0.1.16
+    default: gcr.io/visulate-llc-public/visulate-for-oracle/api-server:1.0.1
     x-google-marketplace:
       type: IMAGE
       image:
@@ -36,7 +36,7 @@ properties:
             tag: apiServer.image.tag
   uiImage:
     type: string
-    default: gcr.io/visulate-for-oracle/client:0.1.16
+    default: gcr.io/visulate-llc-public/visulate-for-oracle/ui:1.0.1
     x-google-marketplace:
       type: IMAGE
       image:
@@ -47,7 +47,7 @@ properties:
             tag: ui.image.tag
   utilImage:
     type: string
-    default: gcr.io/visulate-for-oracle/visulate-for-oracle/util:latest
+    default: gcr.io/visulate-llc-public/visulate-for-oracle/util:1.0.1
     x-google-marketplace:
       type: IMAGE
       image:
@@ -58,7 +58,7 @@ properties:
             tag: util.image.tag
   imageUbbagent:
     type: string
-    default: gcr.io/cloud-marketplace-tools/metering/ubbagent:latest
+    default: gcr.io/visulate-llc-public/visulate-for-oracle/ubbagent:1.0.1
     x-google-marketplace:
       type: IMAGE
       image:
