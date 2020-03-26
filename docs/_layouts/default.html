@@ -23,7 +23,7 @@
     <main>
       <div class="sidebar">     
         {% for item in site.data.menu.items %}
-          <a href="{{ item.href }}" {% if item.href == page.url %}class="active"{% endif %}  >{{ item.title }}</a>
+          <a href="{{ item.href }}" {% if item.url == page.url %}class="active"{% endif %}  >{{ item.title }}</a>
         {% endfor %}
         </div>
         <div class="content">

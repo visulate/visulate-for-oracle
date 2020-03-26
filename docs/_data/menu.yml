@@ -1,7 +1,10 @@
 items:
   - title: "Home"
     href: "/"
+    url: "/"
   - title: "Overview"
-    href: "/overview.html"
+    href: "overview.html"
+    url: "/overview.html"
   - title: "Database Registration"
-    href: "/database-registration.html"
+    href: "database-registration.html"
+    url: "/database-registration.html"
