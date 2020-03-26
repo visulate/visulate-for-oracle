@@ -1,6 +1,6 @@
 items:
   - title: "Home"
-    href: "/"
+    href: "index.html"
     url: "/"
   - title: "Overview"
     href: "overview.html"
