@@ -1,4 +1,3 @@
-# Visulate for Oracle 
 ## Functionality
 Visulate for Oracle is a data dictionary browsing application to help data engineers understand the structure and dependencies in Oracle databases that they plan to migrate to the Cloud.
 
