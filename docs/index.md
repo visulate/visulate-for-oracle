@@ -19,7 +19,7 @@ Query the database's dependency model to identify dependencies to and from the o
 APIs are available for all application features.
 
 ### Advanced Search and Filter
-Single query to find a objects by name in every schema and database. Filtered search to find objects in a database that match a wildcard pattern (e.g. E-Business Suite product prefix). Advanced search API to identify objects and their dependent objects (e.g. a find the schema definition for a stored procedure and every object it needs to install cleanly)
+Single query to find objects by name in every schema and database. Filtered search to find objects in a database that match a wildcard pattern (e.g. E-Business Suite product prefix). Advanced search API to identify objects and their dependent objects (e.g. a find the schema definition for a stored procedure and every object it needs to install cleanly)
 
 ### DDL Download
 Call dbms_metadata to get DDL for individual objects or groups of objects.
