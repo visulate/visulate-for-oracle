@@ -17,9 +17,9 @@ This report also queries database's dependency model to identify dependencies to
 ## Implementation
 Visulate for Oracle exposes REST endpoints and a UI to browse the metadata for registered connections. The API server is implemented in Express and uses node-oracledb to connect to the database(s).  Connections are registered in a configuration file (database.js) located in the config directory. A separate file (http-server.js) in the same directory controls the behavior of the Express server.
 
-The start point for the Express server is app.js.  Most of the source code is in the services directory. Registered databases  must connect to a user with the SELECT ANY DICTIONARY privilege. The setup directory includes a script to create a user with the minimum required privileges. The SYSTEM account would also work (in a non-production environment) or you can grant SELECT ANY DICTIONARY to an existing user.
+The start point for the Express server is app.js.  Most of the source code is in the api-server/services directory. Registered databases  must connect to a user with the SELECT ANY DICTIONARY privilege. The setup directory includes a script to create a user with the minimum required privileges. The SYSTEM account would also work (in a non-production environment) or you can grant SELECT ANY DICTIONARY to an existing user.
 
-An Angular UI makes API calls to the Express server and displays the result. The source code for this is in the client directory. It reads the apiBase property in the `src/environments/environment.ts` (or environment.prod.ts) file to identify the base url for API calls. 
+An Angular UI makes API calls to the Express server and displays the result. The source code for this is in the ui directory. It reads the apiBase property in the `src/environments/environment.ts` (or environment.prod.ts) file to identify the base url for API calls. 
 
 The API server supports cross origin (CORS) requests from locations identified in the `config/http-server.js` file.  The default configuration accepts requests from localhost:4200.  The configuration file can be edited to support other locations.
 

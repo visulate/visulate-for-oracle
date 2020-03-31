@@ -21,9 +21,12 @@
   </head>
   <body>
     <main>
-      <div class="sidebar">     
-        {% for item in site.data.menu.items %}
-          <a href="{{ item.href }}" {% if item.url == page.url %}class="active"{% endif %}  >{{ item.title }}</a>
+      <div class="sidebar">
+        {% for section in site.data.menu.sections %}    
+        <h5>{{ section.name }}</h5> 
+          {% for item in section.items %}
+            <a href="{{ item.href }}" {% if item.url == page.url %}class="active"{% endif %}  >{{ item.title }}</a>
+          {% endfor %}
         {% endfor %}
         </div>
         <div class="content">

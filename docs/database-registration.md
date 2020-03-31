@@ -1,5 +1,44 @@
 # Database Registration
-The initial deployment from GCP Marketplace provisions an API Server with no registered databases. The user must apply a new Secret and redeploy the API Server to register the databases they want to expose 
+## Overview
+The API Server maintains a connection pool for each registered database.
+
+![Database Connections](images/database-connections.png)
+
+The parameters for each pool are read from a file during initialization. A sample file appears below. 
+
+```
+const endpoints = [
+ { namespace: 'oracle18XE',
+    description: '18c XE PDB instance running in a docker container',
+    connect: { poolAlias: 'oracle18XE',
+              user: 'visulate',
+              password: 'HtuUDK%?4JY#]L3:',
+              connectString: 'db20.visulate.net:41521/XEPDB1',
+              poolMin: 4,
+              poolMax: 4,
+              poolIncrement: 0
+            }
+  },
+  { namespace: 'oracle11XE',
+    description: '11.2 XE database',
+    connect: { poolAlias: 'oracle11XE',
+              user: 'visulate',
+              password: '7>rC4P?!~U42tS^^',
+              connectString: 'db20.visulate.net:49161/XE',
+              poolMin: 4,
+              poolMax: 4,
+              poolIncrement: 0
+            }
+  }
+];
+module.exports.endpoints = endpoints;
+```
+
+Parameter values are described in the [Oracle node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#connpooling) documentation. The Visulate for Oracle sets the [UV_THREADPOOL_SIZE environment variable](http://docs.libuv.org/en/v1.x/threadpool.html) to the sum of the poolMax values + 4 before starting the Express server.
+
+## Register your databases
+
+The initial deployment from GCP Marketplace provisions an API Server with no registered databases. The user must create and apply a database registration file. This is done using a Kubernetes Secret.  
 
 ![Update Database Connections](images/update-database-connections.png)
 
