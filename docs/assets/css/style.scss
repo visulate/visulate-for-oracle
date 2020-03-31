@@ -2,6 +2,9 @@
 ---
 
 @import "{{ site.theme }}";
+
+img {max-width:100%}
+
 .site-header {
   padding: 10px;
   text-align: center;
@@ -15,11 +18,16 @@
 .sidebar {
   margin: 0;
   padding: 0;
-  width: 200px;
+  width: 268px;
   background-color: #f1f1f1;
   position: fixed;
   height: 100%;
   overflow: auto;
+}
+
+.sidebar h5 {
+  margin-block-start: 1em;
+  margin-block-end: 0em;
 }
 
 /* Sidebar links */
@@ -32,20 +40,20 @@
 
 /* Active/current link */
 .sidebar a.active {
-  background-color: #159957;
+  background-color: #555;
   opacity: 80%;
   color: white;
 }
 
 /* Links on mouse-over */
 .sidebar a:hover:not(.active) {
-  background-color: #555;
+  background-color: #b2b4b3;
   color: white;
 }
 
 /* Page content. The value of the margin-left property should match the value of the sidebar's width property */
 div.content {
-  margin-left: 200px;
+  margin-left: 268px;
   padding: 1px 16px;
   max-width: 1000px;
   height: 1000px;

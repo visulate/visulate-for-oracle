@@ -1,10 +1,23 @@
-items:
-  - title: "Home"
-    href: "/"
-    url: "/"
-  - title: "Overview"
-    href: "overview.html"
-    url: "/overview.html"
-  - title: "Database Registration"
-    href: "database-registration.html"
-    url: "/database-registration.html"
+---
+sections:
+  - name: Visulate for Oracle
+    items:
+      - title: "Product Overview"
+        href: "index.html"
+        url: "/"
+      - title: "Quickstart"
+        href: "quickstart.html"
+        url: "/quickstart.html"
+  - name: How-to guides
+    items:
+      - title: "Database Setup"
+        href: "database-setup.html"
+        url: "/database-setup.html"
+      - title: "Database Registration"
+        href: "database-registration.html"
+        url: "/database-registration.html"
+  - name: Concepts
+    items:
+      - title: "Application Architecture"
+        href: "application-architecture.html"
+        url: "/application-architecture.html"

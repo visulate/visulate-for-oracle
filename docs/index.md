@@ -1,15 +1,38 @@
 # Visulate for Oracle
-Visulate for Oracle is an Oracle data dictionary browsing service to help data engineers understand the structure and dependencies in Oracle databases that they plan to migrate to the Cloud.
+Catalog and document your Oracle databases in a single location
 
-## Functionality
-A registration file stores connection details for one or more the databases.  Visulate queries the data dictionary for each connection and allows the user to browse the result. It also allows DDL to be generated for individual objects or groups of objects.
+![Visulate for Oracle](images/visulate-for-oracle.png)
 
-![Alt text](images/object-selection.png?raw=true "Visulate for Oracle database object selection")
 
-A report is generated for each database object by querying the appropriate dictionary views (e.g. DBA_TABLES and other views for table objects or DBA_SOURCE for packages)  
+## Features
 
-![Alt text](images/object-details.png?raw=true "Visulate for Oracle object details")
+### One tool
+Single tool to catalog the company's Oracle databases. Search and browse the data dictionary in each database. 
 
-This report also queries database's dependency model to identify dependencies to and from the object (e.g a view "uses" the tables it is based on and is "used by" a procedure that selects from it).  The dependency info identifies line numbers for references that appear in stored procedures.
+### Web-based
+No client code to download or host via Citrix. Create bookmarks and links to schemas and objects.
 
-![Alt text](images/object-dependencies.png?raw=true "Visulate for Oracle object dependencies")
+### Identify Dependencies
+Query the database's dependency model to identify dependencies to and from the object (e.g a view "uses" the tables it is based on and is "used by" a procedure that selects from it).
+
+### API Support
+APIs are available for all application features.
+
+### Advanced Search and Filter
+Single query to find a objects by name in every schema and database. Filtered search to find objects in a database that match a wildcard pattern (e.g. E-Business Suite product prefix). Advanced search API to identify objects and their dependent objects (e.g. a find the schema definition for a stored procedure and every object it needs to install cleanly)
+
+### DDL Download
+Call dbms_metadata to get DDL for individual objects or groups of objects.
+
+## Common use cases
+
+### Oracle license management 
+Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Review the contents of old databases. What are they really running? Identify targets for consolidation or decommissioning. 
+
+### Custom development
+Document custom code in your COTS application database. Examine dependencies before a schema change. Download and diff the DDL for tables in your development and test environments.  
+
+### On-Premises to Cloud migration
+Document and analyze on-premises environments. Examine custom PL/SQL and other database related program logic (stored procedures, triggers, scripts, and so on) and re-write for the cloud.
+
+Identify candidates for conversion to Postgres. Find dependencies and SQL statements in stored procedures. Download the DDL to refactor a single monolithic schema for use in microservices. 
