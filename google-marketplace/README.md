@@ -47,8 +47,9 @@ mpdev /scripts/install  \
 
 ```
 
-## Links
+## Reference
 1. [Marketplace Tools](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools)
 2. [Billing Integration](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/master/docs/billing-integration.md)
-3. [Example Deployments](https://github.com/GoogleCloudPlatform/click-to-deploy/tree/master/k8s)
-4. [Partner Docs](https://cloud.google.com/marketplace/docs/partners/kubernetes-solutions)
+3. [Example Deployments](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-example)
+4. [More Examples](https://github.com/GoogleCloudPlatform/click-to-deploy/tree/master/k8s)
+5. [Partner Docs](https://cloud.google.com/marketplace/docs/partners/kubernetes-solutions)
