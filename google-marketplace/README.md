@@ -14,10 +14,15 @@ Database registration is performed using a Secret. The Secret manifest delivers 
 
 ## Configuration
 
-The application is configured using a Helm chart located in the chart/visulate-for-oracle directory. Templates values are passed into the chart during deployment from the schema.yaml file. Values are copied from it into the chart/visulate-for-oracle/values.yaml file for use by Helm. This mirrors the production behavior where values are passed from GCP Marketplace form. 
+The application is configured using a Helm chart located in the chart/visulate-for-oracle directory. Templates values are passed into the chart during deployment from the schema.yaml file. Values are copied from it into the chart/visulate-for-oracle/values.yaml file for use by Helm. This mirrors the production behavior where values are passed from the GCP Marketplace form. 
 
-The contents of the Marketplace form are controled by the schema.yaml file and values submitted on the [partner solutions page](https://console.cloud.google.com/partner/solutions?project=visulate-llc-public)
+The contents of the Marketplace form are controled by the schema.yaml file and values submitted on the [partner solutions page](https://console.cloud.google.com/partner/solutions?project=visulate-llc-public).  
 
+## Build and Test
+
+Deployment orchestration is performed by a `deployer` image defined in the deployer directory. The deployer defines the UI for users who are deploying the application from the Google Cloud Console and can be executed as a standalone Job. After a user enters the input parameters, the Job's Pod installs all the components of the application, then exits.
+
+The deployer and application images can be tested using the `mpdev` development tools.  Example:
 
 ```
 export REGISTRY=gcr.io/$(gcloud config get-value project | tr ':' '/')
@@ -26,9 +31,18 @@ export APP_NAME=visulate-for-oracle
 docker build --tag $REGISTRY/$APP_NAME/deployer -f deployer/Dockerfile .
 docker push $REGISTRY/$APP_NAME/deployer
 
-mpdev /scripts/install   --deployer=$REGISTRY/$APP_NAME/deployer   --parameters='{"name": "test-deployment", "namespace": "test-ns"}'
-
-mpdev /scripts/install   --deployer=$REGISTRY/$APP_NAME/deployer   --parameters='{"name": "test-deployment31", "namespace": "test-ns", "reportingSecret": "gs://cloud-marketplace-tools/reporting_secrets/fake_reporting_secret.yaml"}'
+mpdev /scripts/install  \
+--deployer=$REGISTRY/$APP_NAME/deployer \
+--parameters='{"name": "test-deployment", "namespace": "test-ns"}'
 
 mpdev verify --deployer=$REGISTRY/$APP_NAME/deployer
+```
+
+Pass a reporting secret to test billing integration:
+
+```
+mpdev /scripts/install  \
+--deployer=$REGISTRY/$APP_NAME/deployer \
+--parameters='{"name": "test-deployment31", "namespace": "test-ns", "reportingSecret": "gs://cloud-marketplace-tools/reporting_secrets/fake_reporting_secret.yaml"}'
+
 ```
