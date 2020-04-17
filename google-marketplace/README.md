@@ -46,3 +46,9 @@ mpdev /scripts/install  \
 --parameters='{"name": "test-deployment31", "namespace": "test-ns", "reportingSecret": "gs://cloud-marketplace-tools/reporting_secrets/fake_reporting_secret.yaml"}'
 
 ```
+
+## Links
+1. [Marketplace Tools](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools)
+2. [Billing Integration](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/master/docs/billing-integration.md)
+3. [Example Deployments](https://github.com/GoogleCloudPlatform/click-to-deploy/tree/master/k8s)
+4. [Partner Docs](https://cloud.google.com/marketplace/docs/partners/kubernetes-solutions)
