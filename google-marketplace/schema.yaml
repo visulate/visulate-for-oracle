@@ -1,9 +1,37 @@
 ---
-applicationApiVersion: v1beta1
+
 x-google-marketplace:
-  # IMPORTANT: These IDs must match your listing ID in Marketplace.
+  schemaVersion: v2
+  applicationApiVersion: v1beta1
   partnerId: visulate-llc-public
   solutionId: visulate-for-oracle
+
+  publishedVersion: '$TAG'
+  publishedVersionMetadata:
+    releaseNote: >-
+      Initial release.
+
+  images:
+    '':
+      properties:
+        apiServer.image.repo:
+          type: REPO_WITH_REGISTRY
+        apiServer.image.tag:
+          type: TAG
+    ui:
+      properties:
+        ui.image.repo:
+          type: REPO_WITH_REGISTRY
+        ui.image.tag:
+          type: TAG
+    util:
+      properties:
+        util.image:
+          type: FULL
+    ubbagent:
+      properties:
+        ubbagent.image:
+          type: FULL
 
 properties:
   name:
@@ -23,50 +51,6 @@ properties:
           - type: ClusterRole
             rulesType: PREDEFINED
             rulesFromRoleName: edit
-  apiServerImage:
-    type: string
-    default: gcr.io/visulate-llc-public/visulate-for-oracle/api-server:1.0.1
-    x-google-marketplace:
-      type: IMAGE
-      image:
-        generatedProperties:
-          splitToRegistryRepoTag:
-            registry: apiServer.image.registry
-            repo: apiServer.image.repository
-            tag: apiServer.image.tag
-  uiImage:
-    type: string
-    default: gcr.io/visulate-llc-public/visulate-for-oracle/ui:1.0.1
-    x-google-marketplace:
-      type: IMAGE
-      image:
-        generatedProperties:
-          splitToRegistryRepoTag:
-            registry: ui.image.registry
-            repo: ui.image.repository
-            tag: ui.image.tag
-  utilImage:
-    type: string
-    default: gcr.io/visulate-llc-public/visulate-for-oracle/util:1.0.1
-    x-google-marketplace:
-      type: IMAGE
-      image:
-        generatedProperties:
-          splitToRegistryRepoTag:
-            registry: util.image.registry
-            repo: util.image.repository
-            tag: util.image.tag
-  imageUbbagent:
-    type: string
-    default: gcr.io/visulate-llc-public/visulate-for-oracle/ubbagent:1.0.1
-    x-google-marketplace:
-      type: IMAGE
-      image:
-        generatedProperties:
-          splitToRegistryRepoTag:
-            registry: ubbagent.image.registry
-            repo: ubbagent.image.repository
-            tag: ubbagent.image.tag
   apiServer.replicas:
     type: integer
     default: 1
