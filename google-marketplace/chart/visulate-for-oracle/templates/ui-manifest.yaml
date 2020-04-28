@@ -17,16 +17,23 @@ spec:
     spec:
       containers:
         - name: {{ .Chart.Name }}-{{ .Values.ui.label }}
-          image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
+          image: "{{ .Values.ui.image.repo }}:{{ .Values.ui.image.tag }}"
           volumeMounts:
             - name: logfiles
               mountPath: /var/log/nginx
           ports:
             - containerPort: {{ .Values.ui.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ui.port }}
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 3
         # Sidecar containers
         # Echo logs to stdout where Stackdriver can access them
         - name: message-log
-          image: "{{ .Values.ui.image.registry }}/{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
+          image: "{{ .Values.util.image }}"
           args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/*.log']
           volumeMounts:
             - name: logfiles
@@ -34,3 +41,23 @@ spec:
       volumes:
         - name: logfiles
           emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+  labels:
+    app: {{ .Chart.Name }}-{{ .Values.ui.label }}
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Chart.Name }}-{{ .Values.ui.label }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.ui.port }}
+      targetPort: {{ .Values.ui.port }}
+      name: {{ .Chart.Name }}-{{ .Values.ui.label }}
+    - protocol: TCP
+      port: {{ .Values.ui.tlsPort }}
+      targetPort: {{ .Values.ui.port }}
+      name: {{ .Chart.Name }}-{{ .Values.ui.label }}-https

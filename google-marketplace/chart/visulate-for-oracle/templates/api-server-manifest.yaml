@@ -1,0 +1,236 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-ubbagent-config
+data:
+  config.yaml: |
+    # The identity section contains authentication information used
+    # by the agent.
+    identities:
+    - name: gcp
+      gcp:
+        # This parameter accepts a base64-encoded JSON service
+        # account key. The value comes from the reporting secret.
+        encodedServiceAccountKey: $AGENT_ENCODED_KEY
+
+    # The metrics section defines the metric that will be reported.
+    # Metric names should match verbatim the identifiers created
+    # during pricing setup.
+    metrics:
+    - name: database_connections
+      type: int
+
+      # The endpoints section of a metric defines which endpoints the
+      # metric data is sent to.
+      endpoints:
+      - name: on_disk
+      - name: servicecontrol
+      passthrough: {}
+
+    - name: time
+      type: int
+      endpoints:
+      - name: on_disk
+      - name: servicecontrol
+
+      # The passthrough marker indicates that no aggregation should
+      # occur for this metric. Reports received are immediately sent
+      # to the reporting endpoint. We use passthrough for the
+      # instance_time metric since reports are generated
+      # automatically by a heartbeat source defined in a later
+      # section.
+      passthrough: {}
+
+    # The endpoints section defines where metering data is ultimately
+    # sent. Currently supported endpoints include:
+    # * disk - some directory on the local filesystem
+    # * servicecontrol - Google Service Control
+    endpoints:
+    - name: on_disk
+      # The disk endpoint is useful for debugging, but its inclusion
+      # is not necessary in a production deployment.
+      disk:
+        reportDir: /var/lib/ubbagent/reports
+        expireSeconds: 36000
+    - name: servicecontrol
+      servicecontrol:
+        identity: gcp
+        # The service name is unique to your application and will be
+        # provided during onboarding.
+        serviceName: visulate-for-oracle.visulate-llc-public.appspot.com
+        consumerId: $AGENT_CONSUMER_ID  # From the reporting secret.
+
+    # The sources section lists metric data sources run by the agent
+    # itself. The currently-supported source is 'heartbeat', which
+    # sends a defined value to a metric at a defined interval. 
+    sources:
+    - name: instance_time_heartbeat
+      heartbeat:
+        metric: time
+        intervalSeconds: 3600
+        value:
+          int64Value: 1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-database-js
+type: Opaque
+stringData:
+  database.js: |-
+{{ .Files.Get "database.js" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+  labels: &AppDeploymentLabels
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+spec:
+  replicas: {{ .Values.apiServer.replicas }}
+  selector:
+    matchLabels: *AppDeploymentLabels
+  template:
+    metadata:
+      labels: *AppDeploymentLabels
+    spec:
+      containers:
+        # API Server
+        - name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+          image: "{{ .Values.apiServer.image.repo }}:{{ .Values.apiServer.image.tag }}"
+          volumeMounts:
+            - name: config-database-volume
+              mountPath: /visulate-server/config/database.js
+              subPath: database.js
+            - name: logfiles
+              mountPath: /visulate-server/logs
+            - name: ubbagent-config
+              mountPath: /etc/ubbagent/
+            - name: ubbagent-state
+              mountPath: /var/lib/ubbagent
+          ports:
+            - containerPort: {{ .Values.apiServer.port }}
+          env:
+            - name: CORS_ORIGIN_WHITELIST
+              value: "{{ .Values.corsOriginWhitelist }}"
+          readinessProbe:
+            httpGet:
+              path: /api/
+              port: {{ .Values.apiServer.port }}
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 3
+        # Sidecar containers
+        # Echo logs to stdout where Stackdriver can access them
+        - name: message-log
+          image: "{{ .Values.util.image }}"
+          command: ["/bin/sh"]
+          args: ["-c", "tail -n+1 -f /visulate-server/logs/*.log"]
+          volumeMounts:
+            - name: logfiles
+              mountPath: /visulate-server/logs
+        # Google ubbagent
+        - name: ubbagent-db-connections
+          image: "{{ .Values.util.image }}"
+          command: ["/bin/sh"]
+          args: ["-c", "while sleep 3600; do (./ubbagent-database_connections.sh 'http://localhost:{{ .Values.apiServer.port }}/api' 'http://localhost:4567/report' &) ; done"]
+        - name: ubbagent
+          image: "{{ .Values.ubbagent.image }}"
+          env:
+          - name: AGENT_CONFIG_FILE
+            value: /etc/ubbagent/config.yaml
+          - name: AGENT_LOCAL_PORT
+            value: "4567"
+          - name: AGENT_STATE_DIR
+            value: /var/lib/ubbagent
+          - name: AGENT_REPORT_DIR
+            value: /var/lib/ubbagent/reports
+          - name: AGENT_ENCODED_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.reportingSecret }}
+                key: reporting-key
+          - name: AGENT_CONSUMER_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.reportingSecret }}
+                key: consumer-id
+          volumeMounts:
+            - name: ubbagent-config
+              mountPath: /etc/ubbagent
+            - name: ubbagent-state
+              mountPath: /var/lib/ubbagent      
+      volumes:
+        - name: config-database-volume
+          secret:
+            secretName: {{ .Release.Name }}-database-js
+        - name: logfiles
+          emptyDir: {}
+        - name: ubbagent-state
+          emptyDir: {}
+        - name: ubbagent-config
+          configMap:
+            name: {{ .Release.Name }}-ubbagent-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+  labels:
+    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.apiServer.port }}
+      targetPort: {{ .Values.apiServer.port }}
+      name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-tls
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+data:
+  tls.key: |
+{{ .Values.tls.base64EncodedPrivateKey | indent 4 }}
+  tls.crt: |
+{{ .Values.tls.base64EncodedCertificate | indent 4 }}
+type: kubernetes.io/tls
+---
+apiVersion: "extensions/v1beta1"
+kind: "Ingress"
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
+spec:
+  tls:
+    - secretName: {{ .Release.Name }}-tls
+  backend:
+    serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+    servicePort: {{ .Values.ui.port }}
+  rules:
+    - http:
+        paths:
+          - path: "/api/*"
+            backend:
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+              servicePort: {{ .Values.apiServer.port }}
+          - path: "/find/*"
+            backend:
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+              servicePort: {{ .Values.apiServer.port }}
+          - path: "/ddl/*"
+            backend:
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
+              servicePort: {{ .Values.apiServer.port }}
+          - path: "/database/*"
+            backend:
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+              servicePort: {{ .Values.ui.port }}
+        
