@@ -14,10 +14,10 @@ fi
 read -d '' REPORT <<EOF
 {
   "name": "database_connections",
-  "startTime": "$(date --date="60 sec ago" -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "startTime": "$(date --date="3600 sec ago" -u +"%Y-%m-%dT%H:%M:%SZ")",
   "endTime": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "value": { "int64Value": $DATABASE_CONNECTION_COUNT }
 }
 EOF
-echo "curl -m 10 -X POST -d "$REPORT" "$UBBAGENT_ENDPOINT""
-`curl -m 10 -X POST -d "$REPORT" "$UBBAGENT_ENDPOINT"`
+echo "curl -m 20 -X POST -d "$REPORT" "$UBBAGENT_ENDPOINT""
+`curl -m 20 -X POST -d "$REPORT" "$UBBAGENT_ENDPOINT"`
