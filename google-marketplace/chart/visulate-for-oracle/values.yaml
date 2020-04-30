@@ -2,28 +2,23 @@
 apiServer:
   label: api
   image:
-    registry: null
-    repository: null
+    repo: null
     tag: null
   replicas: null  
   corsOriginWhitelist: []
-  port: null
+  port: 3000
 
 ui:
   label: ui
   image:
-    registry: null
-    repository: null
+    repo: null
     tag: null
   replicas: null  
   port: null
   tlsPort: null
 
 util:
-  image:
-    registry: null
-    repository: null
-    tag: null
+  image: null
 
 tls:
   base64EncodedPrivateKey: null
@@ -31,7 +26,5 @@ tls:
 
 reportingSecret: null
 ubbagent:
-  image:
-    registry: null
-    repository: null
-    tag: null
+  image: null
+

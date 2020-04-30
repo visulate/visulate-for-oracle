@@ -106,7 +106,7 @@ async function executeSearch(searchCondition) {
   for (const ep of dbConfig.endpoints) {
     try {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
-      rows.push({database: ep.connect.poolAlias, objects: result});
+      rows.push({database: ep.namespace, objects: result});
     } catch (err) {
       logger.log('error', `controller.js executeSearch() failed for ${ep.connect.poolAlias}`);    }
   }

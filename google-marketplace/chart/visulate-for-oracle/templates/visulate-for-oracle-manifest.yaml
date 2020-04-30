@@ -88,7 +88,8 @@ metadata:
   labels: &AppDeploymentLabels
     app.kubernetes.io/name: {{ .Release.Name }}
     app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
-    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+    app: {{ .Chart.Name }}
+    component: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
 spec:
   replicas: {{ .Values.apiServer.replicas }}
   selector:
@@ -174,22 +175,7 @@ spec:
         - name: ubbagent-config
           configMap:
             name: {{ .Release.Name }}-ubbagent-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
-  labels:
-    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
-spec:
-  type: NodePort
-  selector:
-    app: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.apiServer.port }}
-      targetPort: {{ .Values.apiServer.port }}
-      name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}
+
 ---
 apiVersion: v1
 kind: Secret
@@ -204,33 +190,70 @@ data:
 {{ .Values.tls.base64EncodedCertificate | indent 4 }}
 type: kubernetes.io/tls
 ---
-apiVersion: "extensions/v1beta1"
-kind: "Ingress"
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
+  labels: &AppDeploymentLabels
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.ui.label }}
+    app: {{ .Chart.Name }}
+    component: {{ .Chart.Name }}-{{ .Values.ui.label }}
 spec:
-  tls:
-    - secretName: {{ .Release.Name }}-tls
-  backend:
-    serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
-    servicePort: {{ .Values.ui.port }}
-  rules:
-    - http:
-        paths:
-          - path: "/api/*"
-            backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
-              servicePort: {{ .Values.apiServer.port }}
-          - path: "/find/*"
-            backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
-              servicePort: {{ .Values.apiServer.port }}
-          - path: "/ddl/*"
-            backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}
-              servicePort: {{ .Values.apiServer.port }}
-          - path: "/database/*"
-            backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}
-              servicePort: {{ .Values.ui.port }}
-        
+  replicas: {{ .Values.ui.replicas }}
+  selector:
+    matchLabels: *AppDeploymentLabels
+  template:
+    metadata:
+      labels: *AppDeploymentLabels
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}-{{ .Values.ui.label }}
+          image: "{{ .Values.ui.image.repo }}:{{ .Values.ui.image.tag }}"
+          volumeMounts:
+            - name: logfiles
+              mountPath: /var/log/nginx
+          ports:
+            - containerPort: {{ .Values.ui.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ui.port }}
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 3
+        # Sidecar containers
+        # Echo logs to stdout where Stackdriver can access them
+        - name: message-log
+          image: "{{ .Values.util.image }}"
+          args: [/bin/sh, -c, 'tail -n+1 -f /var/log/nginx/*.log']
+          volumeMounts:
+            - name: logfiles
+              mountPath: /var/log/nginx
+      volumes:
+        - name: logfiles
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.ui.port }}
+      targetPort: {{ .Values.ui.port }}
+      name: {{ .Chart.Name }}-{{ .Values.ui.label }}
+    - protocol: TCP
+      port: {{ .Values.ui.tlsPort }}
+      targetPort: {{ .Values.ui.port }}
+      name: {{ .Chart.Name }}-{{ .Values.ui.label }}-https
+    - protocol: TCP
+      port: {{ .Values.apiServer.port }}
+      targetPort: {{ .Values.apiServer.port }}
+      name: {{ .Chart.Name }}-{{ .Values.apiServer.label }}        

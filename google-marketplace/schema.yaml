@@ -55,14 +55,6 @@ properties:
     type: integer
     default: 1
     description: Desired number of API server Pods
-  apiServer.corsOriginWhitelist:
-    type: string
-    default: "[]"
-    description: List of UI origin servers that are allowed to make API calls
-  apiServer.port:
-    type: integer
-    default: 3000
-    description: The API Server's network port
   ui.replicas:
     type: integer
     default: 1
