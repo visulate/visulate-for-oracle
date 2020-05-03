@@ -57,12 +57,11 @@ properties:
     description: Desired number of API server Pods
   apiServer.corsOriginWhitelist:
     type: string
-    default: "[]"
-    description: List of UI origin servers that are allowed to make API calls
-  apiServer.port:
-    type: integer
-    default: 3000
-    description: The API Server's network port
+    default: ""
+    description: |
+      Comma separated list of UI origin servers that are allowed to make API calls. 
+      Example:  https://mydomain.com, https://mydomain.net:445, http://35.45.9.55:8080 
+      Leave blank to allow requests from any origin.
   ui.replicas:
     type: integer
     default: 1
@@ -70,11 +69,11 @@ properties:
   ui.port:
     type: integer
     default: 80
-    description: The network port for UI requests
+    description: The network port for http requests to the UI
   ui.tlsPort:
     type: integer
     default: 443
-    description: The network port for SSL/TLS requests
+    description: The network port for SSL/TLS requests to the UI
   certificate:
     type: string
     x-google-marketplace:

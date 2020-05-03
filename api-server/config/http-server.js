@@ -3,6 +3,6 @@
  */
 module.exports = {
   port: process.env.HTTP_PORT || 3000 ,
-  corsOriginWhitelist: process.env.CORS_ORIGIN_WHITELIST ||['http://localhost:4200', 'http://localhost'],
+  corsOriginWhitelist: process.env.CORS_ORIGIN_WHITELIST ||'',
   logFileLocation: process.env.PWD + '/logs'
 };

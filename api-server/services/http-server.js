@@ -32,17 +32,27 @@ let httpServer;
 function initialize() {
   return new Promise((resolve, reject) => {
     const app = express();
+    let corsOptions;
+    const whitelist = httpServerConfig.corsOriginWhitelist.replace(/\s/g, '').split(",");
 
-    let corsOptions = {
-      origin: function (origin, callback) {
-        // allow whitelisted cross origin requests + REST tools and server to server 
-        if (httpServerConfig.corsOriginWhitelist.indexOf(origin) !== -1 || !origin) {
-          callback(null, true)
-        } else {
-          callback(new Error('Not allowed by CORS'))
+    if (whitelist.length > 0 && whitelist[0] !== '') {
+      logger.log('info', `Setting Access-Control-Allow-Origin to ${whitelist}`);
+      corsOptions = {
+        origin: function (origin, callback) {
+          // allow whitelisted cross origin requests + REST tools and server to server 
+          if (whitelist.indexOf(origin) !== -1 || !origin) {
+            callback(null, true)
+          } else {
+            callback(new Error(`CORS error: origin server is not in ${whitelist}`))
+          }
         }
-      }
-    };
+      };
+    } else {
+      logger.log('info', `Setting Access-Control-Allow-Origin to *`);
+      corsOptions = { origin: '*' };
+    }
+
+
     app.use(cors(corsOptions));
     httpServer = http.createServer(app);
 
@@ -59,7 +69,7 @@ function initialize() {
     app.use('/', router);
     httpServer.listen(httpServerConfig.port)
       .on('listening', () => {
-        logger.log('info', `HTTP Server listening on localhost:${httpServerConfig.port}`);
+        logger.log('info', `HTTP Server listening on port ${httpServerConfig.port}`);
         resolve();
       })
       .on('error', err => {

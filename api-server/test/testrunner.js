@@ -96,7 +96,7 @@ it('GET Simple Search', (done) => {
   //  console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(200);
     res.body.result.should.be.a('array');
-    res.body.result.length.should.equal(3);
+    res.body.result.length.should.equal(2);
     res.body.result[1].objects.length.should.equal(2);
     done();
   }); 
@@ -109,7 +109,7 @@ it('GET find with no results', (done) => {
     //console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(200);
     res.body.result.should.be.a('array');
-    res.body.result.length.should.equal(3);
+    res.body.result.length.should.equal(2);
     res.body.result[1].objects.length.should.equal(0);
     done();
   }); 

@@ -1,9 +1,6 @@
-/**
- * Production kubernetes deployment relies on GKE L7 ingress load balancer rules
- */
 export const environment = {
   production: true,
-  apiBase: '/api',
-  findObjectBase: '/find',
-  ddlGenBase: '/ddl'
+  apiBase: window.location.protocol + '//' + window.location.hostname + ':3000/api',
+  findObjectBase: window.location.protocol + '//' + window.location.hostname + ':3000/find',
+  ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl'
 };

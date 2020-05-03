@@ -4,9 +4,9 @@
 
 export const environment = {
   production: false,
-  apiBase: 'http://localhost:3000/api',
-  findObjectBase: 'http://localhost:3000/find',
-  ddlGenBase: 'http://localhost:3000/ddl'
+  apiBase: window.location.protocol + '//' + window.location.hostname + ':3000/api',
+  findObjectBase: window.location.protocol + '//' + window.location.hostname + ':3000/find',
+  ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl'
 };
 
 /*

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, OnInit, Output, EventEmitter, ElementRef, ViewChild} from '@angular/core';
+import { Component, Output, EventEmitter, ElementRef, ViewChild} from '@angular/core';
 import { RestService } from 'src/app/services/rest.service';
 import { FindObjectModel } from '../../models/find-object.model';
 import { Subject } from 'rxjs';
@@ -29,12 +29,12 @@ import { takeUntil } from 'rxjs/operators';
  * Quick find feature tied to search icon in toolbar. Finds objects of
  * a given name in each registered database
  */
-export class FindObjectComponent implements OnInit { 
+export class FindObjectComponent { 
   public searchResult: FindObjectModel;
   private unsubscribe$ = new Subject<void>();
   public searchTerm: string = '';
 
-  @ViewChild('searchBox', null) searchBox: ElementRef; 
+  @ViewChild('searchBox') searchBox: ElementRef; 
   @Output() cancelSearchForm: EventEmitter<boolean> = new EventEmitter();
 
   constructor(private restService: RestService) {
@@ -50,9 +50,8 @@ export class FindObjectComponent implements OnInit {
     this.cancelSearchForm.emit(false);
   }
 
-  ngOnInit() {
-    // set input focus to search box
-    this.searchBox.nativeElement.focus();
+  ngAfterViewInit(): void {
+    setTimeout(() => this.searchBox.nativeElement.focus());
   }
 
   ngOnDestroy(): void {
