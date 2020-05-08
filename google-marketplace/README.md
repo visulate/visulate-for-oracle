@@ -32,12 +32,17 @@ The deployer and application images can be tested using the `mpdev` development 
 export REGISTRY=gcr.io/$(gcloud config get-value project | tr ':' '/')
 export APP_NAME=visulate-for-oracle
 
-docker build --tag $REGISTRY/$APP_NAME/deployer -f deployer/Dockerfile .
+docker build \
+--build-arg REGISTRY=gcr.io/visulate-for-oracle \
+--build-arg TAG=1.0.3-7 \
+--build-arg MARKETPLACE_TOOLS_TAG=0.9.10 \
+--tag $REGISTRY/$APP_NAME/deployer -f deployer/Dockerfile .
+
 docker push $REGISTRY/$APP_NAME/deployer
 
 mpdev /scripts/install  \
 --deployer=$REGISTRY/$APP_NAME/deployer \
---parameters='{"name": "test-deployment", "namespace": "test-ns"}'
+--parameters='{"name": "td01", "namespace": "test-ns"}'
 
 mpdev verify --deployer=$REGISTRY/$APP_NAME/deployer --wait_timeout=900 > /tmp/mpdev.log
 ```
@@ -47,7 +52,7 @@ Pass a reporting secret to test billing integration:
 ```
 mpdev /scripts/install  \
 --deployer=$REGISTRY/$APP_NAME/deployer \
---parameters='{"name": "test-deployment31", "namespace": "test-ns", "reportingSecret": "gs://cloud-marketplace-tools/reporting_secrets/fake_reporting_secret.yaml"}'
+--parameters='{"name": "td01", "namespace": "test-ns", "reportingSecret": "gs://cloud-marketplace-tools/reporting_secrets/fake_reporting_secret.yaml"}'
 
 ```
 
