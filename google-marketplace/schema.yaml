@@ -62,6 +62,10 @@ properties:
       Comma separated list of UI origin servers that are allowed to make API calls. 
       Example:  https://mydomain.com, https://mydomain.net:445, http://35.45.9.55:8080 
       Leave blank to allow requests from any origin.
+  apiServer.port:
+    type: integer
+    default: 3000
+    description: The API Server's network port
   ui.replicas:
     type: integer
     default: 1

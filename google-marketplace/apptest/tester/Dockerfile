@@ -1,4 +1,4 @@
-FROM gcr.io/cloud-marketplace-tools/testrunner:0.1.2
+FROM gcr.io/cloud-marketplace-tools/testrunner:latest
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -14,7 +14,7 @@ RUN wget -q -O /bin/kubectl \
       && chmod 755 /bin/kubectl
 
 COPY tests/basic-suite.yaml /tests/basic-suite.yaml
-COPY tester.sh /tester.sh 
+COPY tester.sh /tester.sh
 RUN chmod a+x /tester.sh
 
 WORKDIR /

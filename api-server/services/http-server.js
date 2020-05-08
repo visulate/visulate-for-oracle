@@ -35,11 +35,14 @@ function initialize() {
     let corsOptions;
     const whitelist = httpServerConfig.corsOriginWhitelist.replace(/\s/g, '').split(",");
 
-    if (whitelist.length > 0 && whitelist[0] !== '') {
+    if (whitelist.length === 1 && whitelist[0] === '*') {
+      logger.log('info', `Setting Access-Control-Allow-Origin to *`);
+      corsOptions = { origin: '*' };
+    } else if  (whitelist.length > 0 && whitelist[0] !== '') {
       logger.log('info', `Setting Access-Control-Allow-Origin to ${whitelist}`);
       corsOptions = {
         origin: function (origin, callback) {
-          // allow whitelisted cross origin requests + REST tools and server to server 
+          // allow whitelisted cross origin requests + REST tools and server to server
           if (whitelist.indexOf(origin) !== -1 || !origin) {
             callback(null, true)
           } else {
@@ -48,8 +51,8 @@ function initialize() {
         }
       };
     } else {
-      logger.log('info', `Setting Access-Control-Allow-Origin to *`);
-      corsOptions = { origin: '*' };
+      logger.log('info', `Setting Access-Control-Allow-Origin to FALSE`);
+      corsOptions = { origin: false };
     }
 
 
