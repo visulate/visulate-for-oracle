@@ -41,16 +41,27 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public showLineNumbers = true;
   public schemaColumns: string[] = ['type', 'count'];
   private unsubscribe$ = new Subject<void>();
+
   public ddlBase = environment.ddlGenBase;
+  public ddlLink: string;
+
 
   constructor(
     private restService: RestService,
-    private state: StateService) {      
+    private state: StateService) {
 
     }
 
   processObject(objectDetails: DatabaseObjectModel) {
     this.objectDetails = objectDetails;
+  }
+
+  setDdlLink(endpoint: string, owner: string, type: string, name: string ){
+    if (environment.internalSchemas.includes(owner)) {
+      this.ddlLink = '';
+    } else {
+      this.ddlLink = `${environment.ddlGenBase}/${endpoint}/${owner}/${type}/${name}/*`
+    }
   }
 
   /**
@@ -59,11 +70,11 @@ export class DbContentComponent implements OnInit, OnDestroy {
    * The context state changes when the user selects items in the db-selection component.
    */
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
-    let context = subjectContext.currentContext;    
-    this.currentContext = context;   
+    let context = subjectContext.currentContext;
+    this.currentContext = context;
 
     // Call the Endpoints API on startup and when the object filter changes
-    if (subjectContext.priorContext.endpoint === '' || 
+    if (subjectContext.priorContext.endpoint === '' ||
         subjectContext.changeSummary.filterDiff ||
         subjectContext.currentContext.endpoint === '') {
           this.restService.getEndpoints$(context.filter)
@@ -88,30 +99,31 @@ export class DbContentComponent implements OnInit, OnDestroy {
     }
 
     // Call the object list API when the object type selection changes or a new filter is applied.
-    if (context.endpoint && context.owner && context.objectType 
+    if (context.endpoint && context.owner && context.objectType
          && (subjectContext.changeSummary.objectTypeDiff || subjectContext.changeSummary.filterDiff)) {
       const filter = (context.filter)? context.filter: '*';
       this.restService.getObjectList$(context.endpoint, context.owner, context.objectType, filter)
         .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => { 
-          context.objectList = result; 
-          this.state.setCurrentContext(context);        
+        .subscribe(result => {
+          context.objectList = result;
+          this.state.setCurrentContext(context);
         });
     }
 
-    // Call the database object API on on object selection
-    if (context.endpoint && context.owner && context.objectType && context.objectName 
+    // Call the database object API on object selection
+    if (context.endpoint && context.owner && context.objectType && context.objectName
         && (subjectContext.changeSummary.objectNameDiff ||
           subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff )) {
-      this.restService.getObjectDetails$
-      (context.endpoint, context.owner, context.objectType, context.objectName)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => { this.processObject(result); });
-    } 
-    
+            this.setDdlLink(context.endpoint, context.owner, context.objectType, context.objectName);
+            this.restService.getObjectDetails$
+            (context.endpoint, context.owner, context.objectType, context.objectName)
+              .pipe(takeUntil(this.unsubscribe$))
+              .subscribe(result => { this.processObject(result); });
+    }
+
   }
 
-  ngOnInit() {    
+  ngOnInit() {
     this.currentContext = this.state.getCurrentContext();
     this.state.endpoints$
       .pipe(takeUntil(this.unsubscribe$))

@@ -16,6 +16,7 @@
 
  const oracledb = require('oracledb');
  const dbConfig = require('../config/database');
+ const dbConstants = require('../config/db-constants');
  const logger = require('./logger.js');
  const schemaSql = require('./sql/schema-queries');
 
@@ -44,10 +45,10 @@ async function validateConnections() {
     try {
       const privs = await simpleExecute(endpoint.connect.poolAlias, schemaSql.statement['VALIDATE-CONNECTION'].sql);
       const privList = privs.map(r => r.PRIVILEGE ).sort().toString();
-      if (privList !== 'CREATE SESSION,SELECT ANY DICTIONARY,SELECT_CATALOG_ROLE') {
+      if (privList !== dbConstants.values.requiredPrivilages.toString()) {
         logger.log('error',
           `Closing poolAlias ${endpoint.connect.poolAlias}. Account has invalid privileges.
-           Expected: 'CREATE SESSION,SELECT ANY DICTIONARY,SELECT_CATALOG_ROLE'
+           Expected: '${dbConstants.values.requiredPrivilages.toString()}'
            Found: '${privList}'`
         );
       const pool = oracledb.getPool(endpoint.connect.poolAlias);

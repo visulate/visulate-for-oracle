@@ -32,7 +32,7 @@ import { environment } from '../../../environments/environment';
  /**
   * Code to maintain the Database -> Schema -> Object Type form
   * Displays the current selections on startup and triggers a router
-  * navigation event when the current selection changes. 
+  * navigation event when the current selection changes.
   */
 export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
@@ -49,23 +49,23 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     private router: Router) { }
 
   setDdlLink(){
-    if (this.currentContext) {
+    if (this.currentContext && this.currentSchema && !(environment.internalSchemas.includes(this.currentSchema.owner))) {
       const filter = (this.currentContext.filter === '')? '*': this.currentContext.filter;
       this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0)?
-        `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : ''    
-    }    
+        `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : ''
+    }
   }
 
   setObjectType(objectType: ObjectTypeListItem) {
     this.currentObjectType = objectType;
-    if (this.currentContext.filter !== ''){      
+    if (this.currentContext.filter !== ''){
       this.router.navigate
         ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
           {queryParams: {filter: this.currentContext.filter}});
-    } else {      
+    } else {
       this.router.navigate
         ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
-    }     
+    }
   }
 
   setSchema(schema: SchemaModel) {
@@ -77,7 +77,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     } else {
       this.router.navigate
         ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
-    }    
+    }
   }
 
   setEndpoint(endpoint: EndpointModel) {
@@ -96,7 +96,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    */
   processEndpointListChange(endpoints: EndpointListModel) {
     this.endpoints = endpoints;
-    
+
     if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
     }
@@ -104,9 +104,9 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
     }
     if (this.currentContext && this.currentSchema && this.currentSchema.objectTypes) {
-      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);     
+      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
     }
-    this.setDdlLink();  
+    this.setDdlLink();
   }
 
   /**
@@ -114,7 +114,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * @param context - Current context (db, schema, object type and name) subscription
    */
   processContextChange( subjectContext: ContextBehaviorSubjectModel ) {
-    this.currentContext = subjectContext.currentContext;   
+    this.currentContext = subjectContext.currentContext;
 
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
@@ -122,8 +122,8 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     if (this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
     }
-    if (this.currentSchema && this.currentSchema.objectTypes) {      
-      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);      
+    if (this.currentSchema && this.currentSchema.objectTypes) {
+      this.currentObjectType = this.currentContext.findCurrentObjectType(this.currentSchema);
     }
     this.setDdlLink();
   }

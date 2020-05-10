@@ -6,7 +6,13 @@ export const environment = {
   production: false,
   apiBase: window.location.protocol + '//' + window.location.hostname + ':3000/api',
   findObjectBase: window.location.protocol + '//' + window.location.hostname + ':3000/find',
-  ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl'
+  ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl',
+  internalSchemas:
+  ['ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSFWUSER','DBSNMP','DIP','DVF','DVSYS',
+   'GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','LBACSYS','MDSYS','OJVMSYS','OLAPSYS',
+   'ORACLE_OCM','ORDDATA','ORDPLUGINS','ORDSYS','OUTLN','PUBLIC','REMOTE_SCHEDULER_AGENT',
+   'SI_INFORMTN_SCHEMA','SYS$UMF','SYS','SYSBACKUP','SYSDG','SYSKM','SYSRAC','SYSTEM',
+   'WMSYS','XDB','XS$NULL']
 };
 
 /*
