@@ -38,6 +38,7 @@ async function startup() {
   try {
     logger.log('info', 'Initializing database module');
     await database.initialize();
+    await database.validateConnections();
   } catch (err) {
     logger.log('error', err);
     process.exit(1); // Non-zero failure code

@@ -14,8 +14,23 @@
  * limitations under the License.
  */
 
+/**
+ * Visulate user needs SELECT_CATALOG_ROLE, SELECT ANY DICTIONARY and CREATE SESSION
+ * Query user_role_privs + user_sys_privs to get a list of granted privileges.
+ */
 const oracledb = require('oracledb');
 let statement = {};
+statement['VALIDATE-CONNECTION'] = {
+  'title': 'Granted Role/Privilege',
+  'display': [],
+  'sql': `select granted_role as privilege
+          from user_role_privs
+          union all
+          select privilege
+          from user_sys_privs`,
+  'params': {}
+};
+
 /**
  * SQL statements + bind variables to query the data dictionary
  */
@@ -46,7 +61,7 @@ statement['COUNT_DBA_OBJECTS_FILTER'] = {
            from dba_objects o
            where object_name like :object_name ESCAPE :esc
            and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
-                'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')  
+                'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
            group by owner, object_type
            order by owner, object_type`,
    'params': {
@@ -67,9 +82,9 @@ statement['DB-VERSION'] = {
 statement['ADB-YN'] = {
   'title': 'Oracle Cloud Autonomous Database Instance',
   'display': ["Autonomous Database"],
-  'sql' : `select decode( count(*), 0, 'No', 
-                                       'Yes') as "Autonomous Database" 
-           from dba_objects 
+  'sql' : `select decode( count(*), 0, 'No',
+                                       'Yes') as "Autonomous Database"
+           from dba_objects
            where object_name = 'DBMS_CLOUD'`,
   'params' : { }
 }
@@ -78,10 +93,10 @@ statement['EBS-SCHEMA'] = {
   'title': 'E-Business Suite Schema Detected',
   'description': '',
   'display': ["EBS Schema"],
-  'sql': `select decode(count(*), 1, 'Yes', 
-                                     'No') as "EBS Schema" 
-          from dba_tables 
-          where owner='APPLSYS' 
+  'sql': `select decode(count(*), 1, 'Yes',
+                                     'No') as "EBS Schema"
+          from dba_tables
+          where owner='APPLSYS'
           and table_name = 'FND_APPLICATION'`,
   'params': {
   }
@@ -106,7 +121,7 @@ statement['DB-FEATURES'] = {
   'description': '',
   'display': ["Feature"],
   'sql': `select comp_name as "Feature"
-          from dba_registry 
+          from dba_registry
           where status = 'VALID'`,
    'params': {
    }
@@ -118,8 +133,8 @@ statement['DB-FEATURE-USAGE'] = {
   'display': ["Feature", "Detected Usages"],
   'sql': `select name as "Feature"
           ,      detected_usages as "Detected Usages"
-          from dba_feature_usage_statistics 
-          where detected_usages > 0 
+          from dba_feature_usage_statistics
+          where detected_usages > 0
           order by detected_usages desc`,
    'params': {
    }
@@ -171,7 +186,7 @@ statement['DB-SEGMENTS'] = {
             from dba_logstdby_skip l
             where l.owner = s.owner
             and l.statement_opt = 'INTERNAL SCHEMA')
-           group by s.owner 
+           group by s.owner
            order by 2 desc`,
    'params': {
    }
@@ -237,7 +252,7 @@ statement['SCHEMA-DBMS-USAGE'] = {
   'sql' : `select name as "Name"
            ,      type as "Type"
            ,      owner||'/'||type||'/'||name as link
-           ,      count(*) as "Count"           
+           ,      count(*) as "Count"
            from dba_source
            where owner = :owner
            and name like :object_name ESCAPE :esc
@@ -342,7 +357,7 @@ statement['DDL-GEN'] = {
                             'XML SCHEMA',         'XMLSCHEMA',
                             object_type
                           ) as object_type
-            from dba_objects 
+            from dba_objects
             where owner = :owner
             and object_type like :object_type
             and object_name like :object_name ESCAPE :esc
@@ -350,12 +365,12 @@ statement['DDL-GEN'] = {
             and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
             and not (object_type = 'TYPE' and object_name like 'SYS_PLSQL_%')
-            and (owner, object_name) not in 
-                      (select owner, table_name 
+            and (owner, object_name) not in
+                      (select owner, table_name
                       from dba_nested_tables)
-            and (owner, object_name) not in 
-                      (select owner, table_name 
-                      from dba_tables 
+            and (owner, object_name) not in
+                      (select owner, table_name
+                      from dba_tables
                       where iot_type = 'IOT_OVERFLOW')
             )
           order by owner, object_type, object_name`,
@@ -388,7 +403,7 @@ statement['FIND-DBA-OBJECTS'] = {
 statement['OBJECT-DETAILS'] = {
   'title': 'Object Details',
   'description': '',
-  'display': ["Object Name", "Type", "Owner", "Created", "Status"], 
+  'display': ["Object Name", "Type", "Owner", "Created", "Status"],
   'sql': `select object_name as "Object Name"
           ,      object_type as "Type"
           ,      owner as "Owner"
@@ -410,7 +425,7 @@ statement['OBJECT-DETAILS'] = {
     object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
-  }        
+  }
 };
 
 module.exports.statement = statement;

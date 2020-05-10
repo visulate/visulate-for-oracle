@@ -17,6 +17,7 @@
  const oracledb = require('oracledb');
  const dbConfig = require('../config/database');
  const logger = require('./logger.js');
+ const schemaSql = require('./sql/schema-queries');
 
 /**
  * Creates a connection pool for each endpoint
@@ -34,6 +35,30 @@ async function initialize() {
   }
 }
 module.exports.initialize = initialize;
+
+/**
+ * Make sure the connected user has the correct privileges and only the correct privileges
+ */
+async function validateConnections() {
+  for (const endpoint of dbConfig.endpoints){
+    try {
+      const privs = await simpleExecute(endpoint.connect.poolAlias, schemaSql.statement['VALIDATE-CONNECTION'].sql);
+      const privList = privs.map(r => r.PRIVILEGE ).sort().toString();
+      if (privList !== 'CREATE SESSION,SELECT ANY DICTIONARY,SELECT_CATALOG_ROLE') {
+        logger.log('error',
+          `Closing poolAlias ${endpoint.connect.poolAlias}. Account has invalid privileges.
+           Expected: 'CREATE SESSION,SELECT ANY DICTIONARY,SELECT_CATALOG_ROLE'
+           Found: '${privList}'`
+        );
+      const pool = oracledb.getPool(endpoint.connect.poolAlias);
+      await pool.close(10);
+      }
+    } catch (err) {
+      logger.log('error', err);
+    }
+  }
+}
+module.exports.validateConnections = validateConnections;
 
 /**
  * Close connection pools
@@ -54,11 +79,11 @@ module.exports.close = close;
 
 /**
  * Execute a SQL statement
- * 
+ *
  * @param {*} poolAlias - Connection pool alias
  * @param {*} statement - The SQL to execute
  * @param {*} binds - Bind variables for the SQL
- * @param {*} opts - Execution options 
+ * @param {*} opts - Execution options
  */
 async function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
       const conn = await getConnection(poolAlias);
@@ -69,8 +94,8 @@ async function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
 module.exports.simpleExecute = simpleExecute;
 
 /**
- * Gets a connection from the connection pool  
- * @param {*} poolAlias - Connection pool alias 
+ * Gets a connection from the connection pool
+ * @param {*} poolAlias - Connection pool alias
  * @returns connection - a database connection
  */
 function getConnection(poolAlias){
@@ -118,8 +143,8 @@ function query(connection, statement, binds = [], opts = {}){
 
     try {
       const result = await connection.execute(
-        statement, binds, opts        
-      );      
+        statement, binds, opts
+      );
       const rs = result.resultSet;
       let row;
       let returnResult = [];
@@ -132,7 +157,7 @@ function query(connection, statement, binds = [], opts = {}){
     } catch (err) {
       logger.log('error', `${statement} \n ${err}`);
       reject(err);
-    }  
+    }
   });
 }
 module.exports.query = query;
