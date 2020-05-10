@@ -1,7 +1,6 @@
 <div *ngIf="currentContext && currentContext.objectName; else welcomeMsg">
-    <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}} [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>   
-    <a href="{{ddlBase}}/{{currentContext.endpoint}}/{{currentContext.owner}}/{{currentContext.objectType}}/{{currentContext.objectName}}/*">
-      Download DDL</a>
+    <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}} [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>
+    <a *ngIf="ddlLink"  href="{{ddlLink}}"> Download DDL</a>
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 </div>
 
@@ -25,7 +24,7 @@
                         <mat-panel-description>
                             {{property.description}}
                         </mat-panel-description>
-                    </mat-expansion-panel-header>                    
+                    </mat-expansion-panel-header>
 <pre *ngIf="property.title === 'Source'" id="source-code">
 <mat-slide-toggle *ngIf="property.rows[0]['Line']" (change)="showLineNumbers = !showLineNumbers" [checked]="showLineNumbers" class="toggle">Show Line Numbers</mat-slide-toggle>
 <code highlightChildren="span" >

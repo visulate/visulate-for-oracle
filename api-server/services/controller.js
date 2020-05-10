@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ const sql = require('./sql-statements');
 const logger = require('./logger.js');
 const util = require('./util');
 const endpointList = getEndpointList(dbConfig.endpoints);
+const dbConstants = require('../config/db-constants');
 
 /**
  * Gets a list of endpoints
- * @returns an endpoint to pool alias  dictionary 
+ * @returns an endpoint to pool alias  dictionary
  */
 function getEndpointList(endpoints) {
   let endpointList = [];
@@ -66,7 +67,7 @@ async function endpoints(filter) {
     query = sql.statement['COUNT_DBA_OBJECTS_FILTER'];
     query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
   }
-  
+
   let rows = [];
   for (const ep of dbConfig.endpoints) {
     try {
@@ -74,7 +75,7 @@ async function endpoints(filter) {
       if (result.length > 0) {
         const endpoint = formatEndpoint(ep, result);
         rows.push(endpoint);
-      }    
+      }
     } catch (err) {
       logger.log('error', `controller.js endpoints() connection failed for ${ep.connect.poolAlias}`);
     }
@@ -114,24 +115,24 @@ async function executeSearch(searchCondition) {
 }
 /**
  * Implements /find/:name
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
  */
 
 async function dbSearch(req, res, next) {
   try {
     const searchCondition = req.params.name;
-    const rows = await executeSearch(searchCondition);  
+    const rows = await executeSearch(searchCondition);
     res.status(200).json({find: searchCondition, result: rows});
   } catch (err) {
     next(err);
-  }  
+  }
 }
 module.exports.dbSearch = dbSearch;
 
 /**
- * Implements GET /api/:db endpoint.   
+ * Implements GET /api/:db endpoint.
  * @param {*} req - request
  * @param {*} res - reponse
  * @param {*} next - next matching route
@@ -143,24 +144,21 @@ async function getDbDetails(req, res, next) {
     res.status(404).send("Requested database was not found");
     return;
   }
-  
+
   let queryCollection = sql.collection['DATABASE'];
   let result = [];
   const connection = await dbService.getConnection(poolAlias);
   for (let c of queryCollection.noParamQueries) {
- 
-    
-
     const cResult = await dbService.query(connection, c.sql, c.params);
     result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
   }
-  await dbService.closeConnection(connection);  
+  await dbService.closeConnection(connection);
   res.status(200).json(result);
 }
 module.exports.getDbDetails = getDbDetails;
 
 /**
- * Implements GET /api/:db/:owner endpoint.   
+ * Implements GET /api/:db/:owner endpoint.
  * @param {*} req - request
  * @param {*} res - reponse
  * @param {*} next - next matching route
@@ -190,7 +188,7 @@ async function getSchemaDetails(req, res, next) {
     c.params.owner.val = req.params.owner;
     if (filter){
       c.params.object_name.val = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
-    } 
+    }
     const cResult = await dbService.query(connection, c.sql, c.params);
     result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
   }
@@ -233,7 +231,7 @@ async function getObjectList(connection, owner, type, name, status, query) {
  */
 async function listObjects(req, res, next) {
 
-  // Validate the database parameter 
+  // Validate the database parameter
   const poolAlias = endpointList[req.params.db];
   if (!poolAlias) {
     res.status(404).send("Requested database was not found");
@@ -241,8 +239,8 @@ async function listObjects(req, res, next) {
   }
   try {
     /**
-     * Get the list of object types. 
-     * Use default values for name and status for GET /api/:db/:owner/:type calls 
+     * Get the list of object types.
+     * Use default values for name and status for GET /api/:db/:owner/:type calls
      */
     let name = req.params.name? req.params.name : '*';
     if (name === '*' && req.query.filter) {
@@ -250,10 +248,10 @@ async function listObjects(req, res, next) {
     }
     const status = req.params.status? req.params.status : '*';
 
-    const connection = await dbService.getConnection(poolAlias);   
+    const connection = await dbService.getConnection(poolAlias);
     const result = await getObjectList(connection, req.params.owner, req.params.type, name, status, 'LIST_DBA_OBJECTS');
     await dbService.closeConnection(connection);
-    
+
     if (result.length === 0) {
       res.status(404).send("No objects found for the requested owner, type, name and status");
     } else {
@@ -261,7 +259,7 @@ async function listObjects(req, res, next) {
       result.forEach(element => { objectList.push(element.OBJECT_NAME); });
       res.status(200).json(objectList);
     }
-    
+
 
   } catch (err) {
     logger.log('error', `controller.js listObjects connection failed for ${poolAlias}`);
@@ -280,6 +278,10 @@ module.exports.listObjects = listObjects;
  */
 
 async function generateDDL(req, res, next) {
+  if (dbConstants.values.internalSchemas.includes(req.params.owner)){
+    res.status(403).send("DDL generation not supported for Oracle internal objects");
+    return;
+  }
   const poolAlias = endpointList[req.params.db];
   if (!poolAlias) {
     res.status(404).send("Requested database was not found");
@@ -293,10 +295,10 @@ async function generateDDL(req, res, next) {
     }
     const status = req.params.status? req.params.status : '*';
 
-    const connection = await dbService.getConnection(poolAlias);   
+    const connection = await dbService.getConnection(poolAlias);
     const result = await getObjectList(connection, req.params.owner, req.params.type, name, status, 'DDL-GEN');
     await dbService.closeConnection(connection);
-    
+
     if (result.length === 0) {
       res.status(404).send("No objects found for the requested owner, type, name and status");
     } else {
@@ -304,7 +306,7 @@ async function generateDDL(req, res, next) {
       result.forEach(element => { res.write(element.DDL) });
       res.status(200).send();
     }
-    
+
 
   } catch (err) {
     logger.log('error', `controller.js generateDDL connection failed for ${poolAlias}`);
@@ -393,8 +395,8 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
    * The current queries do this to improve performance and as a workaround to
    * limits on the number of outer joins in a single query (the DBA_ views include
    * outer joins in their source)
-   *  
-   * */ 
+   *
+   * */
 
   query = sql.statement['ADB-YN'];
   r = await dbService.query(connection, query.sql, query.params);
@@ -420,7 +422,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
     result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
   }
 
-}  
+}
   await dbService.closeConnection(connection);
   return result;
 }

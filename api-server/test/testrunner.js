@@ -99,7 +99,7 @@ it('GET Simple Search', (done) => {
     res.body.result.length.should.equal(2);
     res.body.result[1].objects.length.should.equal(2);
     done();
-  }); 
+  });
 });
 
 it('GET find with no results', (done) => {
@@ -112,11 +112,11 @@ it('GET find with no results', (done) => {
     res.body.result.length.should.equal(2);
     res.body.result[1].objects.length.should.equal(0);
     done();
-  }); 
+  });
 });
 
 /**
- * Database Report 
+ * Database Report
  */
 it('GET PDB Database summary', (done) => {
   chai.request(BASE_URL)
@@ -218,6 +218,15 @@ it('GET PDB DDL', (done) => {
   });
 });
 
+it('GET DDL for SYS object should return 403', (done) => {
+  chai.request(BASE_URL)
+  .get(`/ddl/${PDB}/SYS/VIEW/DBA_USERS/VALID`)
+  .end((err, res) => {
+    expect(res).to.have.status(403);
+    done();
+  });
+});
+
 
 /**
  * Find Objects
@@ -303,7 +312,7 @@ it('GET PDB invalid object_name should return a 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/xxInvalidObjectName/*`)
   .end((err, res) => {
-    expect(res).to.have.status(404);  
+    expect(res).to.have.status(404);
     done();
   });
 });
@@ -312,7 +321,7 @@ it('GET 11i invalid object_name should return a 404', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY/xxInvalidObjectName/*`)
   .end((err, res) => {
-    expect(res).to.have.status(404);  
+    expect(res).to.have.status(404);
     done();
   });
 });
@@ -604,9 +613,9 @@ it('11i Get request for object with no collection SQL should not fail', (done) =
 });
 
 it('Invalid schema collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{OWNER: "WIKI",
-        type: "VIEW", 
+        type: "VIEW",
         name: "RNT_MENUS_V",
         status: "VALID",
       }];
@@ -620,9 +629,9 @@ it('Invalid schema collection query', (done) => {
 });
 
 it('PDB single object collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{owner: "WIKI",
-        type: "VIEW", 
+        type: "VIEW",
         name: "RNT_MENUS_V",
         status: "VALID",
       }];
@@ -630,7 +639,7 @@ it('PDB single object collection query', (done) => {
   .post(`/api/collection/${PDB}/`)
   .send(queryCollection)
   .end((err, res) => {
-    expect(res).to.have.status(200);    
+    expect(res).to.have.status(200);
     res.body.should.be.a('array');
     res.body.length.should.equal(3);
     res.body[2]["OBJECT_NAME"].should.equal("RNT_SYS_CHECKSUM_REC_PKG")
@@ -639,9 +648,9 @@ it('PDB single object collection query', (done) => {
 });
 
 it('11i single object collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{owner: "WIKI",
-        type: "VIEW", 
+        type: "VIEW",
         name: "RNT_MENUS_V",
         status: "VALID",
       }];
@@ -658,15 +667,15 @@ it('11i single object collection query', (done) => {
 });
 
 it('PDB multi object collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{"owner": "WIKI",
-        "type": "VIEW", 
+        "type": "VIEW",
         "name": "RNT_MENUS_V",
         "status": "VALID",
         "dependencies": "Y"
       },
       {"owner": "WIKI",
-        "type": "PACKAGE BODY", 
+        "type": "PACKAGE BODY",
         "name": "RNT_SYS_CHECKSUM_REC_PKG",
         "status": "VALID",
       }];
@@ -682,15 +691,15 @@ it('PDB multi object collection query', (done) => {
 });
 
 it('11i multi object collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{"owner": "WIKI",
-        "type": "VIEW", 
+        "type": "VIEW",
         "name": "RNT_MENUS_V",
         "status": "VALID",
         "dependencies": "Y"
       },
       {"owner": "WIKI",
-        "type": "PACKAGE BODY", 
+        "type": "PACKAGE BODY",
         "name": "RNT_SYS_CHECKSUM_REC_PKG",
         "status": "VALID",
       }];
@@ -706,9 +715,9 @@ it('11i multi object collection query', (done) => {
 });
 
 it('PDB wildcard collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{"owner": "WIKI",
-        "type": "*", 
+        "type": "*",
         "name": "RNT_MENUS*",
         "status": "*"
       }];
@@ -724,9 +733,9 @@ it('PDB wildcard collection query', (done) => {
 });
 
 it('11i wildcard collection query', (done) => {
-  const queryCollection = 
+  const queryCollection =
       [{"owner": "WIKI",
-        "type": "*", 
+        "type": "*",
         "name": "RNT_MENUS*",
         "status": "*"
       }];
