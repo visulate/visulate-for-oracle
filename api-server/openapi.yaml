@@ -2,8 +2,16 @@ openapi: 3.0.1
 info:
   title: Visulate for Oracle
   version: 1.0.0
-  description: >-
-    Visulate for Oracle is an Oracle data dictionary browsing service to help
+  description: |-
+    Visulate for Oracle is a tool to catalog a company's Oracle databases. It
+    provides read-only access to the data dictionary for one or more registered
+    databases.
+
+    It can catalog Oracle database instances in preparation for a compliance audit.
+    Identify Enterprise Edition feature and option usage. Find Enterprise Edition
+    license instances that could be be downgraded to Standard Edition 2.
+
+    The APIs + an associated UI provide an Oracle data dictionary browsing service to help
     data engineers understand the structure and dependencies in Oracle databases
     that they plan to migrate to the Cloud.
   contact:
@@ -12,8 +20,7 @@ info:
     name: Apache 2.0
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
 servers:
-  - url: 'https://demo.visulate.net'
-  - url: 'http://localhost:3000'
+  - url: '/'
 paths:
   /api/:
     summary: Database endpoints
@@ -39,9 +46,9 @@ paths:
               schema:
                 type: object
                 properties:
-                  endpoints: 
+                  endpoints:
                     type: array
-                    items: 
+                    items:
                       type: object
                       properties:
                         endpoint:
@@ -58,13 +65,13 @@ paths:
                           properties:
                             owner:
                               type: array
-                              items: 
+                              items:
                                 type: object
                                 properties:
-                                  OWNER: 
+                                  OWNER:
                                     type: string
                                     example: HR
-                                  OBJECT_TYPE: 
+                                  OBJECT_TYPE:
                                     type: string
                                     example: PROCEDURE
                                   OBJECT_COUNT:
@@ -95,7 +102,7 @@ paths:
   /api/{db}:
     get:
       summary: List database characteristics
-      parameters: 
+      parameters:
         - in: path
           name: db
           description: database endpoint
@@ -111,11 +118,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/QueryResult"
         404:
-          description: Invalid database           
+          description: Invalid database
   /api/{db}/{owner}:
     get:
       summary: Schema object summary
-      parameters: 
+      parameters:
         - in: path
           name: db
           description: database endpoint
@@ -145,13 +152,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/QueryResult"
         404:
-          description: No objects match the database, owner combination     
-  /api/{db}/{owner}/{type}: 
+          description: No objects match the database, owner combination
+  /api/{db}/{owner}/{type}:
     get:
       summary: List database objects
       description: >-
         Retreive a list of database objects for the given db, owner and object_type combination
-      parameters: 
+      parameters:
         - in: path
           name: db
           description: database endpoint
@@ -168,7 +175,7 @@ paths:
             example: WIKI
         - in: path
           name: type
-          description: database object type 
+          description: database object type
           required: true
           schema:
             type: string
@@ -193,9 +200,9 @@ paths:
         404:
           description: No objects match the database, owner + object_type combination
         503:
-          description: Database connection failure          
-          
-  /api/{db}/{owner}/{type}/{name}/{status}: 
+          description: Database connection failure
+
+  /api/{db}/{owner}/{type}/{name}/{status}:
     get:
       summary: Filtered list of database objects
       description: >-
@@ -209,7 +216,7 @@ paths:
           and status like :status
           order by object_name
           ```
-      parameters: 
+      parameters:
         - in: path
           name: db
           description: database endpoint
@@ -226,21 +233,21 @@ paths:
             example: WIKI
         - in: path
           name: type
-          description: database object type 
+          description: database object type
           required: true
           schema:
             type: string
             example: PACKAGE
         - in: path
           name: name
-          description: database object name or wildcard 
+          description: database object name or wildcard
           required: true
           schema:
             type: string
-            example: RNT*    
+            example: RNT*
         - in: path
           name: status
-          description: database object name or wildcard 
+          description: database object name or wildcard
           required: true
           schema:
             type: string
@@ -258,10 +265,10 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
-  /api/{db}/{owner}/{type}/{name}: 
+  /api/{db}/{owner}/{type}/{name}:
     get:
       summary: Database object report
-      parameters: 
+      parameters:
         - in: path
           name: db
           description: database endpoint
@@ -285,11 +292,11 @@ paths:
             example: PACKAGE BODY
         - in: path
           name: name
-          description: database object name 
+          description: database object name
           required: true
           schema:
             type: string
-            example: RNT_MENUS_PKG 
+            example: RNT_MENUS_PKG
       responses:
         200:
           description: Returns an array of query results
@@ -336,6 +343,10 @@ paths:
                 type: string
                 example: |
                   CREATE TABLE "WIKI"."RNT_LOOKUP_TYPES" ...
+        403:
+          description: DDL generation not supported for Oracle internal objects
+        404:
+          description: Requested database was not found
   /ddl/{db}/{owner}/{type}/{name}/{status}:
     get:
       summary: Generate DDL
@@ -364,14 +375,14 @@ paths:
             example: PACKAGE BODY
         - in: path
           name: name
-          description: database object name or wildcard 
+          description: database object name or wildcard
           required: true
           schema:
             type: string
-            example: RNT*    
+            example: RNT*
         - in: path
           name: status
-          description: database object name or wildcard 
+          description: database object name or wildcard
           required: true
           schema:
             type: string
@@ -385,12 +396,15 @@ paths:
                 type: string
                 example: |
                   CREATE TABLE "WIKI"."RNT_LOOKUP_TYPES" ...
-        
+        403:
+          description: DDL generation not supported for Oracle internal objects
+        404:
+          description: Requested database was not found
   /api/collection/{db}:
     post:
       summary: Database object collection
       description: Identify a collection of database objects matching one or more object paterns
-      parameters: 
+      parameters:
         - in: path
           name: db
           description: database endpoint
@@ -408,7 +422,7 @@ paths:
                 type: object
                 required: [owner, type, name, status]
                 properties:
-                  owner: 
+                  owner:
                     type: string
                     example: WIKI
                   type:
@@ -420,7 +434,7 @@ paths:
                   status:
                     type: string
                     example: '*'
-                  
+
       responses:
         200:
           description: List of marching objects and their "uses" dependencies
@@ -462,7 +476,7 @@ paths:
                             example: WIKI
         404:
           description: Requested database was not found
-          
+
 components:
   schemas:
     WildCardQueryResult:
@@ -475,7 +489,7 @@ components:
           items:
             type: object
             properties:
-              type: 
+              type:
                 type: string
                 example: FUNCTION
               count:
@@ -533,12 +547,11 @@ components:
             example: Table
           rows:
             type: array
-            items: 
+            items:
               type: object
               properties:
-                name-value: 
+                name-value:
                   type: string
-                name-value2: 
+                name-value2:
                   type: string
-                    
-          
+
