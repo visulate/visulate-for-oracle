@@ -302,6 +302,10 @@ spec:
             backend:
               serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
               servicePort: {{ .Values.apiServer.port }}
+          - path: "/api-docs/*"
+            backend:
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+              servicePort: {{ .Values.apiServer.port }}
           - path: "/find/*"
             backend:
               serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc

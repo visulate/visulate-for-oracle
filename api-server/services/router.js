@@ -25,6 +25,11 @@ const validator = new Validator({ allErrors: true });
 const validate = validator.validate;
 const util = require('util');
 
+const YAML = require('yamljs');
+const path = require("path");
+const swaggerUi = require('swagger-ui-express');
+const swaggerDoc = YAML.load(path.resolve(__dirname,'../openapi.yaml'));
+
 const collectionSchema = {
   type: 'array',
   items: {
@@ -45,6 +50,10 @@ router.route('/')
 router.route('/api')
   .get(controller.getEndpoints);
 
+router.use('/api-docs', swaggerUi.serve);
+router.route('/api-docs')
+  .get(swaggerUi.setup(swaggerDoc));
+
 router.route('/find/:name')
   .get(controller.dbSearch);
 
@@ -55,16 +64,16 @@ router.route('/api/:db/:owner')
   .get(controller.getSchemaDetails);
 
 router.route('/api/:db/:owner/:type')
-  .get(controller.listObjects);  
+  .get(controller.listObjects);
 
 router.route('/api/:db/:owner/:type/:name/:status')
   .get(controller.listObjects);
 
 router.route('/ddl/:db/:owner/:type')
-  .get(controller.generateDDL);    
+  .get(controller.generateDDL);
 
 router.route('/ddl/:db/:owner/:type/:name/:status')
-  .get(controller.generateDDL);  
+  .get(controller.generateDDL);
 
 router.route('/api/:db/:owner/:type/:name')
   .get(controller.showObject);
