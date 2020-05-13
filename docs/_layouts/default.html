@@ -14,24 +14,47 @@
     <meta charset="UTF-8">
 
 {% seo %}
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#157878">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"-->
+    <link rel="stylesheet" href="{{ '/assets/css/main.css?v=' | append: site.github.build_revision | relative_url }}">
   </head>
   <body>
-    <main>
-      <div class="sidebar">
-        {% for section in site.data.menu.sections %}    
-        <h5>{{ section.name }}</h5> 
-          {% for item in section.items %}
-            <a href="{{ item.href }}" {% if item.url == page.url %}class="active"{% endif %}  >{{ item.title }}</a>
-          {% endfor %}
-        {% endfor %}
+    <div id="wrapper">
+      <div id="main">
+        <div class="inner">
+             <!-- Header -->
+             <header id="header">
+              <a href="index.html" class="logo"><strong>Visulate</strong> for Oracle</a>
+            </header>
+            {{ content }}
         </div>
-        <div class="content">
-          {{ content }}
+      </div>
+      <div id="sidebar">
+        <div class="inner">
+          <nav id="menu">
+
+
+            <!--header >
+              <h5>{{ section.name }}</h5>
+            </header-->
+            <ul>
+            {% for section in site.data.menu.sections %}
+              <!--h5>{{ section.name }}</h5-->
+                {% for item in section.items %}
+                  <li><a href="{{ item.href }}" {% if item.url == page.url %}class="active"{% endif %}  >{{ item.title }}</a></li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </nav>
         </div>
-    </main>
+      </div>
+    </div>
+		<!-- Scripts -->
+    <script src="assets/js/jquery.min.js"></script>
+    <script src="assets/js/browser.min.js"></script>
+    <script src="assets/js/breakpoints.min.js"></script>
+    <script src="assets/js/util.js"></script>
+    <script src="assets/js/main.js"></script>
   </body>
 </html>
