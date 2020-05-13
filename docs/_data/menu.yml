@@ -3,8 +3,8 @@ sections:
   - name: Visulate for Oracle
     items:
       - title: "Product Overview"
-        href: "index.html"
-        url: "/"
+        href: "overview.html"
+        url: "/overview.html"
       - title: "Quickstart"
         href: "quickstart.html"
         url: "/quickstart.html"
