@@ -3,21 +3,19 @@ sections:
   - name: Visulate for Oracle
     items:
       - title: "Product Overview"
-        href: "overview.html"
-        url: "/overview.html"
+        href: "/"
       - title: "Quickstart"
-        href: "quickstart.html"
-        url: "/quickstart.html"
+        href: "/pages/quickstart.html"
   - name: How-to guides
     items:
       - title: "Database Setup"
-        href: "database-setup.html"
-        url: "/database-setup.html"
+        href: "/pages/database-setup.html"
       - title: "Database Registration"
-        href: "database-registration.html"
-        url: "/database-registration.html"
+        href: "/pages/database-registration.html"
+      - title: "Troubleshooting"
+        href: "/pages/troubleshooting.html"
   - name: Concepts
     items:
       - title: "Application Architecture"
-        href: "application-architecture.html"
-        url: "/application-architecture.html"
+        href: "/pages/application-architecture.html"
+

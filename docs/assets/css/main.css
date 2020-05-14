@@ -2065,6 +2065,15 @@ input, select, textarea {
 
 /* Image */
 
+  .screenshot {
+    width: 50%;
+    border: solid 1px rgba(210, 215, 217, 0.75);
+  }
+
+  .screenshot:hover {
+    width: 100%;
+  }
+
 	.image {
 		border-radius: 0.375em;
 		border: 0;
@@ -3211,7 +3220,18 @@ input, select, textarea {
 
 		#sidebar.inactive {
 			margin-left: -26em;
-		}
+    }
+
+    #toc {
+      float: right;
+      width: 20em;
+      margin-top: 0.5em;
+    }
+
+    #toc li {
+      padding: 0.35em;
+      list-style: none;
+    }
 
 		@media screen and (max-width: 1680px) {
 
@@ -3322,7 +3342,13 @@ input, select, textarea {
 					width: 5em;
 				}
 
-		}
+    }
+
+    @media screen and (max-width: 480px) {
+      #toc {
+        width: 100%;
+      }
+    }
 
 /* Header */
 
@@ -3526,12 +3552,15 @@ input, select, textarea {
 		}
 
 			#menu ul a:hover, #menu ul span:hover {
+        background: #fef7e8;
+        border-radius: 0 12px 12px 0;
 				color: #f56a6a;
       }
 
       #menu ul a.active, #menu ul span.active {
-        font-weight: bold;
-        color: #f56a6a;
+        background: #e8f0fe;
+        border-radius: 0 12px 12px 0;
+        color: #1967d2;
       }
 
 			#menu ul a.opener, #menu ul span.opener {
@@ -3581,10 +3610,18 @@ input, select, textarea {
 					-webkit-transform: rotate(-180deg);
 					-ms-transform: rotate(-180deg);
 					transform: rotate(-180deg);
-				}
+        }
+
+
+  #menu > ul > h5 {
+    border-top: solid 1px rgba(210, 215, 217, 0.75);
+    margin: 0.5em 0 0 0;
+    padding: 0.5em 0 0 0;
+  }
+
 
 	#menu > ul > li {
-		border-top: solid 1px rgba(210, 215, 217, 0.75);
+
 		margin: 0.5em 0 0 0;
 		padding: 0.5em 0 0 0;
 	}

@@ -2,9 +2,9 @@
 ## Overview
 The API Server maintains a connection pool for each registered database.
 
-![Database Connections](images/database-connections.png)
+![Database Connections](/images/database-connections.png)
 
-The parameters for each pool are read from a file during initialization. A sample file appears below. 
+The parameters for each pool are read from a file during initialization. A sample file appears below.
 
 ```
 const endpoints = [
@@ -38,11 +38,11 @@ Parameter values are described in the [Oracle node-oracledb](https://oracle.gith
 
 ## Register your databases
 
-The initial deployment from GCP Marketplace provisions an API Server with no registered databases. The user must create and apply a database registration file. This is done using a Kubernetes Secret.  
+The initial deployment from GCP Marketplace provisions an API Server with no registered databases. The user must create and apply a database registration file. This is done using a Kubernetes Secret.
 
-![Update Database Connections](images/update-database-connections.png)
+![Update Database Connections](/images/update-database-connections.png)
 
-Download and edit the api-server-secret.yaml and api-server-deployment.yaml manifest files. Edit the secret manifest file to supply connection details for one or more databases, update the metadata name for the Secret. Use `kubectl` to apply the file. Edit the deployment manifest to reference the name used in the Secret.  Apply the deployment file to rollout a new deployment with registered databases. 
+Download and edit the api-server-secret.yaml and api-server-deployment.yaml manifest files. Edit the secret manifest file to supply connection details for one or more databases, update the metadata name for the Secret. Use `kubectl` to apply the file. Edit the deployment manifest to reference the name used in the Secret.  Apply the deployment file to rollout a new deployment with registered databases.
 
 ## Example
 Find the API Server deployment name. (in this example the application was deployed in a namespace called 'test-ns')
@@ -52,7 +52,7 @@ NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
 test-deployment-visulate-for-oracle-api   1/1     1            1           43h
 test-deployment-visulate-for-oracle-ui    1/1     1            1           43h
 ```
-Download the API Server deployment manifest 
+Download the API Server deployment manifest
 ```
 kubectl get deploy test-deployment-visulate-for-oracle-api --namespace=test-ns -oyaml > deployment.yaml
 ```
@@ -113,13 +113,13 @@ status: {}
 ```
 Validate the edited secret and deployment manifests:
 ```
-$ kubectl apply --dry-run --validate --namespace=test-ns -f secret.yaml 
-$ kubectl apply --dry-run --validate --namespace=test-ns -f deployment.yaml 
+$ kubectl apply --dry-run --validate --namespace=test-ns -f secret.yaml
+$ kubectl apply --dry-run --validate --namespace=test-ns -f deployment.yaml
 ```
 
 Apply the secret and deployment manifests:
 
 ```
-$ kubectl apply --namespace=test-ns -f secret.yaml 
-$ kubectl apply --namespace=test-ns -f deployment.yaml 
+$ kubectl apply --namespace=test-ns -f secret.yaml
+$ kubectl apply --namespace=test-ns -f deployment.yaml
 ```
