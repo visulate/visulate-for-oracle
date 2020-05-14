@@ -10,11 +10,11 @@
     Users create connections from a central server to each database and then query them
     using REST APIs or a browser.</p>
     <ul class="actions">
-      <li><a href="/pages/application-architecture" class="button big">Learn More</a></li>
+      <li><a href="pages/application-architecture" class="button big">Learn More</a></li>
     </ul>
   </div>
   <span class="image">
-    <img src="/images/visulate-for-oracle.png" alt="Visulate for Oracle" style="height: auto"/>
+    <img src="images/visulate-for-oracle.png" alt="Visulate for Oracle" style="height: auto"/>
   </span>
 </section>
 
