@@ -281,7 +281,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-ingress
+  name: {{ .Release.Name }}-igs
   labels:
     app.kubernetes.io/name: "{{ .Release.Name }}"
     app.kubernetes.io/component: visulate-for-oracle
