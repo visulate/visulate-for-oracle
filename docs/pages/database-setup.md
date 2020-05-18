@@ -1,5 +1,8 @@
+* TOC
+{:toc id="toc"}
+
 # Database Setup
-Visulate for Oracle needs to read the data dictionary in each registered database. Create a dedicated user with the minimum required privileges.
+Visulate for Oracle needs to read the data dictionary in each registered database. Create a dedicated user with the minimum required privileges in each database you want to catalog.
 
 ## Create a user
 Login to SQL*PLus as SYSTEM and create a database user called "VISULATE" and grant CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY privileges to it:
@@ -12,12 +15,16 @@ grant select_catalog_role to visulate;
 ```
 
 ## What do these roles and privileges do?
-The CREATE SESSION privilege is needed to allow database connections. 
+The CREATE SESSION privilege is needed to allow database connections.
 
 SELECT ANY DICTIONARY privilege grants Read access on Data Dictionary tables owned by SYS (with the exception of the following objects: DEFAULT_PWD$, ENC$, LINK$, USER$, USER_HISTORY$, and XS$VERIFIERS).  The SELECT_CATALOG_ROLE role grants Read access to Data Dictionary (DBA_%) and Performance (V$%) views.
 
-Some of the queries in Visulate for Oracle access data dictionary tables instead of the DBA_ views for performance reasons hence the need for SELECT ANY DICTIONARY.  The DDL download feature calls DBMS_METADATA which requires SELECT_CATALOG_ROLE. 
+Some of the queries in Visulate for Oracle access data dictionary tables instead of the DBA_ views for performance reasons hence the need for SELECT ANY DICTIONARY.  The DDL download feature calls DBMS_METADATA which requires SELECT_CATALOG_ROLE.
 
+## Can I use an existing database account?
+You can use any account that has been granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY but **it must not have additional privileges** for security reasons. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set.
+
+The database account does not need to be called "VISULATE".
 
 ## Drop the user
 Visulate for Oracle needs a database user account in each registered database. You should drop the user if you decide to de-register the database. Login to SQL*PLus as SYSTEM and run the following:

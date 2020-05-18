@@ -4,18 +4,24 @@ sections:
     items:
       - title: "Product Overview"
         href: "/"
+        description: "Visulate for Oracle is a Cloud-based application to browse and search Oracle databases."
       - title: "Quickstart"
         href: "/pages/quickstart.html"
+        description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
   - name: How-to guides
     items:
-      - title: "Database Setup"
+      - title: "Setup a database account"
         href: "/pages/database-setup.html"
-      - title: "Database Registration"
+        description: "Visulate for Oracle needs a user with the minimum privileges to read the data dictionary in each database."
+      - title: "Register a database"
         href: "/pages/database-registration.html"
+        description: "A kubernetes secret is used to pass database connection details to the Visulate for Oracle instance."
       - title: "Troubleshooting"
         href: "/pages/troubleshooting.html"
+        description: "Visulate for Oracle troubleshooting tips and techniques"
   - name: Concepts
     items:
       - title: "Application Architecture"
         href: "/pages/application-architecture.html"
+        description: "Visulate for Oracle creates 2 Kubernetes pods to deliver a browser UI and REST endpoints for one or more Oracle databases."
 

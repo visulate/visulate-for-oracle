@@ -2,11 +2,7 @@
 {:toc id="toc"}
 
 # Visulate for Oracle quickstart
-This page shows you how to create a Visulate for Oracle environment on Google Cloud Platform (GCP) and connect it to an Oracle database.
-
-
-
-
+This page shows you how to create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database.
 
 ## Before you begin
 1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in GCP
@@ -35,11 +31,11 @@ Review the terms of service and complete the deploy screen
 - Change the default instance name to visulate-01 (see note below)
 - Accept the defaults for the remaining fields and press the `Deploy` button
 
-The **combined length** of the namespace and instance names **should not exceed 32 characters**. This avoids the potential for orphaned network resources when the application is deleted. See [GCP Marketplace Tools issue 495](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/issues/495)
+The **combined length** of the namespace and instance names **should not exceed 32 characters**. This avoids the potential for orphaned network resources when the instance is deleted. See [GCP Marketplace Tools issue 495](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/issues/495)
 
 ## Wait for instance to reach ready state
 
-It takes around 5 minutes for the application to deploy. Most of this time is spent creating network resources to support the ingress component.
+It may take up to 10 minutes for the instance to deploy. Most of this time is spent creating network resources to support the ingress component.
 
 ![Components Pending](/images/mp-components-pending.png){: class="screenshot" }
 
@@ -65,9 +61,11 @@ Change "/api/" to "/api-docs/" to review the API documentation.
 
 ![Swagger UI](/images/swagger.png){: class="screenshot" }
 
+At this point you have a Visulate for Oracle instance running. Now we need to connect it to an Oracle database.
+
 ## Create a database user in the database you want to document
 
-Login to SQL*PLus as SYSTEM and create a database user called "VISULATE" and grant CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY privileges to it:
+Login to SQL*Plus as SYSTEM, create a database user called "VISULATE" and grant CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY privileges to it:
 ```
 create user visulate identified by &password;
 alter user visulate account unlock;
@@ -80,7 +78,7 @@ Note: the API server runs a query on startup to verify account privileges. It dr
 
 ## Register your database connection
 
-Open a text editor and create a file called db-connection-secret.yaml. With the following content:
+A kubernetes secret is used to pass database connection details to the instance. Open a text editor and create a file called db-connection-secret.yaml. With the following content:
 ```
 ---
 apiVersion: v1
@@ -137,12 +135,42 @@ Press the `Save` button and wait for a new pod to deploy replacing the previous 
 
 Note: See the [database registration guide](/pages/database-registration.html) for additional details on this step.
 
-## Access Visulate for Oracle
+## Review your database and its data model
 Open the Visulate for Oracle UI (using the load balancer IP address assigned by the Ingress). Click on the Database dropdown list. You should see an entry called "vis13". Select the value and wait for database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" }
 
+Select a database user from the Schema drop down. Notice the database report is replaced by a schema one. Now select "TABLE" from the Object Type field to see a list of tables in the schema.
 
+![List of tables](/images/table-list.png){: class="screenshot" }
+
+Click on one of the tables to open the table report. This report shows table details like its tablespace, number of rows, indexes, constraints, foreign keys and columns. A Download DDL link at the top of the page can be used to generate the data definition language SQL for the table.
+
+![Table details](/images/table-details.png){: class="screenshot" }
+
+Scroll to the bottom of the page to see a list of object (e.g. packages, package bodies and views) that reference the table.
+
+![Dependencies](/images/dependencies.png){: class="screenshot" }
+
+Clicking on an object name in the dependency list will take you to a report showing its definition. For example, selecting a package body will open a report that shows the source code for the package body and a list of the SQL statement it contains.
+
+![SQL Statements](/images/sql-statements.png){: class="screenshot" }
+
+Open the hamburger menu at the top (left) of the page. This provides a quick way to access other objects of the same type in the schema.
+
+![Hamburger menu](/images/hamburger-menu.png){: class="screenshot" }
+
+Click on the search icon at the top (right) of the page to access the search form. Enter dba_objects in the search box and press return. This queries every registered database to find objects with a matching object_name (in our case we only have one registered database).
+
+![Search](/images/search.png){: class="screenshot" }
+
+Click on one of the results to see its definition report.
+
+![Search result](/images/search-result.png){: class="screenshot" }
+
+Click on the "Visulate for Oracle" title at the top (center) of the screen to return to the homepage. Notice the Object Filter field has been populated with DBA_OBJECTS (the last search condition). Change this value to DBA_* and then select a database and schema. Notice the navigation lists are now filtered using this wildcard.
+
+![Filter condition](/images/filter.png){: class="screenshot" }
 
 ## Clean up
 
