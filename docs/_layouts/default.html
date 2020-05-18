@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="{{ site.lang | default: "en-US" }}">
-  <head>
-
+  <head>{% for section in site.data.menu.sections %}{% for item in section.items %}{% if item.href == page.url %}
+    <title>{{ item.title }} Visulate for Oracle</title>
+    <meta name="description" content="{{ item.description }}"/>{% endif %}{% endfor %}{% endfor %}
+    <meta charset="UTF-8">
     {% if site.google_analytics %}
       <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.google_analytics }}"></script>
       <script>
@@ -11,9 +13,6 @@
         gtag('config', '{{ site.google_analytics }}');
       </script>
     {% endif %}
-    <meta charset="UTF-8">
-
-{% seo %}
     <link rel="stylesheet" href="{{ '/assets/css/main.css?v=' | append: site.github.build_revision | relative_url }}">
   </head>
   <body>
