@@ -7,7 +7,7 @@ This page shows you how to create a Visulate for Oracle instance on Google Cloud
 ## Before you begin
 1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in GCP
 2. Identify one or more Oracle databases that you want to document
-3. Configure your firewall to allow connections from the GKE cluster to each Oracle database
+3. [Configure your network](/pages/network-configuration.html) to allow connections from the GKE cluster to each Oracle database
 
 ## Open the config screen
 - Visit the [Kubernetes Engine page](https://console.cloud.google.com/projectselector/kubernetes?_ga=2.63610924.2027644729.1585254356-1471266844.1580858508) in the Google Cloud Console and create or select a project.
