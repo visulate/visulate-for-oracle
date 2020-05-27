@@ -1,5 +1,31 @@
+* TOC
+{:toc id="toc"}
 # Troubleshooting
 
+## Registered database does not appear in the UI drop down
+
+### Review the API deployment log files
+
+### Make an API call
+
+Call the /api/ endpoint (e.g. http://my-ipaddress/api/)
+
+### Check the username, password and connect string
+
+Follow the instructions in the [network configuration guide](/pages/network-configuration.html) to open a bash shell in one of the API server pods. Navigate to the "/visulate-server/config" directory. Use the cat command to view the contents of the "database.js" file. 
+
+```
+bash-4.2# cd /visulate-server/config
+bash-4.2# cat database.js
+```
+
+This file holds the credentials that the API server read on startup to establish database connection pools. See the [database registration guide](/pages/database-registration.html) for additional details
+
+### Test your firewall rules
+
+Follow the steps in the [network configuration guide](/pages/network-configuration.html)
+
+### Check the Visulate account permissions  
 
 The database account does not need to be called "VISULATE". You can use any account that has been granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY. It must not have any additional privileges. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set. These appear in the API Server log file
 ```
@@ -13,6 +39,6 @@ The database account does not need to be called "VISULATE". You can use any acco
          "timestamp":"2020-05-11T19:41:04.414Z"}
 ```
 
+## Lost database registration file
 
-
-## Test your firewall rules
+See [Check the username, password and connect string](#check-the-username-password-and-connect-string) step above.
