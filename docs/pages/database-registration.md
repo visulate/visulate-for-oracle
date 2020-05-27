@@ -98,6 +98,9 @@ Apply the secret:
 $ kubectl apply --namespace=test-ns -f secret.yaml
 ```
 
+**Tip:** keep a copy of the database registration file for future use. For example, when [updating to a new version](/pages/upgrade-guide.html) of Visulate or to create a new secret after changing the database passwords.  
+
+
 The secret details should now appear in the Kubernetes UI.
 
 ![Kubernetes Secret](/images/db-secret.png){: class="screenshot" }
