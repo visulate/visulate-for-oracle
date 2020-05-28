@@ -20,7 +20,7 @@ shopt -s nullglob
 # Waits until Ingress is healthy. Can be removed when
 # https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/pull/315 is
 # merged.
-until kubectl get ingress "${APP_INSTANCE_NAME}-visulate-ingress" \
+until kubectl get ingress "${APP_INSTANCE_NAME}-igs" \
   --namespace "${NAMESPACE}" \
   --output jsonpath='{.metadata.annotations.ingress\.kubernetes\.io/backends}' \
   | jq -e '(.[] == "HEALTHY")'
@@ -28,7 +28,7 @@ do
   sleep 3
 done
 
-EXTERNAL_IP="$(kubectl get ingress/${APP_INSTANCE_NAME}-visulate-ingress \
+EXTERNAL_IP="$(kubectl get ingress/${APP_INSTANCE_NAME}-igs \
   --namespace ${NAMESPACE} \
   --output jsonpath='{.status.loadBalancer.ingress[0].ip}')"
 

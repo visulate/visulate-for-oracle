@@ -60,3 +60,8 @@ typings/
 
 # next.js build output
 .next
+
+# dev environment files
+dev-files/
+docs/Gemfile.lock
+docs/_site/
