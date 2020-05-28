@@ -31,8 +31,9 @@ async function initialize() {
         await oracledb.createPool(endpoint.connect);
     } catch (err) {
       logger.log('error', err);
-      logger.log('error', endpoint);
-    }
+      logger.log('error', 
+      `Connection failed for poolAlias ${endpoint.connect.poolAlias} using ${endpoint.connect.user}@${endpoint.connect.connectString}`);
+    } 
   }
 }
 module.exports.initialize = initialize;
