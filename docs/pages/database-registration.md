@@ -139,7 +139,7 @@ metadata:
         name: logfiles
 status: {}
 ```
-**Tip:** the API server deployment manifest is quite long, look for a volumes secret called "config-database-volume"
+**Tip:** the API server deployment manifest is quite long, look for a volumes secret called "config-database-volume". It should have a default secretName in the form {{ .Release.Name }}-empty-database-array
 
 Validate the edited manifest:
 ```

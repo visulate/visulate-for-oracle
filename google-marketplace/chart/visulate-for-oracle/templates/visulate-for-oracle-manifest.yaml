@@ -75,7 +75,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ .Release.Name }}-database-js
+  name: {{ .Release.Name }}-empty-database-array
 type: Opaque
 stringData:
   database.js: |-
@@ -187,7 +187,7 @@ spec:
       volumes:
         - name: config-database-volume
           secret:
-            secretName: {{ .Release.Name }}-database-js
+            secretName: {{ .Release.Name }}-empty-database-array
         - name: logfiles
           emptyDir: {}
         - name: ubbagent-state
