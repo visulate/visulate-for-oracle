@@ -121,3 +121,7 @@ Leave the old instance running for a couple of days if it is running on the publ
 ## Remove the old instance
 
 Delete the old instance using the GCP Console. Navigate to the Applications screen (Kubernetes Engine -> Applications), select the checkbox associated with the old instance then press the `DELETE` button.
+
+## Cleanup network resources
+
+Use the GCP Console to review the list of load balancers (Network services -> Load balancing) and external IP addresses (VPC network -> External IP addresses). You may need to delete some resources manually. Orphaned resources may appear if the combined length of the namespace and application name of the old instance exceeded 32 characters see [GCP Marketplace Tools issue 495](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/issues/495). They can also occur if the load balancer that supports the ingress was edited directly. Adding a new IP address and forwarding rule (described above) would be an example of this.
