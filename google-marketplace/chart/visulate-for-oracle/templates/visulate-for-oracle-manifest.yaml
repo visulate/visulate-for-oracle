@@ -88,8 +88,6 @@ metadata:
   labels:
     app: {{ .Chart.Name }}
     component: {{ .Values.apiServer.label }}
-  annotations:
-    cloud.google.com/neg: '{"ingress": true}'
 spec:
   type: NodePort
   selector:
@@ -213,8 +211,6 @@ type: kubernetes.io/tls
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    cloud.google.com/neg: '{"ingress": true}'
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
   labels:
     app: {{ .Chart.Name }}

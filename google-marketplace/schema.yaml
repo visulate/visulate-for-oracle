@@ -1,5 +1,4 @@
 ---
-
 x-google-marketplace:
   schemaVersion: v2
   applicationApiVersion: v1beta1
@@ -53,7 +52,7 @@ properties:
             rulesFromRoleName: edit
   apiServer.replicas:
     type: integer
-    default: 1
+    default: 2
     description: Desired number of API server Pods
   apiServer.corsOriginWhitelist:
     type: string
@@ -61,23 +60,24 @@ properties:
     description: |
       Comma separated list of UI origin servers that are allowed to make API calls. 
       Example:  https://mydomain.com, https://mydomain.net:445, http://35.45.9.55:8080 
-      Leave blank to allow requests from any origin.
+      Enter * to allow requests from any origin.  Most deployments can leave this blank 
+      to prevent cross origin requests.
   apiServer.port:
     type: integer
     default: 3000
     description: The API Server's network port
   ui.replicas:
     type: integer
-    default: 1
+    default: 2
     description: Desired number of UI Pods
   ui.port:
     type: integer
     default: 80
-    description: The network port for http requests to the UI
+    description: The network port for http requests
   ui.tlsPort:
     type: integer
     default: 443
-    description: The network port for SSL/TLS requests to the UI
+    description: The network port for SSL/TLS requests
   certificate:
     type: string
     x-google-marketplace:
