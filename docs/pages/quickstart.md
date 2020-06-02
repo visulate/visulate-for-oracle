@@ -35,7 +35,7 @@ The **combined length** of the namespace and instance names **should not exceed 
 
 ## Wait for instance to reach ready state
 
-It may take up to 10 minutes for the instance to deploy. Most of this time is spent creating network resources to support the ingress component.
+It may take over 10 minutes for the instance to deploy. Most of this time is spent creating network resources to support the ingress component.
 
 ![Components Pending](/images/mp-components-pending.png){: class="screenshot" }
 
@@ -180,4 +180,4 @@ Click on the "Visulate for Oracle" title at the top (center) of the screen to re
 
 - Delete the GKE Cluster if it is no longer required.
 - Drop the visulate user from the database. Login to SQL*Plus as SYSTEM and run `drop user visulate cascade;`
-- Verify the Load balancer that was created to support the Ingress resource has been removed (see the [troubleshooting guide](/pages/troubleshooting.html) for details).
+- Verify the Load balancer that was created to support the Ingress resource has been removed (see the [troubleshooting guide](/pages/troubleshooting.html#orphaned-network-resources) for details).

@@ -10,6 +10,9 @@ sections:
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
   - name: How-to guides
     items:
+      - title: "Installation"
+        href: "/pages/install-guide.html"
+        description: "How-to instructions for installing Visulate for Oracle"
       - title: "Setup a database account"
         href: "/pages/database-setup.html"
         description: "Visulate for Oracle needs a user with the minimum privileges to read the data dictionary in each database."
