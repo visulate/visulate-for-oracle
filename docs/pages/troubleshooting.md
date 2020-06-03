@@ -46,3 +46,8 @@ See [Check the username, password and connect string](#check-the-username-passwo
 
 ## Orphaned network resources
 The **combined length** of the namespace and instance names **should not exceed 32 characters**. This avoids the potential for orphaned network resources when the instance is deleted. See [GCP Marketplace Tools issue 495](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/issues/495)
+
+## Database registration failure
+
+### Pod unschedulable
+https://cloud.google.com/kubernetes-engine/docs/troubleshooting#PodUnschedulable
