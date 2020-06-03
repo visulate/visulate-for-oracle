@@ -52,7 +52,7 @@ properties:
             rulesFromRoleName: edit
   apiServer.replicas:
     type: integer
-    default: 2
+    default: 1
     description: Desired number of API server Pods
   apiServer.corsOriginWhitelist:
     type: string
@@ -68,7 +68,7 @@ properties:
     description: The API Server's network port
   ui.replicas:
     type: integer
-    default: 2
+    default: 1
     description: Desired number of UI Pods
   ui.port:
     type: integer
