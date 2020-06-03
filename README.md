@@ -81,4 +81,5 @@ docker run --rm -d -p 80:80/tcp -v /var/log/visulate-client:/var/log/nginx visul
 docker run -d -p 3000:3000/tcp -v /home/pgoldtho/config:/visulate-server/config visulate-server:latest
 ```
 ## Kubernetes Deployment
-Comming soon! Visulate for Oracle will soon be available from Google Cloud Marketplace.
+
+Follow instructions in the [install guide](https://docs.visulate.net/pages/install-guide.html)
