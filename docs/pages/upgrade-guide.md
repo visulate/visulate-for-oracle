@@ -101,7 +101,9 @@ curl -v https://demo.visulate.net/api/ --resolve "demo.visulate.net:443:35.190.4
 < via: 1.1 google
 < alt-svc: clear
 < 
-{"endpoints":[{"endpoint":"vis13","description":"Visulate test instance","connectString":"138.18.65.178:1521/vis13","schemas":{"FLOWS_FILES":[{"OWNER":"FLOWS_FILES","OBJECT_TYPE":"INDEX","OBJECT_COUNT":5},{"OWNER":"FLOWS_FILES","OBJECT_TYPE":"SYNONYM","OBJECT_COUNT":5},{"OWNER":"FLOWS_FILES","OBJECT_TYPE":"TABLE","OBJECT_COUNT":1},{"OWNER":"FLOWS_FILES","OBJECT_TYPE":"TRIGGER","OBJECT_COUNT":1}],"GOLDTHORP":[{"OWNER":"GOLDTHORP","OBJECT_TYPE":"INDEX","OBJECT_COUNT":19},{"OWNER":"GOLDTHORP","OBJECT_TYPE":"PACKAGE","OBJECT_COUNT":8},{"OWNER":"GOLDTHORP","OBJECT_TYPE":"PACKAGE BODY","OBJECT_COUNT":8},{"OWNER":"GOLDTHORP","OBJECT_TYPE":"SEQUENCE","OBJECT_COUNT":3},{"OWNER":"GOLDTHORP","OBJECT_TYPE":"TABLE","OBJECT_COUNT":10},{"OWNER":"GOLDTHORP","OBJECT_TYPE":"VIEW","OBJECT_COUNT":7}],"OWBSYS_AUDIT":[{"OWNER":"OWBSYS_AUDIT","OBJECT_TYPE":"SYNONYM","OBJECT_COUNT":12}],"PERFSTAT":[{"OWNER":"PERFSTAT","OBJECT_TYPE":"INDEX","OBJECT_COUNT":72},{"OWNER":"PERFSTAT","OBJECT_TYPE":"PACKAGE","OBJECT_COUNT":1},{"OWNER":"PERFSTAT","OBJECT_TYPE":"PACKAGE BODY","OBJECT_COUNT":1},{"OWNER":"PERFSTAT","OBJECT_TYPE":"SEQUENCE","OBJECT_COUNT":1},{"OWNER":"PERFSTAT","OBJECT_TYPE":"TABLE","OBJECT_COUNT":72},{"OWNER":"PERFSTAT","OBJECT_TYPE":"VIEW","OBJECT_COUNT":1}],"RNTMGR2":[{"OWNER":"RNTMGR2","OBJECT_TYPE":"INDEX","OBJECT_COUNT":267},{"OWNER":"RNTMGR2","OBJECT_TYPE":"MATERIALIZED VIEW","OBJECT_COUNT":7},{"OWNER":"RNTMGR2","OBJECT_TYPE":"PACKAGE","OBJECT_COUNT":74},{"OWNER":"RNTMGR2","OBJECT_TYPE":"PACKAGE BODY","OBJECT_COUNT":74},{"OWNER":"RNTMGR2","OBJECT_TYPE":"PROCEDURE","OBJECT_COUNT":1},{"OWNER":"RNTMGR2","OBJECT_TYPE":"SEQUENCE","OBJECT_COUNT":51},{"OWNER":"RNTMGR2","OBJECT_TYPE":"TABLE","OBJECT_COUNT":140},{"OWNER":"RNTMGR2","OBJECT_TYPE":"TYPE","OBJECT_COUNT":16},{"OWNER":"RNTMGR2","OBJECT_TYPE":"VIEW","OBJECT_COUNT":64}],"SCOTT":[{"OWNER":"SCOTT","OBJECT_TYPE":"INDEX","OBJECT_COUNT":2},{"OWNER":"SCOTT","OBJECT_TYPE":"TABLE","OBJECT_COUNT":4}]}}]}
+{"endpoints":[{"endpoint":"vis13","description":"Visulate test instance","connectString":
+ ...
+}]}
 ```
 
 ### Test the browser UI locally
@@ -119,8 +121,7 @@ Test the API and UI and verify its behavior.
 Leave the old instance running for a couple of days if it is running on the public internet. This will allow time for root name servers and cache records across the entire web to be updated. 
 
 ## Remove the old instance
-
-Delete the old instance using the GCP Console. Navigate to the Applications screen (Kubernetes Engine -> Applications), select the checkbox associated with the old instance then press the `DELETE` button.
+Delete the IP address and forwarding rule from the old load balancer (Network services -> Load balancing) then delete the old instance. Navigate to the Applications screen (Kubernetes Engine -> Applications), select the checkbox associated with the old instance then press the `DELETE` button.
 
 ## Cleanup network resources
 

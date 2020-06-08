@@ -45,61 +45,81 @@ Parameter values are described in the [Oracle node-oracledb](https://oracle.gith
 
 ## Register your databases
 
-The initial deployment from GCP Marketplace provisions an API Server with no registered databases. You must create and apply a database registration file. This is done using a Kubernetes Secret.
+The initial deployment from GCP Marketplace provisions an API Server with no registered databases. You must create and apply a database registration file. A Kubernetes Secret is used to deliver a database registration file to the cluster. After the secret has been applied the API Server deployment is updated to use it. 
 
 ![Update Database Connections](/images/update-database-connections.png)
 
-### Apply a new Kubernetes secret
+### Create a database registration file
 
-Create a Secret manifest to identify your database connections. Cut and paste the example secret below into a text editor or [download from GitHub](https://raw.githubusercontent.com/visulate/visulate-for-oracle/master/api-server/database-setup/sample-db-registration-secret.yaml). Edit connections in the endpoints array to identify the databases you want to register. Add or remove connection objects as needed.  Make a note of the metadata name ("oracle-database-connections" in the example) for use in the deployment manifest.
+Create a registration file to identify your database connections. Cut and paste the secret below into a text editor or [download from GitHub](https://raw.githubusercontent.com/visulate/visulate-for-oracle/master/api-server/database-setup/sample-db-registration.js). Edit connections in the endpoints array to identify the databases you want to register. Add or remove connection objects as needed.  
 ```
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: oracle-database-connections
-stringData:
-  database.js: |-
-    const endpoints = [
-    { namespace: 'oracle18XE',
-      description: '18c XE pluggable database instance running in a docker container',
-      connect: { poolAlias: 'oracle18XE',
-                user: 'visulate',
-                password: 'HtuUDK%?4JY#]L3:',
-                connectString: 'db20.visulate.net:41521/XEPDB1',
-                poolMin: 4,
-                poolMax: 4,
-                poolIncrement: 0
-              }
-    },
-    { namespace: 'oracle11XE',
-      description: '11.2 XE database',
-      connect: { poolAlias: 'oracle11XE',
-                user: 'visulate',
-                password: '7>rC4P?!~U42tS^^',
-                connectString: 'db20.visulate.net:49161/XE',
-                poolMin: 4,
-                poolMax: 4,
-                poolIncrement: 0
-              }
-    }
-    ];
-    module.exports.endpoints = endpoints;
+const endpoints = [
+{ namespace: 'oracle18XE',
+  description: '18c XE pluggable database instance running in a docker container',
+  connect: { poolAlias: 'oracle18XE',
+            user: 'visulate',
+            password: 'HtuUDK%?4JY#]L3:',
+            connectString: 'db20.visulate.net:41521/XEPDB1',
+            poolMin: 4,
+            poolMax: 4,
+            poolIncrement: 0
+          }
+},
+{ namespace: 'oracle11XE',
+  description: '11.2 XE database',
+  connect: { poolAlias: 'oracle11XE',
+            user: 'visulate',
+            password: '7>rC4P?!~U42tS^^',
+            connectString: 'db20.visulate.net:49161/XE',
+            poolMin: 4,
+            poolMax: 4,
+            poolIncrement: 0
+          }
+}
+];
+module.exports.endpoints = endpoints;
+```
+**Tip:** keep a copy of the database registration file for future use. For example, when [updating to a new version](/pages/upgrade-guide.html) 
+of Visulate or to create a new secret after changing the database passwords. 
+
+### Validate the file for JavaScript syntax errors
+
+Use a JavaScript code editor or lint tool to check the registration file for syntax errors before continuing. 
+For example, a missing comma in the endpoints object would look like this in in Visual Studio Code:
+
+![JavaScript syntax error](/images/js-syntax-error.png)
+
+or this in `jshint`:
+
+```shell
+# install jshint (do this once)
+sudo npm install -g jshint
+
+# create a configuration file (do this once)
+echo '{ "esversion": 6 }' > /tmp/jshint.conf 
+
+# test the file
+jshint --config /tmp/jshint.conf db-registration.js 
+
+sample-db-registration.js: line 13, col 1, Expected ']' to match '[' from line 1 and instead saw '{'.
+sample-db-registration.js: line 13, col 2, Missing semicolon.
+sample-db-registration.js: line 13, col 14, Label 'namespace' on oracle11XE statement.
+sample-db-registration.js: line 14, col 3, Expected an assignment or function call and instead saw an expression.
+sample-db-registration.js: line 14, col 14, Missing semicolon.
+sample-db-registration.js: line 14, col 3, Unrecoverable syntax error. (53% scanned).
+
+6 errors
 ```
 
-Validate the edited secret:
-```
-$ kubectl apply --dry-run --validate --namespace=test-ns -f secret.yaml
+### Apply the registration file as a new Kubernetes secret
+
+Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:  
+
+```shell
+kubectl create secret generic oracle-database-connections --from-file=database.js=./db-registration.js --namespace=test-ns
 ```
 
-Apply the secret:
-```
-$ kubectl apply --namespace=test-ns -f secret.yaml
-```
-
-**Tip:** keep a copy of the database registration file for future use. For example, when [updating to a new version](/pages/upgrade-guide.html) of Visulate or to create a new secret after changing the database passwords.  
-
+**Note:** the secret name is not important but **the secret's key must be `database.js`** 
 
 The secret details should now appear in the Kubernetes UI.
 
@@ -120,7 +140,7 @@ Download the API Server deployment manifest
 kubectl get deploy test-deployment-visulate-for-oracle-api --namespace=test-ns -oyaml > deployment.yaml
 ```
 
-Edit the downloaded deployment manifest. Update the secretName with the value from the previous step.
+Edit the downloaded deployment manifest. Update the secretName with the value from the previous step (use `kubectl get secret` if you forgot to make a note the value).
 ```
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -139,11 +159,11 @@ metadata:
         name: logfiles
 status: {}
 ```
-**Tip:** the API server deployment manifest is quite long, look for a volumes secret called "config-database-volume". It should have a default secretName in the form {{ .Release.Name }}-empty-database-array
+**Tip:** the API server deployment manifest is quite long, look for a volumes secret called "config-database-volume". It should have a default secretName in the form {{ Release.Name }}-empty-database-array
 
 Validate the edited manifest:
 ```
-$ kubectl apply --dry-run --validate --namespace=test-ns -f deployment.yaml
+$ kubectl apply --dry-run=client --validate --namespace=test-ns -f deployment.yaml
 ```
 
 Apply the deployment manifest:
@@ -157,4 +177,4 @@ Note: the API server deployment can also be updated using the GKE UI as shown in
 ## Deregister connections
 Database connections that are no longer required should be deregistered to avoid unnecessary charges.
 
- Deregistration follows the same process as registration. A new secret is applied with the connection removed and the API Server deployment is updated.
+Deregistration follows the same process as registration. A new secret is applied with the connection removed and the API Server deployment is updated.

@@ -53,7 +53,7 @@ Click on the Load balancer IP address to open the Visulate for Oracle UI. Ingres
 
 ![UI Homepage](/images/ui-screen.png){: class="screenshot" }
 
-Edit the url changing "/database" to "/api/". This should make a call to the API server.
+Edit the url changing "/database" to "/api/". This should make a call to the API server. **Tip:** make sure you include the trailing slash "/" in "/api/"
 
 ![Empty API Response](/images/empty-api-response.png){: class="screenshot" }
 
@@ -78,41 +78,32 @@ Note: the API server runs a query on startup to verify account privileges. It dr
 
 ## Register your database connection
 
-A kubernetes secret is used to pass database connection details to the instance. Open a text editor and create a file called db-connection-secret.yaml. With the following content:
+A kubernetes secret is used to pass database connection details to the instance. Open a text editor and create a file called db-connections.js. With the following content:
 ```
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: oracle-database-connections
-stringData:
-  database.js: |-
-    const endpoints = [
-    { namespace: 'vis13',
-      description: 'Test instance',
-      connect: { poolAlias: 'vis13',
-                user: 'visulate',
-                password: 'jkafDD!@997',
-                connectString: 'dev115.visulate.net:1521/vis13',
-                poolMin: 4,
-                poolMax: 4,
-                poolIncrement: 0
-              }
-    }
-    ];
-    module.exports.endpoints = endpoints;
+const endpoints = [
+{ namespace: 'vis13',
+  description: 'Test instance',
+  connect: { poolAlias: 'vis13',
+            user: 'visulate',
+            password: 'jkafDD!@997',
+            connectString: 'dev115.visulate.net:1521/vis13',
+            poolMin: 4,
+            poolMax: 4,
+            poolIncrement: 0
+          }
+}
+];
+module.exports.endpoints = endpoints;
 ```
 
 Edit the password and connectString values to match the ones for your database instance.
 
-Use `kubectl` to verify and apply the file. Example:
+Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:  
+
+```shell
+kubectl create secret generic oracle-database-connections --from-file=database.js=./db-connections.js 
 ```
-$ kubectl apply --dry-run --validate --namespace=test-nat-ns -f db-connection-secret.yaml
-secret/oracle-database-connections created (dry run)
-$ kubectl apply --namespace=test-nat-ns -f db-connection-secret.yaml
-secret/oracle-database-connections created
-```
+**Note:** the secret's name is not important but **it's key must be `database.js`** 
 
 Open the API deployment screen (from GCP -> Kubernetes Engine -> Workloads) and press the `Edit` button
 
