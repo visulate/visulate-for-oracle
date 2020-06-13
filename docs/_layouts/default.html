@@ -2,6 +2,7 @@
 <html lang="{{ site.lang | default: "en-US" }}">
   <head>{% for section in site.data.menu.sections %}{% for item in section.items %}{% if item.href == page.url %}
     <title>{{ item.title }} Visulate for Oracle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <meta name="description" content="{{ item.description }}"/>{% endif %}{% endfor %}{% endfor %}
     <meta charset="UTF-8">
     {% if site.google_analytics %}

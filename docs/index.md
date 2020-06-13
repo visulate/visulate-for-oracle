@@ -29,7 +29,7 @@
         <div class="content">
           <h3>One tool</h3>
           <p>Single tool to catalog the company’s Oracle databases. No server agents to install and manage.
-           No client code to download or host via Citrix. </p>
+           No client code to download or host via Citrix. Does not require Oracle REST Data Services (ORDS) install.</p>
         </div>
       </article>
       <article>
@@ -52,8 +52,9 @@
       <article>
         <span class="icon solid fa-file"></span>
         <div class="content">
-          <h3>DDL Download</h3>
-          <p>Generate and download DDL for individual objects or groups of objects.</p>
+          <h3>PL/SQL and DDL</h3>
+          <p>Examine PL/SQL packages and procedures. Extract SQL statements from them. Identify dependencies on other database objects.
+          Generate and download DDL for individual objects or groups of objects. </p>
         </div>
       </article>
       <article>
@@ -80,14 +81,18 @@
 </div>
 
 ### On-Premises to Cloud migration
-Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify candidates for conversion to other database engines. Examine custom PL/SQL and other database related program logic (stored procedures, triggers, scripts, and so on) and re-write for the cloud.
+Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects vs candidates for conversion to microservices or other database engines. Download the DDL for refactoring. Find direct and indirect dependencies for objects in microservice candidates.
 
-Download the DDL to refactor a single monolithic schema for use in microservices. Find direct and indirect dependencies for objects and groups of objects. Extract SQL statements from stored procedures. Catalog and analyze Oracle database instances on Oracle Cloud Platform or other Cloud providers.
+### Re-write PL/SQL for the cloud
+Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages.
+
+### Decommission zombie database instances
+Review the contents of old databases. What are they running? Are they still needed or were they left running because no one turned them off. Identify targets for consolidation or decommissioning.
 
 ### Custom development
 Document custom code in your Commercial-off-the-shelf (COTS) application database. Review the schema definitions in your E-Business Suite database. Examine dependencies before a schema change. Download and diff the DDL for objects in development and test environments.
 
 ### License management
-Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Review the contents of old databases. What are they really running? Identify targets for consolidation or decommissioning.
+Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Catalog and analyze Oracle database instances on Oracle Cloud Platform or other Cloud providers.
 
 
