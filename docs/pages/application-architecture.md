@@ -1,3 +1,6 @@
+* TOC
+{:toc id="toc"}
+
 ## Application Architecture
 
 ![Architecture diagram](/images/database-connections.png)
@@ -30,4 +33,4 @@ Web users connect to the application via an Ingress resource. Http path rules in
 
 The UI and API Server deployment manifests include sidecar containers to support Google Cloud Platform (GCP) integration. The UI and API Server manifests use sidecar containers to make log file contents available to Stackdriver. The API Server manifest creates 2 additional sidecars to support GCP Marketplace.
 
-The application's [helm chart](https://github.com/visulate/visulate-for-oracle/tree/master/google-marketplace/chart/visulate-for-oracle) is available in GitHub (note: GCP Marketplace applications rely on a pre-processing step to populate the values.yaml file in the help chart.)
+The application's [helm chart](https://github.com/visulate/visulate-for-oracle/tree/master/google-marketplace/chart/visulate-for-oracle) is available in GitHub. The [install guide](/pages/install-guide.html#command-line-instructions) has instructions for using it.

@@ -44,7 +44,7 @@
       <article>
         <span class="icon solid fa-sitemap"></span>
         <div class="content">
-          <h3>Database Objects</h3>
+          <h3>Database Object Reporting</h3>
          <p>Search and browse the data dictionary in each database.  Create bookmarks and links to schemas and objects.</p>
          <p>Query the database's dependency model to identify dependencies to and from the object (e.g a view "uses" the tables it is based on and is "used by" a procedure that selects from it).</p>
         </div>
@@ -81,7 +81,7 @@
 </div>
 
 ### On-Premises to Cloud migration
-Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects vs candidates for conversion to microservices or other database engines. Download the DDL for refactoring. Find direct and indirect dependencies for objects in microservice candidates.
+Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines. Download the DDL for refactoring. Find direct and indirect dependencies for objects in microservice candidates.
 
 ### Re-write PL/SQL for the cloud
 Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages.
@@ -93,6 +93,6 @@ Review the contents of old databases. What are they running? Are they still need
 Document custom code in your Commercial-off-the-shelf (COTS) application database. Review the schema definitions in your E-Business Suite database. Examine dependencies before a schema change. Download and diff the DDL for objects in development and test environments.
 
 ### License management
-Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Catalog and analyze Oracle database instances on Oracle Cloud Platform or other Cloud providers.
+Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Catalog and analyze Oracle database instances on GCP Bare Metal, Oracle Cloud Platform or other Cloud providers.
 
 
