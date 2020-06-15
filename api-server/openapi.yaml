@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.0.0
+  version: 1.0.6
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
