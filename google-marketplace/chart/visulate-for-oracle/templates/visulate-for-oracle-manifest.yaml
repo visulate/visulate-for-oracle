@@ -64,7 +64,7 @@ data:
         identity: gcp
         # The service name is unique to your application and will be
         # provided during onboarding.
-        serviceName: visulate-for-oracle.visulate-llc-public.appspot.com
+        serviceName: visulate-for-oracle.mp-visulate-llc-public.appspot.com
         consumerId: $AGENT_CONSUMER_ID  # From the reporting secret.
 
     # The sources section lists metric data sources run by the agent
