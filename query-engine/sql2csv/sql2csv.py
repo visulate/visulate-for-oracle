@@ -1,9 +1,8 @@
-import functools
 import csv
 import cx_Oracle
 
 from flask import (
-    Blueprint, Response, flash, g, redirect, request, abort
+    Blueprint, Response, request, abort
 )
 
 
