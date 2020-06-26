@@ -65,3 +65,4 @@ typings/
 dev-files/
 docs/Gemfile.lock
 docs/_site/
+.vscode/

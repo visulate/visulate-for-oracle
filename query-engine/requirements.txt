@@ -1,0 +1,14 @@
+click==7.1.2
+cx-Oracle==7.3.0
+Flask==1.1.2
+itsdangerous==1.1.0
+Jinja2==2.11.2
+lml==0.0.9
+MarkupSafe==1.1.1
+pyexcel==0.6.2
+pyexcel-io==0.5.20
+pyexcel-webio==0.1.4
+texttable==1.6.2
+uWSGI==2.0.19.1
+waitress==1.4.4
+Werkzeug==1.0.1
