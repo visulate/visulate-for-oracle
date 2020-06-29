@@ -1,0 +1,2 @@
+include sql2csv/sql2csv.py
+global-exclude *.pyc

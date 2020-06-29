@@ -11,9 +11,10 @@ RUN yum install -y python36 && \
     python3.6 -m pip install cx_Oracle &&\
     rm -rf /var/cache/yum
 
-# FROM tiangolo/uwsgi-nginx-flask:python3.8-alpine
-# RUN apk --update add bash vim gcc && python3 -m pip install cx_Oracle --upgrade
-ENV STATIC_URL /static
-ENV STATIC_PATH /var/www/app/static
 COPY ./requirements.txt /var/www/requirements.txt
 RUN python3.6 -m pip install -r /var/www/requirements.txt
+
+COPY ./dist/sql2csv-1.0.0-py3-none-any.whl /var/www/sql2csv-1.0.0-py3-none-any.whl
+RUN python3.6 -m pip install /var/www/sql2csv-1.0.0-py3-none-any.whl
+
+CMD exec waitress-serve --call 'sql2csv:create_app'
