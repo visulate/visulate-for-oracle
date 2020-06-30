@@ -21,7 +21,6 @@ const logger = require('./logger.js');
 const util = require('./util');
 const endpointList = getEndpointList(dbConfig.endpoints);
 const dbConstants = require('../config/db-constants');
-const e = require('express');
 
 /**
  * Gets a list of endpoints
