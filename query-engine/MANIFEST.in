@@ -1,2 +1,3 @@
 include sql2csv/sql2csv.py
+graft sql2csv/config
 global-exclude *.pyc

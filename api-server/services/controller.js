@@ -100,6 +100,32 @@ async function getEndpoints(req, res, next) {
 
 module.exports.getEndpoints = getEndpoints;
 
+/**
+ * Implements GET /endpoints
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ */
+
+async function getEndpointConnections(req, res, next) {
+  try {
+    const filter= req.query.filter;
+    const databaseList = await endpoints(filter);
+    let endpointConnections = {}
+    databaseList.forEach(entry => {
+      let key = entry.endpoint;
+      let value = entry.connectString;
+      endpointConnections[key] = value;
+    });
+      
+
+    res.status(200).json(endpointConnections);
+  } catch (err) {
+    next(err);
+  }
+}
+module.exports.getEndpointConnections = getEndpointConnections;
+
 async function executeSearch(searchCondition) {
   let query = sql.statement['FIND-DBA-OBJECTS']
   query.params.object_name = searchCondition.toUpperCase();

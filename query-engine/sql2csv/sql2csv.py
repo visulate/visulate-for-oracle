@@ -2,7 +2,7 @@ import csv
 import cx_Oracle
 
 from flask import (
-    Blueprint, Response, request, abort
+    Blueprint, Response, request, abort, current_app
 )
 
 
@@ -61,14 +61,23 @@ def get_cursor(connection, sql, binds):
         print(errorObj.message)
         abort(400, description=errorObj.message)     
 
+def get_connect_string(endpoint):
+    connectString = current_app.endpoints.get(endpoint)
+    if connectString == None:
+        abort(404, "Unregistered endpoint")
+    else:
+        return connectString
 
-@bp.route('/sql', methods=('GET', 'POST')) 
-def sql2csv():
+
+
+@bp.route('/sql/<endpoint>', methods=['POST', 'GET']) 
+def sql2csv(endpoint):
+
     if request.method == 'POST':
         query = request.json
         user = request.authorization.username
         passwd = request.authorization.password
-        connStr = request.headers.get('X-Connect-String')
+        connStr = get_connect_string(endpoint)
 
         connection = get_connection(user, passwd, connStr)
         cursor = get_cursor(connection, query.get('sql'), query.get('binds'))
@@ -76,5 +85,9 @@ def sql2csv():
         response = Response(pipe_results(connection, cursor), 
                             mimetype='text/csv')
         response.headers['Content-Disposition'] = 'attachment; filename=data.csv'
-        return response   
+        return response
+    
+    # return connect string or 404 for GET request
+    response = get_connect_string(endpoint)
+    return response
 

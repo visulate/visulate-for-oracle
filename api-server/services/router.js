@@ -50,6 +50,9 @@ router.route('/')
 router.route('/api')
   .get(controller.getEndpoints);
 
+router.route('/endpoints')
+  .get(controller.getEndpointConnections);
+
 router.use('/api-docs', swaggerUi.serve);
 router.route('/api-docs')
   .get(swaggerUi.setup(swaggerDoc));
