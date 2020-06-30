@@ -1,9 +1,14 @@
 import os
+import json
 from flask import Flask, jsonify
 from werkzeug.exceptions import HTTPException
 
 def create_app(test_config=None):
     # create and configure the app
+
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    endpoints_file = os.path.join(basedir, 'config/endpoints.json')
+
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY='dev',       
@@ -21,6 +26,9 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    with open(endpoints_file, "r") as file:
+       app.endpoints = json.loads(file.read())
 
     @app.errorhandler(Exception)
     def handle_error(e):

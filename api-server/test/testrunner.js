@@ -44,6 +44,16 @@ it('GET /api endpoints should return object type count', (done) => {
   });
 });
 
+it('GET /endpoints should return object type count', (done) => {
+  chai.request(BASE_URL)
+  .get('/endpoints')
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.should.be.a('object');
+    done();
+  });
+});
+
 it('GET /api-docs should return swagger-ui', (done) => {
   chai.request(BASE_URL)
   .get('/api-docs')
