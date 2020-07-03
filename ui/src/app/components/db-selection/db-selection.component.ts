@@ -29,6 +29,8 @@ import { environment } from '../../../environments/environment';
   styleUrls: ['./db-selection.component.css']
 })
 
+
+
  /**
   * Code to maintain the Database -> Schema -> Object Type form
   * Displays the current selections on startup and triggers a router
@@ -42,6 +44,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
   public ddlLink: string;
+  public showInternal: boolean;
 
 
   constructor(
@@ -66,6 +69,12 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
       this.router.navigate
         ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
     }
+  }
+
+  setShowInternal(value: boolean){
+    this.currentContext.setShowInternal(value);
+    this.state.setCurrentContext(this.currentContext);
+    
   }
 
   setSchema(schema: SchemaModel) {

@@ -35,6 +35,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -44,7 +45,8 @@ import { MainNavComponent } from './components/main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
 import { DbContentComponent } from './components/db-content/db-content.component';
 import { FindObjectComponent } from './components/find-object/find-object.component';
- 
+import { HideInternalPipe } from './models/hide-internal.pipe';
+  
 import { HighlightModule} from 'ngx-highlightjs';
 import pgsql from 'highlight.js/lib/languages/pgsql';
 import sql from 'highlight.js/lib/languages/sql';
@@ -67,7 +69,8 @@ export function hljsLanguages() {
     DbObjectListComponent,
     DbContentComponent,
     FindObjectComponent,
-    FilterObjectsComponent
+    FilterObjectsComponent,
+    HideInternalPipe
   ],
   imports: [
     BrowserModule,
@@ -92,6 +95,7 @@ export function hljsLanguages() {
     MatFormFieldModule,
     MatInputModule,
     MatAutocompleteModule,
+    MatCheckboxModule,
     HighlightModule.forRoot({
       languages: hljsLanguages
     })

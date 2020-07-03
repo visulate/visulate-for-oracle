@@ -13,10 +13,13 @@
         </mat-form-field>
 
         <mat-form-field *ngIf="currentEndpoint">
+            
             <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
-                <mat-option *ngFor="let schema of currentEndpoint.schemas" [value]="schema">
-                    {{schema.owner}}
+                <mat-checkbox (change)="setShowInternal($event.checked)" [checked]="currentContext.showInternal"  >Show Internal</mat-checkbox>
+                <mat-option *ngFor="let schema of currentEndpoint.schemas | hideInternal:currentContext.showInternal" [value]="schema">
+                  {{schema.owner}}
                 </mat-option>
+                <mat-option disabled></mat-option>
             </mat-select>
         </mat-form-field>
 

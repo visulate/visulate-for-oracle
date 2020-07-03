@@ -40,12 +40,7 @@ statement['COUNT_DBA_OBJECTS'] = {
   'display': [],
   'sql' : `select owner, object_type, count(*) as object_count
            from dba_objects o
-           where not exists (select 1
-                             from dba_logstdby_skip l
-                             where l.owner = o.owner
-                             and l.statement_opt = 'INTERNAL SCHEMA')
-           and owner not in ('PUBLIC')
-           and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+           where object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
            group by owner, object_type
            order by owner, object_type`,
@@ -182,10 +177,6 @@ statement['DB-SEGMENTS'] = {
            , round(sum(bytes/1024/1024/1024),2) as "Size (GB)"
            , owner as link
            from dba_segments s
-           where not exists (select 1
-            from dba_logstdby_skip l
-            where l.owner = s.owner
-            and l.statement_opt = 'INTERNAL SCHEMA')
            group by s.owner
            order by 2 desc`,
    'params': {

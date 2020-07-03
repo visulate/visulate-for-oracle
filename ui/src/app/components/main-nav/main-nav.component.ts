@@ -69,7 +69,7 @@ export class MainNavComponent implements OnInit, OnDestroy {
         const context = this.state.getCurrentContext();
         const priorContext = new CurrentContextModel
                 (context.endpoint, context.owner, context.objectType, 
-                 context.objectName, context.filter, context.objectList);
+                 context.objectName, context.filter, context.showInternal, context.objectList);
 
         const db = params.get('db');
         const schema = params.get('schema');

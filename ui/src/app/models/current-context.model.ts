@@ -24,6 +24,7 @@ export class CurrentContextModel {
    * @param objectType - object type (as returned by DBA_OBJECTS)
    * @param objectName - an object name
    * @param filter - object name filter e.g. 'dba_*'
+   * @param showInternal - show/hide internal schemas
    * @param objectList - list of objects that match the other parameters
    */
   constructor(
@@ -32,6 +33,7 @@ export class CurrentContextModel {
     public objectType: string,
     public objectName: string,
     public filter: string,
+    public showInternal: boolean,
     public objectList: string[]) { }
 
   public setEndpoint(endpoint: string) {
@@ -63,6 +65,10 @@ export class CurrentContextModel {
     this.filter = filter;
   }
 
+  public setShowInternal(showInternal: boolean){
+    this.showInternal = showInternal;
+  }
+
   public setObjectList(list: string[]){
     this.objectList = list;
   }
@@ -81,6 +87,7 @@ export class CurrentContextModel {
   public findCurrentObjectType(schema: SchemaModel): ObjectTypeListItem {
     return schema.objectTypes.find(objectType => objectType.type === this.objectType);
   }
+
 }
 
 export class ContextBehaviorSubjectModel {

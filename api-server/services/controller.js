@@ -63,6 +63,7 @@ function formatEndpoint(endpoint, objectCountRows) {
 
 async function endpoints(filter) {
   let query = sql.statement['COUNT_DBA_OBJECTS'];
+
   if (filter && filter !== '*'){
     query = sql.statement['COUNT_DBA_OBJECTS_FILTER'];
     query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
@@ -108,21 +109,44 @@ module.exports.getEndpoints = getEndpoints;
  */
 
 async function getEndpointConnections(req, res, next) {
-  try {
-    const filter= req.query.filter;
-    const databaseList = await endpoints(filter);
-    let endpointConnections = {}
-    databaseList.forEach(entry => {
-      let key = entry.endpoint;
-      let value = entry.connectString;
-      endpointConnections[key] = value;
-    });
-      
+  const connectionStatus = req.query.status;
+  let validConnections = [];
+  let invalidConnections = [];
 
-    res.status(200).json(endpointConnections);
-  } catch (err) {
-    next(err);
+  for (let ep of dbConfig.endpoints) {
+    try {
+        await dbService.pingConnection(ep.connect.poolAlias);
+        validConnections.push(ep)
+    } catch (err) {
+      ep['error'] = err.message;
+      invalidConnections.push(ep);
+      if (err.type && err.type==='timeout') {        
+        dbService.closePool(ep.connect.poolAlias);
+      }      
+    }
   }
+
+  let endpointConnections = {}
+  validConnections.forEach(entry => {
+    let key = entry.connect.poolAlias;
+    let value = entry.connect.connectString;
+    endpointConnections[key] = value;
+  });
+
+  let invalidEndpointConnections = {}
+  invalidConnections.forEach(entry => {
+    let key = entry.connect.poolAlias;
+    let value = {
+      connectString: entry.connect.connectString, 
+      error: entry.error 
+    };
+    invalidEndpointConnections[key] = value;
+  });
+      
+  (connectionStatus === 'invalid')? 
+    res.status(200).json(invalidEndpointConnections): 
+    res.status(200).json(endpointConnections);
+
 }
 module.exports.getEndpointConnections = getEndpointConnections;
 
