@@ -47,3 +47,31 @@ function extractSqlStatements(source) {
 }
 
 module.exports.extractSqlStatements = extractSqlStatements;
+/**
+ * Return the result of a promise if it completes before a timeout period
+ * specified in milliseconds.
+ * https://italonascimento.github.io/applying-a-timeout-to-your-promises/
+ * 
+ * @param {*} ms - timeout period
+ * @param {*} message - timeout message
+ * @param {*} promise - promise to execute
+ */
+function promiseTimeout(ms, message, promise){
+    
+    const timeout = new Promise((resolve, reject) => {
+        let id = setTimeout(() => {
+            clearTimeout(id);
+            reject({
+                type: 'timeout',
+                message: `${message} timed out in ${ms} ms`
+            })
+        }, ms)
+        });
+
+    return Promise.race([
+    promise,
+    timeout
+    ]);
+}
+module.exports.promiseTimeout = promiseTimeout;    
+

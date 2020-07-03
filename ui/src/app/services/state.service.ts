@@ -39,13 +39,14 @@ export class StateService {
   private _objectType: string = '';
   private _objectName: string = '';
   private _filter: string = '';
+  private _showInternal: boolean = false;
   private _objectList: string[];
 
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
   private subjectContext =
           new BehaviorSubject<ContextBehaviorSubjectModel> (new ContextBehaviorSubjectModel(
-            new  CurrentContextModel('', '', '', '', '', []),
-            new  CurrentContextModel('', '', '', '', '', []),
+            new  CurrentContextModel('', '', '', '', '', false, []),
+            new  CurrentContextModel('', '', '', '', '', false, []),
             []));
 
   endpoints$ = this.endpointList.asObservable();
@@ -62,6 +63,7 @@ export class StateService {
     returnValue['objectTypeDiff'] = (c1.objectType !== c2.objectType);
     returnValue['objectNameDiff'] = (c1.objectName !== c2.objectName);
     returnValue['filterDiff'] = (c1.filter !== c2.filter);
+    returnValue['showInternalDiff'] = (c1.showInternal !== c2.showInternal);
     return(returnValue);
   }
 
@@ -71,12 +73,13 @@ export class StateService {
     this._objectType = context.objectType;
     this._objectName = context.objectName;
     this._filter = context.filter;
+    this._showInternal = context.showInternal;
     this._objectList = context.objectList;
   }
 
   getStoredContext(){
     return new CurrentContextModel(this._endpoint, this._owner, this._objectType, 
-      this._objectName, this._filter, this._objectList);
+      this._objectName, this._filter, this._showInternal, this._objectList);
   }
 
   setCurrentContext(context: CurrentContextModel) {

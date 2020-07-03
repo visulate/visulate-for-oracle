@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { environment } from '../../environments/environment';
 import { Deserializable } from './deserializable.model';
+
 export class EndpointListModel implements Deserializable {
   /**
    * Container for array of API endpoints.  Each endpoint
@@ -55,6 +56,7 @@ export class SchemaModel implements Deserializable {
    * Database user/owner and count of objects by type.
    */
   public owner: string;
+  public internal: boolean;
   public objectTypes: ObjectTypeListItem[];
 
   deserialize(input: any): this {
@@ -118,11 +120,12 @@ function convertSchema(input: any): SchemaModel[] {
  */
   const outputSchemas = [];
   Object.keys(input).forEach((schema) => {
+    const internal = environment.internalSchemas.includes(schema);
     const objectTypes = input[schema].map((t) => {
       return {type: t.OBJECT_TYPE, count: t.OBJECT_COUNT};
     });
     outputSchemas.push(
-      {owner: schema, objectTypes}
+      {owner: schema, internal: internal, objectTypes}
     );
   });
   return(outputSchemas);
