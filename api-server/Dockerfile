@@ -14,7 +14,7 @@
 
 FROM oraclelinux:7-slim
 ARG oracleRelease=19
-ARG oracleUpdate=5
+ARG oracleUpdate=6
 
 RUN  yum -y install oracle-release-el7  oracle-nodejs-release-el7 && \
      yum-config-manager --enable ol7_oracle_instantclient && \
@@ -24,6 +24,8 @@ RUN  yum -y install oracle-release-el7  oracle-nodejs-release-el7 && \
 
 WORKDIR /visulate-server
 COPY . /visulate-server
+
+COPY ./database-setup/sqlnet.ora /usr/lib/oracle/${oracleRelease}.${oracleUpdate}/client64/lib/network/admin
 
 ENV PATH=$PATH:/usr/lib/oracle/${oracleRelease}.${oracleUpdate}/client64/bin
 

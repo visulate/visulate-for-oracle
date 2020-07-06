@@ -143,7 +143,7 @@ spec:
               value: "{{ .Values.corsOriginWhitelist }}"
           readinessProbe:
             httpGet:
-              path: /api/
+              path: /endpoints/
               port: {{ .Values.apiServer.port }}
             initialDelaySeconds: 40
             periodSeconds: 20
@@ -304,6 +304,10 @@ spec:
             backend:
               serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
               servicePort: {{ .Values.apiServer.port }}
+          - path: "/endpoints/*"
+            backend:
+              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+              servicePort: {{ .Values.apiServer.port }}              
           - path: "/api-docs/*"
             backend:
               serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc

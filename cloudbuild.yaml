@@ -6,32 +6,44 @@ steps:
          '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION',
          '.']
   dir: 'api-server'
+  waitFor: ['-']
+
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION' ]
+
 # UI
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
          '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION',
          '.']
   dir: 'ui'
+  waitFor: ['-']
+
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION' ]
+
 # Util image
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
          '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION',
          '.']
   dir: 'google-marketplace/util-image'
+  waitFor: ['-']
+
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION' ]
+ 
 #tester  
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
          '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
          '.']
   dir: 'google-marketplace/apptest/tester'
+  waitFor: ['-']
+
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION' ]
+  
 # Deployer
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
@@ -41,9 +53,12 @@ steps:
          '-f', 'deployer/Dockerfile',
          '.']
   dir: 'google-marketplace'
+  waitFor: ['-']
+
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer']
-
+  
+timeout: 1200s
 substitutions:
     _APP_NAME: visulate-for-oracle
     _VERSION: 1.0.10
