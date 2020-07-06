@@ -112,7 +112,7 @@ it('GET Simple Search', (done) => {
   chai.request(BASE_URL)
   .get(`/find/rnt_menus_pkg`)
   .end((err, res) => {
-  //  console.log(JSON.stringify(res.body, null, 2));
+    //console.log(JSON.stringify(res.body, null, 2));
     expect(res).to.have.status(200);
     res.body.result.should.be.a('array');
     res.body.result.length.should.equal(2);

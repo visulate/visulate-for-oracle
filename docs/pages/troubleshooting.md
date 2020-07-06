@@ -76,6 +76,14 @@ guide to generate a new one.
 ## Registered database does not appear in the UI drop down
 Follow these steps if the database registration succeeds but some (or all) of your databases are missing.
 
+### Call the /endpoints api
+The endpoints api lists valid and invalid database connections. Call the api with no arguments to get a list of valid connections. Pass `status=invalid` as a get parameter to identify invalid ones. Example:
+
+```
+curl https://catalog.visulate.net:3000/endpoints?status=invalid
+{"ora18xe":{"connectString":"ap884.visulate.net:91521/XEPDB1","error":"Get connection timed out after 5000 ms"}}
+```
+
 ### Review the API Server deployment log files
 The API Server writes logfile entries when the connection fails. These can be accessed from the Deployment details page of the GKE console by selecting the "Container logs" link. They can also be accessed from an api server pod. Use kubectl exec to login to the pod. The logfiles are located in the /visulate-server/logs directory.
 

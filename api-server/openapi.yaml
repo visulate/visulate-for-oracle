@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.0.6
+  version: 1.0.12
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
@@ -22,10 +22,50 @@ info:
 servers:
   - url: '/'
 paths:
-  /api/:
+  /endpoints/:
     summary: Database endpoints
-    get:
+    get: 
       summary: List database endpoints
+      parameters:
+        - in: query
+          name: status
+          description: toggle result to retrieve valid/invalid endpoints
+          required: false
+          schema:
+            type: string
+            example: invalid
+      description: >-
+        Gets valid or invalid database endpoints as an object of name:value pairs. 
+        Response name is the endpoint name. The response value 
+        is the connect string for valid connections. Invalid connections are returned as
+        and object with the connect string as the first item and error as the second.
+      responses:
+        200:
+          description: Endpoint list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoint:
+                    type: string
+                    example: oracle18XE
+                  connectString:
+                    type: string
+                    example: db.visulate.net:1521/XEPDB1
+                  status:
+                    type: object
+                    properties:
+                      connectString:
+                        type: string
+                        example: db.visulate.net:1521/XEPDB1
+                      error:
+                        type: string
+                        example: Get connection timed out after 5000 ms
+  /api/:
+    summary: Database 
+    get:
+      summary: Database summary
       parameters:
         - in: query
           name: filter
