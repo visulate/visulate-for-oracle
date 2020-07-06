@@ -100,10 +100,14 @@ module.exports.close = close;
  * @param {*} opts - Execution options
  */
 async function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
+  try {
       const conn = await getConnection(poolAlias);
       const result = await query(conn, statement, binds, opts);
       await closeConnection(conn);
       return result;
+  } catch(err){
+    logger.log('error', err);
+  }
 }
 module.exports.simpleExecute = simpleExecute;
 
@@ -115,7 +119,8 @@ module.exports.simpleExecute = simpleExecute;
 function getConnection(poolAlias){
   return new Promise(async (resolve, reject) => {
     try {
-      const connection = await oracledb.getConnection(poolAlias);
+      const connection = await 
+        util.promiseTimeout(5000, 'Get connection', oracledb.getConnection(poolAlias));
       resolve(connection);
     } catch (err) {
       logger.log('error', err);

@@ -119,10 +119,7 @@ async function getEndpointConnections(req, res, next) {
         validConnections.push(ep)
     } catch (err) {
       ep['error'] = err.message;
-      invalidConnections.push(ep);
-      if (err.type && err.type==='timeout') {        
-        dbService.closePool(ep.connect.poolAlias);
-      }      
+      invalidConnections.push(ep); 
     }
   }
 
@@ -157,7 +154,9 @@ async function executeSearch(searchCondition) {
   for (const ep of dbConfig.endpoints) {
     try {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
-      rows.push({database: ep.namespace, objects: result});
+      if (result){
+        rows.push({database: ep.namespace, objects: result});
+      }      
     } catch (err) {
       logger.log('error', `controller.js executeSearch() failed for ${ep.connect.poolAlias}`);    }
   }
@@ -197,13 +196,18 @@ async function getDbDetails(req, res, next) {
 
   let queryCollection = sql.collection['DATABASE'];
   let result = [];
-  const connection = await dbService.getConnection(poolAlias);
-  for (let c of queryCollection.noParamQueries) {
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+  try {
+    const connection = await dbService.getConnection(poolAlias);
+    for (let c of queryCollection.noParamQueries) {
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+    await dbService.closeConnection(connection);
+    res.status(200).json(result);
+  } catch(err){
+    res.status(503).send(err);
   }
-  await dbService.closeConnection(connection);
-  res.status(200).json(result);
+
 }
 module.exports.getDbDetails = getDbDetails;
 
@@ -214,36 +218,41 @@ module.exports.getDbDetails = getDbDetails;
  * @param {*} next - next matching route
  */
 async function getSchemaDetails(req, res, next) {
-  const poolAlias = endpointList[req.params.db];
-  if (!poolAlias) {
-    res.status(404).send("Requested database was not found");
-    return;
-  }
-  let queryCollection = sql.collection['SCHEMA'];
-  let result = [];
-  let connection = await dbService.getConnection(poolAlias);
-  for (let c of queryCollection.ownerNameQueries) {
-    c.params.owner.val = req.params.owner;
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-  }
-  await dbService.closeConnection(connection);
-
-
-  // Queries that support object_name filters
-  const filter = req.query.filter;
-  queryCollection = sql.collection['SCHEMA-FILTERED'];
-  connection = await dbService.getConnection(poolAlias);
-  for (let c of queryCollection.ownerNameQueries) {
-    c.params.owner.val = req.params.owner;
-    if (filter){
-      c.params.object_name.val = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+  try{
+    const poolAlias = endpointList[req.params.db];
+    if (!poolAlias) {
+      res.status(404).send("Requested database was not found");
+      return;
     }
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    let queryCollection = sql.collection['SCHEMA'];
+    let result = [];
+    let connection = await dbService.getConnection(poolAlias);
+    for (let c of queryCollection.ownerNameQueries) {
+      c.params.owner.val = req.params.owner;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+    await dbService.closeConnection(connection);
+  
+  
+    // Queries that support object_name filters
+    const filter = req.query.filter;
+    queryCollection = sql.collection['SCHEMA-FILTERED'];
+    connection = await dbService.getConnection(poolAlias);
+    for (let c of queryCollection.ownerNameQueries) {
+      c.params.owner.val = req.params.owner;
+      if (filter){
+        c.params.object_name.val = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+      }
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+    await dbService.closeConnection(connection);
+    result[0].rows.length === 0? res.status(404).send("Invalid database username"): res.status(200).json(result);
+  } catch (err) {
+    res.status(503).send(err);
   }
-  await dbService.closeConnection(connection);
-  result[0].rows.length === 0? res.status(404).send("Invalid database username"): res.status(200).json(result);
+
 }
 module.exports.getSchemaDetails = getSchemaDetails;
 

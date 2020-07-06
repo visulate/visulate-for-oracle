@@ -63,7 +63,7 @@ function promiseTimeout(ms, message, promise){
             clearTimeout(id);
             reject({
                 type: 'timeout',
-                message: `${message} timed out in ${ms} ms`
+                message: `${message} timed out after ${ms} ms`
             })
         }, ms)
         });

@@ -7,7 +7,8 @@ const endpoints = [
             connectString: 'db225.visulate.net:41521/XEPDB1',
             poolMin: 4,
             poolMax: 4,
-            poolIncrement: 0
+            poolIncrement: 0,
+            poolPingInterval: 0
           }
 },
 { namespace: 'oracle11XE',
@@ -18,7 +19,8 @@ const endpoints = [
             connectString: 'db225.visulate.net:49161/XE',
             poolMin: 4,
             poolMax: 4,
-            poolIncrement: 0
+            poolIncrement: 0,
+            poolPingInterval: 0
           }
 }
 ];
