@@ -73,12 +73,20 @@ docker run -d -p 80:80/tcp visulate-client:latest
 ```
 5. (Optional) bind the log file directories to a persistent volume (e.g /var/log/some-directory)
 ```
-docker run -d -p 3000:3000/tcp -v /var/log/visulate-server:/visulate-server/logs visulate-server:latest
-docker run --rm -d -p 80:80/tcp -v /var/log/visulate-client:/var/log/nginx visulate-client:latest
+docker run -d -p 3000:3000/tcp \
+-v /var/log/visulate-server:/visulate-server/logs \
+visulate-server:latest
+
+docker run --rm -d -p 80:80/tcp \
+-v /var/log/visulate-client:/var/log/nginx \
+visulate-client:latest
 ```
 6. (Optional) Copy the `visulate-for-oracle/config` files to a staging directory before starting the server. This will allow you to edit the database registration file and CORS whitelist without rebuilding the image. Example:
 ```
-docker run -d -p 3000:3000/tcp -v /home/pgoldtho/config:/visulate-server/config visulate-server:latest
+docker run -d -p 3000:3000/tcp \
+-v /home/pgoldtho/config:/visulate-server/config \
+-v /var/log/visulate-server:/visulate-server/logs \
+visulate-server:latest
 ```
 ## Kubernetes Deployment
 
