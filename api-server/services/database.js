@@ -119,11 +119,10 @@ module.exports.simpleExecute = simpleExecute;
 function getConnection(poolAlias){
   return new Promise(async (resolve, reject) => {
     try {
-      const connection = await 
-        util.promiseTimeout(5000, 'Get connection', oracledb.getConnection(poolAlias));
+      const connection = await oracledb.getConnection(poolAlias);
       resolve(connection);
     } catch (err) {
-      logger.log('error', err);
+      logger.log('error', err.message);
       reject(err);
     }
   });
@@ -141,19 +140,12 @@ function pingConnection(poolAlias){
   return new Promise(async (resolve, reject) => {
     try {
       const pool = oracledb.getPool(poolAlias);
-      // Wait 5 seconds for promise to return before failing with a timeout
-      const connection = await util.promiseTimeout(5000, 'Get connection', pool.getConnection());
-      const pingError = await util.promiseTimeout(5000, 'Ping connection', connection.ping()) ;   
-      await closeConnection(connection); 
-      if (pingError) {
-        logger.log('error', `${poolAlias} health check failed ${pingError}`)
-        reject(pingError);
-      }      
+      const connection = await pool.getConnection();
+      await closeConnection(connection);   
       resolve();
     } catch (err) {
-      if (err.type && err.type==='timeout'){
-         logger.log('error', `${poolAlias} health check timed out`);
-      }
+      
+      logger.log('error', `${poolAlias} health check failed: ${err.message}`);
       reject(err);     
     }
   });

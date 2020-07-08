@@ -32,6 +32,7 @@ dbConfig.endpoints.forEach(endpoint => {
 logger.log('info', '===============================================================')
 logger.log('info', `Oracle connection pool thread requirement = ${threadRequirement}`)
 process.env.UV_THREADPOOL_SIZE = threadRequirement + defaultThreadPoolSize;
+logger.log('info', `UV_THREADPOOL_SIZE set to ${process.env.UV_THREADPOOL_SIZE}` )
 
 async function startup() {
   logger.log('info', 'Starting application');
