@@ -141,13 +141,13 @@ spec:
           env:
             - name: CORS_ORIGIN_WHITELIST
               value: "{{ .Values.corsOriginWhitelist }}"
-          readinessProbe:
+          livenessProbe:
             httpGet:
               path: /endpoints/
               port: {{ .Values.apiServer.port }}
             initialDelaySeconds: 40
-            periodSeconds: 20
-            timeoutSeconds: 3
+            periodSeconds: 60
+            timeoutSeconds: 20
         # Sidecar containers
         # Echo logs to stdout where Stackdriver can access them
         - name: message-log
