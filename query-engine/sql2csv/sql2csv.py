@@ -5,7 +5,6 @@ from flask import (
     Blueprint, Response, request, abort, current_app
 )
 
-
 bp = Blueprint('sql2csv', __name__, url_prefix='/')
 
 class Line(object):
@@ -67,8 +66,6 @@ def get_connect_string(endpoint):
         abort(404, "Unregistered endpoint")
     else:
         return connectString
-
-
 
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET']) 
 def sql2csv(endpoint):
