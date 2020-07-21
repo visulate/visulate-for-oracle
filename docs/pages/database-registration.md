@@ -186,7 +186,9 @@ $ curl https://visulate.mycorp.com/endpoints/
 {"mptest":"35.232.143.223:51521/XEPDB1"}
 ```
 
-The registed connections should also appear in the database dropdown in the UI. Follow the steps in the  [troubleshooting guide](/pages/troubleshooting.html) if some or all of your database connections are missing
+The registed connections should also appear in the database dropdown in the UI. 
+
+Follow the steps in the  [troubleshooting guide](/pages/troubleshooting.html) if some or all of your database connections are missing
 
 ## Deregister connections
 Database connections that are no longer required should be deregistered to avoid unnecessary charges.
