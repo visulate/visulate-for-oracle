@@ -1,6 +1,7 @@
 import os
 import json
 from flask import Flask, jsonify
+from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
 def create_app(test_config=None):
@@ -8,6 +9,7 @@ def create_app(test_config=None):
     endpoints_file = os.path.join(basedir, 'config/endpoints.json')
 
     app = Flask(__name__, instance_relative_config=True)
+    CORS(app)
     
     with open(endpoints_file, "r") as file:
        app.endpoints = json.loads(file.read())

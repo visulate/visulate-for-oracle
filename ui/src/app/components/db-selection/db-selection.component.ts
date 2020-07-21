@@ -16,6 +16,7 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
+import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
@@ -49,7 +50,8 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
   constructor(
     private state: StateService,
-    private router: Router) { }
+    private router: Router,
+    private restService: RestService) { }
 
   setDdlLink(){
     if (this.currentContext && this.currentSchema && !(environment.internalSchemas.includes(this.currentSchema.owner))) {
@@ -73,8 +75,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
   setShowInternal(value: boolean){
     this.currentContext.setShowInternal(value);
-    this.state.setCurrentContext(this.currentContext);
-    
+    this.state.setCurrentContext(this.currentContext);    
   }
 
   setSchema(schema: SchemaModel) {
@@ -100,6 +101,20 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Set the SQL enabled flag = true if the endpoint connect string 
+   * is registered in the query engine
+   * @param endpoint - current endpoint name
+   * @param connectString - current connect string
+   */
+  setSqlEnabled(endpoint: string, connectString: string){
+      this.restService.getConnectString$(endpoint)
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(qeConnectString => {
+        this.state.saveSqlEnabled((connectString === qeConnectString))
+      });
+  }
+
+  /**
    * Update the object type selection form on initial load
    * @param endpoints - database endpoint list subscription
    */
@@ -108,6 +123,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
     if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
+      this.setSqlEnabled(this.currentEndpoint.endpoint, this.currentEndpoint.connectString);
     }
     if (this.currentContext && this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);
@@ -127,6 +143,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
+      this.setSqlEnabled(this.currentEndpoint.endpoint, this.currentEndpoint.connectString);
     }
     if (this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);

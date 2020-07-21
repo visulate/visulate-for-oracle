@@ -2,6 +2,13 @@
 
 Generates a csv file from SQL.
 
+## Start development server
+
+```
+export FLASK_APP=sql2csv
+flask run
+```
+
 ## Build instructions
 
 Review version string in setup.py then create a wheel file

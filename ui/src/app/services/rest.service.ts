@@ -15,7 +15,7 @@
  */
 
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EndpointListModel } from '../models/endpoint.model';
@@ -50,9 +50,9 @@ export class RestService {
    * @param endpoint - the database endpoint
    */
   public getDatabaseProperties$(
-    endpoint: string   
+    endpoint: string
   ): Observable<DatabaseObjectModel> {
-    
+
     return this.http.get<DatabaseObjectModel>
     (`${environment.apiBase}/${endpoint}`);
   }
@@ -72,7 +72,7 @@ export class RestService {
   }
 
 
-/**
+ /**
  * Find objects in each registered database
  * @param searchTerm - database object name (DBA_OBJECTS.OBJECT_NAME)
  */
@@ -114,5 +114,40 @@ export class RestService {
         (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`);
     }
 
+  /**
+   * Get connect string for a given endpoint. Used to verify the endpoint has been registered with the query engine
+   * @param endpoint - database endpoint
+   */
+  public getConnectString$(
+    endpoint: string
+  ): Observable<string> {
+    return this.http.get
+      (`${environment.queryBase}/${endpoint}`, {responseType: 'text'} );
+  }
+
+
+  public sql2csv$(
+    url: string,
+    basicAuth: string,
+    sql: string,
+    binds: JSON): Observable<any> {
+
+      const httpOptions: Object = {
+        headers: new HttpHeaders({
+          'Content-Type':  'application/json',
+          'Authorization': `Basic ${basicAuth}`,
+          'Accept': 'application/json',
+          observe: 'response'
+
+        })
+      };
+      const bodycontent = {
+        'sql': sql,
+        'binds': binds
+      };
+
+     return this.http.post(`${url}`, JSON.stringify(bodycontent), httpOptions );
+
+    }
 
 }

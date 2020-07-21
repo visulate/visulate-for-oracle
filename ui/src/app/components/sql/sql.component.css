@@ -1,0 +1,37 @@
+ .sql  {
+    width: 98%;
+    }
+
+  .error {
+    color: red;
+    font-weight: bold;
+  }
+
+  textarea {
+      font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+    }
+
+  .mat-table {
+    overflow-x: scroll;
+  }
+
+  .mat-cell, .mat-header-cell {
+    word-wrap: initial;
+    display: table-cell;
+    padding: 0px 10px;
+    line-break: unset;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    vertical-align: middle;
+  }
+
+  .mat-row,
+  .mat-header-row {
+    display: table-row;
+  }
+
+  .scrollingRegion {
+    overflow: auto;
+    white-space: nowrap;
+  }
