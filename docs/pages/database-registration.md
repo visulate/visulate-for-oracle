@@ -178,6 +178,16 @@ $ kubectl apply --namespace=test-ns -f deployment.yaml
 
 Note: the API server deployment can also be updated using the GKE UI as shown in the [quickstart guide](/pages/quickstart.html#register-your-database-connection)
 
+### Test the connections
+Wait for the updated deployment to apply then test the connections.  Call the "endpoints" endpoint to list registered database connections: 
+
+```
+$ curl https://visulate.mycorp.com/endpoints/
+{"mptest":"35.232.143.223:51521/XEPDB1"}
+```
+
+The registed connections should also appear in the database dropdown in the UI. Follow the steps in the  [troubleshooting guide](/pages/troubleshooting.html) if some or all of your database connections are missing
+
 ## Deregister connections
 Database connections that are no longer required should be deregistered to avoid unnecessary charges.
 
