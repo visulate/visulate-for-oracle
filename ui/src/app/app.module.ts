@@ -46,11 +46,12 @@ import { DbObjectListComponent } from './components/db-object-list/db-object-lis
 import { DbContentComponent } from './components/db-content/db-content.component';
 import { FindObjectComponent } from './components/find-object/find-object.component';
 import { HideInternalPipe } from './models/hide-internal.pipe';
-  
+
 import { HighlightModule} from 'ngx-highlightjs';
 import pgsql from 'highlight.js/lib/languages/pgsql';
 import sql from 'highlight.js/lib/languages/sql';
 import { FilterObjectsComponent } from './components/filter-objects/filter-objects.component';
+import { SqlComponent } from './components/sql/sql.component';
 
 
 export function hljsLanguages() {
@@ -70,7 +71,8 @@ export function hljsLanguages() {
     DbContentComponent,
     FindObjectComponent,
     FilterObjectsComponent,
-    HideInternalPipe
+    HideInternalPipe,
+    SqlComponent
   ],
   imports: [
     BrowserModule,

@@ -103,9 +103,9 @@ module.exports.getEndpoints = getEndpoints;
 
 /**
  * Implements GET /endpoints
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
  */
 
 async function getEndpointConnections(req, res, next) {
@@ -119,29 +119,29 @@ async function getEndpointConnections(req, res, next) {
         validConnections.push(ep)
     } catch (err) {
       ep['error'] = err.message;
-      invalidConnections.push(ep); 
+      invalidConnections.push(ep);
     }
   }
 
   let endpointConnections = {}
   validConnections.forEach(entry => {
-    let key = entry.connect.poolAlias;
+    let key = entry.namespace;
     let value = entry.connect.connectString;
     endpointConnections[key] = value;
   });
 
   let invalidEndpointConnections = {}
   invalidConnections.forEach(entry => {
-    let key = entry.connect.poolAlias;
+    let key = entry.namespace;
     let value = {
-      connectString: entry.connect.connectString, 
-      error: entry.error 
+      connectString: entry.connect.connectString,
+      error: entry.error
     };
     invalidEndpointConnections[key] = value;
   });
-      
-  (connectionStatus === 'invalid')? 
-    res.status(200).json(invalidEndpointConnections): 
+
+  (connectionStatus === 'invalid')?
+    res.status(200).json(invalidEndpointConnections):
     res.status(200).json(endpointConnections);
 
 }
@@ -156,7 +156,7 @@ async function executeSearch(searchCondition) {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
       if (result){
         rows.push({database: ep.namespace, objects: result});
-      }      
+      }
     } catch (err) {
       logger.log('error', `controller.js executeSearch() failed for ${ep.connect.poolAlias}`);    }
   }
@@ -233,8 +233,8 @@ async function getSchemaDetails(req, res, next) {
       result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
     }
     await dbService.closeConnection(connection);
-  
-  
+
+
     // Queries that support object_name filters
     const filter = req.query.filter;
     queryCollection = sql.collection['SCHEMA-FILTERED'];
@@ -591,4 +591,3 @@ async function getCollection(req, res, next) {
   res.status(200).json(result);
 }
 module.exports.getCollection = getCollection;
-

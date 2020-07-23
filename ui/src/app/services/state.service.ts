@@ -41,6 +41,7 @@ export class StateService {
   private _filter: string = '';
   private _showInternal: boolean = false;
   private _objectList: string[];
+  private _sqlEnabled: boolean;
 
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
   private subjectContext =
@@ -48,9 +49,11 @@ export class StateService {
             new  CurrentContextModel('', '', '', '', '', false, []),
             new  CurrentContextModel('', '', '', '', '', false, []),
             []));
+  private sqlEnabled = new BehaviorSubject<boolean>(false);            
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
+  sqlEnabled$ = this.sqlEnabled.asObservable();
 
   getCurrentContext() {
     return this.getStoredContext();
@@ -65,6 +68,10 @@ export class StateService {
     returnValue['filterDiff'] = (c1.filter !== c2.filter);
     returnValue['showInternalDiff'] = (c1.showInternal !== c2.showInternal);
     return(returnValue);
+  }
+
+  getSqlEnabled(){
+    return this._sqlEnabled;
   }
 
   storeContextValues(context: CurrentContextModel) {
@@ -91,5 +98,10 @@ export class StateService {
 
   saveEndpoints(endpoints: EndpointListModel) {
     this.endpointList.next(endpoints);
+  }
+
+  saveSqlEnabled(sqlEnabled: boolean) {
+    this._sqlEnabled = sqlEnabled;
+    this.sqlEnabled.next(sqlEnabled);
   }
 }

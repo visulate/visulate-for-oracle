@@ -2,6 +2,13 @@
 
 Generates a csv file from SQL.
 
+## Start development server
+
+```
+export FLASK_APP=sql2csv
+flask run
+```
+
 ## Build instructions
 
 Review version string in setup.py then create a wheel file
@@ -10,7 +17,7 @@ Review version string in setup.py then create a wheel file
 python3 setup.py bdist_wheel
 ```
 
-Edit the `Dockerfile` to use the correct wheel file version: 
+Edit the `Dockerfile` to use the correct wheel file version:
 
 ```
 COPY ./dist/sql2csv-1.0.0-py3-none-any.whl /var/www/sql2csv-1.0.0-py3-none-any.whl
@@ -37,6 +44,7 @@ dXNlcm5hbWU6cGFzc3dvcmQ=
 curl --location --request POST 'localhost:8080/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
 --header 'Content-Type: application/json' \
+--header 'Accept: text/csv' \
 --data-raw '{"sql": "select prop_id, address1, city, zipcode from pr_properties where rownum < :r",
  "binds": {"r":9}}'
 
@@ -49,11 +57,12 @@ curl --location --request POST 'localhost:8080/sql/vis13' \
 76385,"810 WARREN CT W","TITUSVILLE","32780"
 76386,"810 WARREN ST W","TITUSVILLE","32780"
 
-# or using positional bind var:  
+# or using positional bind var:
 
 curl --location --request POST 'localhost:8080/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
 --header 'Content-Type: application/json' \
+--header 'Accept: text/csv' \
 --data-raw '{"sql": "select prop_id, address1, city, zipcode from pr_properties where rownum < :r",
  "binds": [9]}'
 
@@ -62,6 +71,7 @@ curl --location --request POST 'localhost:8080/sql/vis13' \
  curl --location --request POST 'localhost:8080/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
 --header 'Content-Type: application/json' \
+--header 'Accept: application/json' \
 --data-raw '{"sql": "select prop_id, address1, city, zipcode from pr_properties"}'
 
 ```

@@ -17,7 +17,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
-import { EndpointListModel } from '../../models/endpoint.model';
+import { EndpointListModel, EndpointModel } from '../../models/endpoint.model';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
@@ -44,19 +44,24 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   public ddlBase = environment.ddlGenBase;
   public ddlLink: string;
+  public connectString: string;
+  public currentEndpoint: EndpointModel;
+  public sqlEnabled: boolean;
+  public queryPanelExpanded: boolean = false;
 
 
   constructor(
     private restService: RestService,
     private state: StateService) {
 
-    }
+  }
 
   processObject(objectDetails: DatabaseObjectModel) {
     this.objectDetails = objectDetails;
   }
 
-  setDdlLink(endpoint: string, owner: string, type: string, name: string ){
+
+  setDdlLink(endpoint: string, owner: string, type: string, name: string) {
     if (environment.internalSchemas.includes(owner)) {
       this.ddlLink = '';
     } else {
@@ -72,36 +77,37 @@ export class DbContentComponent implements OnInit, OnDestroy {
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     let context = subjectContext.currentContext;
     this.currentContext = context;
+    this.sqlEnabled = this.state.getSqlEnabled();
 
     // Call the Endpoints API on startup and when the object filter changes
     if (subjectContext.priorContext.endpoint === '' ||
-        subjectContext.changeSummary.filterDiff ||
-        subjectContext.currentContext.endpoint === '') {
-          this.restService.getEndpoints$(context.filter)
-            .pipe(takeUntil(this.unsubscribe$))
-            .subscribe(endpoints => { this.state.saveEndpoints(endpoints); });
+      subjectContext.changeSummary.filterDiff ||
+      subjectContext.currentContext.endpoint === '') {
+      this.restService.getEndpoints$(context.filter)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(endpoints => { this.state.saveEndpoints(endpoints); });
     }
 
     // Call the database summary API when the user selects an endpoint
-    if (context.endpoint  && (! context.objectName)
-        && subjectContext.changeSummary.endpointDiff) {
+    if (context.endpoint && (!context.objectName)
+      && subjectContext.changeSummary.endpointDiff) {
       this.restService.getDatabaseProperties$(context.endpoint)
         .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => {this.processObject(result);});
+        .subscribe(result => { this.processObject(result); });
     }
 
     // Call the schema summary API when the user selects a new schema or the object filter changes
-    if (context.owner && (! context.objectName)
-        && (subjectContext.changeSummary.ownerDiff || subjectContext.changeSummary.filterDiff) ) {
+    if (context.owner && (!context.objectName)
+      && (subjectContext.changeSummary.ownerDiff || subjectContext.changeSummary.filterDiff)) {
       this.restService.getSchemaProperties$(context.endpoint, context.owner, context.filter)
         .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(result => {this.processObject(result);});
+        .subscribe(result => { this.processObject(result); });
     }
 
     // Call the object list API when the object type selection changes or a new filter is applied.
     if (context.endpoint && context.owner && context.objectType
-         && (subjectContext.changeSummary.objectTypeDiff || subjectContext.changeSummary.filterDiff)) {
-      const filter = (context.filter)? context.filter: '*';
+      && (subjectContext.changeSummary.objectTypeDiff || subjectContext.changeSummary.filterDiff)) {
+      const filter = (context.filter) ? context.filter : '*';
       this.restService.getObjectList$(context.endpoint, context.owner, context.objectType, filter)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => {
@@ -112,13 +118,20 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
     // Call the database object API on object selection
     if (context.endpoint && context.owner && context.objectType && context.objectName
-        && (subjectContext.changeSummary.objectNameDiff ||
-          subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff )) {
-            this.setDdlLink(context.endpoint, context.owner, context.objectType, context.objectName);
-            this.restService.getObjectDetails$
-            (context.endpoint, context.owner, context.objectType, context.objectName)
-              .pipe(takeUntil(this.unsubscribe$))
-              .subscribe(result => { this.processObject(result); });
+      && (subjectContext.changeSummary.objectNameDiff ||
+        subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff)) {
+
+      this.setDdlLink(context.endpoint, context.owner, context.objectType, context.objectName);
+      if ( context.objectType === 'TABLE' ||
+           context.objectType === 'VIEW'||
+           context.objectType === 'MATERIALIZED VIEW') {
+             this.queryPanelExpanded = true;
+           }
+
+      this.restService.getObjectDetails$
+        (context.endpoint, context.owner, context.objectType, context.objectName)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(result => { this.processObject(result); });
     }
 
   }
@@ -127,10 +140,13 @@ export class DbContentComponent implements OnInit, OnDestroy {
     this.currentContext = this.state.getCurrentContext();
     this.state.endpoints$
       .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(endpoints => { this.endpointList = endpoints; } );
+      .subscribe(endpoints => { this.endpointList = endpoints; });
     this.state.currentContext$
       .pipe(takeUntil(this.unsubscribe$))
-      .subscribe( context => { this.processContextChange(context); } );
+      .subscribe(context => { this.processContextChange(context); });
+    this.state.sqlEnabled$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(sqlEnabled => {this.sqlEnabled = sqlEnabled; });
   }
 
   ngOnDestroy() {

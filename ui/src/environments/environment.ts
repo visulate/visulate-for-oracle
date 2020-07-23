@@ -7,6 +7,7 @@ export const environment = {
   apiBase: window.location.protocol + '//' + window.location.hostname + ':3000/api',
   findObjectBase: window.location.protocol + '//' + window.location.hostname + ':3000/find',
   ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl',
+  queryBase:  window.location.protocol + '//' + window.location.hostname + ':5000/sql',
   internalSchemas:
   ['ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSFWUSER','DBSNMP','DIP','DVF','DVSYS',
    'GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','LBACSYS','MDSYS','OJVMSYS','OLAPSYS',

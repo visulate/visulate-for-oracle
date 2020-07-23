@@ -5,14 +5,30 @@
 </div>
 
 <ng-template #welcomeMsg>
-    <div class="homepage-banner">
+    <div class="homepage-banner" *ngIf="currentContext && !currentContext.owner">
        <h1>Oracle Database Catalog</h1>
     </div>
     <app-db-step-selection></app-db-step-selection>
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 </ng-template>
 
+
+
 <ng-template #queryResults>
+    <mat-accordion *ngIf="sqlEnabled && currentContext && currentContext.owner">
+        <mat-expansion-panel [(expanded)]=queryPanelExpanded>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                   Query Editor
+                </mat-panel-title>
+                <mat-panel-description>
+                  Generate a CSV file from SQL
+                </mat-panel-description>
+            </mat-expansion-panel-header>
+            <app-sql></app-sql>
+        </mat-expansion-panel>
+    </mat-accordion>
+
     <mat-accordion multi="true" *ngIf="objectDetails">
         <ng-container *ngFor="let property of objectDetails">
             <ng-container *ngIf="property.rows?.length > 0">

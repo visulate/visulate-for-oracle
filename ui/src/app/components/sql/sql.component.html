@@ -1,0 +1,74 @@
+<div>
+  <form #queryForm="ngForm">
+    <mat-form-field appearance="outline">
+      <mat-label>Username</mat-label>
+      <input matInput value="{{currentContext.owner}}" [disabled]="true" required name="owner">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Password</mat-label>
+      <input matInput [ngModel]="password" (ngModelChange)="processPassword($event)" type="password" required name="password">
+    </mat-form-field>
+    <br>
+    <mat-form-field appearance="outline" class="sql">
+        <mat-label>SQL Query</mat-label>
+        <textarea
+         [ngModel]="sqlStatement" name="sqlStatement" (ngModelChange)="sqlStatement=$event" required
+        matInput
+        cdkTextareaAutosize
+        #autosize="cdkTextareaAutosize"
+        cdkAutosizeMinRows="5"
+        cdkAutosizeMaxRows="100"></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="sql">
+        <mat-label>Bind Variables</mat-label>
+        <input matInput [ngModel]="bindVariables" (ngModelChange)="bindVariables=$event" name="bindVariables">
+        <mat-hint>An array e.g. [280, "Accounts"] or object {{'{'}} "dept_id": 280, "dept_name": "Accounts"{{'}'}} </mat-hint>
+      </mat-form-field>
+
+    <button mat-raised-button color="primary" (click)="executeSql()" [disabled]="queryForm.invalid" >Run Query</button>
+
+  </form>
+
+  <div class="scrollingRegion">
+    <table mat-table *ngIf="resultSet && resultSet.rows" [dataSource]="resultSet.rows">
+      <ng-container matColumnDef="{{col}}" *ngFor="let col of resultSet.columns">
+          <th mat-header-cell *matHeaderCellDef> {{col}}</th>
+          <td mat-cell *matCellDef="let element">
+
+              <ng-container >{{element[col]}}</ng-container>
+          </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="resultSet.columns"></tr>
+      <tr mat-row *matRowDef="let row; columns: resultSet.columns;"></tr>
+    </table>
+    <p *ngIf="resultSet && resultSet.message"><strong>{{resultSet.message}}</strong></p>
+    <p *ngIf="errorMessage" class="error">{{errorMessage}}</p>
+  </div>
+
+    <mat-card>
+      <mat-card-subtitle>CSV Curl</mat-card-subtitle>
+      <mat-card-content class="scrollingRegion">
+        <pre >
+          <code *ngIf="bindVariables">
+            curl --location --request POST '{{queryUrl}}' \
+            --header 'Authorization: Basic {{basicAuthCredentials}}' \
+            --header 'Content-Type: application/json' \
+            --header 'Accept: text/csv' \
+            --data-raw '{{ '{' }} "sql": "{{sqlStatement}}",
+            "binds":  {{bindVariables}}{{ '}' }}'
+          </code>
+          <code *ngIf="! bindVariables">
+            curl --location --request POST '{{queryUrl}}' \
+            --header 'Authorization: Basic {{basicAuthCredentials}}' \
+            --header 'Content-Type: application/json' \
+            --header 'Accept: text/csv' \
+            --data-raw '{{ '{' }} "sql": "{{sqlStatement}}"}'
+          </code>
+        </pre>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
