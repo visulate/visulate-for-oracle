@@ -31,40 +31,50 @@ export class SqlComponent implements OnInit {
     private state: StateService,
     private restService: RestService) { }
 
-
+  /**
+   * Update query form to reflect the current context
+   * @param subjectContext - currentContext$ observable
+   */
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
-      let context = subjectContext.currentContext;
-      this.currentContext = context;
+    let context = subjectContext.currentContext;
+    this.currentContext = context;
 
-      if (this.currentContext.objectName &&
-        (this.currentContext.objectType === 'TABLE' ||
-         this.currentContext.objectType === 'VIEW'||
-         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
-           this.sqlStatement = `select * from ${this.currentContext.objectName} where rownum < :maxrows`;
-           this.bindVariables = '{"maxrows": 10 }'
-           this.resultSet = new SqlModel();
-         }
-
+    if (this.currentContext.objectName &&
+      (this.currentContext.objectType === 'TABLE' ||
+        this.currentContext.objectType === 'VIEW' ||
+        this.currentContext.objectType === 'MATERIALIZED VIEW')) {
+      this.sqlStatement = `select * from ${this.currentContext.objectName} where rownum < :maxrows`;
+      this.bindVariables = '{"maxrows": 10 }'
+      this.resultSet = new SqlModel();
     }
+  }
 
-  public processPassword(password: string){
+
+  /**
+   * Generate basic auth header for request
+   * @param password - database password for current user
+   */
+  public processPassword(password: string) {
     this.password = password;
     this.basicAuthCredentials = btoa(`${this.currentContext.owner}:${password}`);
   }
 
 
-  public executeSql(){
+  /**
+   * Call the query engine API
+   */
+  public executeSql() {
     this.resultSet = new SqlModel();
     this.errorMessage = '';
-    const bindVars = this.bindVariables? JSON.parse(this.bindVariables): JSON.parse('[]');
+    const bindVars = this.bindVariables ? JSON.parse(this.bindVariables) : JSON.parse('[]');
     this.restService.sql2csv$(this.queryUrl, this.basicAuthCredentials, this.sqlStatement, bindVars)
-     .pipe(takeUntil(this.unsubscribe$))
-     .subscribe(result => {  this.showResult(result); },
-                error => { console.log(error); this.showError(error);}
-     );
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(result => { this.showResult(result); },
+        error => { this.showError(error); }
+      );
   }
 
-  public showResult(result: any){
+  public showResult(result: any) {
     this.resultSet = result
   }
 
@@ -77,11 +87,10 @@ export class SqlComponent implements OnInit {
     this.queryUrl = `${this.queryBase}/${this.currentContext.endpoint}`
 
     this.state.currentContext$
-    .pipe(takeUntil(this.unsubscribe$))
-    .subscribe(context => { this.processContextChange(context); });
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(context => { this.processContextChange(context); });
 
   }
-
 
   ngOnDestroy() {
     this.unsubscribe$.next();

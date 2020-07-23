@@ -18,9 +18,7 @@ class Line(object):
         return self._line
 
 def format_bytes(num):
-    """
-    this function will convert bytes to MB.... GB... etc
-    """
+    """Convert bytes to KB, MB, GB or TB"""
     step_unit = 1000.0 #1024 bad the size
 
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
@@ -28,21 +26,21 @@ def format_bytes(num):
             return "%3.1f %s" % (num, x)
         num /= step_unit
 
-
 def lobOutConverter(value):
+    """Return the LOB size instead of the LOB itself for display in UI"""
     lobsize = sys.getsizeof(value)
     lobsizeStr = format_bytes(lobsize)
     return f'LOB (size: {lobsizeStr})'
 
 def OutputTypeHandler(cursor, name, defaultType, size, precision, scale):
+    """Modify the fetched data types for LOB columns"""
     if defaultType == cx_Oracle.CLOB:
         return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=lobOutConverter)
     if defaultType == cx_Oracle.BLOB:
         return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=lobOutConverter)
 
-
-
 def iter_csv(data):
+    """pipe_results helper function"""
     line = Line()
     writer = csv.writer(line)
     for csv_line in data:
@@ -50,6 +48,7 @@ def iter_csv(data):
         yield line.read()
 
 def pipe_results(connection, cursor):
+    """Loop through a SQL statement's result set and return as CSV"""
     if cursor is None:
         connection.close()
         return "Statement processed"
@@ -67,6 +66,7 @@ def pipe_results(connection, cursor):
         abort(400, description=errorObj.message)
 
 def pipe_results_as_json(connection, cursor):
+    """Loop through a SQL statement's result set and return as a JSON object"""
     if cursor is None:
         connection.close()
         return Response('{"message": "Statement processed"}', mimetype='application/json')
@@ -95,8 +95,8 @@ def pipe_results_as_json(connection, cursor):
             abort(400, description=errorObj.message)
     return Response(generate(), mimetype='application/json')
 
-
 def get_connection(username, password, connectString):
+    """Get an Oracle database connection"""
     try:
         connection = cx_Oracle.connect(username, password, connectString)
         connection.outputtypehandler = OutputTypeHandler
@@ -108,6 +108,7 @@ def get_connection(username, password, connectString):
         return connection
 
 def get_cursor(connection, sql, binds):
+    """Create a cursor and execute a SQL statement"""
     try:
         cursor = connection.cursor()
         cursor.execute("set transaction read only")
@@ -121,6 +122,7 @@ def get_cursor(connection, sql, binds):
         abort(400, description=errorObj.message)
 
 def get_connect_string(endpoint):
+    """Get the connect string for a registered endpoint"""
     connectString = current_app.endpoints.get(endpoint)
     if connectString == None:
         return ''
@@ -130,13 +132,22 @@ def get_connect_string(endpoint):
 
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
 def sql2csv(endpoint):
+    """Generate a CSV file or JSON object from a SQL statement
+
+    POST a SQL statement + optional bind variables to a registered endpoint
+    passing the database username and password as basic auth credentials.
+    Returns a CSV stream or JSON object based on the value passed to the
+    http Accept header.
+
+    GET the connect string for a registered endpoint. Used by the UI to
+    control access to the query functionality.
+    """
 
     if request.method == 'POST':
         query = request.json
         user = request.authorization.username
         passwd = request.authorization.password
         connStr = get_connect_string(endpoint)
-
 
         connection = get_connection(user, passwd, connStr)
         cursor = get_cursor(connection, query.get('sql'), query.get('binds'))
