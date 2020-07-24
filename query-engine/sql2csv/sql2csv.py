@@ -2,6 +2,7 @@ import csv
 import sys
 import simplejson as json
 import cx_Oracle
+import sqlparse
 
 from flask import (
     Blueprint, Response, request, abort, current_app, make_response
@@ -126,7 +127,6 @@ def get_connect_string(endpoint):
     connectString = current_app.endpoints.get(endpoint)
     if connectString == None:
         return ''
-        # abort(404, "Unregistered endpoint")
 
     return connectString
 
@@ -148,11 +148,18 @@ def sql2csv(endpoint):
         user = request.authorization.username
         passwd = request.authorization.password
         connStr = get_connect_string(endpoint)
+        httpHeaders = request.headers
+
+        sql = query.get('sql')
+        statements = list(sqlparse.parse(sql))
+        for statement in statements:
+            if statement.get_type() != 'SELECT':
+                abort(403, description='SQL statement is not of type SELECT')
 
         connection = get_connection(user, passwd, connStr)
         cursor = get_cursor(connection, query.get('sql'), query.get('binds'))
 
-        if request.headers['accept'] == 'application/json':
+        if httpHeaders.get('accept') == 'application/json':
             response = pipe_results_as_json(connection, cursor)
         else:
             response = Response(pipe_results(connection, cursor),
@@ -160,7 +167,7 @@ def sql2csv(endpoint):
 
         return response
 
-    # return connect string or 404 for GET request
+    # return connect string or empty string for GET request
     response = make_response(get_connect_string(endpoint), 200)
     response.mimetype="text/plain"
     return response
