@@ -17,17 +17,31 @@ def test_get_valid_endpoint(client):
     response = client.get(f"/sql/{validEndpoint}")
     assert response.data == validConnectString.encode('utf-8')
     assert response.status_code == 200
-    
+
 def test_get_invalid_endpoint(client):
     response = client.get('/sql/invalid')
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.data == b''
 
 def test_simple_query(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
      json={"sql": "select banner from v$version"})
     assert response.status_code == 200
     assert response.data == b'"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production"\n'
+
+def test_simple_json_query(client):
+    response = client.post(f"/sql/{validEndpoint}",
+     headers={
+         "Authorization": f"Basic {credentials}",
+         "Content-Type": "application/json",
+         "Accept": "application/json"
+         },
+     json={"sql": "select banner from v$version"})
+
+    expectedResponse = '"{\\"columns\\":[\\"BANNER\\"], \\n\\"rows\\": [\\n{\\"BANNER\\": \\"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production\\"}\\n]}"'
+    assert response.status_code == 200
+    assert json.dumps(response.data.decode("utf-8") ) == expectedResponse
 
 def test_invalid_sql(client):
     response = client.post(f"/sql/{validEndpoint}",
@@ -41,8 +55,8 @@ def test_named_parameter(client):
      headers={"Authorization": f"Basic {credentials}"},
      json={"sql": "select count(*) from dba_objects where object_name=:obj", "binds": {"obj":"DBA_OBJECTS"}})
     assert response.status_code == 200
-    assert response.data == b'2\n'  
- 
+    assert response.data == b'2\n'
+
 def test_positional_parameters(client):
     response = client.post(f"/sql/{validEndpoint}",
      headers={"Authorization": f"Basic {credentials}"},
@@ -55,4 +69,11 @@ def test_unbound_varable(client):
      headers={"Authorization": f"Basic {credentials}"},
      json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS"]})
     assert response.status_code == 400
-    assert response.data == b'{"error":"400 Bad Request: ORA-01008: not all variables bound"}\n'         
+    assert response.data == b'{"error":"400 Bad Request: ORA-01008: not all variables bound"}\n'
+
+def test_select_only(client):
+    response = client.post(f"/sql/{validEndpoint}",
+    headers={"Authorization": f"Basic {credentials}"},
+    json={"sql": "delete from mytable"})
+    assert response.status_code == 403
+    assert response.data == b'{"error":"403 Forbidden: SQL statement is not of type SELECT"}\n'

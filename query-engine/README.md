@@ -9,6 +9,22 @@ export FLASK_APP=sql2csv
 flask run
 ```
 
+## Test Suite
+
+Tests are located in `query-engine/tests` directory and require a `sql2csv/config/endpoints.json` file:
+```
+{"oracle18XE":"db205.visulate.net:41521/XEPDB1"}
+```
+and a matching `tests/config.json` file:
+```
+{
+    "validEndpoint": "oracle18XE",
+    "validCredentials": "visulate:visPassword",
+    "validConnectString": "db205.visulate.net:41521/XEPDB1"
+}
+```
+Execute the tests by running `pytest` from the `query-engine` directory or via Test interface in VS Code
+
 ## Build instructions
 
 Review version string in setup.py then create a wheel file
@@ -36,7 +52,7 @@ docker build --rm -t sql2csv:latest .
 docker run -d -p 8080:8080  -v ${HOME}/config:/usr/local/lib/python3.6/site-packages/sql2csv/config/ sql2csv:latest
 ```
 
-Test
+# Manual Testing
 ```
 echo -n username:password| base64
 dXNlcm5hbWU6cGFzc3dvcmQ=
@@ -57,7 +73,7 @@ curl --location --request POST 'localhost:8080/sql/vis13' \
 76385,"810 WARREN CT W","TITUSVILLE","32780"
 76386,"810 WARREN ST W","TITUSVILLE","32780"
 
-# or using positional bind var:
+## or using positional bind var:
 
 curl --location --request POST 'localhost:8080/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
@@ -66,7 +82,7 @@ curl --location --request POST 'localhost:8080/sql/vis13' \
 --data-raw '{"sql": "select prop_id, address1, city, zipcode from pr_properties where rownum < :r",
  "binds": [9]}'
 
- # or no bind variables:
+## or no bind variables:
 
  curl --location --request POST 'localhost:8080/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
