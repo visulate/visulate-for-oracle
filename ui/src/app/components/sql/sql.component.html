@@ -49,23 +49,29 @@
   </div>
 
     <mat-card>
-      <mat-card-subtitle>CSV Curl</mat-card-subtitle>
+      <mat-card-subtitle>Generate CSV using curl</mat-card-subtitle>
       <mat-card-content class="scrollingRegion">
         <pre >
           <code *ngIf="bindVariables">
-            curl --location --request POST '{{queryUrl}}' \
-            --header 'Authorization: Basic {{basicAuthCredentials}}' \
-            --header 'Content-Type: application/json' \
-            --header 'Accept: text/csv' \
-            --data-raw '{{ '{' }} "sql": "{{sqlStatement}}",
-            "binds":  {{bindVariables}}{{ '}' }}'
+curl \
+-L '{{queryUrl}}' \
+-H 'Authorization: Basic {{basicAuthCredentials}}' \
+-H 'Content-Type: application/json' \
+-H 'Accept: text/csv' \
+-d @- << EOF
+{{ '{' }} "sql": "{{sqlStatement}}",
+"binds":  {{bindVariables}}{{ '}' }}
+EOF
           </code>
           <code *ngIf="! bindVariables">
-            curl --location --request POST '{{queryUrl}}' \
-            --header 'Authorization: Basic {{basicAuthCredentials}}' \
-            --header 'Content-Type: application/json' \
-            --header 'Accept: text/csv' \
-            --data-raw '{{ '{' }} "sql": "{{sqlStatement}}"}'
+curl \
+-L '{{queryUrl}}' \
+-H 'Authorization: Basic {{basicAuthCredentials}}' \
+-H 'Content-Type: application/json' \
+-H 'Accept: text/csv' \
+-d @- << EOF
+{{ '{' }} "sql": "{{sqlStatement}}"}
+EOF
           </code>
         </pre>
       </mat-card-content>
