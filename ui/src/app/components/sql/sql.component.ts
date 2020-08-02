@@ -66,12 +66,16 @@ export class SqlComponent implements OnInit {
   public executeSql() {
     this.resultSet = new SqlModel();
     this.errorMessage = '';
-    const bindVars = this.bindVariables ? JSON.parse(this.bindVariables) : JSON.parse('[]');
-    this.restService.sql2csv$(this.queryUrl, this.basicAuthCredentials, this.sqlStatement, bindVars)
+    try{
+      const bindVars = this.bindVariables ? JSON.parse(this.bindVariables) : JSON.parse('[]');
+      this.restService.sql2csv$(this.queryUrl, this.basicAuthCredentials, this.sqlStatement, bindVars)
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(result => { this.showResult(result); },
         error => { this.showError(error); }
       );
+    } catch (error) {
+      this.errorMessage = error;
+    }
   }
 
   public showResult(result: any) {

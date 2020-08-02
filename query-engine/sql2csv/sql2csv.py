@@ -1,5 +1,6 @@
 import csv
 import sys
+import io
 import simplejson as json
 import cx_Oracle
 import sqlparse
@@ -27,18 +28,46 @@ def format_bytes(num):
             return "%3.1f %s" % (num, x)
         num /= step_unit
 
-def lobOutConverter(value):
+def lob_out_converter(value):
     """Return the LOB size instead of the LOB itself for display in UI"""
     lobsize = sys.getsizeof(value)
     lobsizeStr = format_bytes(lobsize)
     return f'LOB (size: {lobsizeStr})'
 
-def OutputTypeHandler(cursor, name, defaultType, size, precision, scale):
-    """Modify the fetched data types for LOB columns"""
+def expand_object(obj, expanded_object, prefix = ""):
+    if obj.type.iscollection:
+        print(prefix, "[", file=expanded_object)
+        for value in obj.aslist():
+            if isinstance(value, cx_Oracle.Object):
+                expand_object(value, expanded_object , prefix + "  ")
+            else:
+                print(prefix + "  ", repr(value), file=expanded_object)
+        print(prefix, "]", file=expanded_object)
+    else:
+        print(prefix, "{", file=expanded_object)
+        for attr in obj.type.attributes:
+            value = getattr(obj, attr.name)
+            if isinstance(value, cx_Oracle.Object):
+                print(prefix + "   " + attr.name + ":", file=expanded_object)
+                expand_object(value, expanded_object , prefix + "  ")
+            else:
+                print(prefix + "   " + attr.name + ":", repr(value), file=expanded_object)
+        print(prefix, "}", file=expanded_object)
+
+def object_out_converter(obj):
+    expanded_object = io.StringIO()
+    expand_object(obj, expanded_object, "")
+    return expanded_object.getvalue()
+
+def output_type_handler(cursor, name, defaultType, size, precision, scale):
+    """Modify the fetched data types for LOB and OBJECT columns"""
     if defaultType == cx_Oracle.CLOB:
-        return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=lobOutConverter)
+        return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=lob_out_converter)
     if defaultType == cx_Oracle.BLOB:
-        return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=lobOutConverter)
+        return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=lob_out_converter)
+    if defaultType == cx_Oracle.OBJECT:
+        return cursor.var(defaultType, arraysize=cursor.arraysize, outconverter=object_out_converter, typename="MDSYS.SDO_GEOMETRY")
+
 
 def iter_csv(data):
     """pipe_results helper function"""
@@ -63,7 +92,6 @@ def pipe_results(connection, cursor):
         connection.close()
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
-        print(errorObj.message)
         abort(400, description=errorObj.message)
 
 def pipe_results_as_json(connection, cursor):
@@ -92,7 +120,6 @@ def pipe_results_as_json(connection, cursor):
             yield('\n]}')
         except cx_Oracle.DatabaseError as e:
             errorObj, = e.args
-            print(errorObj.message)
             abort(400, description=errorObj.message)
     return Response(generate(), mimetype='application/json')
 
@@ -100,10 +127,9 @@ def get_connection(username, password, connectString):
     """Get an Oracle database connection"""
     try:
         connection = cx_Oracle.connect(username, password, connectString)
-        connection.outputtypehandler = OutputTypeHandler
+        connection.outputtypehandler = output_type_handler
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
-        print(errorObj.message)
         abort(401, description=errorObj.message)
     else:
         return connection
@@ -119,7 +145,6 @@ def get_cursor(connection, sql, binds):
             return cursor.execute(sql, binds)
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
-        print(errorObj.message)
         abort(400, description=errorObj.message)
 
 def get_connect_string(endpoint):
@@ -129,6 +154,19 @@ def get_connect_string(endpoint):
         return ''
 
     return connectString
+
+def validate_binds(binds):
+    """Verify bind varables are a list or dict of database chars or numbers"""
+    if isinstance(binds, list) and all(isinstance(item, (str, int, float)) for item in binds):
+        return binds
+    elif isinstance(binds, dict) and all(isinstance(item, (str, int, float)) for item in binds.values()):
+        return binds
+    elif binds is None:
+        return []
+    else:
+        abort(400, description=\
+            "Bind variables must be a simple array e.g. [280, \"Accounts\"]\
+                 or object { \"dept_id\": 280, \"dept_name\": \"Accounts\"}")
 
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
 def sql2csv(endpoint):
@@ -156,8 +194,11 @@ def sql2csv(endpoint):
             if statement.get_type() != 'SELECT':
                 abort(403, description='SQL statement is not of type SELECT')
 
+        binds = query.get('binds')
+        vbinds = validate_binds(binds)
+
         connection = get_connection(user, passwd, connStr)
-        cursor = get_cursor(connection, query.get('sql'), query.get('binds'))
+        cursor = get_cursor(connection, sql, vbinds)
 
         if httpHeaders.get('accept') == 'application/json':
             response = pipe_results_as_json(connection, cursor)
