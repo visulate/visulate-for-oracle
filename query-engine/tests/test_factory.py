@@ -77,3 +77,11 @@ def test_select_only(client):
     json={"sql": "delete from mytable"})
     assert response.status_code == 403
     assert response.data == b'{"error":"403 Forbidden: SQL statement is not of type SELECT"}\n'
+
+def test_invalid_binds_structure(client):
+    response = client.post(f"/sql/{validEndpoint}",
+     headers={"Authorization": f"Basic {credentials}"},
+     json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS", {"obj":"DBA_OBJECTS"}]})
+
+    assert response.status_code == 400
+    assert "Bind variables must be a simple array" in response.data.decode("utf-8")
