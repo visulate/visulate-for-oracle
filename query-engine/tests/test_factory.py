@@ -85,3 +85,9 @@ def test_invalid_binds_structure(client):
 
     assert response.status_code == 400
     assert "Bind variables must be a simple array" in response.data.decode("utf-8")
+
+def test_invalid_options(client):
+    response = client.post(f"/sql/{validEndpoint}",
+     headers={"Authorization": f"Basic {credentials}"},
+     json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS"], "options": ["invalid"]})
+    assert response.status_code == 400
