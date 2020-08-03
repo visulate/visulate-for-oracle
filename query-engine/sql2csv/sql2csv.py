@@ -28,6 +28,15 @@ def format_bytes(num):
             return "%3.1f %s" % (num, x)
         num /= step_unit
 
+def get_option(option):
+    """Return an option from the query options dictionary"""
+    query = request.json
+    options = query.get('options')
+    if options is not None:
+        return options.get(option)
+    else:
+        return None
+
 def lob_out_converter(value):
     """Return the LOB size instead of the LOB itself for display in UI"""
     lobsize = sys.getsizeof(value)
@@ -65,8 +74,9 @@ def output_type_handler(cursor, name, defaultType, size, precision, scale):
         return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=lob_out_converter)
     if defaultType == cx_Oracle.BLOB:
         return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=lob_out_converter)
-    if defaultType == cx_Oracle.OBJECT:
-        return cursor.var(defaultType, arraysize=cursor.arraysize, outconverter=object_out_converter, typename="MDSYS.SDO_GEOMETRY")
+    object_typename = get_option("cx_Oracle.Object")
+    if defaultType == cx_Oracle.OBJECT and object_typename is not None:
+        return cursor.var(defaultType, arraysize=cursor.arraysize, outconverter=object_out_converter, typename=object_typename)
 
 
 def iter_csv(data):
@@ -168,6 +178,14 @@ def validate_binds(binds):
             "Bind variables must be a simple array e.g. [280, \"Accounts\"]\
                  or object { \"dept_id\": 280, \"dept_name\": \"Accounts\"}")
 
+def validate_options(options):
+    if isinstance(options, dict):
+        pass
+    elif options is None:
+        pass
+    else:
+        abort(400, description="Invalid query options")
+
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
 def sql2csv(endpoint):
     """Generate a CSV file or JSON object from a SQL statement
@@ -196,6 +214,9 @@ def sql2csv(endpoint):
 
         binds = query.get('binds')
         vbinds = validate_binds(binds)
+
+        options = query.get('options')
+        validate_options(options)
 
         connection = get_connection(user, passwd, connStr)
         cursor = get_cursor(connection, sql, vbinds)

@@ -130,7 +130,8 @@ export class RestService {
     url: string,
     basicAuth: string,
     sql: string,
-    binds: JSON): Observable<any> {
+    binds: JSON,
+    options: JSON): Observable<any> {
 
       const httpOptions: Object = {
         headers: new HttpHeaders({
@@ -143,7 +144,8 @@ export class RestService {
       };
       const bodycontent = {
         'sql': sql,
-        'binds': binds
+        'binds': binds,
+        'options': options
       };
 
      return this.http.post(`${url}`, JSON.stringify(bodycontent), httpOptions );

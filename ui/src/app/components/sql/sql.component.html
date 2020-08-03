@@ -27,6 +27,12 @@
         <mat-hint>An array e.g. [280, "Accounts"] or object {{'{'}} "dept_id": 280, "dept_name": "Accounts"{{'}'}} </mat-hint>
       </mat-form-field>
 
+      <mat-form-field appearance="outline" class="sql">
+        <mat-label>Query Options</mat-label>
+        <input matInput [ngModel]="queryOptions" (ngModelChange)="queryOptions=$event" name="queryOptions">
+        <mat-hint>Result formatting options </mat-hint>
+      </mat-form-field>
+
     <button mat-raised-button color="primary" (click)="executeSql()" [disabled]="queryForm.invalid" >Run Query</button>
 
   </form>
@@ -52,25 +58,17 @@
       <mat-card-subtitle>Generate CSV using curl</mat-card-subtitle>
       <mat-card-content class="scrollingRegion">
         <pre >
-          <code *ngIf="bindVariables">
+          <code >
 curl \
 -L '{{queryUrl}}' \
 -H 'Authorization: Basic {{basicAuthCredentials}}' \
 -H 'Content-Type: application/json' \
 -H 'Accept: text/csv' \
 -d @- << EOF
-{{ '{' }} "sql": "{{sqlStatement}}",
-"binds":  {{bindVariables}}{{ '}' }}
-EOF
-          </code>
-          <code *ngIf="! bindVariables">
-curl \
--L '{{queryUrl}}' \
--H 'Authorization: Basic {{basicAuthCredentials}}' \
--H 'Content-Type: application/json' \
--H 'Accept: text/csv' \
--d @- << EOF
-{{ '{' }} "sql": "{{sqlStatement}}"}
+{{ '{' }} "sql": "{{sqlStatement}}"<ng-container *ngIf="bindVariables">,
+"binds":  {{bindVariables}}</ng-container><ng-container *ngIf="queryOptions">,
+"options": {{queryOptions}}</ng-container>
+{{ '}' }}
 EOF
           </code>
         </pre>

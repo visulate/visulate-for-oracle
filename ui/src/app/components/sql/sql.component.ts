@@ -22,6 +22,7 @@ export class SqlComponent implements OnInit {
   public basicAuthCredentials: string;
   public sqlStatement: string;
   public bindVariables: string = '[ ]';
+  public queryOptions: string;
   private unsubscribe$ = new Subject<void>();
   public resultSet: SqlModel;
   public errorMessage: string;
@@ -44,7 +45,8 @@ export class SqlComponent implements OnInit {
         this.currentContext.objectType === 'VIEW' ||
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
       this.sqlStatement = `select * from ${this.currentContext.objectName} where rownum < :maxrows`;
-      this.bindVariables = '{"maxrows": 10 }'
+      this.bindVariables = '{"maxrows": 10 }';
+      this.queryOptions = '{ }';
       this.resultSet = new SqlModel();
     }
   }
@@ -68,7 +70,8 @@ export class SqlComponent implements OnInit {
     this.errorMessage = '';
     try{
       const bindVars = this.bindVariables ? JSON.parse(this.bindVariables) : JSON.parse('[]');
-      this.restService.sql2csv$(this.queryUrl, this.basicAuthCredentials, this.sqlStatement, bindVars)
+      const options = this.queryOptions ? JSON.parse(this.queryOptions) : JSON.parse('{}');
+      this.restService.sql2csv$(this.queryUrl, this.basicAuthCredentials, this.sqlStatement, bindVars, options)
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(result => { this.showResult(result); },
         error => { this.showError(error); }
