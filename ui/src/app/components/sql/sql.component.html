@@ -13,7 +13,7 @@
     <mat-form-field appearance="outline" class="sql">
         <mat-label>SQL Query</mat-label>
         <textarea
-         [ngModel]="sqlStatement" name="sqlStatement" (ngModelChange)="sqlStatement=$event" required
+         [ngModel]="sqlStatement" name="sqlStatement" (ngModelChange)="setSql($event)" required
         matInput
         cdkTextareaAutosize
         #autosize="cdkTextareaAutosize"
@@ -65,7 +65,7 @@ curl \
 -H 'Content-Type: application/json' \
 -H 'Accept: text/csv' \
 -d @- << EOF
-{{ '{' }} "sql": "{{sqlStatement}}"<ng-container *ngIf="bindVariables">,
+{{ '{' }} "sql": "{{curlSql}}"<ng-container *ngIf="bindVariables">,
 "binds":  {{bindVariables}}</ng-container><ng-container *ngIf="queryOptions">,
 "options": {{queryOptions}}</ng-container>
 {{ '}' }}

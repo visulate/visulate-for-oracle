@@ -4,6 +4,7 @@ import io
 import simplejson as json
 import cx_Oracle
 import sqlparse
+import base64
 
 from flask import (
     Blueprint, Response, request, abort, current_app, make_response
@@ -21,29 +22,46 @@ class Line(object):
 
 def format_bytes(num):
     """Convert bytes to KB, MB, GB or TB"""
-    step_unit = 1000.0 #1024 bad the size
+    step_unit = 1024
 
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
         if num < step_unit:
             return "%3.1f %s" % (num, x)
         num /= step_unit
 
-def get_option(option):
+def get_option(option, default):
     """Return an option from the query options dictionary"""
     query = request.json
     options = query.get('options')
     if options is not None:
-        return options.get(option)
+        return options.get(option, default)
     else:
-        return None
+        return default
 
-def lob_out_converter(value):
+def print_lob_size(value):
     """Return the LOB size instead of the LOB itself for display in UI"""
     lobsize = sys.getsizeof(value)
     lobsizeStr = format_bytes(lobsize)
     return f'LOB (size: {lobsizeStr})'
 
+def download_clob(value):
+    """Download CLOB if less that 1 GB"""
+    lobsize = sys.getsizeof(value)
+    if lobsize < 1073741824:
+        return value
+    else:
+        abort(400, description="LOB download size exceeds 1 GB")
+
+def download_blob(value):
+    """Encode BLOB using base64 encoding and download if less that 1 GB"""
+    lobsize = sys.getsizeof(value)
+    if lobsize < 1073741824:
+        return base64.b64encode(value)
+    else:
+        abort(400, description="LOB download size exceeds 1 GB")
+
 def expand_object(obj, expanded_object, prefix = ""):
+    """Expand the contents of and Oracle Object"""
     if obj.type.iscollection:
         print(prefix, "[", file=expanded_object)
         for value in obj.aslist():
@@ -68,15 +86,23 @@ def object_out_converter(obj):
     expand_object(obj, expanded_object, "")
     return expanded_object.getvalue()
 
-def output_type_handler(cursor, name, defaultType, size, precision, scale):
+def output_type_handler(cursor, name, default_type, size, precision, scale):
     """Modify the fetched data types for LOB and OBJECT columns"""
-    if defaultType == cx_Oracle.CLOB:
-        return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=lob_out_converter)
-    if defaultType == cx_Oracle.BLOB:
-        return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=lob_out_converter)
-    object_typename = get_option("cx_Oracle.Object")
-    if defaultType == cx_Oracle.OBJECT and object_typename is not None:
-        return cursor.var(defaultType, arraysize=cursor.arraysize, outconverter=object_out_converter, typename=object_typename)
+    download_lobs = get_option("download_lobs", "N")
+
+    if default_type == cx_Oracle.CLOB and download_lobs.upper() == 'Y':
+        return cursor.var(cx_Oracle.DB_TYPE_LONG, arraysize=cursor.arraysize, outconverter=download_clob)
+    if default_type == cx_Oracle.BLOB and download_lobs.upper() == 'Y':
+        return cursor.var(cx_Oracle.DB_TYPE_LONG_RAW, arraysize=cursor.arraysize, outconverter=download_blob)
+
+    if default_type == cx_Oracle.CLOB and download_lobs.upper() != 'Y':
+        return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=print_lob_size)
+    if default_type == cx_Oracle.BLOB and download_lobs.upper() != 'Y':
+        return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=print_lob_size)
+
+    object_typename = get_option("cx_oracle_object", None)
+    if default_type == cx_Oracle.OBJECT and object_typename is not None:
+        return cursor.var(default_type, arraysize=cursor.arraysize, outconverter=object_out_converter, typename=object_typename)
 
 
 def iter_csv(data):

@@ -21,6 +21,7 @@ export class SqlComponent implements OnInit {
   public password: string;
   public basicAuthCredentials: string;
   public sqlStatement: string;
+  public curlSql: string;
   public bindVariables: string = '[ ]';
   public queryOptions: string;
   private unsubscribe$ = new Subject<void>();
@@ -44,11 +45,17 @@ export class SqlComponent implements OnInit {
       (this.currentContext.objectType === 'TABLE' ||
         this.currentContext.objectType === 'VIEW' ||
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
-      this.sqlStatement = `select * from ${this.currentContext.objectName} where rownum < :maxrows`;
+      this.setSql(`select * from ${this.currentContext.objectName} where rownum < :maxrows`);
       this.bindVariables = '{"maxrows": 10 }';
-      this.queryOptions = '{ }';
+      this.queryOptions = '{"download_lobs": "N",  "cx_oracle_object": null}';
       this.resultSet = new SqlModel();
     }
+  }
+
+  setSql(sql){
+    this.sqlStatement = sql;
+    // escape $ in sql with \$ in curl request
+    this.curlSql = sql.split("$").join("\\$");
   }
 
 
