@@ -91,3 +91,9 @@ def test_invalid_options(client):
      headers={"Authorization": f"Basic {credentials}"},
      json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS"], "options": ["invalid"]})
     assert response.status_code == 400
+
+def test_default_cors_false(client):
+    response = client.get(f"/sql/{validEndpoint}")
+    assert response.data == validConnectString.encode('utf-8')
+    assert response.status_code == 200
+    assert response.access_control_allow_origin == 'false'

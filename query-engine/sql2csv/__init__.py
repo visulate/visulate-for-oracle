@@ -9,10 +9,17 @@ def create_app(test_config=None):
     endpoints_file = os.path.join(basedir, 'config/endpoints.json')
 
     app = Flask(__name__, instance_relative_config=True)
-    CORS(app)
-    
+    origin_str = os.getenv('CORS_ORIGIN_WHITELIST')
+    if origin_str is not None:
+        origin_list = origin_str.split(',')
+    else:
+        origin_list = 'false'
+    CORS(app, resources={r"/sql/*": {"origins": origin_list}})
+
     with open(endpoints_file, "r") as file:
        app.endpoints = json.loads(file.read())
+
+
 
     @app.errorhandler(Exception)
     def handle_error(e):
