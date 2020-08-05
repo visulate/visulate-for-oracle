@@ -96,3 +96,4 @@ def test_default_cors_false(client):
     response = client.get(f"/sql/{validEndpoint}")
     assert response.data == validConnectString.encode('utf-8')
     assert response.status_code == 200
+    assert response.access_control_allow_origin == 'false'
