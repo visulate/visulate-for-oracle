@@ -5,12 +5,17 @@ import simplejson as json
 import cx_Oracle
 import sqlparse
 import base64
+import logging
 
 from flask import (
     Blueprint, Response, request, abort, current_app, make_response
 )
 
 bp = Blueprint('sql2csv', __name__, url_prefix='/')
+
+def fail_request(code, description):
+    current_app.logger.info(description)
+    abort(code, description=description)
 
 class Line(object):
     def __init__(self):
@@ -50,7 +55,7 @@ def download_clob(value):
     if lobsize < 1073741824:
         return value
     else:
-        abort(400, description="LOB download size exceeds 1 GB")
+        fail_request(400, description="LOB download size exceeds 1 GB")
 
 def download_blob(value):
     """Encode BLOB using base64 encoding and download if less that 1 GB"""
@@ -58,7 +63,7 @@ def download_blob(value):
     if lobsize < 1073741824:
         return base64.b64encode(value)
     else:
-        abort(400, description="LOB download size exceeds 1 GB")
+        fail_request(400, description="LOB download size exceeds 1 GB")
 
 def expand_object(obj, expanded_object, prefix = ""):
     """Expand the contents of and Oracle Object"""
@@ -128,7 +133,7 @@ def pipe_results(connection, cursor):
         connection.close()
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
-        abort(400, description=errorObj.message)
+        fail_request(400, description=errorObj.message)
 
 def pipe_results_as_json(connection, cursor):
     """Loop through a SQL statement's result set and return as a JSON object"""
@@ -156,7 +161,7 @@ def pipe_results_as_json(connection, cursor):
             yield('\n]}')
         except cx_Oracle.DatabaseError as e:
             errorObj, = e.args
-            abort(400, description=errorObj.message)
+            fail_request(400, description=errorObj.message)
     return Response(generate(), mimetype='application/json')
 
 def get_connection(username, password, connectString):
@@ -166,7 +171,7 @@ def get_connection(username, password, connectString):
         connection.outputtypehandler = output_type_handler
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
-        abort(401, description=errorObj.message)
+        fail_request(401, description=errorObj.message)
     else:
         return connection
 
@@ -181,7 +186,7 @@ def get_cursor(connection, sql, binds):
             return cursor.execute(sql, binds)
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
-        abort(400, description=errorObj.message)
+        fail_request(400, description=errorObj.message)
 
 def get_connect_string(endpoint):
     """Get the connect string for a registered endpoint"""
@@ -200,7 +205,7 @@ def validate_binds(binds):
     elif binds is None:
         return []
     else:
-        abort(400, description=\
+        fail_request(400, description=\
             "Bind variables must be a simple array e.g. [280, \"Accounts\"]\
                  or object { \"dept_id\": 280, \"dept_name\": \"Accounts\"}")
 
@@ -210,7 +215,7 @@ def validate_options(options):
     elif options is None:
         pass
     else:
-        abort(400, description="Invalid query options")
+        fail_request(400, description="Invalid query options")
 
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
 def sql2csv(endpoint):
@@ -236,7 +241,7 @@ def sql2csv(endpoint):
         statements = list(sqlparse.parse(sql))
         for statement in statements:
             if statement.get_type() != 'SELECT':
-                abort(403, description='SQL statement is not of type SELECT')
+                fail_request(403, description='SQL statement is not of type SELECT')
 
         binds = query.get('binds')
         vbinds = validate_binds(binds)

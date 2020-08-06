@@ -3,10 +3,27 @@ import json
 from flask import Flask, jsonify
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
+from logging.config import dictConfig
 
 def create_app(test_config=None):
     basedir = os.path.abspath(os.path.dirname(__file__))
     endpoints_file = os.path.join(basedir, 'config/endpoints.json')
+
+    dictConfig({
+        'version': 1,
+        'formatters': {'default': {
+            'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+        }},
+        'handlers': {'wsgi': {
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://flask.logging.wsgi_errors_stream',
+            'formatter': 'default'
+        }},
+        'root': {
+            'level': 'INFO',
+            'handlers': ['wsgi']
+        }
+    })
 
     app = Flask(__name__, instance_relative_config=True)
     origin_str = os.getenv('CORS_ORIGIN_WHITELIST')
@@ -18,8 +35,6 @@ def create_app(test_config=None):
 
     with open(endpoints_file, "r") as file:
        app.endpoints = json.loads(file.read())
-
-
 
     @app.errorhandler(Exception)
     def handle_error(e):
