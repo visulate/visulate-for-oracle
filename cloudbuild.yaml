@@ -22,6 +22,17 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION' ]
 
+# Query Engine
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build',
+         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION',
+         '.' ]
+  dir: 'query-engine'
+  waitFor: ['-']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION']
+
 # Util image
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
@@ -32,8 +43,8 @@ steps:
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION' ]
- 
-#tester  
+
+#tester
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
          '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
@@ -43,7 +54,7 @@ steps:
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION' ]
-  
+
 # Deployer
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
@@ -57,7 +68,7 @@ steps:
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer']
-  
+
 timeout: 1200s
 substitutions:
     _APP_NAME: visulate-for-oracle
@@ -65,8 +76,8 @@ substitutions:
 images: [
   'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION',
+  'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/deployer'
 ]
-

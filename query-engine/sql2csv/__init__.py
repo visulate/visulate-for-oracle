@@ -1,13 +1,16 @@
 import os
 import json
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, current_app
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from logging.config import dictConfig
+from datetime import datetime as dt
+
 
 def create_app(test_config=None):
     basedir = os.path.abspath(os.path.dirname(__file__))
     endpoints_file = os.path.join(basedir, 'config/endpoints.json')
+
 
     dictConfig({
         'version': 1,
@@ -26,6 +29,7 @@ def create_app(test_config=None):
     })
 
     app = Flask(__name__, instance_relative_config=True)
+
     origin_str = os.getenv('CORS_ORIGIN_WHITELIST')
     if origin_str is not None:
         origin_list = origin_str.split(',')
@@ -35,6 +39,23 @@ def create_app(test_config=None):
 
     with open(endpoints_file, "r") as file:
        app.endpoints = json.loads(file.read())
+
+    @app.after_request
+    def after_request(response):
+        """ Log every request. """
+        current_app.logger.info(
+            "%s [%s] %s %s %s %s %s %s %s",
+            request.remote_addr,
+            dt.utcnow().strftime("%d/%b/%Y:%H:%M:%S.%f")[:-3],
+            request.method,
+            request.path,
+            request.scheme,
+            response.status,
+            response.content_length,
+            request.referrer,
+            request.user_agent,
+        )
+        return response
 
     @app.errorhandler(Exception)
     def handle_error(e):

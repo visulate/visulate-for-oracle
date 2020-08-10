@@ -1,0 +1,5 @@
+{
+    "validEndpoint": "ep",
+    "validCredentials": "user:password",
+    "validConnectString": "host:port/service"
+}

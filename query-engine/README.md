@@ -27,18 +27,6 @@ Execute the tests by running `pytest` from the `query-engine` directory or via T
 
 ## Build instructions
 
-Review version string in setup.py then create a wheel file
-
-```
-python3 setup.py bdist_wheel
-```
-
-Edit the `Dockerfile` to use the correct wheel file version:
-
-```
-COPY ./dist/sql2csv-1.0.0-py3-none-any.whl /var/www/sql2csv-1.0.0-py3-none-any.whl
-```
-
 Generate local config file
 ```
 mkdir ${HOME}/config/

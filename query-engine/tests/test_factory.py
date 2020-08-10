@@ -97,3 +97,13 @@ def test_default_cors_false(client):
     assert response.data == validConnectString.encode('utf-8')
     assert response.status_code == 200
     assert response.access_control_allow_origin == 'false'
+
+def test_healthz(client):
+    response = client.get(f"/healthz")
+    assert response.data == b'healthy'
+    assert response.status_code == 200
+
+def test_healthz_slash(client):
+    response = client.get(f"/")
+    assert response.data == b'healthy'
+    assert response.status_code == 200
