@@ -14,7 +14,7 @@ from flask import (
 bp = Blueprint('sql2csv', __name__, url_prefix='/')
 
 def fail_request(code, description):
-    current_app.logger.info(description)
+    current_app.logger.error(description)
     abort(code, description=description)
 
 class Line(object):
@@ -217,6 +217,14 @@ def validate_options(options):
     else:
         fail_request(400, description="Invalid query options")
 
+
+@bp.route('/', methods=['GET'])
+@bp.route('/healthz', methods=['GET'])
+def healthz():
+    response = make_response('healthy', 200)
+    response.mimetype="text/plain"
+    return response
+
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
 def sql2csv(endpoint):
     """Generate a CSV file or JSON object from a SQL statement
@@ -238,7 +246,9 @@ def sql2csv(endpoint):
         httpHeaders = request.headers
 
         sql = query.get('sql')
+        current_app.logger.info(f"POST {user} @ {endpoint}: {sql}")
         statements = list(sqlparse.parse(sql))
+
         for statement in statements:
             if statement.get_type() != 'SELECT':
                 fail_request(403, description='SQL statement is not of type SELECT')

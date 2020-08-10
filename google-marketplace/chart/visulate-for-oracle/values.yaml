@@ -4,7 +4,7 @@ apiServer:
   image:
     repo: null
     tag: null
-  replicas: null  
+  replicas: null
   corsOriginWhitelist: []
   port: 3000
 
@@ -13,9 +13,17 @@ ui:
   image:
     repo: null
     tag: null
-  replicas: null  
-  port: null
-  tlsPort: null
+  replicas: null
+  port: 80
+  tlsPort: 443
+
+sql:
+  label: sql
+  image:
+    repo: null
+    tag: null
+  replicas: null
+  port: 8080
 
 util:
   image: null
@@ -27,4 +35,3 @@ tls:
 reportingSecret: null
 ubbagent:
   image: null
-
