@@ -37,7 +37,7 @@ Build and run:
 
 ```
 docker build --rm -t sql2csv:latest .
-docker run -d -p 8080:8080  -v ${HOME}/config:/usr/local/lib/python3.6/site-packages/sql2csv/config/ sql2csv:latest
+docker run -d -p 5000:5000 -v ${HOME}/config:/query-engine/sql2csv/config/ sql2csv:latest
 ```
 
 # Manual Testing
@@ -45,7 +45,7 @@ docker run -d -p 8080:8080  -v ${HOME}/config:/usr/local/lib/python3.6/site-pack
 echo -n username:password| base64
 dXNlcm5hbWU6cGFzc3dvcmQ=
 
-curl --location --request POST 'localhost:8080/sql/vis13' \
+curl --location --request POST 'localhost:5000/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
 --header 'Content-Type: application/json' \
 --header 'Accept: text/csv' \
@@ -63,7 +63,7 @@ curl --location --request POST 'localhost:8080/sql/vis13' \
 
 ## or using positional bind var:
 
-curl --location --request POST 'localhost:8080/sql/vis13' \
+curl --location --request POST 'localhost:5000/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
 --header 'Content-Type: application/json' \
 --header 'Accept: text/csv' \
@@ -72,7 +72,7 @@ curl --location --request POST 'localhost:8080/sql/vis13' \
 
 ## or no bind variables:
 
- curl --location --request POST 'localhost:8080/sql/vis13' \
+ curl --location --request POST 'localhost:5000/sql/vis13' \
 --header 'Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=' \
 --header 'Content-Type: application/json' \
 --header 'Accept: application/json' \
