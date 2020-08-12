@@ -113,8 +113,6 @@ export class SqlComponent implements OnInit {
   }
 
   ngOnInit(): void {
-
-
     this.currentContext = this.state.getCurrentContext();
     this.queryUrl = `${this.queryBase}/${this.currentContext.endpoint}`
 
