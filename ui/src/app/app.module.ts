@@ -52,6 +52,7 @@ import pgsql from 'highlight.js/lib/languages/pgsql';
 import sql from 'highlight.js/lib/languages/sql';
 import { FilterObjectsComponent } from './components/filter-objects/filter-objects.component';
 import { SqlComponent } from './components/sql/sql.component';
+import { SqlValidatorDirective } from './components/sql/sql.directive';
 
 
 export function hljsLanguages() {
@@ -72,7 +73,8 @@ export function hljsLanguages() {
     FindObjectComponent,
     FilterObjectsComponent,
     HideInternalPipe,
-    SqlComponent
+    SqlComponent,
+    SqlValidatorDirective
   ],
   imports: [
     BrowserModule,

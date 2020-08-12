@@ -1,5 +1,5 @@
 <div>
-  <form #queryForm="ngForm">
+  <form #queryForm="ngForm" novalidate>
     <mat-form-field appearance="outline">
       <mat-label>Username</mat-label>
       <input matInput value="{{currentContext.owner}}" [disabled]="true" required name="owner">
@@ -12,13 +12,21 @@
     <br>
     <mat-form-field appearance="outline" class="sql">
         <mat-label>SQL Query</mat-label>
-        <textarea
-         [ngModel]="sqlStatement" name="sqlStatement" (ngModelChange)="setSql($event)" required
-        matInput
+        <textarea #statement="ngModel"
+         [ngModel]="sqlStatement" name="sqlStatement" (ngModelChange)="setSql($event)"
+        matInput required validSql
         cdkTextareaAutosize
         #autosize="cdkTextareaAutosize"
         cdkAutosizeMinRows="5"
         cdkAutosizeMaxRows="100"></textarea>
+        <div *ngIf="statement.invalid && (statement.dirty || statement.touched)" class="error">
+          <div *ngIf="statement.errors.required">
+            SQL Statement is required
+          </div>
+          <div *ngIf="statement.errors.invalidCharacter">
+            SQL statement should not contain a trailing semicolon (";") or forward slash ("/")
+          </div>
+        </div>
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="sql">
