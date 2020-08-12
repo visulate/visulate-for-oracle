@@ -118,7 +118,7 @@ def iter_csv(data):
         writer.writerow(csv_line)
         yield line.read()
 
-def pipe_results(connection, cursor):
+def pipe_results(connection, cursor, csv_header):
     """Loop through a SQL statement's result set and return as CSV"""
     if cursor is None:
         connection.close()
@@ -126,6 +126,10 @@ def pipe_results(connection, cursor):
     line = Line()
     writer = csv.writer(line, delimiter=',', lineterminator="\n", quoting=csv.QUOTE_NONNUMERIC)
     try:
+        if csv_header.upper() == "Y":
+            columns = [col[0] for col in cursor.description]
+            writer.writerow(columns)
+            yield line.read()
         for row in cursor:
             writer.writerow(row)
             yield line.read()
@@ -265,7 +269,9 @@ def sql2csv(endpoint):
         if httpHeaders.get('accept') == 'application/json':
             response = pipe_results_as_json(connection, cursor)
         else:
-            response = Response(pipe_results(connection, cursor),
+                    # csv_header = get_option("csv_header", "Y")
+
+            response = Response(pipe_results(connection, cursor, get_option("csv_header", "N")),
                                 mimetype='text/csv')
 
         return response
