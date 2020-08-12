@@ -30,6 +30,13 @@ def test_simple_query(client):
     assert response.status_code == 200
     assert response.data == b'"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production"\n'
 
+def test_csv_header_line(client):
+    response = client.post(f"/sql/{validEndpoint}",
+     headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+     json={"sql": "select banner from v$version", "options": {"download_lobs": "N", "csv_header": "y"}})
+    assert response.status_code == 200
+    assert response.data == b'"BANNER"\n"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production"\n'
+
 def test_simple_json_query(client):
     response = client.post(f"/sql/{validEndpoint}",
      headers={
