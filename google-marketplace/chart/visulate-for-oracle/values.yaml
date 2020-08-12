@@ -23,7 +23,8 @@ sql:
     repo: null
     tag: null
   replicas: null
-  port: 8080
+  timeout: null
+  port: 5000
 
 util:
   image: null

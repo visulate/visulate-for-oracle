@@ -67,6 +67,10 @@ properties:
     type: integer
     default: 1
     description: Desired number of Query Engine Pods
+  sql.timeout:
+    type: integer
+    default: 300
+    description: Timeout in seconds for SQL to CSV queries
   certificate:
     type: string
     x-google-marketplace:
