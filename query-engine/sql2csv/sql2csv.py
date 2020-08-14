@@ -269,8 +269,6 @@ def sql2csv(endpoint):
         if httpHeaders.get('accept') == 'application/json':
             response = pipe_results_as_json(connection, cursor)
         else:
-                    # csv_header = get_option("csv_header", "Y")
-
             response = Response(pipe_results(connection, cursor, get_option("csv_header", "N")),
                                 mimetype='text/csv')
 

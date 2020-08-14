@@ -1,34 +1,55 @@
 import os
 import json
+import logging
 from flask import Flask, jsonify, request, current_app
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from logging.config import dictConfig
+from flask.logging import default_handler
 from datetime import datetime as dt
 
+class _ExcludeErrorsFilter(logging.Filter):
+    def filter(self, record):
+        """Filters out log messages with log level ERROR (numeric value: 40) or higher."""
+        return record.levelno < 40
 
 def create_app(test_config=None):
     basedir = os.path.abspath(os.path.dirname(__file__))
     endpoints_file = os.path.join(basedir, 'config/endpoints.json')
 
-
     dictConfig({
         'version': 1,
+        'filters': {
+            'exclude_errors': {
+                '()': _ExcludeErrorsFilter
+            }
+        },
         'formatters': {'default': {
-            'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+            'format': '%(levelname)s in %(module)s: %(message)s',
         }},
-        'handlers': {'wsgi': {
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://flask.logging.wsgi_errors_stream',
-            'formatter': 'default'
-        }},
+        'handlers': {
+            'wsgi-stderr': {
+                'class': 'logging.StreamHandler',
+                'level': 'ERROR',
+                'stream': 'ext://flask.logging.wsgi_errors_stream',
+                'formatter': 'default'
+            },
+            'wsgi-stdout': {
+                'class': 'logging.StreamHandler',
+                'level': 'DEBUG',
+                'stream': 'ext://sys.stdout',
+                'formatter': 'default',
+                'filters': ['exclude_errors']
+            }
+        },
         'root': {
-            'level': 'INFO',
-            'handlers': ['wsgi']
+            'level': 'NOTSET',
+            'handlers': ['wsgi-stderr', 'wsgi-stdout']
         }
     })
 
     app = Flask(__name__, instance_relative_config=True)
+    app.logger.removeHandler(default_handler)
 
     origin_str = os.getenv('CORS_ORIGIN_WHITELIST')
     if origin_str is not None:

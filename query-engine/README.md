@@ -37,7 +37,8 @@ Build and run:
 
 ```
 docker build --rm -t sql2csv:latest .
-docker run -d -p 5000:5000 -v ${HOME}/config:/query-engine/sql2csv/config/ sql2csv:latest
+docker run -d -p 5000:5000 -e CORS_ORIGIN_WHITELIST=http://localhost:4200 \
+  -v ${HOME}/config:/query-engine/sql2csv/config/ sql2csv:latest
 ```
 
 # Manual Testing
