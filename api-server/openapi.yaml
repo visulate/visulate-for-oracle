@@ -1,11 +1,14 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.0.12
+  version: 1.1.8
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
     databases.
+
+    It allows DDL (data definition language) statements to be downloaded for database
+    objects and CSV file generation to export table contents.
 
     It can catalog Oracle database instances in preparation for a compliance audit.
     Identify Enterprise Edition feature and option usage. Find Enterprise Edition
@@ -24,7 +27,7 @@ servers:
 paths:
   /endpoints/:
     summary: Database endpoints
-    get: 
+    get:
       summary: List database endpoints
       parameters:
         - in: query
@@ -35,8 +38,8 @@ paths:
             type: string
             example: invalid
       description: >-
-        Gets valid or invalid database endpoints as an object of name:value pairs. 
-        Response name is the endpoint name. The response value 
+        Gets valid or invalid database endpoints as an object of name:value pairs.
+        Response name is the endpoint name. The response value
         is the connect string for valid connections. Invalid connections are returned as
         and object with the connect string as the first item and error as the second.
       responses:
@@ -63,7 +66,7 @@ paths:
                         type: string
                         example: Get connection timed out after 5000 ms
   /api/:
-    summary: Database 
+    summary: Database
     get:
       summary: Database summary
       parameters:
@@ -516,8 +519,111 @@ paths:
                             example: WIKI
         404:
           description: Requested database was not found
+  /sql/{db}:
+    get:
+      summary: List connect string for a database
+      description: |
+        Returns the connect string for a database if it is registered with the query-engine
+        or null if the database is not registered. Used by the UI to determine whether to show
+        a query region. The region is shown if a connect string is returned and it matches
+        the connect string returned by the API server for the same database endpoint
+      parameters :
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+      responses:
+        200:
+          description: Connect string
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  db1151.visulate.net:1521/orcl
+    post:
+      security:
+        - dbBasicAuth: []
+      summary: Generate CSV or JSON from SQL
+      description: |
+        Executes a SQL statement in the specified database and returns the result as CSV
+        or JSON. Database credentials are passed as a basic auth header. Application
+        establishes a connection, runs the SQL passed as a body parameter, formats and streams
+        the result then closes the database connection.
+      parameters:
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+      requestBody:
+        required: true
+        description: |
+          The sql property contains the SQL statement to run including bind variables if required.
+          Bind variable values are passed via the bind property. They can be passed as an
+          array e.g. [280, "Accounts"] or object { "dept_id": 280, "dept_name": "Accounts"}. The
+          options property controls post query formatting for the results.
+
+          Passing a "download_lobs" value of "Y" will cause the api to return the contents of any BLOB or
+          CLOB columns in the query if they are less than 1 GB. BLOB columns are base64 encoded.
+          The API returns the size of the LOB if passed a "download_lobs" value of "N". An http 400
+          response is returned for LOBs > 1 GB if "download_lobs"="Y"
+
+          Passing a "csv_header" value of "Y" adds an initial header line to CSV results with the column
+          names from the query. The property is ignored for JSON requests.
+
+          The "cx_oracle_object" value is used to indicate an object type for queries that include an
+          Oracle object type column. For example a query which selects a spatial column might return a
+          value <cx_Oracle.Object MDSYS.SDO_GEOMETRY at 0x7f3efc9052d0> if the "cx_oracle_object" value
+          is null. Passing a value of "MDSYS.SDO_GEOMETRY" causes the API to display the spatial column's
+          properties
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sql]
+              properties:
+                sql:
+                  type: string
+                  example: "select name, state, population from RNT_CITIES where rownum < :maxrows"
+                binds:
+                  type: object
+                  example: {"maxrows": 5 }
+                options:
+                  type: object
+                  example: {"download_lobs": "N", "csv_header": "y", "cx_oracle_object": null}
+      responses:
+        200:
+          description: Query results
+          content:
+            text/csv:
+              example: |
+                "NAME","STATE","POPULATION"
+                "HILLIARD","FL",3086
+                "MAYO","FL",1237
+                "ASTOR","FL",1556
+                "LAKELAND","FL",97422
+            application/json:
+              example: |
+                {"columns":["NAME", "STATE", "POPULATION"],
+                "rows": [
+                {"NAME": "HILLIARD", "STATE": "FL", "POPULATION": 3086},
+                {"NAME": "MAYO", "STATE": "FL", "POPULATION": 1237},
+                {"NAME": "ASTOR", "STATE": "FL", "POPULATION": 1556},
+                {"NAME": "LAKELAND", "STATE": "FL", "POPULATION": 97422}
+                ]}
 
 components:
+  securitySchemes:
+    dbBasicAuth:
+      type: http
+      scheme: basic
+      description: Database username and password
   schemas:
     WildCardQueryResult:
       type: object
@@ -594,4 +700,3 @@ components:
                   type: string
                 name-value2:
                   type: string
-
