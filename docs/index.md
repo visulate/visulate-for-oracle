@@ -29,7 +29,8 @@
         <div class="content">
           <h3>One tool</h3>
           <p>Single tool to catalog the company’s Oracle databases. No server agents to install and manage.
-           No client code to download or host via Citrix. Does not require Oracle REST Data Services (ORDS) install.</p>
+           No client code to download or host via Citrix. Does not require Oracle server modifications
+           e.g. UTL_FILE directories or REST Data Services (ORDS)</p>
         </div>
       </article>
       <article>
@@ -52,9 +53,10 @@
       <article>
         <span class="icon solid fa-file"></span>
         <div class="content">
-          <h3>PL/SQL and DDL</h3>
-          <p>Examine PL/SQL packages and procedures. Extract SQL statements from them. Identify dependencies on other database objects.
-          Generate and download DDL for individual objects or groups of objects. </p>
+          <h3>SQL, PL/SQL, DDL and CSV</h3>
+          <p>Examine PL/SQL packages and procedures. Extract SQL statements from them. Identify dependencies on other database objects.</p>
+          <p> Generate and download DDL for individual objects or groups of objects. </p>
+          <p>Run SQL statements to review table contents and generate CSV files for data migrations</p>
         </div>
       </article>
       <article>
@@ -81,7 +83,7 @@
 </div>
 
 ### On-Premises to Cloud migration
-Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines. Download the DDL for refactoring. Find direct and indirect dependencies for objects in microservice candidates.
+Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines. Download the DDL for refactoring. Find direct and indirect dependencies for objects in microservice candidates. Generate CSV files to seed the new instance.
 
 ### Re-write PL/SQL for the cloud
 Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages.
@@ -94,5 +96,3 @@ Document custom code in your Commercial-off-the-shelf (COTS) application databas
 
 ### License management
 Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Catalog and analyze Oracle database instances on GCP Bare Metal, Oracle Cloud Platform or other Cloud providers.
-
-

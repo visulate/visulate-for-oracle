@@ -7,15 +7,15 @@
 
 ![K8S Architecture](/images/k8s.png)
 
-Visulate for Oracle comprises UI and API deployments exposed to an ingress via NodePorts. Web users connect to the application via the Ingress resource. Http path rules in the ingress spec route requests to the UI or API Service as required.
+Visulate for Oracle comprises UI, API and SQL deployments exposed to an ingress via NodePorts. Web users connect to the application via the Ingress resource. Http path rules in the ingress spec route requests to the UI, API or SQL Service as required.
 
-Database registration is performed using a Secret. The Secret manifest delivers the database.js configuration file that the API server reads during initialization as part of the API Server deployment
+Database and SQL endpoint registration is performed using Secrets. The Secret manifest delivers the database.js configuration file that the API server reads during initialization as part of the API Server deployment. A separate manifest delivers the endpoints.json manifest for the SQL Query Engine.
 
 ## Quick install with Google Cloud Marketplace
 
 Get up and running with a few clicks! Install the Visulate for Oracle app to a Google
 Kubernetes Engine cluster using Google Cloud Marketplace. Follow the
-[on-screen instructions](https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle) and the [quickstart guide](/pages/quickstart.html) 
+[on-screen instructions](https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle) and the [quickstart guide](/pages/quickstart.html)
 
 ## Command line instructions
 
@@ -23,7 +23,7 @@ Kubernetes Engine cluster using Google Cloud Marketplace. Follow the
 
 #### Set up command-line tools
 
-You'll need the following tools in your development environment. 
+You'll need the following tools in your development environment.
 
 -   [gcloud](https://cloud.google.com/sdk/gcloud/)
 -   [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/)
@@ -53,6 +53,8 @@ Configure `kubectl` to connect to the new cluster.
 ```shell
 gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE"
 ```
+
+**Note:** Visulate for Oracle required GKE version 1.16 or later.
 
 #### Clone this repo
 
@@ -90,7 +92,7 @@ Open the Visulate for Oracle [configuration screen](https://console.cloud.google
 Select a Reporting Service Account and then press the `Generate license key` button. Save the file and then apply it using kubectl:
 
 ```shell
-kubectl apply -f license.yaml 
+kubectl apply -f license.yaml
 ```
 
 Read the reporting secret name and set an environment variable for it
@@ -130,14 +132,7 @@ Specify the number of replicas for the UI and API server pods:
 ```shell
 export UI_REPLICAS=1
 export API_REPLICAS=1
-```
-
-Specify network ports:
-
-```shell
-export API_SERVER_PORT=3000
-export HTTP_PORT=80
-export HTTPS_PORT=443
+export SQL_REPLICAS=1
 ```
 
 Specify a [cross origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) whitelist. This is a comma separated list of UI origin servers that are allowed to make API calls. Example:  'https://mydomain.com, https://mydomain.net:445, http://35.45.9.55:8080'. Enter * to allow requests from any origin. Most deployments can leave this blank to prevent cross origin requests. It's only needed if you plan to implement your own UI or host the Visulate UI from a different origin to the API server:
@@ -146,6 +141,11 @@ Specify a [cross origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
 export CROSS_ORIGIN_WHITELIST=''
 ```
 
+Specify a [timeout value](/pages/query-engine-config.html#timeout-duration) in seconds for the SQL Query Engine
+
+```shell
+export SQL_TIMEOUT=300
+```
 
 Set up the image tag:
 
@@ -154,13 +154,14 @@ It is advised to use stable image reference which you can find on
 Example:
 
 ```shell
-export TAG="1.0.6"
+export TAG="1.1"
 ```
 Configure the container images:
 
 ```shell
 export IMAGE_VISULATE="marketplace.gcr.io/visulate-llc-public/visulate-for-oracle"
 export IMAGE_VISULATE_UI="marketplace.gcr.io/visulate-llc-public/visulate-for-oracle/ui"
+export IMAGE_VISULATE_SQL="marketplace.gcr.io/visulate-llc-public/visulate-for-oracle/sql"
 export IMAGE_VISULATE_UTIL="marketplace.gcr.io/visulate-llc-public/visulate-for-oracle/util"
 export IMAGE_VISULATE_UBBAGENT="marketplace.gcr.io/visulate-llc-public/visulate-for-oracle/ubbagent"
 ```
@@ -203,12 +204,13 @@ helm template chart/visulate-for-oracle \
   --set apiServer.image.tag="$TAG" \
   --set apiServer.replicas="$API_REPLICAS" \
   --set apiServer.corsOriginWhitelist="$CROSS_ORIGIN_WHITELIST" \
-  --set apiServer.port="$API_SERVER_PORT" \
   --set ui.image.repo="$IMAGE_VISULATE_UI" \
   --set ui.image.tag="$TAG" \
   --set ui.replicas="$UI_REPLICAS" \
-  --set ui.port="$HTTP_PORT" \
-  --set ui.tlsPort="$HTTPS_PORT" \
+  --set sql.image.repo="$IMAGE_VISULATE_SQL" \
+  --set sql.image.tag="$TAG" \
+  --set sql.replicas="$SQL_REPLICAS" \
+  --set sql.timeout="$SQL_TIMEOUT" \
   --set util.image="$IMAGE_VISULATE_UTIL:$TAG" \
   --set ubbagent.image="$IMAGE_VISULATE_UBBAGENT:$TAG" \
   --set reportingSecret="$REPORTING_SECRET" \
@@ -226,12 +228,13 @@ helm template $APP_INSTANCE_NAME chart/visulate-for-oracle \
   --set apiServer.image.tag="$TAG" \
   --set apiServer.replicas="$API_REPLICAS" \
   --set apiServer.corsOriginWhitelist="$CROSS_ORIGIN_WHITELIST" \
-  --set apiServer.port="$API_SERVER_PORT" \
   --set ui.image.repo="$IMAGE_VISULATE_UI" \
   --set ui.image.tag="$TAG" \
   --set ui.replicas="$UI_REPLICAS" \
-  --set ui.port="$HTTP_PORT" \
-  --set ui.tlsPort="$HTTPS_PORT" \
+  --set sql.image.repo="$IMAGE_VISULATE_SQL" \
+  --set sql.image.tag="$TAG" \
+  --set sql.replicas="$SQL_REPLICAS" \
+  --set sql.timeout="$SQL_TIMEOUT" \
   --set util.image="$IMAGE_VISULATE_UTIL:$TAG" \
   --set ubbagent.image="$IMAGE_VISULATE_UBBAGENT:$TAG" \
   --set reportingSecret="$REPORTING_SECRET" \
@@ -272,11 +275,11 @@ Namespace:        default
 Address:          34.120.178.240
 Default backend:  visulate-4-visulate-ui-svc:80 (10.40.0.10:80,10.40.0.11:80)
 TLS:
-  visulate-4-tls terminates 
+  visulate-4-tls terminates
 Rules:
   Host        Path  Backends
   ----        ----  --------
-  *           
+  *
               /*            visulate-4-visulate-ui-svc:80 (10.40.0.10:80,10.40.0.11:80)
               /api/*        visulate-4-visulate-api-svc:3000 (10.40.1.5:3000,10.40.2.8:3000)
               /api-docs/*   visulate-4-visulate-api-svc:3000 (10.40.1.5:3000,10.40.2.8:3000)
@@ -329,9 +332,13 @@ Identify the databases you want to document and follow the steps in the [databas
 
 **Tip:** the [troubleshooting](/pages/troubleshooting.html) guide includes instructions for how to diagnose and rectify failed connections.
 
+#### Configure the SQL Query Engine
+
+Follow the steps in the [Query Engine configuration](/pages/query-engine-config.html) guide.
+
 #### Update the TLS certificate
 
-The [TLS certification ](/pages/tls-cert.html) guide describes how to update the TLS certificate. 
+The [TLS certification ](/pages/tls-cert.html) guide describes how to update the TLS certificate.
 
 #### Cleanup
 

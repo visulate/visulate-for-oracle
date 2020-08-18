@@ -8,7 +8,7 @@ sections:
       - title: "Quickstart"
         href: "/pages/quickstart.html"
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
-  - name: How-to guides
+  - name: Setup Guide
     items:
       - title: "Installation"
         href: "/pages/install-guide.html"
@@ -19,6 +19,9 @@ sections:
       - title: "Register a database"
         href: "/pages/database-registration.html"
         description: "A kubernetes secret is used to pass database connection details to the Visulate for Oracle instance."
+      - title: "SQL Query Engine Configuration"
+        href: "/pages/query-engine-config.html"
+        description: "Setup the SQL to CSV feature in Visulate for Oracle"
       - title: "Configure your network"
         href: "/pages/network-configuration.html"
         description: "Configure your network to allow connections from the Visulate cluster to each Oracle database"
@@ -36,4 +39,3 @@ sections:
       - title: "Application Architecture"
         href: "/pages/application-architecture.html"
         description: "Visulate for Oracle creates 2 Kubernetes pods to deliver a browser UI and REST endpoints for one or more Oracle databases."
-
