@@ -40,4 +40,4 @@ RUN python3.6 -m pip install -r /var/www/requirements.txt --user
 COPY dist/sql2csv-1.1.0-py3-none-any.whl /var/www/sql2csv-1.1.0-py3-none-any.whl
 RUN python3.6 -m pip install /var/www/sql2csv-1.1.0-py3-none-any.whl --user
 
-CMD exec waitress-serve --port=5000 --call 'sql2csv:create_app'
+CMD gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --bind 0.0.0.0:5000 "sql2csv:create_app()"

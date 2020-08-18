@@ -8,8 +8,7 @@ x-google-marketplace:
   publishedVersion: '$TAG'
   publishedVersionMetadata:
     releaseNote: >-
-      Initial release.
-
+      v1.1 Adds SQL Query Engine
   images:
     '':
       properties:
