@@ -4,26 +4,22 @@
 # Visulate for Oracle quickstart
 This page shows you how to create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database.
 
+Allow around 60 minutes to complete this tutorial.
+
 ## Before you begin
-1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in GCP
-2. Identify one or more Oracle databases that you want to document
-3. [Configure your network](/pages/network-configuration.html) to allow connections from the GKE cluster to each Oracle database
+1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in GCP running GKE 1.16 or later
+2. Identify an Oracle database that you want to document. **Note:** you'll need the ability to create an account in this database
+3. [Configure your network](/pages/network-configuration.html) to allow connections from the GKE cluster to your database
+4. Open the Visulate for Oracle Console
 
-## Open the config screen
-- Visit the [Kubernetes Engine page](https://console.cloud.google.com/projectselector/kubernetes?_ga=2.63610924.2027644729.1585254356-1471266844.1580858508) in the Google Cloud Console and create or select a project.
-- Select Applications from the left menu then click the "DEPLOY FROM MARKETPLACE" link:
-
-![Google Cloud Marketplace](/images/mp-deploy-from-marketplace.png){: class="screenshot" }
-
-- Enter Visluate in the search box and click on the result:
-
-![Search Marketplace](/images/mp-search.png){: class="screenshot" }
-
-- Press the `CONFIGURE` button on the screen that this opens.
+<a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle"
+   class="button big" target="_blank">Go to Console</a>
 
 ## Configure an instance
 
-Review the terms of service and complete the deploy screen
+Review the terms of service and click the `Purchase Plan` button followed by the `Configure` button.
+
+Complete the deploy screen
 
 ![Deploy Screen](/images/mp-deploy-visulate.png){: class="screenshot" }
 
@@ -35,7 +31,7 @@ The **combined length** of the namespace and instance names **should not exceed 
 
 ## Wait for instance to reach ready state
 
-It may take over 10 minutes for the instance to deploy. Most of this time is spent creating network resources to support the ingress component.
+It may take over 15 minutes for the instance to deploy. Most of this time is spent creating network resources to support the ingress component.
 
 ![Components Pending](/images/mp-components-pending.png){: class="screenshot" }
 
@@ -98,12 +94,12 @@ module.exports.endpoints = endpoints;
 
 Edit the password and connectString values to match the ones for your database instance.
 
-Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:  
+Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:
 
 ```shell
-kubectl create secret generic oracle-database-connections --from-file=database.js=./db-connections.js 
+kubectl create secret generic oracle-database-connections --from-file=database.js=./db-connections.js
 ```
-**Note:** the secret's name is not important but **it's key must be `database.js`** 
+**Note:** the secret's name is not important but **it's key must be `database.js`**
 
 Open the API deployment screen (from GCP -> Kubernetes Engine -> Workloads) and press the `Edit` button
 
@@ -162,6 +158,45 @@ Click on one of the results to see its definition report.
 Click on the "Visulate for Oracle" title at the top (center) of the screen to return to the homepage. Notice the Object Filter field has been populated with DBA_OBJECTS (the last search condition). Change this value to DBA_* and then select a database and schema. Notice the navigation lists are now filtered using this wildcard.
 
 ![Filter condition](/images/filter.png){: class="screenshot" }
+
+## SQL Query Engine Configuration
+
+The SQL Query Engine exposes a REST API to generate CSV files from user supplied SQL. Access to this feature is controlled by a configuration file. This allows a DBA to limit the list of database environments that allow SQL access. For example, they may wish to allow access for development databases but not production.
+
+Use the `/endpoints` API to generate a configuration file for your database:
+
+```shell
+curl http://load-balancer-ip/endpoints > endpoints.json
+```
+
+Generate a kubernetes secret from the file with a key of `endpoints.json`:
+
+```shell
+kubectl create secret generic sql-endpoints --from-file=endpoints.json=./endpoints.json
+```
+
+Edit the config-endpoints-volume entry in the deployment manifest for the SQL query engine deployment (`-sql` suffix):
+
+```yaml
+      volumes:
+      - name: config-endpoints-volume
+        secret:
+          defaultMode: 420
+          secretName: sql-endpoints
+```
+
+Follow the steps outlined in the [database registration](#register-your-database-connection) process above or review the [Query engine configuration guide](/pages/query-engine-config.html) for detailed instructions.
+
+## Generate a CSV file
+
+Open the Visulate for Oracle UI and navigate to a database table. A query editor region is included at the top of the page. It contains an HTML form with username, password, sql query, bind variables and query option fields. Most of the fields are populated with default values.
+
+![Query screen](/images/sql2csv.png){: class="screenshot" }
+
+Enter the database password for the schema where the table resides to enable the `Run Query` button. Note: database credentials are passed to the SQL Query Engine using a basic auth header. Make sure you are using a secure (https) connection before submitting the query (you may need to accept some browser warnings). Run the query and review the results.
+
+A curl command appears below the results. Cut an paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't [setup a TLS certificate](/pages/tls-cert.html)
+
 
 ## Clean up
 
