@@ -8,7 +8,17 @@ sections:
       - title: "Quickstart"
         href: "/pages/quickstart.html"
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
-  - name: Setup Guide
+  - name: How-to guides
+    items:
+      - title: "Database Analysis"
+        href: "/pages/db-analysis.html"
+        description: "Determine the complexity of an Oracle database prior to Cloud migration"
+  - name: Concepts
+    items:
+      - title: "Application Architecture"
+        href: "/pages/application-architecture.html"
+        description: "Visulate for Oracle creates 2 Kubernetes pods to deliver a browser UI and REST endpoints for one or more Oracle databases."
+  - name: Setup
     items:
       - title: "Installation"
         href: "/pages/install-guide.html"
@@ -34,8 +44,3 @@ sections:
       - title: "Troubleshooting"
         href: "/pages/troubleshooting.html"
         description: "Visulate for Oracle troubleshooting tips and techniques"
-  - name: Concepts
-    items:
-      - title: "Application Architecture"
-        href: "/pages/application-architecture.html"
-        description: "Visulate for Oracle creates 2 Kubernetes pods to deliver a browser UI and REST endpoints for one or more Oracle databases."
