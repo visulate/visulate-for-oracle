@@ -21,7 +21,7 @@ The configuration file is called `endpoints.json`. It contains an object of key 
 The API server exposes an `/endpoints` endpoint which returns a list of valid endpoints based on the [database registration file](/pages/database-registration.html#database-registration-file). Use the /endpoints API to generate a default configuration file for your environment:
 
 ```shell
-curl http://load-balancer-ip/endpoints > endpoints.json
+curl http://load-balancer-ip/endpoints/ > endpoints.json
 ```
 
 Edit the generated file to remove any entries you don't want to expose. Note: Do not edit individual endpoint keys or connect string values. The UI will not enable the query editor for database endpoints where the API Server and SQL Query Engine values do not match.
