@@ -166,7 +166,7 @@ The SQL Query Engine exposes a REST API to generate CSV files from user supplied
 Use the `/endpoints` API to generate a configuration file for your database:
 
 ```shell
-curl http://load-balancer-ip/endpoints > endpoints.json
+curl http://load-balancer-ip/endpoints/ > endpoints.json
 ```
 
 Generate a kubernetes secret from the file with a key of `endpoints.json`:

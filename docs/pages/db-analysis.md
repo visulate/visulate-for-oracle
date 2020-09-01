@@ -198,3 +198,66 @@ and name like :object_name ESCAPE :esc
 group by name, type, owner||'/'||type||'/'||name
 order by name, type
 ```
+
+## API Access
+
+The database and schema analysis reports can be initiated via API calls
+
+### Database analysis
+
+Call the `/api` endpoint passing the registered database as a path parameter `/api/{database}` to run the database reports. Example:
+
+```
+curl -X GET "https://my-domain.com/api/my-db" -H  "accept: application/json" | json_pp
+
+ % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  9354  100  9354    0     0  10653      0 --:--:-- --:--:-- --:--:-- 10641
+[
+   {
+      "description" : "",
+      "display" : [
+         "Version"
+      ],
+      "rows" : [
+         {
+            "Version" : "Oracle Database 11g Release 11.2.0.4.0 - 64bit Production"
+         },
+         {
+            "Version" : "PL/SQL Release 11.2.0.4.0 - Production"
+         },
+
+... etc
+```
+
+### Schema analysis
+
+Call the `/api` endpoint passing the registered database and schema as path parameters `/api/{database}/{schema}` to run the schema reports. Note the schema name is case sensitive. Example:
+
+```
+curl -X GET "https://my-domain.com/api/my-db/MY-SCHEMA" -H  "accept: application/json"| json+pp
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1621  100  1621    0     0   2315      0 --:--:-- --:--:-- --:--:--  2312
+[
+   {
+      "description" : "",
+      "display" : [
+         "Status",
+         "Default Tablespace",
+         "Temporary Tablespace"
+      ],
+      "rows" : [
+         {
+            "Default Tablespace" : "RNT_DATA2",
+            "Status" : "OPEN",
+            "Temporary Tablespace" : "TEMP"
+         }
+      ],
+      "title" : "Schema Status"
+   },
+
+... etc
+
+```

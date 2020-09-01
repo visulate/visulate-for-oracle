@@ -10,9 +10,12 @@ sections:
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
   - name: How-to guides
     items:
-      - title: "Database Analysis"
+      - title: "Database analysis"
         href: "/pages/db-analysis.html"
         description: "Determine the complexity of an Oracle database prior to Cloud migration"
+      - title: "Identify dependencies"
+        href: "/pages/db-dependencies.html"
+        description: "Identify object dependencies in an Oracle database"
   - name: Concepts
     items:
       - title: "Application Architecture"
@@ -29,7 +32,7 @@ sections:
       - title: "Register a database"
         href: "/pages/database-registration.html"
         description: "A kubernetes secret is used to pass database connection details to the Visulate for Oracle instance."
-      - title: "SQL Query Engine Configuration"
+      - title: "SQL Query Engine configuration"
         href: "/pages/query-engine-config.html"
         description: "Setup the SQL to CSV feature in Visulate for Oracle"
       - title: "Configure your network"
