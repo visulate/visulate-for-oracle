@@ -5,7 +5,7 @@
 
 Visulate for Oracle provides a UI and APIs to identify database object dependencies.
 
-Every Oracle database maintains a record of the dependencies between its objects in the SYS schema's DEPENDENCY$ table. It queries this table to identify the status of an object. For example, a stored procedure is marked as invalid if you drop a table that it relies on. Visulate for Oracle reads the same table.
+Every Oracle database maintains a record of the dependencies between its objects in the SYS schema's DEPENDENCY$ table. It queries this table to identify the status of an object. For example, a stored procedure is marked as invalid if you drop a table that it relies on. Visulate for Oracle provides APIs which read the same table.
 
 ## Using the UI
 
