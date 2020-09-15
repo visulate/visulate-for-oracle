@@ -418,6 +418,63 @@ it('Wildcard 11i GET list', (done) => {
 });
 
 /**
+ * Template engine
+ */
+it('GET none template should return refactored result set list', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY?template=none`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.url.should.equal(`/api/${NON_PDB}/WIKI/PACKAGE%20BODY?template=none`);
+    done();
+  });
+});
+
+it('GET none template should return refactored result set object', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY/RNT_MENUS_PKG?template=none`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body.url.should.equal(`/api/${NON_PDB}/WIKI/PACKAGE%20BODY/RNT_MENUS_PKG?template=none`);
+    res.body.results[0].ObjectDetails[0].Type.should.equal('PACKAGE BODY')
+    // console.log(JSON.stringify(res.body.results[0].ObjectDetails[0].Type, null, 2));
+    done();
+  });
+});
+
+it('GET invalid template should fail with 404', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY/RNT_MENUS_PKG?template=notFoundInvalid`)
+  .end((err, res) => {
+    expect(res).to.have.status(404);
+    // res.body.url.should.equal(`/api/${NON_PDB}/WIKI/PACKAGE%20BODY/RNT_MENUS_PKG?template=none`);
+    // res.body.results[0].ObjectDetails[0].Type.should.equal('PACKAGE BODY')
+    // console.log(JSON.stringify(res.body.results[0].ObjectDetails[0].Type, null, 2));
+    done();
+  });
+});
+
+it('GET list template should transform result', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/PACKAGE BODY?template=curl_from_list.hbs`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.type.should.equal('text/plain');
+    done();
+  });
+});
+
+it('GET object template should transform result', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${NON_PDB}/WIKI/TABLE/RNT_USER_ROLES?template=sql_loader.mu`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.type.should.equal('text/plain');
+    done();
+  });
+});
+
+/**
  * Show Object
  */
 it('PDB SQL injection attempt should return 404', (done) => {
