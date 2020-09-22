@@ -21,9 +21,7 @@ const logger = require('./logger.js');
 const util = require('./util');
 const endpointList = getEndpointList(dbConfig.endpoints);
 const dbConstants = require('../config/db-constants');
-const handlebars = require('handlebars');
-const fs = require('fs');
-const path = require('path');
+const templateEngine = require('./template-engine');
 
 /**
  * Gets a list of endpoints
@@ -320,7 +318,7 @@ async function listObjects(req, res, next) {
       let objectList = [];
       result.forEach(element => { objectList.push(element.OBJECT_NAME); });
       if (req.query.template) {
-        applyTemplate('list', objectList, req)
+        templateEngine.applyTemplate('list', objectList, req)
           .then (result => {
             if (typeof(result) === "string") {res.type('txt');}
             res.status(200).send(result);
@@ -522,7 +520,7 @@ async function showObject(req, res, next) {
   if (objectDetails === '404') {
     res.status(404).send('Database object was not found');
   } else if (req.query.template) {
-    applyTemplate('object', objectDetails, req)
+    templateEngine.applyTemplate('object', objectDetails, req)
       .then (result => {
         if (typeof(result) === "string") {res.type('txt');}
         res.status(200).send(result);
@@ -535,89 +533,6 @@ async function showObject(req, res, next) {
 }
 
 module.exports.showObject = showObject;
-
-/**
- * Mutate object by stripping space characters from keys
- * e.g. convert "Table Description" : [] to "TableDescription" : []
- *
- * @param {} object - the object to mutate
- */
-function removeSpacesInKeys(object) {
-  Object.keys(object).forEach(function (key) {
-      const newKey = key.replace(/\s+/g, '');
-      if (object[key] && typeof object[key] === 'object') {
-        removeSpacesInKeys(object[key]);
-      }
-      if (key !== newKey) {
-          object[newKey] = object[key];
-          delete object[key];
-      }
-  });
-}
-
-/**
- * Refactor the showObject's return value for use in mustache template
- * @param {*} resultObject - objectDetails value from showObject
- */
-function refactorResultObject(resultObject) {
-  let refactoredObject = resultObject.map(obj => {
-    let rObj = {};
-    rObj[obj.title] = obj.rows;
-    return rObj;
-  } );
-  return refactoredObject
-}
-
-/**
- * Apply a handlebars template to the resultSet.
- *
- * applyTemplate can be called from the showObject function to format an object
- * report or listObjects to format a list of database objects. The resultType
- * parameter is used to indicate the source/type of data. Object report results are
- * refactored to simplify templating. Report results are passed in using the resultSet
- * parameter.
- *
- * The template is passed as a query parameter and references a handlebars or mustache
- * template in the {api-root}/config/templates directory. applyTemplate returns a promise
- * which resolves when the template has been applied or rejects if passed an invalid
- * template name. Passing a template value of 'none' resolves by returning the refactored
- * resultSet that gets passed to the template for formatting. This can be used during
- * template development.
- *
- * @param {*} resultType - 'object' or 'list'
- * @param {*} resultSet - data to pass to the template
- * @param {*} req - the http request object
- */
-function applyTemplate(resultType, resultSet, req) {
-  return new Promise (function(resolve, reject){
-    const template = req.query.template;
-    let resultObject = new Object();
-    resultObject.protocol = req.protocol;
-    resultObject.host = req.headers.host;
-    resultObject.url = req.url;
-    resultObject.params = req.params;
-    resultObject.queryParams = req.query;
-    resultType === 'object' ?
-      resultObject.results = refactorResultObject(resultSet): resultObject.results = resultSet;
-    removeSpacesInKeys(resultObject);
-
-    if (template === 'none') {
-      resolve(resultObject);
-    } else {
-     // const dir = path.dirname(require.main.filename);
-      const templateFile = path.normalize(`${__dirname}/../config/templates/${template}`);
-      fs.readFile(templateFile, 'utf8', (err, tpl) => {
-        if (err) {
-          reject(`Template ${template} not found`);
-          return;
-        }
-        const compiledTemplate = handlebars.compile(tpl);
-        const transformed = compiledTemplate(resultObject);
-        resolve(transformed)
-      });
-    }
-  });
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Object collections
