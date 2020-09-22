@@ -1,0 +1,146 @@
+{{! CRUD package for table that has a sequence generated numeric key.}}
+{{! Find the table name and assign to a variable}}
+{{#results ~}}{{#TableDetails ~}}{{assign 'tableName' Name}}{{/TableDetails ~}}{{/results ~}}
+{{! Find the primary key column name (must be a single column numeric key and assign to a variable)}}
+{{#results ~}}{{#each Constraints ~}}{{#ifEquals ConstraintType "Primary key" ~}}{{assign 'pkColumn' Column}}{{/ifEquals ~}}{{/each ~}}{{/results ~}}
+create or replace package {{@root.tableName}}_PKG as
+/*******************************************************************************
+    Name:      {{@root.tableName}}_PKG
+    Purpose:   Create, Retrieve, Update, Delete package for {{@root.tableName}} table.
+
+    Create   - insert_row function adds a new row to the table using the next value
+               from the {{@root.tableName}}_SEQ sequence as the primary key. It
+               returns the generated {{@root.pkColumn}}
+    Retrieve - get_row function returns a value of type {{@root.tableName}}_V%ROWTYPE
+               {{@root.tableName}}_V is a database view with values for every column in
+               the {{@root.tableName}} table plus an additional column which holds an MD5
+               checksum of the row's column values.
+    Update   - update_row procedure updates values for a for the row indicated by
+               the X_{{@root.pkColumn}} parameter. Queries the {{@root.tableName}}_V view and
+               compares the MD5 checksums before performing the update to verify the
+               row has not been updated by another user.
+    delete   - delete_row procedure deletes the row indicated by X_{{@root.pkColumn}}
+               parameter
+
+    Revision History:
+    Ver        Date               Author           Description
+    --------   ----------------   ---------------- ---------------------
+    1.0        {{runDate}}        Auto Generated   Initial Version
+
+********************************************************************************/
+  function get_checksum(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+    return {{@root.tableName}}_V.CHECKSUM%TYPE;
+
+  function insert_row({{#results}}{{#each Columns}}{{#unlessEquals Name @root.pkColumn}}{{#ifEquals '1' @key}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{else}}                     , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{/ifEquals}}{{/unlessEquals}}{{/each}}{{/results}}  ) return {{@root.tableName}}.{{@root.pkColumn}}%TYPE;
+
+  function get_row(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+    return {{@root.tableName}}_V%ROWTYPE;
+
+  procedure update_row({{#results}}{{#each Columns}}{{#if @first}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{else}}                      , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{/if}}{{/each}}{{/results}}                      , X_CHECKSUM IN {{@root.tableName}}_V.CHECKSUM%TYPE );
+
+  procedure delete_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE);
+
+end {{@root.tableName}}_PKG;
+/
+
+create or replace package body {{@root.tableName}}_PKG as
+
+-------------------------------------------------
+--  Private Procedures and Functions
+-------------------------------------------------
+
+  procedure lock_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE ) is
+     cursor c is
+     select * from {{@root.tableName}}
+     where {{@root.pkColumn}} = X_{{@root.pkColumn}}
+     for update nowait;
+
+  begin
+    open c;
+    close c;
+  exception
+    when OTHERS then
+      if SQLCODE = -54 then
+        RAISE_APPLICATION_ERROR(-20001, 'Cannot changed record. Record is locked.');
+      end if;
+  end lock_row;
+
+-------------------------------------------------
+--  Public Procedures and Functions
+-------------------------------------------------
+
+  function get_checksum(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+    return {{@root.tableName}}_V.CHECKSUM%TYPE
+  is
+    v_return_value    {{@root.tableName}}_V.CHECKSUM%TYPE;
+  begin
+    select CHECKSUM
+    into v_return_value
+    from {{@root.tableName}}_V
+    where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+    return v_return_value;
+  end get_checksum;
+
+{{! Note: template may generate invalid code if PK column is not the first column in the table }}
+  function insert_row({{#results}}{{#each Columns}}{{#unlessEquals Name @root.pkColumn}}{{#ifEquals '1' @key}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{else}}                     , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{/ifEquals}}{{/unlessEquals}}{{/each}}{{/results}}  ) return {{@root.tableName}}.{{@root.pkColumn}}%TYPE
+  is
+    l_return_value    {{@root.tableName}}.{{@root.pkColumn}}%TYPE;
+  begin
+    insert into {{@root.tableName}}
+    ( {{#results}}{{#each Columns}}{{#if @first}}{{Name}}
+{{else}}    , {{Name}}
+{{/if}}{{/each}}{{/results}}    ) values
+    ({{#results}}{{#each Columns}}{{#if @first}} {{@root.tableName}}_SEQ.NEXTVAL
+{{else}}    , X_{{Name}}
+{{/if}}{{/each}}{{/results}}    ) returning {{@root.pkColumn}} into l_return_value;
+
+    return l_return_value;
+  end insert_row;
+
+  function get_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+    return {{@root.tableName}}_V%ROWTYPE
+  is
+    l_row_rec {{@root.tableName}}_V%ROWTYPE;
+  begin
+    select *
+    into l_row_rec
+    from {{@root.tableName}}_V
+    where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+
+    return l_row_rec;
+  end get_row;
+
+  procedure update_row({{#results}}{{#each Columns}}{{#if @first}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{else}}                      , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+{{/if}}{{/each}}{{/results}}                      , X_CHECKSUM IN {{@root.tableName}}_V.CHECKSUM%TYPE )
+  is
+    l_checksum       {{@root.tableName}}_V.CHECKSUM%TYPE;
+  begin
+    lock_row(X_{{@root.pkColumn}});
+    -- validate checksum
+    l_checksum := get_checksum(X_{{@root.pkColumn}});
+    if X_CHECKSUM != l_checksum then
+      RAISE_APPLICATION_ERROR(-20002, 'Record has been changed another user.');
+    end if;
+
+    update {{@root.tableName}}
+    set {{#results}}{{#each Columns}}{{#if @first}}{{Name}} = X_{{Name}}
+{{else}}    ,   {{Name}} = X_{{Name}}
+{{/if}}{{/each}}{{/results}}    where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+  end update_row;
+
+  procedure delete_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+  is
+  begin
+    delete from {{@root.tableName}}
+    where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+  end delete_row;
+
+end {{@root.tableName}}_PKG;
+/
