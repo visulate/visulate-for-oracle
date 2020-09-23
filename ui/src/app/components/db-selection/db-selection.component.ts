@@ -75,7 +75,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
   setShowInternal(value: boolean){
     this.currentContext.setShowInternal(value);
-    this.state.setCurrentContext(this.currentContext);    
+    this.state.setCurrentContext(this.currentContext);
   }
 
   setSchema(schema: SchemaModel) {
@@ -101,7 +101,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Set the SQL enabled flag = true if the endpoint connect string 
+   * Set the SQL enabled flag = true if the endpoint connect string
    * is registered in the query engine
    * @param endpoint - current endpoint name
    * @param connectString - current connect string
@@ -143,7 +143,9 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
     if (this.endpoints.databases) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
-      this.setSqlEnabled(this.currentEndpoint.endpoint, this.currentEndpoint.connectString);
+      if (this.currentEndpoint) {
+        this.setSqlEnabled(this.currentEndpoint.endpoint, this.currentEndpoint.connectString);
+      }
     }
     if (this.currentEndpoint && this.currentEndpoint.schemas) {
       this.currentSchema = this.currentContext.findCurrentSchema(this.currentEndpoint);

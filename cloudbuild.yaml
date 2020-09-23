@@ -60,14 +60,14 @@ steps:
   args: ['build',
          '--build-arg', 'REGISTRY=gcr.io/$PROJECT_ID',
          '--build-arg', 'TAG=$_VERSION',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer',
+         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION',
          '-f', 'deployer/Dockerfile',
          '.']
   dir: 'google-marketplace'
   waitFor: ['-']
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer']
+  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION']
 
 timeout: 1200s
 substitutions:
@@ -79,5 +79,5 @@ images: [
   'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/deployer'
+  'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION'
 ]

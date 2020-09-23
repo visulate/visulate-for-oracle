@@ -25,7 +25,7 @@ import { Validator, FormControl, NG_VALIDATORS } from '@angular/forms';
 export class SqlValidatorDirective implements Validator {
     validate(control: FormControl): {[key: string]: any} {
         const sql = control.value
-        if (sql.match('.*(\/|;)$'))
+        if (sql && sql.match('.*(\/|;)$'))
             return {
                 invalidCharacter: ";"
             }
