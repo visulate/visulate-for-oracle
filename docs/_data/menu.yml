@@ -13,9 +13,15 @@ sections:
       - title: "Database analysis"
         href: "/pages/db-analysis.html"
         description: "Determine the complexity of an Oracle database prior to Cloud migration"
-      - title: "Identify dependencies"
+      - title: "Dependency analysis"
         href: "/pages/db-dependencies.html"
         description: "Identify object dependencies in an Oracle database"
+      - title: "PL/SQL analysis"
+        href: "/pages/plsql-analysis.html"
+        description: "Examine PL/SQL packages and procedures in an Oracle database"
+      - title: "CSV file generation"
+        href: "/pages/csv-file-generation.html"
+        description: "Generate seed data CSV files from an Oracle database"
   - name: Concepts
     items:
       - title: "Application Architecture"
