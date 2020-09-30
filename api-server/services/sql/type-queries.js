@@ -73,7 +73,7 @@ statement['MVIEW-LOG_DEPENDENCIES'] = {
   'description': '',
   'display': ["Tree Entry"],
   'sql' : `select lpad('-',5*(LEVEL-1)) || master  as "Tree Entry"
-           from sys.snap_reftime$ 
+           from sys.snap_reftime$
            start with sowner = :owner
                   and vname = :object_name
            connect by prior mowner = sowner
@@ -86,8 +86,8 @@ statement['MVIEW-LOG_DEPENDENCIES'] = {
 statement['TRIGGER-DETAILS'] = {
   'title': 'Trigger Details',
   'description': '',
-  'display': ["Table Owner", "Base Object Type", "Table Name", 
-              "Column", "Referencing Names", "When Clause", 
+  'display': ["Table Owner", "Base Object Type", "Table Name",
+              "Column", "Referencing Names", "When Clause",
               "Description", "Action Type", "Body"],
   'sql' : `select table_owner as "Table Owner"
            ,      base_object_type as "Base Object Type"
@@ -162,7 +162,7 @@ statement['TYPE-DETAILS'] = {
 statement['COLLECTION-TYPE-DETAILS'] = {
   'title': 'Collection Type Details',
   'description': '',
-  'display': ["Type Name", "Collection Type", "Upper Bound", "Element Type", 
+  'display': ["Type Name", "Collection Type", "Upper Bound", "Element Type",
               "Element Type Modifier", "Precision", "Scale", "Character Set",
               "Storage", "Nulls Stored"],
   'sql' : `select owner
@@ -282,7 +282,7 @@ statement['SOURCE'] = {
     object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   },
-  'callback': 'extractSqlStatements'
+  'then': 'extractSqlStatements'
 };
 statement['ERRORS'] = {
   'title': 'Error Details',
@@ -299,6 +299,42 @@ statement['ERRORS'] = {
   'params' : {
     owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+statement['PACKAGE-ARGS'] = {
+  'title': 'Procedure',
+  'description': '',
+  'display': ["Parameter", "Direction", "Data Type", "Length"],
+  'sql': `select object_name
+          ,      argument_name as "Parameter"
+          ,      in_out as "Direction"
+          ,      data_type as "Data Type"
+          ,      data_length as "Length"
+          from DBA_ARGUMENTS
+          where package_name = :object_name
+          and owner = :owner
+          order by subprogram_id, sequence`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  },
+  'then': 'extractProcedures'
+};
+statement['PROCEDURE-ARGS'] = {
+  'title': 'Arguments',
+  'description': '',
+  'display': ["Parameter", "Direction", "Data Type", "Length"],
+  'sql': `select argument_name as "Parameter"
+          ,      in_out as "Direction"
+          ,      data_type as "Data Type"
+          ,      data_length as "Length"
+          from DBA_ARGUMENTS
+          where object_name = :object_name
+          and owner = :owner
+          order by subprogram_id, sequence`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
