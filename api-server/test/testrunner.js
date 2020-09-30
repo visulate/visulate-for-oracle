@@ -497,6 +497,41 @@ it('11i SQL injection attempt should return 404', (done) => {
   });
 });
 
+it('PDB Show procedure', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${PDB}/SYS/PROCEDURE/DBMS_FEATURE_XDB`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body[1].title.should.equal("Arguments")
+    res.body[2].title.should.equal("SQL Statements")
+    // console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+
+it('PDB Show function', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${PDB}/SYS/FUNCTION/GET_APPLICATION_DIFF`)
+  .end((err, res) => {
+    expect(res).to.have.status(200);
+    res.body[1].title.should.equal("Arguments")
+    res.body[2].title.should.equal("SQL Statements")
+    // console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+
+it('PDB Show package', (done) => {
+  chai.request(BASE_URL)
+  .get(`/api/${PDB}/WIKI/PACKAGE/RNT_MENUS_PKG`)
+  .end((err, res) => {
+   expect(res).to.have.status(200);
+   res.body[1].title.should.equal("GET_CHECKSUM")
+    //console.log(JSON.stringify(res.body, null, 2));
+    done();
+  });
+});
+
 it('PDB Show package body', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/WIKI/PACKAGE BODY/RNT_MENUS_PKG`)
@@ -505,10 +540,10 @@ it('PDB Show package body', (done) => {
     res.body.should.be.a('array');
     res.body[0].title.should.equal("Object Details");
     res.body[0].rows[0]["Object Name"].should.equal("RNT_MENUS_PKG");
-    res.body[1].title.should.equal("Source");
-    res.body[2].title.should.equal("SQL Statements");
-    res.body[2].rows[0]["Line"].should.equal(20);
-    res.body[2].rows.length.should.equal(5);
+    res.body[2].title.should.equal("Source");
+    res.body[1].title.should.equal("SQL Statements");
+    res.body[1].rows[0]["Line"].should.equal(20);
+    res.body[1].rows.length.should.equal(5);
     //console.log(JSON.stringify(res.body, null, 2));
     done();
   });
@@ -522,9 +557,9 @@ it('11i Show package body', (done) => {
     res.body.should.be.a('array');
     res.body[0].title.should.equal("Object Details");
     res.body[0].rows[0]["Object Name"].should.equal("RNT_MENUS_PKG");
-    res.body[1].title.should.equal("Source");
-    res.body[2].title.should.equal("SQL Statements");
-    res.body[2].rows[0]["Line"].should.equal(20);
+    res.body[2].title.should.equal("Source");
+    res.body[1].title.should.equal("SQL Statements");
+    res.body[1].rows[0]["Line"].should.equal(20);
    // console.log(JSON.stringify(res.body, null, 2));
     done();
   });
@@ -823,4 +858,5 @@ it('11i wildcard collection query', (done) => {
     res.body.length.should.equal(8);
     done();
   });
+
 });

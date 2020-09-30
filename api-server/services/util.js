@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,13 @@ function extractSqlStatements(source) {
                 sqlStatements.push({'Line': currentLine, 'Statement': currentStatement});
                 currentStatement = '';
             } else {
-                currentStatement += l.Text;                
+                currentStatement += l.Text;
             }
         } else {
             if (l.Text.toLowerCase().match(regexSql)) {
                 currentStatement = l.Text;
                 currentLine = l.Line;
-                if (l.Text.includes(';')) {                   
+                if (l.Text.includes(';')) {
                     sqlStatements.push({'Line': currentLine, 'Statement': currentStatement});
                     currentStatement = '';
                 }
@@ -47,17 +47,45 @@ function extractSqlStatements(source) {
 }
 
 module.exports.extractSqlStatements = extractSqlStatements;
+
+/**
+ * Group the rows in a table by a given column. Rows must be ordered by the column.
+ * @param {*} table - rows returned by a query
+ * @param {*} column - column to group by
+ */
+function groupRows(table, column) {
+    let results = [];
+    let currentId = 'force2Diff';
+    let currentIndex = 0
+    let currentRows = []
+
+    for (let i = 0; i < table.length; i++) {
+        if (table[i][column] !== currentId) {
+            currentId = table[i][column];
+            currentRows = [];
+            results[currentIndex] = {};
+            results[currentIndex].id = currentId;
+            results[currentIndex].rows = currentRows;
+            currentIndex++;
+        }
+        currentRows.push(table[i]);
+    }
+    return results;
+}
+module.exports.groupRows = groupRows;
+
+
 /**
  * Return the result of a promise if it completes before a timeout period
  * specified in milliseconds.
  * https://italonascimento.github.io/applying-a-timeout-to-your-promises/
- * 
+ *
  * @param {*} ms - timeout period
  * @param {*} message - timeout message
  * @param {*} promise - promise to execute
  */
 function promiseTimeout(ms, message, promise){
-    
+
     const timeout = new Promise((resolve, reject) => {
         let id = setTimeout(() => {
             clearTimeout(id);
@@ -73,5 +101,4 @@ function promiseTimeout(ms, message, promise){
     timeout
     ]);
 }
-module.exports.promiseTimeout = promiseTimeout;    
-
+module.exports.promiseTimeout = promiseTimeout;

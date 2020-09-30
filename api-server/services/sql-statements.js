@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ const statement = Object.assign(schemaSql.statement, tableSql.statement, typeSql
 module.exports.statement = statement;
 
 /**
- * Collect statments by object type.  
+ * Collect statements by object type.
  * @param noParamQueries - queries that do not require input parameters
  * @param ownerNameQueries - queries that accept owner as input
  * @param objectNameQueries - queries that accept owner + object_name as input
@@ -62,7 +62,7 @@ collection['SCHEMA-FILTERED'] = {
     statement['SCHEMA-DATATYPES'],
     statement['SCHEMA-SPATIAL-USAGE'],
     statement['SCHEMA-INDEXES'],
-    statement['SCHEMA-DBMS-USAGE']    
+    statement['SCHEMA-DBMS-USAGE']
   ]
 };
 
@@ -77,7 +77,7 @@ collection['TABLE'] = {
     statement['FK-IN-TABLE-NAME'],
     statement['FK-TO-TABLE-NAME']
   ],
-  objectIdQueries: [    
+  objectIdQueries: [
   ],
   objectTypeQueries: []
 };
@@ -94,7 +94,9 @@ collection['VIEW'] = {
 };
 
 collection['PACKAGE'] = {
-  objectNameQueries: [],
+  objectNameQueries:  [
+    statement['PACKAGE-ARGS']
+  ],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
@@ -110,7 +112,9 @@ collection['PACKAGE BODY'] = {
 };
 
 collection['PROCEDURE'] = {
-  objectNameQueries: [],
+  objectNameQueries: [
+    statement['PROCEDURE-ARGS']
+  ],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
@@ -118,7 +122,9 @@ collection['PROCEDURE'] = {
 };
 
 collection['FUNCTION'] = {
-  objectNameQueries: [],
+  objectNameQueries: [
+    statement['PROCEDURE-ARGS']
+  ],
   objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
