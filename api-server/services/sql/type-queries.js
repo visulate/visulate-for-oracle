@@ -302,40 +302,23 @@ statement['ERRORS'] = {
     object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
 };
-statement['PACKAGE-ARGS'] = {
-  'title': 'Procedure',
-  'description': '',
-  'display': ["Parameter", "Direction", "Data Type", "Length"],
-  'sql': `select object_name
-          ,      argument_name as "Parameter"
-          ,      in_out as "Direction"
-          ,      data_type as "Data Type"
-          ,      data_length as "Length"
-          from DBA_ARGUMENTS
-          where package_name = :object_name
-          and owner = :owner
-          order by subprogram_id, sequence`,
-  'params': {
-    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
-  },
-  'then': 'extractProcedures'
-};
+
 statement['PROCEDURE-ARGS'] = {
   'title': 'Arguments',
   'description': '',
-  'display': ["Parameter", "Direction", "Data Type", "Length"],
+  'display': ["Parameter", "Direction", "Level", "Data Type", "Length"],
   'sql': `select argument_name as "Parameter"
           ,      in_out as "Direction"
+          ,      data_level as "Level"
           ,      data_type as "Data Type"
           ,      data_length as "Length"
+          ,      position
+          ,      object_name
           from DBA_ARGUMENTS
-          where object_name = :object_name
-          and owner = :owner
+          where object_id = :object_id
           order by subprogram_id, sequence`,
   'params': {
-    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    object_id: { dir: oracledb.BIND_IN, type:oracledb.NUMBER, val: "" }
   }
 };
 

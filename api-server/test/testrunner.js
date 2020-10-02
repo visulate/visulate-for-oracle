@@ -501,10 +501,11 @@ it('PDB Show procedure', (done) => {
   chai.request(BASE_URL)
   .get(`/api/${PDB}/SYS/PROCEDURE/DBMS_FEATURE_XDB`)
   .end((err, res) => {
-    expect(res).to.have.status(200);
-    res.body[1].title.should.equal("Arguments")
-    res.body[2].title.should.equal("SQL Statements")
     // console.log(JSON.stringify(res.body, null, 2));
+    expect(res).to.have.status(200);
+    res.body[3].title.should.equal("Arguments")
+    res.body[1].title.should.equal("SQL Statements")
+
     done();
   });
 });
@@ -514,8 +515,8 @@ it('PDB Show function', (done) => {
   .get(`/api/${PDB}/SYS/FUNCTION/GET_APPLICATION_DIFF`)
   .end((err, res) => {
     expect(res).to.have.status(200);
-    res.body[1].title.should.equal("Arguments")
-    res.body[2].title.should.equal("SQL Statements")
+    res.body[3].title.should.equal("Arguments")
+    res.body[1].title.should.equal("SQL Statements")
     // console.log(JSON.stringify(res.body, null, 2));
     done();
   });
@@ -526,8 +527,9 @@ it('PDB Show package', (done) => {
   .get(`/api/${PDB}/WIKI/PACKAGE/RNT_MENUS_PKG`)
   .end((err, res) => {
    expect(res).to.have.status(200);
-   res.body[1].title.should.equal("GET_CHECKSUM")
-    //console.log(JSON.stringify(res.body, null, 2));
+   res.body[2].title.should.equal("Arguments")
+   res.body[2].description.should.equal("GET_CHECKSUM")
+   // console.log(JSON.stringify(res.body, null, 2));
     done();
   });
 });

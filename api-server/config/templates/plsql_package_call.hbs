@@ -1,0 +1,18 @@
+{{! Find the package name and assign to a variable}}
+{{#results ~}}{{#ObjectDetails ~}}{{assign 'packageName' ObjectName}}{{/ObjectDetails ~}}{{/results ~}}
+/**************************************************************
+  PL/SQL call parameters for {{@root.packageName}}
+***************************************************************/
+begin
+{{! Argument at position 0 is the return value from a function}}
+{{#results ~}}{{#each Arguments}}{{#ifEquals '0' POSITION ~}}  V_VALUE :={{/ifEquals ~}}{{#if @first}}
+{{/if}}
+{{#if @first ~}}{{@root.packageName}}.{{OBJECT_NAME}}
+  ( {{#unlessEquals null Parameter ~}}{{Parameter}} => [{{DataType}}]{{/unlessEquals ~}}
+{{else}}  , {{#unlessEquals null Parameter ~}}{{Parameter}} => [{{DataType}}]{{/unlessEquals ~}}
+{{/if ~}}
+{{#if @last }});{{/if }}
+{{/each}}
+{{/results ~}}
+end;
+/
