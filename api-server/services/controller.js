@@ -426,25 +426,8 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
       c.params.owner.val = owner;
       c.params.object_name.val = object_name;
       const cResult = await dbService.query(connection, c.sql, c.params);
-      if (c.then) {
-        switch (c.then) {
-          case 'extractProcedures':
-            const procedures = util.groupRows(cResult, 'OBJECT_NAME');
-            procedures.forEach(p => {
-              result.push({ title: p.id, description: 'Parameters', display: c.display, link: c.link, rows: p.rows });
-            });
-            break;
-        }
-      } else {
         result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-      }
     }
-    for (let c of queryCollection.objectIdQueries) {
-      c.params.object_id.val = object_id;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-    }
-
     for (let c of queryCollection.objectTypeQueries) {
       c.params.owner.val = owner;
       c.params.object_type.val = object_type;
@@ -465,6 +448,20 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
       }
       result.push({ title: c.title, description: c.description, display: c.display, rows: cResult });
     }
+    for (let c of queryCollection.objectIdQueries) {
+      c.params.object_id.val = object_id;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      //
+      if (object_type === 'PACKAGE' && c.title === 'Arguments') {
+        const procedures = util.groupRows(cResult, 'OBJECT_NAME');
+        procedures.forEach(p => {
+          result.push({ title: c.title, description: p.id, display: c.display, link: c.link, rows: p.rows });
+        });
+      } else {
+        result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+      }
+    }
+
   }
 
   /**

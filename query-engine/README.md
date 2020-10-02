@@ -5,6 +5,7 @@ Generates a csv file from SQL.
 ## Start development server
 
 ```
+source venv/bin/activate
 export FLASK_APP=sql2csv
 flask run
 ```

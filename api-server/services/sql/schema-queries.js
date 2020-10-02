@@ -25,9 +25,11 @@ statement['VALIDATE-CONNECTION'] = {
   'display': [],
   'sql': `select granted_role as privilege
           from user_role_privs
+          where username != 'PUBLIC'
           union all
           select privilege
-          from user_sys_privs`,
+          from user_sys_privs
+          where username != 'PUBLIC'`,
   'params': {}
 };
 

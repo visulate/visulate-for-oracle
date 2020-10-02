@@ -94,10 +94,10 @@ collection['VIEW'] = {
 };
 
 collection['PACKAGE'] = {
-  objectNameQueries:  [
-    statement['PACKAGE-ARGS']
+  objectNameQueries:  [],
+  objectIdQueries: [
+    statement['PROCEDURE-ARGS']
   ],
-  objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
   ]
@@ -112,20 +112,21 @@ collection['PACKAGE BODY'] = {
 };
 
 collection['PROCEDURE'] = {
-  objectNameQueries: [
+  objectNameQueries: [],
+  objectIdQueries: [
     statement['PROCEDURE-ARGS']
   ],
-  objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
   ]
 };
 
+
 collection['FUNCTION'] = {
-  objectNameQueries: [
+  objectNameQueries: [],
+  objectIdQueries: [
     statement['PROCEDURE-ARGS']
   ],
-  objectIdQueries: [],
   objectTypeQueries: [
     statement['SOURCE']
   ]
