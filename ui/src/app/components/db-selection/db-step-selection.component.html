@@ -1,7 +1,8 @@
 <mat-card>
-    <mat-card-title>Database Object Selection</mat-card-title>    
+    <mat-card-title>Database Object Selection</mat-card-title>
     <mat-card-subtitle>Select a database, schema and object type</mat-card-subtitle>
     <app-filter-objects [currentEndpoint]=currentEndpoint></app-filter-objects>
+    <div *ngIf="endpoints.errorMessage"><p class="warning">{{endpoints.errorMessage}}</p></div>
     <mat-card-content>
         <mat-form-field>
             <mat-select [(ngModel)]="currentEndpoint" placeholder="Database"
@@ -13,7 +14,7 @@
         </mat-form-field>
 
         <mat-form-field *ngIf="currentEndpoint">
-            
+
             <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
                 <mat-checkbox (change)="setShowInternal($event.checked)" [checked]="currentContext.showInternal"  >Show Internal</mat-checkbox>
                 <mat-option *ngFor="let schema of currentEndpoint.schemas | hideInternal:currentContext.showInternal" [value]="schema">
@@ -29,7 +30,7 @@
                 <mat-option *ngFor="let objectType of currentSchema.objectTypes" [value]="objectType">
                     {{objectType.type}} ({{objectType.count}})
                 </mat-option>
-            </mat-select>            
+            </mat-select>
         </mat-form-field>
 
         <a *ngIf="ddlLink" href="{{ddlLink}}">Download DDL</a>

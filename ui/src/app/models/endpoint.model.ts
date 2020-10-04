@@ -22,11 +22,15 @@ export class EndpointListModel implements Deserializable {
    * corresponds to a database connection.
    */
   public databases: EndpointModel[];
+  public errorMessage: string;
   deserialize(input: any): this {
     this.databases = input.endpoints.map (
       endpoint => new EndpointModel().deserialize(endpoint)
     );
     return this;
+  }
+  setErrorMessage(message: string){
+    this.errorMessage = message;
   }
 }
 
