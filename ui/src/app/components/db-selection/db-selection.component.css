@@ -4,3 +4,4 @@ mat-toolbar.mat-toolbar mat-form-field.mat-form-field {
 #dbSelectMenu mat-form-field {
   width: 100%;
 }
+.warning { color: red }

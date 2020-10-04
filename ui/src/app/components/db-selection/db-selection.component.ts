@@ -121,7 +121,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   processEndpointListChange(endpoints: EndpointListModel) {
     this.endpoints = endpoints;
 
-    if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases) {
+    if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases.length > 0) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);
       this.setSqlEnabled(this.currentEndpoint.endpoint, this.currentEndpoint.connectString);
     }

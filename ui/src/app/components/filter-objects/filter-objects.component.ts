@@ -38,14 +38,14 @@ export interface EbsPrefixes {
 
 /**
  * Code to control the object type filter.  This is maintained in a separate component to
- * the db-selection component because the filter contains custom logic to support 
+ * the db-selection component because the filter contains custom logic to support
  * E-Business Suite (EBS) databases.  EBS databases have a large number of database objects
  * in a common APPS schema.  The ownership of these objects is determined by a naming convention
- * that uses a product prefix in the object name. The custom logic provides a lookup for these 
- * prefixes. 
+ * that uses a product prefix in the object name. The custom logic provides a lookup for these
+ * prefixes.
  */
 export class FilterObjectsComponent implements OnInit {
-  
+
   @Input() currentEndpoint: EndpointModel;
 
   public currentContext: CurrentContextModel;
@@ -57,8 +57,6 @@ export class FilterObjectsComponent implements OnInit {
   filteredPrefixes$: Observable<EbsPrefixes[]>;
 
   ebsPrefixes: EbsPrefixes[] = [
-    { name: 'APAC Consulting Localizations (CLA)', code: 'CLA' },
-    { name: 'Activity Based Management (ABM)', code: 'ABM' },
     { name: 'Advanced Benefits (BEN)', code: 'BEN' },
     { name: 'Advanced Outbound Telephony (IEC)', code: 'IEC' },
     { name: 'Advanced Planning Foundation (RHX)', code: 'RHX' },
@@ -343,9 +341,9 @@ export class FilterObjectsComponent implements OnInit {
 
   public setEbsFilter(productSelection){
     if (productSelection){
-      const productEntry = this.ebsPrefixes.find(entry => entry.name === productSelection );    
+      const productEntry = this.ebsPrefixes.find(entry => entry.name === productSelection );
       this.objectFilter.setValue(`${productEntry.code}_*`);
-    }    
+    }
   }
 
   constructor(private state: StateService) { }
@@ -362,7 +360,7 @@ export class FilterObjectsComponent implements OnInit {
       this.objectFilter.setValue(context.filter);
       this.currentFilter = context.filter;
     }
-    
+
   }
 
   ngOnInit() {
@@ -375,14 +373,14 @@ export class FilterObjectsComponent implements OnInit {
     .pipe(
       startWith(''),
       map(ebsPrefix => ebsPrefix ? this._filteredPrefixes(ebsPrefix) : this.ebsPrefixes.slice())
-    );  
+    );
 
     this.objectFilter.valueChanges.subscribe(value => {
       if (value !== this.currentContext.filter) {
         this.currentContext.setFilter(value);
         this.state.setCurrentContext(this.currentContext);
       }
-     
+
     });
   }
 

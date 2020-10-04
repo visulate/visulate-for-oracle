@@ -48,6 +48,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public currentEndpoint: EndpointModel;
   public sqlEnabled: boolean;
   public queryPanelExpanded: boolean = false;
+  public errorMessage: string;
 
 
   constructor(
@@ -85,7 +86,16 @@ export class DbContentComponent implements OnInit, OnDestroy {
       subjectContext.currentContext.endpoint === '') {
       this.restService.getEndpoints$(context.filter)
         .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(endpoints => { this.state.saveEndpoints(endpoints); });
+        .subscribe(endpoints => {
+          if (endpoints.databases.length > 0){
+            endpoints.setErrorMessage(null);
+            this.state.saveEndpoints(endpoints);
+          } else {
+            endpoints.setErrorMessage("No database objects match the current Object Filter");
+            this.state.saveEndpoints(endpoints);
+          }
+
+        });
     }
 
     // Call the database summary API when the user selects an endpoint
