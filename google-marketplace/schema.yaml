@@ -9,6 +9,7 @@ x-google-marketplace:
   publishedVersionMetadata:
     releaseNote: >-
       v1.1 Adds SQL Query Engine
+      v1.1.16 Fix issues identified during E-Business Suite testing
   images:
     '':
       properties:
