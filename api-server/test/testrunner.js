@@ -177,7 +177,7 @@ it('GET PDB schema summary', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(5);
+    res.body.length.should.equal(3);
   //  console.log(JSON.stringify(res.body, null, 2));
     done();
   });
@@ -188,7 +188,7 @@ it('GET 11i schema summary', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(5);
+    res.body.length.should.equal(3);
     //console.log(JSON.stringify(res.body, null, 2));
     done();
   });
@@ -200,9 +200,9 @@ it('GET PDB schema summary with query filter', (done) => {
   .end((err, res) => {
     expect(res).to.have.status(200);
     res.body.should.be.a('array');
-    res.body.length.should.equal(5);
+    res.body.length.should.equal(3);
   //  console.log(JSON.stringify(res.body, null, 2));
-    res.body[4].rows.length.should.equal(0);
+    res.body[2].rows.length.should.equal(0);
     done();
   });
 });

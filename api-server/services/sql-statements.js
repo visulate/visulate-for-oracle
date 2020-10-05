@@ -44,7 +44,6 @@ collection['DATABASE'] = {
     statement['COUNT-INVALID-OBJECTS'],
     statement['DB-SGA-SIZE'],
     statement['DB-SGA-FREE'],
-    statement['DB-SEGMENTS'],
     statement['DB-OS-STAT'],
     statement['DB-FEATURES'],
     statement['DB-FEATURE-USAGE']
@@ -60,9 +59,7 @@ collection['SCHEMA'] = {
 collection['SCHEMA-FILTERED'] = {
   ownerNameQueries: [
     statement['SCHEMA-DATATYPES'],
-    statement['SCHEMA-SPATIAL-USAGE'],
-    statement['SCHEMA-INDEXES'],
-    statement['SCHEMA-DBMS-USAGE']
+     statement['SCHEMA-INDEXES']
   ]
 };
 
