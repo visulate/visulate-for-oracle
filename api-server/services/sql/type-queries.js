@@ -306,7 +306,7 @@ statement['ERRORS'] = {
 statement['PROCEDURE-ARGS'] = {
   'title': 'Arguments',
   'description': '',
-  'display': ["Parameter", "Direction", "Level", "Data Type", "Length"],
+  'display': ["Overload", "Parameter", "Direction", "Level", "Data Type", "Length"],
   'sql': `select argument_name as "Parameter"
           ,      in_out as "Direction"
           ,      data_level as "Level"
@@ -314,6 +314,7 @@ statement['PROCEDURE-ARGS'] = {
           ,      data_length as "Length"
           ,      position
           ,      object_name
+          ,      overload as "Overload"
           from DBA_ARGUMENTS
           where object_id = :object_id
           order by subprogram_id, sequence`,
