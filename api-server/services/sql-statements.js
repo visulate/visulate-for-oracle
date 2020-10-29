@@ -212,11 +212,19 @@ collection['DEPENDENCIES'] = {
   objectNameIdQueries: [statement['USED-BY-OBJECTS']],
   objectIdQueries: [statement['USES-OBJECTS']],
   objectTypeQueries: []
-}
+};
 collection['DEPENDENCIES-NOSOURCE'] = {
   objectNameIdQueries: [statement['USED-BY-OBJECTS']],
   objectIdQueries: [statement['USES-OBJECTS-NOLINE']],
   objectTypeQueries: []
+};
+collection['DEPENDENCIES-ADB'] = {
+  objectNameIdQueries: [],
+  objectIdQueries: [],
+  objectTypeQueries: [
+    statement['USED-BY-ADB'],
+    statement['USES-ADB']
+  ]
 }
 
 module.exports.collection = collection;

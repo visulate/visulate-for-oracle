@@ -464,20 +464,21 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
 
   }
 
-  /**
-   * Dependency queries do not work in an Oracle Autonomous database instance.
-   * Need to write custom queries for ADB that do not access internal sys tables.
-   * The current queries do this to improve performance and as a workaround to
-   * limits on the number of outer joins in a single query (the DBA_ views include
-   * outer joins in their source)
-   *
-   * */
-
   query = sql.statement['ADB-YN'];
   r = await dbService.query(connection, query.sql, query.params);
   const absDb = (r[0]['Autonomous Database'] === 'Yes')? true: false;
 
-  if (! absDb ) {
+  if (absDb ) { // Autonomous DB query dba_dependencies
+    queryCollection = sql.collection['DEPENDENCIES-ADB'];
+    for (let c of queryCollection.objectTypeQueries) {
+      c.params.owner.val = owner;
+      c.params.object_type.val = object_type;
+      c.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+  }
+  else { // Query dependency$ table
 /**
  * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
  */
