@@ -22,6 +22,9 @@ sections:
       - title: "CSV file generation"
         href: "/pages/csv-file-generation.html"
         description: "Generate seed data CSV files from an Oracle database"
+      - title: "E-Business Suite Database"
+        href: "/pages/ebs-database.html"
+        description: "Documenting an Oracle E-Business Suite Database instance"
   - name: Concepts
     items:
       - title: "Application Architecture"
@@ -38,6 +41,9 @@ sections:
       - title: "Register a database"
         href: "/pages/database-registration.html"
         description: "A kubernetes secret is used to pass database connection details to the Visulate for Oracle instance."
+      - title: "Autonomous Database Registration"
+        href: "/pages/autonomous-database.html"
+        description: "Documenting an Oracle Autonomous Database instance"
       - title: "SQL Query Engine configuration"
         href: "/pages/query-engine-config.html"
         description: "Setup the SQL to CSV feature in Visulate for Oracle"
