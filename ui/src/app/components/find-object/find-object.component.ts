@@ -15,7 +15,7 @@
  */
 import { Component, Output, EventEmitter, ElementRef, ViewChild} from '@angular/core';
 import { RestService } from 'src/app/services/rest.service';
-import { FindObjectModel } from '../../models/find-object.model';
+import { FindObjectModel, ObjectHistoryModel } from '../../models/find-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -29,12 +29,14 @@ import { takeUntil } from 'rxjs/operators';
  * Quick find feature tied to search icon in toolbar. Finds objects of
  * a given name in each registered database
  */
-export class FindObjectComponent { 
+export class FindObjectComponent {
   public searchResult: FindObjectModel;
+  public history: ObjectHistoryModel[] = [];
   private unsubscribe$ = new Subject<void>();
   public searchTerm: string = '';
+  public breakpoint: number;
 
-  @ViewChild('searchBox') searchBox: ElementRef; 
+  @ViewChild('searchBox') searchBox: ElementRef;
   @Output() cancelSearchForm: EventEmitter<boolean> = new EventEmitter();
 
   constructor(private restService: RestService) {
@@ -44,14 +46,32 @@ export class FindObjectComponent {
     this.restService.getSearchResults$(searchTerm)
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(searchResult => {this.searchResult = searchResult;});
-  } 
-  
+  }
+
   processCancel() {
     this.cancelSearchForm.emit(false);
   }
 
+  getHistory() {
+    let localStorageHistory = JSON.parse(localStorage.getItem('objectHistory') || '[]');
+    localStorageHistory.forEach((entry) => {
+      this.history.push(new ObjectHistoryModel
+        ( entry.endpoint, entry.owner, entry.objectType, entry.objectName, entry.filter));
+    });
+  }
+
+  onResize(event) {
+    this.breakpoint = (event.target.innerWidth <= 700) ? 1 : 2;
+  }
+
   ngAfterViewInit(): void {
+
     setTimeout(() => this.searchBox.nativeElement.focus());
+    this.getHistory();
+  }
+
+  ngAfterContentInit(): void {
+    this.breakpoint = (window.innerWidth <= 700) ? 1 : 2;
   }
 
   ngOnDestroy(): void {

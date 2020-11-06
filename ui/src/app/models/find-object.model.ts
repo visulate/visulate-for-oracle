@@ -36,7 +36,7 @@ export class FindObjectModel implements Deserializable {
 export class ResultModel implements Deserializable {
   public database: string;
   public objects: ObjectModel[];
-  
+
   deserialize(input: any): this {
     Object.assign(this, input);
     this.objects = input.objects.map(object => new ObjectModel().deserialize(object));
@@ -51,9 +51,25 @@ export class ObjectModel implements Deserializable {
   object_name: string;
   object_type: string;
   status: string;
-  
+
   deserialize(input: any): this {
     Object.assign(this, input);
     return this;
+  }
+}
+
+export class ObjectHistoryModel {
+  endpoint: string;
+  owner: string;
+  objectType: string;
+  objectName: string;
+  filter: string;
+
+  constructor(endpoint: string, owner: string, objectType: string, objectName: string, filter: string){
+    this.endpoint = endpoint;
+    this.owner = owner;
+    this.objectType = objectType;
+    this.objectName = objectName;
+    this.filter = filter;
   }
 }

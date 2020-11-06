@@ -31,7 +31,7 @@ export class StateService {
    * `currentContext$` holds the menu selection.
    * The currentContext$ observable records the current menu selection,
    * the previous selection and a summary of what changed. Subscribers
-   * use the change summary and previous context to determine whether an API 
+   * use the change summary and previous context to determine whether an API
    * call is required.
    */
   private _endpoint: string = '';
@@ -49,7 +49,7 @@ export class StateService {
             new  CurrentContextModel('', '', '', '', '', false, []),
             new  CurrentContextModel('', '', '', '', '', false, []),
             []));
-  private sqlEnabled = new BehaviorSubject<boolean>(false);            
+  private sqlEnabled = new BehaviorSubject<boolean>(false);
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
@@ -82,10 +82,14 @@ export class StateService {
     this._filter = context.filter;
     this._showInternal = context.showInternal;
     this._objectList = context.objectList;
+
+    if (context.objectName){
+      this.saveContextInLocalStorage(context);
+    }
   }
 
   getStoredContext(){
-    return new CurrentContextModel(this._endpoint, this._owner, this._objectType, 
+    return new CurrentContextModel(this._endpoint, this._owner, this._objectType,
       this._objectName, this._filter, this._showInternal, this._objectList);
   }
 
@@ -104,4 +108,31 @@ export class StateService {
     this._sqlEnabled = sqlEnabled;
     this.sqlEnabled.next(sqlEnabled);
   }
+
+  saveContextInLocalStorage(context: CurrentContextModel) {
+    const maxHistoryLength = 5;
+    const contextObject = { "endpoint": context.endpoint,
+                            "owner": context.owner,
+                            "objectType": context.objectType,
+                            "objectName": context.objectName,
+                            "filter": context.filter
+                          };
+
+    let history = JSON.parse(localStorage.getItem('objectHistory') || '[]');
+    let contextObjectPosn = history.findIndex( obj => obj.objectName === contextObject.objectName &&
+                                                      obj.objectType === contextObject.objectType &&
+                                                      obj.owner === contextObject.owner &&
+                                                      obj.endpoint === contextObject.endpoint );
+
+    if (contextObjectPosn > -1) {
+      history.splice(contextObjectPosn, 1);
+    }
+    if (history.length > maxHistoryLength) {
+      history = history.slice(1);
+    }
+    history.push(contextObject);
+    localStorage.setItem('objectHistory', JSON.stringify(history));
+  }
+
+
 }
