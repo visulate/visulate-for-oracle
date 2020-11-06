@@ -36,6 +36,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import {MatGridListModule} from '@angular/material/grid-list';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -100,6 +101,7 @@ export function hljsLanguages() {
     MatInputModule,
     MatAutocompleteModule,
     MatCheckboxModule,
+    MatGridListModule,
     HighlightModule.forRoot({
       languages: hljsLanguages
     })
