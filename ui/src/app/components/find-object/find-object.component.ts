@@ -60,18 +60,20 @@ export class FindObjectComponent {
     });
   }
 
-  onResize(event) {
-    this.breakpoint = (event.target.innerWidth <= 700) ? 1 : 2;
-  }
-
   ngAfterViewInit(): void {
 
     setTimeout(() => this.searchBox.nativeElement.focus());
     this.getHistory();
   }
 
+  /**
+   * Set the mat-grid-list cols value to 1 if screen width is less than 700px
+   */
   ngAfterContentInit(): void {
     this.breakpoint = (window.innerWidth <= 700) ? 1 : 2;
+  }
+  onResize(event) {
+    this.breakpoint = (event.target.innerWidth <= 700) ? 1 : 2;
   }
 
   ngOnDestroy(): void {
