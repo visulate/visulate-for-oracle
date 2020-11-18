@@ -10,8 +10,8 @@
     Users create connections from a central server to each database and then query them
     using REST APIs or a browser.</p>
     <ul class="actions">
-      <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>
-      <li><a href="https://demo.visulate.net" class="button big">Live Demo</a></li>
+      <li><a href="https://demo.visulate.net" class="button big" target="_blank">Live Demo</a></li>
+      <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>      
     </ul>
   </div>
   <span class="image">
