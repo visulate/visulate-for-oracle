@@ -48,20 +48,12 @@ import { DbContentComponent } from './components/db-content/db-content.component
 import { FindObjectComponent } from './components/find-object/find-object.component';
 import { HideInternalPipe } from './models/hide-internal.pipe';
 
-import { HighlightModule} from 'ngx-highlightjs';
-import pgsql from 'highlight.js/lib/languages/pgsql';
-import sql from 'highlight.js/lib/languages/sql';
+import { HighlightModule, HIGHLIGHT_OPTIONS } from 'ngx-highlightjs';
+// import pgsql from 'highlight.js/lib/languages/pgsql';
+// import sql from 'highlight.js/lib/languages/sql';
 import { FilterObjectsComponent } from './components/filter-objects/filter-objects.component';
 import { SqlComponent } from './components/sql/sql.component';
 import { SqlValidatorDirective } from './components/sql/sql.directive';
-
-
-export function hljsLanguages() {
-  return [
-    {name: 'sql', func: sql},
-    {name: 'pgsql', func: pgsql}
-  ];
-}
 
 @NgModule({
   declarations: [
@@ -102,10 +94,20 @@ export function hljsLanguages() {
     MatAutocompleteModule,
     MatCheckboxModule,
     MatGridListModule,
-    HighlightModule.forRoot({
-      languages: hljsLanguages
-    })
+    HighlightModule
     ],
+  providers: [
+    {
+      provide: HIGHLIGHT_OPTIONS,
+      useValue: {
+        coreLibraryLoader: () => import('highlight.js/lib/core'),
+        languages: {
+          pgsql: () => import('highlight.js/lib/languages/pgsql'),
+          sql: () => import('highlight.js/lib/languages/sql')
+        }
+      }
+    }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
