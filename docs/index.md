@@ -3,15 +3,15 @@
 <section id="banner">
   <div class="content">
     <header>
-      <h1>Oracle database catalog</h1>
-      <p>Catalog your Oracle databases in a single location</p>
+      <h1>Oracle to GCP</h1>
+      <p>Tools to support Oracle database migration to Google Cloud Platform</p>
     </header>
     <p>Visulate for Oracle is a Cloud-based application to browse and search Oracle databases.
     Users create connections from a central server to each database and then query them
     using REST APIs or a browser.</p>
     <ul class="actions">
       <li><a href="https://demo.visulate.net" class="button big" target="_blank">Live Demo</a></li>
-      <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>      
+      <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>
     </ul>
   </div>
   <span class="image">
