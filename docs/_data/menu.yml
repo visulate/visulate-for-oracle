@@ -4,7 +4,7 @@ sections:
     items:
       - title: "Product Overview"
         href: "/"
-        description: "Visulate for Oracle is a Cloud-based application to browse and search Oracle databases."
+        description: "Visulate for Oracle is a Cloud-based application to support Oracle database migrations to Google Cloud Platform"
       - title: "Quickstart"
         href: "/pages/quickstart.html"
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
