@@ -4,13 +4,12 @@
   <div class="content">
     <header>
       <h1>Oracle to GCP</h1>
-      <p>Tools to support Oracle database migration to Google Cloud Platform</p>
+      <p>Support for Oracle database migrations to Google Cloud Platform</p>
     </header>
-    <p>Visulate for Oracle is a Cloud-based application to browse and search Oracle databases.
-    Users create connections from a central server to each database and then query them
+    <p>Visulate for Oracle is a Cloud-based application to catalog and query Oracle databases during
+    migration to GCP. Users create connections from a central server to each database and then query
     using REST APIs or a browser.</p>
     <ul class="actions">
-      <li><a href="https://demo.visulate.net" class="button big" target="_blank">Live Demo</a></li>
       <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>
     </ul>
   </div>
@@ -83,17 +82,20 @@
   </header>
 </div>
 
-### On-Premises to Cloud migration
-Document and analyze on-premises environments prior to migration. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines. Download the DDL for refactoring. Find direct and indirect dependencies for objects in microservice candidates. Generate CSV files to seed the new instance.
+### On-Premises to GCP Bare Metal
 
-### Re-write PL/SQL for the cloud
-Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages.
+Document and analyze on-premises environments prior to migration. Review system utilization for capacity planning. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines.
 
-### Decommission zombie database instances
-Review the contents of old databases. What are they running? Are they still needed or were they left running because no one turned them off. Identify targets for consolidation or decommissioning.
+Document custom code in Commercial-off-the-shelf (COTS) application databases. Review the schema definitions in E-Business Suite databases.
 
-### Custom development
-Document custom code in your Commercial-off-the-shelf (COTS) application database. Review the schema definitions in your E-Business Suite database. Examine dependencies before a schema change. Download and diff the DDL for objects in development and test environments.
+Catalog Oracle database instances. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Review the contents of old databases. Identify targets for consolidation or decommissioning.
 
-### License management
-Catalog all of your company's Oracle database instances in preparation for a compliance audit. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Catalog and analyze Oracle database instances on GCP Bare Metal, Oracle Cloud Platform or other Cloud providers.
+### Oracle Data Warehouse to Big Query
+
+Analyze star, snowflake and 3NF schemas in the Oracle data warehouse. Execute queries to review data values and prototype denormalized structures. Generate CSV from SQL statements for download as files or streaming to Google Cloud Storage. Generate code stubs from Oracle table and PL/SQL metadata for use in ETL tools. Replicate data from Oracle via REST APIs.
+
+### Oracle OLTP to Cloud SQL for PostgreSQL
+
+Review Oracle schemas to identify Oracle specific data types and indexes. Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages. Download Oracle DDL for manual conversion to PostgreSQL.
+
+Execute Ora2Pg via an easy to use single page web application or REST API.
