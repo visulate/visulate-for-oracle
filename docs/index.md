@@ -88,7 +88,7 @@ Document and analyze on-premises environments prior to migration. Review system 
 
 Document custom code in Commercial-off-the-shelf (COTS) application databases. Review the schema definitions in E-Business Suite databases.
 
-Catalog Oracle database instances. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be be downgraded to Standard Edition 2. Review the contents of old databases. Identify targets for consolidation or decommissioning.
+Catalog Oracle database instances. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be downgraded to Standard Edition 2. Review the contents of old databases. Identify targets for consolidation or decommissioning.
 
 ### Oracle Data Warehouse to Big Query
 
