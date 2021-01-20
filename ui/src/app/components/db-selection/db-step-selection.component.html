@@ -5,7 +5,7 @@
     <div *ngIf="endpoints.errorMessage"><p class="warning">{{endpoints.errorMessage}}</p></div>
     <mat-card-content>
         <mat-form-field>
-            <mat-select [(ngModel)]="currentEndpoint" placeholder="Database"
+            <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
                 (selectionChange)="setEndpoint($event.value)">
                 <mat-option *ngFor="let database of endpoints.databases" [value]="database">
                     {{database.endpoint}}

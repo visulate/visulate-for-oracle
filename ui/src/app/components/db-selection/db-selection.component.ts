@@ -46,6 +46,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   private unsubscribe$ = new Subject<void>();
   public ddlLink: string;
   public showInternal: boolean;
+  public dbPlaceholder: string;
 
 
   constructor(
@@ -120,6 +121,12 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    */
   processEndpointListChange(endpoints: EndpointListModel) {
     this.endpoints = endpoints;
+
+    if (this.endpoints.databases && this.endpoints.databases.length > 0) {
+      this.dbPlaceholder = 'Database';
+    } else {
+      this.dbPlaceholder = 'Loading ...';
+    }
 
     if (this.currentContext && this.currentContext.endpoint && this.endpoints.databases.length > 0) {
       this.currentEndpoint = this.currentContext.findCurrentEndpoint(this.endpoints);

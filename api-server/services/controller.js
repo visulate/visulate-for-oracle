@@ -22,6 +22,7 @@ const util = require('./util');
 const endpointList = getEndpointList(dbConfig.endpoints);
 const dbConstants = require('../config/db-constants');
 const templateEngine = require('./template-engine');
+const async = require('async');
 
 /**
  * Gets a list of endpoints
@@ -65,13 +66,13 @@ function formatEndpoint(endpoint, objectCountRows) {
 async function endpoints(filter) {
   let query = sql.statement['COUNT_DBA_OBJECTS'];
 
-  if (filter && filter !== '*'){
+  if (filter && filter !== '*') {
     query = sql.statement['COUNT_DBA_OBJECTS_FILTER'];
     query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
   }
 
-  let rows = [];
-  for (const ep of dbConfig.endpoints) {
+  const rows = [];
+  await async.each (dbConfig.endpoints, async function (ep) {
     try {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
       if (result.length > 0) {
@@ -81,8 +82,15 @@ async function endpoints(filter) {
     } catch (err) {
       logger.log('error', `controller.js endpoints() connection failed for ${ep.connect.poolAlias}`);
     }
-  }
-  return rows;
+  });
+
+  return rows.sort(function(a, b) {
+    const endpointA = a.endpoint.toUpperCase();
+    const endpointB = b.endpoint.toUpperCase();
+    if (endpointA < endpointB) { return -1; }
+    if (endpointA > endpointB) { return 1; }
+    return 0;
+  });
 }
 /**
  * Implements GET /
@@ -92,7 +100,7 @@ async function endpoints(filter) {
  */
 async function getEndpoints(req, res, next) {
   try {
-    const filter= req.query.filter;
+    const filter = req.query.filter;
     const databaseList = await endpoints(filter);
     res.status(200).json({ endpoints: databaseList });
   } catch (err) {
@@ -116,8 +124,8 @@ async function getEndpointConnections(req, res, next) {
 
   for (let ep of dbConfig.endpoints) {
     try {
-        await dbService.pingConnection(ep.connect.poolAlias);
-        validConnections.push(ep)
+      await dbService.pingConnection(ep.connect.poolAlias);
+      validConnections.push(ep)
     } catch (err) {
       ep['error'] = err.message;
       invalidConnections.push(ep);
@@ -141,8 +149,8 @@ async function getEndpointConnections(req, res, next) {
     invalidEndpointConnections[key] = value;
   });
 
-  (connectionStatus === 'invalid')?
-    res.status(200).json(invalidEndpointConnections):
+  (connectionStatus === 'invalid') ?
+    res.status(200).json(invalidEndpointConnections) :
     res.status(200).json(endpointConnections);
 
 }
@@ -155,11 +163,12 @@ async function executeSearch(searchCondition) {
   for (const ep of dbConfig.endpoints) {
     try {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
-      if (result){
-        rows.push({database: ep.namespace, objects: result});
+      if (result) {
+        rows.push({ database: ep.namespace, objects: result });
       }
     } catch (err) {
-      logger.log('error', `controller.js executeSearch() failed for ${ep.connect.poolAlias}`);    }
+      logger.log('error', `controller.js executeSearch() failed for ${ep.connect.poolAlias}`);
+    }
   }
   return rows;
 }
@@ -174,7 +183,7 @@ async function dbSearch(req, res, next) {
   try {
     const searchCondition = req.params.name;
     const rows = await executeSearch(searchCondition);
-    res.status(200).json({find: searchCondition, result: rows});
+    res.status(200).json({ find: searchCondition, result: rows });
   } catch (err) {
     next(err);
   }
@@ -184,7 +193,7 @@ module.exports.dbSearch = dbSearch;
 /**
  * Implements GET /api/:db endpoint.
  * @param {*} req - request
- * @param {*} res - reponse
+ * @param {*} res - response
  * @param {*} next - next matching route
  */
 
@@ -205,7 +214,7 @@ async function getDbDetails(req, res, next) {
     }
     await dbService.closeConnection(connection);
     res.status(200).json(result);
-  } catch(err){
+  } catch (err) {
     res.status(503).send(err);
   }
 
@@ -219,7 +228,7 @@ module.exports.getDbDetails = getDbDetails;
  * @param {*} next - next matching route
  */
 async function getSchemaDetails(req, res, next) {
-  try{
+  try {
     const poolAlias = endpointList[req.params.db];
     if (!poolAlias) {
       res.status(404).send("Requested database was not found");
@@ -242,14 +251,14 @@ async function getSchemaDetails(req, res, next) {
     connection = await dbService.getConnection(poolAlias);
     for (let c of queryCollection.ownerNameQueries) {
       c.params.owner.val = req.params.owner;
-      if (filter){
+      if (filter) {
         c.params.object_name.val = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
       }
       const cResult = await dbService.query(connection, c.sql, c.params);
       result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
     }
     await dbService.closeConnection(connection);
-    result[0].rows.length === 0? res.status(404).send("Invalid database username"): res.status(200).json(result);
+    result[0].rows.length === 0 ? res.status(404).send("Invalid database username") : res.status(200).json(result);
   } catch (err) {
     res.status(503).send(err);
   }
@@ -302,11 +311,11 @@ async function listObjects(req, res, next) {
      * Get the list of object types.
      * Use default values for name and status for GET /api/:db/:owner/:type calls
      */
-    let name = req.params.name? req.params.name : '*';
+    let name = req.params.name ? req.params.name : '*';
     if (name === '*' && req.query.filter) {
       name = req.query.filter;
     }
-    const status = req.params.status? req.params.status : '*';
+    const status = req.params.status ? req.params.status : '*';
 
     const connection = await dbService.getConnection(poolAlias);
     const result = await getObjectList(connection, req.params.owner, req.params.type, name, status, 'LIST_DBA_OBJECTS');
@@ -319,11 +328,11 @@ async function listObjects(req, res, next) {
       result.forEach(element => { objectList.push(element.OBJECT_NAME); });
       if (req.query.template) {
         templateEngine.applyTemplate('list', objectList, req)
-          .then (result => {
-            if (typeof(result) === "string") {res.type('txt');}
+          .then(result => {
+            if (typeof (result) === "string") { res.type('txt'); }
             res.status(200).send(result);
           })
-          .catch( err => { res.status(404).send(err)});
+          .catch(err => { res.status(404).send(err) });
       } else {
         res.status(200).json(objectList);
       }
@@ -345,7 +354,7 @@ module.exports.listObjects = listObjects;
  */
 
 async function generateDDL(req, res, next) {
-  if (dbConstants.values.internalSchemas.includes(req.params.owner)){
+  if (dbConstants.values.internalSchemas.includes(req.params.owner)) {
     res.status(403).send("DDL generation not supported for Oracle internal objects");
     return;
   }
@@ -356,11 +365,11 @@ async function generateDDL(req, res, next) {
   }
 
   try {
-    let name = req.params.name? req.params.name : '*';
+    let name = req.params.name ? req.params.name : '*';
     if (name === '*' && req.query.filter) {
       name = req.query.filter;
     }
-    const status = req.params.status? req.params.status : '*';
+    const status = req.params.status ? req.params.status : '*';
 
     const connection = await dbService.getConnection(poolAlias);
     const result = await getObjectList(connection, req.params.owner, req.params.type, name, status, 'DDL-GEN');
@@ -369,7 +378,7 @@ async function generateDDL(req, res, next) {
     if (result.length === 0) {
       res.status(404).send("No objects found for the requested owner, type, name and status");
     } else {
-      res.set({"Content-Disposition":"attachment; filename=\"ddl.sql\""})
+      res.set({ "Content-Disposition": "attachment; filename=\"ddl.sql\"" })
       result.forEach(element => { res.write(element.DDL) });
       res.status(200).send();
     }
@@ -426,7 +435,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
       c.params.owner.val = owner;
       c.params.object_name.val = object_name;
       const cResult = await dbService.query(connection, c.sql, c.params);
-        result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
     }
     for (let c of queryCollection.objectTypeQueries) {
       c.params.owner.val = owner;
@@ -466,9 +475,9 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
 
   query = sql.statement['ADB-YN'];
   r = await dbService.query(connection, query.sql, query.params);
-  const absDb = (r[0]['Autonomous Database'] === 'Yes')? true: false;
+  const absDb = (r[0]['Autonomous Database'] === 'Yes') ? true : false;
 
-  if (absDb ) { // Autonomous DB query dba_dependencies
+  if (absDb) { // Autonomous DB query dba_dependencies
     queryCollection = sql.collection['DEPENDENCIES-ADB'];
     for (let c of queryCollection.objectTypeQueries) {
       c.params.owner.val = owner;
@@ -479,26 +488,26 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
     }
   }
   else { // Query dependency$ table
-/**
- * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
- */
-  ['PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TRIGGER', 'TYPE', 'TYPE BODY', 'LIBRARY', 'ASSEMBLY']
-    .includes(object_type) ? queryCollection = sql.collection['DEPENDENCIES'] :
-    queryCollection = sql.collection['DEPENDENCIES-NOSOURCE'];
+    /**
+     * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
+     */
+    ['PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TRIGGER', 'TYPE', 'TYPE BODY', 'LIBRARY', 'ASSEMBLY']
+      .includes(object_type) ? queryCollection = sql.collection['DEPENDENCIES'] :
+      queryCollection = sql.collection['DEPENDENCIES-NOSOURCE'];
 
-  for (let c of queryCollection.objectNameIdQueries) {
-    c.params.object_id.val = object_id;
-    c.params.object_name.val = object_name;
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-  }
-  for (let c of queryCollection.objectIdQueries) {
-    c.params.object_id.val = object_id;
-    const cResult = await dbService.query(connection, c.sql, c.params);
-    result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-  }
+    for (let c of queryCollection.objectNameIdQueries) {
+      c.params.object_id.val = object_id;
+      c.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+    for (let c of queryCollection.objectIdQueries) {
+      c.params.object_id.val = object_id;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
 
-}
+  }
   await dbService.closeConnection(connection);
   return result;
 }
@@ -530,11 +539,11 @@ async function showObject(req, res, next) {
     res.status(404).send('Database object was not found');
   } else if (req.query.template) {
     templateEngine.applyTemplate('object', objectDetails, req)
-      .then (result => {
-        if (typeof(result) === "string") {res.type('txt');}
+      .then(result => {
+        if (typeof (result) === "string") { res.type('txt'); }
         res.status(200).send(result);
       })
-      .catch( err => { res.status(404).send(err)});
+      .catch(err => { res.status(404).send(err) });
   } else {
     res.status(200).json(objectDetails);
   }
