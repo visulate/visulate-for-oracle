@@ -164,7 +164,6 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // this.dbPlaceholder = 'Loading ...';
     this.state.endpoints$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(endpoints => { this.processEndpointListChange(endpoints); });
