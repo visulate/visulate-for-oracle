@@ -46,9 +46,12 @@ def test_simple_json_query(client):
          },
      json={"sql": "select banner from v$version"})
 
-    expectedResponse = '"{\\"columns\\":[\\"BANNER\\"], \\n\\"rows\\": [\\n{\\"BANNER\\": \\"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production\\"}\\n]}"'
     assert response.status_code == 200
-    assert json.dumps(response.data.decode("utf-8") ) == expectedResponse
+    responseData = json.loads(response.data.decode("utf-8"))
+    assert responseData["columns"] == ['BANNER']
+    assert responseData["rows"] == [{'BANNER': 'Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production'}]
+    assert type(responseData["executionTime"]) == float
+
 
 def test_invalid_sql(client):
     response = client.post(f"/sql/{validEndpoint}",

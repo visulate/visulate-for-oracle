@@ -12,6 +12,7 @@ x-google-marketplace:
       v1.1.16 Fix issues identified during E-Business Suite testing
       v1.1.17 Display recent history on search screen
       v1.1.19 Bump highlight.js from 9.18.1 to 10.4.1 in /ui
+      v1.1.20 Improve database connection performance
   images:
     '':
       properties:

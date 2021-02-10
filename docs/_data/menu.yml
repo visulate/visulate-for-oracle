@@ -10,6 +10,9 @@ sections:
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
   - name: How-to guides
     items:
+      - title: "Google Bare Metal Solution"
+        href: "/pages/bms-planning.html"
+        description: "Google Bare Metal Solution planning using Visulate for Oracle"
       - title: "Database analysis"
         href: "/pages/db-analysis.html"
         description: "Determine the complexity of an Oracle database prior to Cloud migration"

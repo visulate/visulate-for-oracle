@@ -43,6 +43,7 @@ export class SqlComponent implements OnInit {
   private unsubscribe$ = new Subject<void>();
   public resultSet: SqlModel;
   public errorMessage: string;
+  public dbUser: string;
 
 
   constructor(
@@ -56,6 +57,7 @@ export class SqlComponent implements OnInit {
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     let context = subjectContext.currentContext;
     this.currentContext = context;
+    this.dbUser = this.currentContext.owner? this.currentContext.owner: 'VISULATE';
 
     if (this.currentContext.objectName &&
       (this.currentContext.objectType === 'TABLE' ||
@@ -81,7 +83,7 @@ export class SqlComponent implements OnInit {
    */
   public processPassword(password: string) {
     this.password = password;
-    this.basicAuthCredentials = btoa(`${this.currentContext.owner}:${password}`);
+    this.basicAuthCredentials = btoa(`${this.dbUser}:${password}`);
   }
 
 

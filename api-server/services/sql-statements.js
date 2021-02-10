@@ -41,11 +41,14 @@ collection['DATABASE'] = {
     statement['DB-VERSION'],
     statement['ADB-YN'],
     statement['EBS-SCHEMA'],
+    statement['PATCHES'],
+    statement['DB-LINKS'],
     statement['COUNT-INVALID-OBJECTS'],
     statement['DB-SGA-SIZE'],
     statement['DB-SGA-FREE'],
+    statement['DB-SIZE'],
+    statement['DB-SPACE-USED'],
     statement['DB-OS-STAT'],
-    statement['DB-FEATURES'],
     statement['DB-FEATURE-USAGE']
   ]
 };

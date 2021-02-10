@@ -616,7 +616,8 @@ paths:
                 {"NAME": "MAYO", "STATE": "FL", "POPULATION": 1237},
                 {"NAME": "ASTOR", "STATE": "FL", "POPULATION": 1556},
                 {"NAME": "LAKELAND", "STATE": "FL", "POPULATION": 97422}
-                ]}
+                ],
+                "executionTime":	0.47812914848327637}
 
 components:
   securitySchemes:

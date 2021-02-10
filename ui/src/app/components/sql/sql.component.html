@@ -2,7 +2,7 @@
   <form #queryForm="ngForm" novalidate>
     <mat-form-field appearance="outline">
       <mat-label>Username</mat-label>
-      <input matInput value="{{currentContext.owner}}" [disabled]="true" required name="owner">
+      <input matInput value="{{this.dbUser}}" [disabled]="true" required name="owner">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
