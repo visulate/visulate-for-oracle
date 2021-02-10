@@ -22,9 +22,7 @@ SELECT ANY DICTIONARY privilege grants Read access on Data Dictionary tables own
 Some of the queries in Visulate for Oracle access data dictionary tables instead of the DBA_ views for performance reasons hence the need for SELECT ANY DICTIONARY.  The DDL download feature calls DBMS_METADATA which requires SELECT_CATALOG_ROLE.
 
 ## Can I use an existing database account?
-You can use any account that has been granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY but **it must not have additional privileges** for security reasons. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set.
-
-The database account does not need to be called "VISULATE".
+ Probably not. The database account needs to be called "VISULATE" and granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY but **it must not have additional privileges** for security reasons. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set.
 
 ## Drop the user
 Visulate for Oracle needs a database user account in each registered database. You should drop the user if you decide to de-register the database. Login to SQL*PLus as SYSTEM and run the following:
