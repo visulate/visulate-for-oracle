@@ -6,6 +6,7 @@ import cx_Oracle
 import sqlparse
 import base64
 import logging
+import time
 
 from flask import (
     Blueprint, Response, request, abort, current_app, make_response
@@ -139,7 +140,7 @@ def pipe_results(connection, cursor, csv_header):
         errorObj, = e.args
         fail_request(400, description=errorObj.message)
 
-def pipe_results_as_json(connection, cursor):
+def pipe_results_as_json(connection, cursor, start_time):
     """Loop through a SQL statement's result set and return as a JSON object"""
     if cursor is None:
         connection.close()
@@ -162,10 +163,13 @@ def pipe_results_as_json(connection, cursor):
                 yield(json.dumps(row, default=str))
             cursor.close()
             connection.close()
-            yield('\n]}')
+            yield('\n],')
+            yield(f'"executionTime":{json.dumps(time.time() - start_time)} \n')
+            yield('}')
         except cx_Oracle.DatabaseError as e:
             errorObj, = e.args
             fail_request(400, description=errorObj.message)
+
     return Response(generate(), mimetype='application/json')
 
 def get_connection(username, password, connectString):
@@ -263,11 +267,12 @@ def sql2csv(endpoint):
         options = query.get('options')
         validate_options(options)
 
+        start_time = time.time()
         connection = get_connection(user, passwd, connStr)
         cursor = get_cursor(connection, sql, vbinds)
 
         if httpHeaders.get('accept') == 'application/json':
-            response = pipe_results_as_json(connection, cursor)
+            response = pipe_results_as_json(connection, cursor, start_time)
         else:
             response = Response(pipe_results(connection, cursor, get_option("csv_header", "N")),
                                 mimetype='text/csv')

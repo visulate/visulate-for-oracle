@@ -122,7 +122,14 @@ kind: BackendConfig
 metadata:
   annotations:
     kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"cloud.google.com/v1","kind":"BackendConfig","metadata":{"annotations":{},"labels":{"app.kubernetes.io/name":"visulate-for-oracle-1107"},"name":"visulate-for-oracle-1107-visulate-for-oracle-sql-conf","namespace":"test-nat-ns"},"spec":{"timeoutSec":300}}
+  {"apiVersion":"cloud.google.com/v1",
+   "kind":"BackendConfig",
+   "metadata":{"annotations":{},
+               "labels":{
+                 "app.kubernetes.io/name":"visulate-for-oracle-1107"},
+                 "name":"visulate-for-oracle-1107-visulate-for-oracle-sql-conf",
+               "namespace":"test-nat-ns"},
+    "spec":{"timeoutSec":300}}
   creationTimestamp: "2020-08-14T20:04:48Z"
   generation: 1
   labels:
@@ -130,7 +137,7 @@ metadata:
   name: visulate-for-oracle-1107-visulate-for-oracle-sql-conf
   namespace: test-nat-ns
   resourceVersion: "52864557"
-  selfLink: /apis/cloud.google.com/v1/namespaces/test-nat-ns/backendconfigs/visulate-for-oracle-1107-visulate-for-oracle-sql-conf
+  selfLink: /apis/cloud.google.com/v1/namespaces/nat-ns/backendconfigs/visulate-for-oracle-sql-conf
   uid: 363b3943-112b-4a74-b806-9590b664280c
 spec:
   timeoutSec: 300

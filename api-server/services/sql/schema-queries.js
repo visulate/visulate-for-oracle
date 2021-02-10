@@ -127,12 +127,17 @@ statement['DB-FEATURES'] = {
 statement['DB-FEATURE-USAGE'] = {
   'title': 'Database Feature Usage',
   'description': '',
-  'display': ["Feature", "Detected Usages"],
-  'sql': `select name as "Feature"
-          ,      detected_usages as "Detected Usages"
-          from dba_feature_usage_statistics
-          where detected_usages > 0
-          order by detected_usages desc`,
+  'display': ["Feature", "Times Used", "First Used", "Last Used", "Used Now"],
+  'sql': `select f.name as "Feature"
+          ,      f.detected_usages as "Times Used"
+          ,      to_char(f.first_usage_date, 'Mon DD, YYYY') as "First Used"
+          ,      to_char(f.last_usage_date, 'Mon DD, YYYY') as "Last Used"
+          ,      f.currently_used as "Used Now"
+          from dba_feature_usage_statistics f
+          ,    v$database d
+          where f.detected_usages > 0
+          and d.dbid = f.dbid
+          order by f.name`,
    'params': {
    }
 };
@@ -163,24 +168,63 @@ statement['DB-SGA-FREE'] = {
   'title': 'SGA Free',
   'description': '',
   'display': ["Free Memory (MB)"],
-  'sql' : `select round(sum(bytes/1024/1024), 2) as "Free Memory (MB)"
+  'sql' : `select round(sum(bytes/1024/1024)) as "Free Memory (MB)"
            from v$sgastat
            where name like '%free memory%'`,
    'params': {
    }
 };
 
-statement['DB-SEGMENTS'] = {
-  'title': 'Storage Segments',
+statement['DB-SIZE'] = {
+  'title': 'Database Size',
+  'description': '',
+  'display': ["Tablespace", "Size (GB)"],
+  'sql': `select nvl(tablespace_name, 'Total') as "Tablespace",
+          round(sum(bytes)/1024/1024/1024, 2) as "Size (GB)"
+          from dba_data_files
+          group by grouping sets((), (tablespace_name))
+          order by 2 desc`,
+  'params': {}
+};
+
+statement['DB-SPACE-USED'] = {
+  'title': 'Space Used',
   'description': '',
   'display': ["Schema", "Size (GB)"],
-  'link': "Schema",
-  'sql' : `select s.owner as "Schema"
-           , round(sum(bytes/1024/1024/1024),2) as "Size (GB)"
-           , owner as link
-           from dba_segments s
-           group by s.owner
-           order by 2 desc`,
+  'sql': `select nvl(owner, 'Total') as "Schema",
+          round(sum(bytes)/1024/1024/1024, 2) as "Size (GB)"
+          from dba_segments
+          group by grouping sets((), (owner))
+          order by 2 desc`,
+  'params': {}
+}
+
+statement['PATCHES'] = {
+  'title': 'Patch History',
+  'description': '',
+  'display': ["Time", "Action", "Namespace", "Version", "ID", "Comments"],
+  'sql' : `select to_char(action_time, 'Mon dd, yyyy hh24:mi') as "Time"
+           ,      action as "Action"
+           ,      namespace as "Namespace"
+           ,      version as "Version"
+           ,      id as "ID"
+           ,      comments as "Comments"
+           from  sys.REGISTRY$HISTORY
+           order by action_time`,
+   'params': {
+   }
+};
+
+statement['DB-LINKS'] = {
+  'title': 'Database Links',
+  'description': '',
+  'display': ["Schema", "Database Link", "Username", "Connect String"],
+  'sql' : `select owner as "Schema",
+           db_link as "Database Link",
+           username as "Username",
+           host as "Connect String"
+           from dba_db_links
+           order by 1, 2`,
    'params': {
    }
 };

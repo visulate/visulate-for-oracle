@@ -6,9 +6,9 @@
       <h1>Oracle to GCP</h1>
       <p>Support for Oracle database migrations to Google Cloud Platform</p>
     </header>
-    <p>Visulate for Oracle is a Cloud-based application to catalog and query Oracle databases during
-    migration to GCP. Users create connections from a central server to each database and then query
-    using REST APIs or a browser.</p>
+    <p>Oracle developers and DBAs are often frustrated by the lack of accurate documentation for their database schemas and instances. Visulate addresses this problem by using Oracle’s internal data dictionary to “auto document” them.</p>
+    <p>It was developed by a Google Cloud development partner with over 30 years Oracle experience. With Visulate you can spend time analyzing legacy environments and accelerate your migration to Google Cloud Platform</p>
+
     <ul class="actions">
       <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>
     </ul>
@@ -27,50 +27,43 @@
       <article>
         <span class="icon solid fa-database"></span>
         <div class="content">
-          <h3>One tool</h3>
-          <p>Single tool to catalog the company’s Oracle databases. No server agents to install and manage.
-           No client code to download or host via Citrix. Does not require Oracle server modifications
-           e.g. UTL_FILE directories or REST Data Services (ORDS)</p>
-        </div>
-      </article>
-      <article>
-        <span class="icon solid fa-cloud"></span>
-        <div class="content">
-          <h3>Cloud-based</h3>
-          <p>Enterprise-ready containerized solution with prebuilt deployment templates.
-          Available as a Kubernetes application on Google Cloud Marketplace.
-         </p>
+          <h3>Database Object Reporting</h3>
+          <p>Search and browse the data dictionary in multiple databases.</p>
         </div>
       </article>
       <article>
         <span class="icon solid fa-sitemap"></span>
         <div class="content">
-          <h3>Database Object Reporting</h3>
-         <p>Search and browse the data dictionary in each database.  Create bookmarks and links to schemas and objects.</p>
-         <p>Query the database's dependency model to identify dependencies to and from the object (e.g a view "uses" the tables it is based on and is "used by" a procedure that selects from it).</p>
+          <h3>Dependency Analysis</h3>
+         <p>Query the database's dependency model to identify dependencies between objects.</p>
         </div>
       </article>
       <article>
         <span class="icon solid fa-file"></span>
         <div class="content">
-          <h3>SQL, PL/SQL, DDL and CSV</h3>
-          <p>Examine PL/SQL packages and procedures. Extract SQL statements from them. Identify dependencies on other database objects.</p>
-          <p> Generate and download DDL for individual objects or groups of objects. </p>
-          <p>Run SQL statements to review table contents and generate CSV files for data migrations</p>
+          <h3>CSV File Generation</h3>
+          <p>Run SQL statements to review table contents and generate CSV files.</p>
         </div>
       </article>
       <article>
         <span class="icon solid fa-search"></span>
         <div class="content">
-          <h3>Advanced Search and Filter</h3>
-          <p>Single query to find objects by name in every schema and database. Filtered search to find objects in a database that match a wildcard pattern (e.g. E-Business Suite product prefix). </p><p>Advanced search API to identify objects and their dependent objects (e.g. a find the schema definition for a stored procedure and every object it needs to install cleanly)</p>
+          <h3>PL/SQL Analysis</h3>
+          <p>Examine PL/SQL procedures and extract SQL statements from them.</p>
+        </div>
+      </article>
+            <article>
+        <span class="icon solid fa-cloud"></span>
+        <div class="content">
+          <h3>Cloud native</h3>
+          <p>Enterprise-ready Kubernetes application on Google Cloud Marketplace.</p>
         </div>
       </article>
       <article>
         <span class="icon solid fa-wrench"></span>
         <div class="content">
           <h3>API Support</h3>
-          <p>REST APIs are available for all application features.</p>
+          <p>REST APIs for all application features.</p>
         </div>
       </article>
     </div>

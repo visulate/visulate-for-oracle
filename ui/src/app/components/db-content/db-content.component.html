@@ -15,7 +15,7 @@
 
 
 <ng-template #queryResults>
-    <mat-accordion *ngIf="sqlEnabled && currentContext && currentContext.owner">
+    <mat-accordion *ngIf="sqlEnabled && currentContext && currentContext.endpoint">
         <mat-expansion-panel [(expanded)]=queryPanelExpanded>
             <mat-expansion-panel-header>
                 <mat-panel-title>
