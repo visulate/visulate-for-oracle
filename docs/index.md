@@ -6,8 +6,8 @@
       <h1>Oracle to GCP</h1>
       <p>Support for Oracle database migrations to Google Cloud Platform</p>
     </header>
-    <p>Oracle developers and DBAs are often frustrated by the lack of accurate documentation for their database schemas and instances. Visulate addresses this problem by using Oracle’s internal data dictionary to “auto document” them.</p>
-    <p>It was developed by a Google Cloud development partner with over 30 years Oracle experience. With Visulate you can spend time analyzing legacy environments and accelerate your migration to Google Cloud Platform</p>
+    <p>Oracle developers and DBAs are often frustrated by the lack of accurate documentation for databases whose schemas have evolved over a number of years. Visulate addresses this problem by using Oracle’s internal data dictionary to “auto document” them.</p>
+    <p>It was developed by a Google Cloud development partner with over 30 years Oracle experience. With Visulate you can spend less time analyzing legacy environments and accelerate your migration to Google Cloud Platform</p>
 
     <ul class="actions">
       <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>
@@ -56,7 +56,7 @@
         <span class="icon solid fa-cloud"></span>
         <div class="content">
           <h3>Cloud native</h3>
-          <p>Enterprise-ready Kubernetes application on Google Cloud Marketplace.</p>
+          <p>An enterprise-ready Kubernetes application on Google Cloud Marketplace.</p>
         </div>
       </article>
       <article>
@@ -77,11 +77,7 @@
 
 ### On-Premises to GCP Bare Metal
 
-Document and analyze on-premises environments prior to migration. Review system utilization for capacity planning. Evaluate proprietary feature usage in each database. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines.
-
-Document custom code in Commercial-off-the-shelf (COTS) application databases. Review the schema definitions in E-Business Suite databases.
-
-Catalog Oracle database instances. Identify Enterprise Edition feature and option usage. Find Enterprise Edition license instances that could be downgraded to Standard Edition 2. Review the contents of old databases. Identify targets for consolidation or decommissioning.
+Document and analyze on-premises environments prior to migration. Review system utilization for capacity planning. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines. Document custom code in E-Business Suite databases. Review the contents of old databases. Identify targets for consolidation or decommissioning.
 
 ### Oracle Data Warehouse to Big Query
 
