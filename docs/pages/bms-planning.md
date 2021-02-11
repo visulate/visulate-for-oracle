@@ -3,11 +3,11 @@
 # Planning a migration to Google Bare Metal Solution
 Peter Goldthorp, February 2021
 
-*Google Cloud Bare Metal Solution (BMS) is a co-location offering from Google. It is designed to address the challenges enterprise CIOs face delivering new cloud based services while supporting their existing systems. Customers and the board of directors expect technical innovation. In reality 80% the budget is spent on maintenance.*
+*Google Cloud Bare Metal Solution (BMS) is a co-location offering from Google. It is designed to address the challenges enterprise CIOs face delivering new cloud based services while supporting their existing systems.*
 
 ## Cloud innovation while keeping the lights on
 
-Most enterprises run a mixture of commercial off the shelf (COTS) software applications and custom code developed in-house. For example, they may run SAP to support their manufacturing operations, Oracle E-Business Suite for Financials and PeopleSoft for human resource management. The systems were customized by systems integrators during the initial implementation and have been extended over the years with business specific logic.
+Customers and the board of directors expect technical innovation. In reality 80% the budget is spent on maintenance. Most enterprises run a mixture of commercial off the shelf (COTS) software applications and custom code developed in-house. For example, they may run SAP to support their manufacturing operations, Oracle E-Business Suite for Financials and PeopleSoft for human resource management. The systems were customized by systems integrators during the initial implementation and have been extended over the years with business specific logic.
 
 Each software implementation is different. No two enterprises will be running the same software configuration even if they happen to be running the same application versions. Each change requires extensive testing. Many large Oracle customers are willing to pay additional fees for extended support on an old version of their software to avoid the cost and disruption associated with an upgrade to the latest version.
 
@@ -75,15 +75,15 @@ Consider the amount of acceptable downtime and data volume for each database. Id
 
 Google Cloud Interconnect or a Transfer Appliance may be required for large data volumes.
 
-Consider the potential impact the migration may have on Oracle license compliance. Do you need to stagger database migrations to avoid running too many concurrent  instances?
+Consider the potential impact the migration may have on Oracle license compliance. Do you need to stagger database migrations to avoid running too many concurrent instances?
 
 ## Documenting databases with Visulate
 
-Visulate is an Oracle database documentation tool from a Google Cloud development partner. It addresses an issue that almost every database customer has: inconsistent documentation.
+Visulate supports BMS migration projects. It is an Oracle database documentation tool from a Google Cloud development partner that addresses an issue that almost every database customer has. Inconsistent documentation.
 
-While some database environments have extensive, well maintained documentation  others are not documented at all. Most environments fall somewhere in between. Documentation exists but may not reflect the current state. As a result developers and DBAs rely on the data dictionary as a system of record. They use SQL queries and client tools to determine the current database structure.
+While some database environments have extensive, well maintained documentation others are not documented at all. Most environments fall somewhere in between. Documentation exists but may not reflect the current state. As a result developers and DBAs rely on the data dictionary as a system of record. They use SQL queries and client tools to determine the current database structure.
 
-Visulate packages these queries in a cloud native application that "auto documents" Oracle databases. It includes custom queries for each Oracle object type. Users create connections from a central server to each database and then interact with them using APIs or a browser. The application reads the data dictionary in each registered database and shows its current state in a browser based UI with links that can be bookmarked or shared with others.
+Visulate packages data dictionary queries in a cloud native application that "auto documents" Oracle databases. It includes custom queries for each Oracle object type. Users create connections from a central server to each database and then interact with them using APIs or a browser. The application reads the data dictionary in each registered database and displays the result in a browser based UI with links that can be bookmarked or shared with others. It always shows the current state and never goes stale.
 
 The tool provides a database instance report that identifies many of the required items  during the analysis of an on-premises database. These include the database version, patch level, system utilization, SGA size, total size, space used, database links and database feature usage.
 
