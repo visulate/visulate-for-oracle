@@ -73,7 +73,8 @@ To set up your cluster to understand Application resources, run the following
 command:
 
 ```shell
-kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/master/crd/app-crd.yaml"
+kubectl apply -f \
+"https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/master/crd/app-crd.yaml"
 ```
 
 You only need to run this command once.
@@ -286,7 +287,8 @@ Rules:
               /find/*       visulate-4-visulate-api-svc:3000 (10.40.1.5:3000,10.40.2.8:3000)
               /ddl/*        visulate-4-visulate-api-svc:3000 (10.40.1.5:3000,10.40.2.8:3000)
               /database/*   visulate-4-visulate-ui-svc:80 (10.40.0.10:80,10.40.0.11:80)
-Annotations:  ingress.kubernetes.io/backends: {"k8s-be-30180--faf3ce7920b8f0e5":"Unknown","k8s-be-32739--faf3ce7920b8f0e5":"Unknown"}
+Annotations:  ingress.kubernetes.io/backends:
+              {"k8s-be-30180--faf3ce7920b8f0e5":"Unknown","k8s-be-32739--faf3ce7920b8f0e5":"Unknown"}
               ingress.kubernetes.io/forwarding-rule: k8s-fw-default-visulate-4-igs--faf3ce7920b8f0e5
               ingress.kubernetes.io/https-forwarding-rule: k8s-fws-default-visulate-4-igs--faf3ce7920b8f0e5
               ingress.kubernetes.io/https-target-proxy: k8s-tps-default-visulate-4-igs--faf3ce7920b8f0e5
@@ -304,7 +306,8 @@ Events:
 The instance is ready when the `ingress.kubernetes.io/backends` annotations are "HEALTHY":
 
 ```
-Annotations:  `ingress.kubernetes.io/backends`: {"k8s-be-30180--faf3ce7920b8f0e5":"HEALTHY","k8s-be-32739--faf3ce7920b8f0e5":"HEALTHY"}
+Annotations:  `ingress.kubernetes.io/backends`: { "k8s-be-30180--faf3ce7920b8f0e5":"HEALTHY",
+                                                  "k8s-be-32739--faf3ce7920b8f0e5":"HEALTHY"}
 ```
 
 This shouldn't take more than 20 minutes.

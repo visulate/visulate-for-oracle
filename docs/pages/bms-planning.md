@@ -21,13 +21,11 @@ A system that has been optimized for dedicated servers and a storage area networ
 
 ## Oracle’s 2x license penalty
 
-Cloud VMs running Oracle software may incur additional license fees. Oracle Enterprise Edition licenses are based on CPU cores. Oracle applies a “core factor” to each processor core to determine the required number of processor licenses. This core factor is multiplied by the number of cores to determine the number of licenses.
-
-For most chipsets the core factor is less than one. For example, the core factor for an Intel CPU is 0.5 so a 4-core single socket machine requires 2 Oracle processor licenses. In January 2017 Oracle removed the core factor for “Authorized Cloud Environments” effectively doubling the license requirement for cloud based VMs.
+Cloud VMs running Oracle software may incur additional license fees. Oracle Enterprise Edition licenses are based on CPU cores. Oracle applies a “core factor” to each processor core to determine the required number of processor licenses. This core factor is multiplied by the number of cores to determine the number of licenses. For most chipsets the core factor is less than 1. For example, the core factor for an Intel CPU is 0.5 so a 4-core single socket machine requires 2 Oracle processor licenses. In January 2017 Oracle removed the core factor for “Authorized Cloud Environments” effectively doubling the license requirement for cloud based VMs.
 
 ## Google Cloud BMS
 
-Google Cloud BMS is designed to address this need. It is a colocation offering from Google that allows customers to migrate their Oracle environments into the cloud “as-is” with support for RAC and older database versions. Customers lease dedicated hardware for fixed terms in data centers distinct from but geographically close to a Google Cloud data center. BMS provides commodity x86-64 server hardware to run specialized workloads with low-latency access to Google Cloud services. Google manages the server hardware, networking, facilities, and other core infrastructure.
+Google Cloud BMS is designed to address this need. It is a colocation offering from Google that allows customers to migrate their Oracle workloads into the cloud “as-is” with support for RAC and older database versions. Customers lease dedicated hardware for fixed terms in data centers distinct from but geographically close to a Google Cloud data center. BMS provides commodity x86-64 server hardware to run specialized workloads with low-latency access to Google Cloud services. Google manages the server hardware, networking, facilities, and other core infrastructure.
 
 Customers sign a 3 year commitment to lease the BMS hardware which Google purchases on their behalf. At the time of writing the hardware options varied from a 16 core machine with 192GB of RAM to 448 cores and 24TB RAM. Customers are responsible for the software, applications, and data that they use and store in the BMS environment.
 
@@ -60,6 +58,13 @@ Create a spreadsheet to document your findings with:
 - Hypervisor
 - Notes and links
 
+## Database documentation
+
+BMS migration projects can be frustrated by inadequate documentation for databases whose structure has changed over the years. Some environments may have extensive, well maintained documentation while others are not documented at all. Most environments will fall somewhere in between. Documentation exists but may not reflect the current state. Visulate can be used as a discovery tool for sites that lack adequate documentation. It is an Oracle database documentation tool from a Google Cloud development partner that generates documentation from Oracle's data dictionary.
+
+Follow the instructions in the [install guide](/pages/install-guide.html) to setup and configure Visulate. Use the [database analysis report](/pages/db-analysis.html) to assemble information for the existing usage analysis. Use the search and filter mechanisms to help identify database usage. These include the ability to search metadata across databases and find every instance with a given table or PL/SQL package. Use the [E-Business Suite features](/pages/ebs-database.html) to review your instances using a product prefix filter similar to the one in Oracle’s eTRM documentation tool.
+
+
 ## Identify the future state
 Perform a capacity planning exercise to identify your server requirements for the next 3 years. Compare this to the list of available regions and machine configurations in the [Google's BMS planning guide](https://cloud.google.com/bare-metal/docs/bms-planning). Identify the optimal configuration for "lift and shift" migration where each on-premises application system is migrated as-is to BMS.
 
@@ -67,9 +72,9 @@ Review this provisional architecture and modify as necessary. For example, have 
 
 ## Migration planning
 
-Develop a migration plan to cover the transformation of each environment to BMS.  Develop and document test plans for each migration along with rollback procedures in the event of a test failure.
+Develop a migration plan to cover the transformation of each environment to BMS.  Develop and document test plans for each migration along with rollback procedures in the event of a test failure. Visulate's [ad-hoc query functionality](/pages/csv-file-generation.html) can be used to develop BMS migration tests. Identify queries and expected results for tests that you want to run after the migration to confirm its integrity. Use the UI to develop the tests and then include them as cURL commands in a test suite.
 
-Consider the amount of acceptable downtime and data volume for each database. Identify the high level approach (e.g. Data Pump, Transportable Tablespaces, Pluggable database, Dataguard, Golden Gate or SQL Loader) and expected duration of each migration. Use the table below to identify the time required for data transfer.
+Consider the amount of acceptable downtime and data volume for each database. Identify the high level approach (e.g. offline, read-only, rolling update), mechanism (e.g. Data Pump, Transportable Tablespaces, Pluggable database, Dataguard, Golden Gate or SQL Loader) and expected duration of each migration. Use the table below to identify the time required for data transfer.
 
 ![Data transfer time](https://cloud.google.com/transfer-appliance/docs/2.2/640w_2x.png){: class="screenshot" }
 
@@ -77,22 +82,7 @@ Google Cloud Interconnect or a Transfer Appliance may be required for large data
 
 Consider the potential impact the migration may have on Oracle license compliance. Do you need to stagger database migrations to avoid running too many concurrent instances?
 
-## Documenting databases with Visulate
+## Conclusion
 
-Visulate supports BMS migration projects. It is an Oracle database documentation tool from a Google Cloud development partner that addresses an issue that almost every database customer has. Inconsistent documentation.
-
-While some database environments have extensive, well maintained documentation others are not documented at all. Most environments fall somewhere in between. Documentation exists but may not reflect the current state. As a result developers and DBAs rely on the data dictionary as a system of record. They use SQL queries and client tools to determine the current database structure.
-
-Visulate packages data dictionary queries in a cloud native application that "auto documents" Oracle databases. It includes custom queries for each Oracle object type. Users create connections from a central server to each database and then interact with them using APIs or a browser. The application reads the data dictionary in each registered database and displays the result in a browser based UI with links that can be bookmarked or shared with others. It always shows the current state and never goes stale.
-
-The tool provides a database instance report that identifies many of the required items  during the analysis of an on-premises database. These include the database version, patch level, system utilization, SGA size, total size, space used, database links and database feature usage.
-
-## Identifing database usage
-
-Visulate provides search and filter mechanisms that can help identify database usage. These include the ability to search metadata across databases and find every instance with a given table or pl/sql package. It detects E-Business Suite instances automatically and provides a product prefix filter similar to the one in Oracle’s eTRM documentation tool. This lets you identify all the database objects associated with a given product across multiple schemas.
-
-Visulate’s database object reports identify dependencies to and from each object (e.g a view "uses" the tables it is based on and is "used by" a procedure that selects from it). There’s also an API to identify objects and their dependent objects (e.g. a find the schema definition for a stored procedure and every object it needs to install cleanly). These can be used to analyze schemas that you plan to refactor.
-
-## Test development
-
-Users can run ad-hoc queries via the UI or API calls. The UI exposes a query editor when the user selects a schema in a registered database. This feature can be used to develop BMS migration tests. Tests can be developed and refined using the UI and then included as cURL commands in a test suite.
+Specialized workloads like Oracle are difficult to migrate to a cloud environment. They require certified hardware and have complicated
+licensing and support agreements. BMS provides a path to modernize your application infrastructure landscape, while maintaining your existing investments and architecture. BMS migrations require careful planning. Visulate can help. [Contact us](mailto:support@visulate.com?subject=BMS%20Migration) to arrange a 1⁄2 day workshop to develop a plan to move your Oracle workloads to GCP.
