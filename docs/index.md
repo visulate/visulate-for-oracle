@@ -6,7 +6,7 @@
       <h1>Oracle to GCP</h1>
       <p>Support for Oracle database migrations to Google Cloud Platform</p>
     </header>
-    <p>Oracle developers and DBAs are often frustrated by the lack of accurate documentation for databases whose schemas have evolved over a number of years. Visulate addresses this problem by using Oracle’s internal data dictionary to “auto document” them.</p>
+    <p>Oracle developers and DBAs are often frustrated by inadequate documentation for databases whose schemas changed over a number of years. Visulate addresses this problem by using Oracle’s internal data dictionary to “auto document” them.</p>
     <p>It was developed by a Google Cloud development partner with over 30 years Oracle experience. With Visulate you can spend less time analyzing legacy environments and accelerate your migration to Google Cloud Platform</p>
 
     <ul class="actions">
