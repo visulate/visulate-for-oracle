@@ -4,9 +4,10 @@
   <div class="content">
     <header>
       <h1>Oracle to GCP</h1>
-      <p>Support for Oracle database migrations to Google Cloud Platform</p>
+      <p>Supporting Oracle database migrations to Google Cloud Platform</p>
     </header>
-    <p>Oracle developers and DBAs are often frustrated by inadequate documentation for databases whose schemas changed over a number of years. Visulate addresses this problem by using Oracle’s internal data dictionary to “auto document” them.</p>
+    <p>Oracle developers and DBAs are often frustrated by inadequate documentation for databases whose schemas have changed over a number of years.</p>
+    <p>Visulate addresses this problem by using Oracle’s internal data dictionary to generate documentation. Users supply read-only connection details for one or more the databases. Visulate queries the data dictionary for each connection. Results can be viewed via a browser based UI or REST API calls.</p>
     <p>It was developed by a Google Cloud development partner with over 30 years Oracle experience. With Visulate you can spend less time analyzing legacy environments and accelerate your migration to Google Cloud Platform</p>
 
     <ul class="actions">
@@ -52,18 +53,18 @@
           <p>Examine PL/SQL procedures and extract SQL statements from them.</p>
         </div>
       </article>
-            <article>
-        <span class="icon solid fa-cloud"></span>
-        <div class="content">
-          <h3>Cloud native</h3>
-          <p>An enterprise-ready Kubernetes application on Google Cloud Marketplace.</p>
-        </div>
-      </article>
       <article>
         <span class="icon solid fa-wrench"></span>
         <div class="content">
           <h3>API Support</h3>
           <p>REST APIs for all application features.</p>
+        </div>
+      </article>
+      <article>
+        <span class="icon solid fa-cloud"></span>
+        <div class="content">
+          <h3>Cloud native</h3>
+          <p>An enterprise-ready Kubernetes application on Google Cloud Marketplace.</p>
         </div>
       </article>
     </div>

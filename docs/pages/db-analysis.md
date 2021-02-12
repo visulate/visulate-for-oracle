@@ -13,6 +13,7 @@ Select a database on the homepage of the application to run the database analysi
 
 ![Database instance report](/images/opening-screen.png){: class="screenshot" }
 
+This will run the following queries:
 
 ### Database Version
 
@@ -43,6 +44,34 @@ select decode(count(*), 1, 'Yes',
 from dba_tables
 where owner='APPLSYS'
 and table_name = 'FND_APPLICATION'
+```
+
+### Patch History
+
+What patches have been applied to this instance?
+
+```
+select to_char(action_time, 'Mon dd, yyyy hh24:mi') as "Time"
+,      action as "Action"
+,      namespace as "Namespace"
+,      version as "Version"
+,      id as "ID"
+,      comments as "Comments"
+from  sys.REGISTRY$HISTORY
+order by action_time
+```
+
+### Database Links
+
+List database links
+
+```
+select owner as "Schema",
+db_link as "Database Link",
+username as "Username",
+host as "Connect String"
+from dba_db_links
+order by 1, 2
 ```
 
 ### Invalid Objects
@@ -79,16 +108,27 @@ from v$sgastat
 where name like '%free memory%'
 ```
 
-### Storage Segments
+### Database Size
+
+List the size of each tablespace
+
+```
+select nvl(tablespace_name, 'Total') as "Tablespace",
+round(sum(bytes)/1024/1024/1024, 2) as "Size (GB)"
+from dba_data_files
+group by grouping sets((), (tablespace_name))
+order by 2 desc
+```
+
+### Space Used
 
 List the storage allocation for each schema
 
 ```
-select s.owner as "Schema"
-, round(sum(bytes/1024/1024/1024),2) as "Size (GB)"
-, owner as link
-from dba_segments s
-group by s.owner
+select nvl(owner, 'Total') as "Schema",
+round(sum(bytes)/1024/1024/1024, 2) as "Size (GB)"
+from dba_segments
+group by grouping sets((), (owner))
 order by 2 desc
 ```
 
@@ -103,26 +143,21 @@ select comments as "Statistic"
 from v$osstat
 ```
 
-### Database Features
-
-List components loaded into the database
-
-```
-select comp_name as "Feature"
-from dba_registry
-where status = 'VALID'
-```
-
 ### Database Feature Usage
 
 Displays database feature usage statistics
 
 ```
-select name as "Feature"
-,      detected_usages as "Detected Usages"
-from dba_feature_usage_statistics
-where detected_usages > 0
-order by detected_usages desc
+select f.name as "Feature"
+,      f.detected_usages as "Times Used"
+,      to_char(f.first_usage_date, 'Mon DD, YYYY') as "First Used"
+,      to_char(f.last_usage_date, 'Mon DD, YYYY') as "Last Used"
+,      f.currently_used as "Used Now"
+from dba_feature_usage_statistics f
+,    v$database d
+where f.detected_usages > 0
+and d.dbid = f.dbid
+order by f.name
 ```
 
 ## Schema Analysis
