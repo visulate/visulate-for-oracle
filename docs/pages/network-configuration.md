@@ -4,6 +4,10 @@
 
 Visulate uses [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html) components to connect to each registered database. You may need to modify your firewall rules to support this. Use SQL*Plus to verify your firewall allows connections from the Kubernetes cluster to each database you want to register. This can be done from the API Server pod or by creating a dedicated pod to test connections.
 
+## Create a Cloud VPN if required
+
+Follow the instructions in the [Google Cloud VPN guide](https://cloud.google.com/network-connectivity/docs/vpn/how-to)
+
 ## Test connections from the API Server pod
 
 The API Server image includes SQL*Plus. You can use it to verify your firewall rules.
