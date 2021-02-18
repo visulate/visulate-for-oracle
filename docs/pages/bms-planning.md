@@ -82,7 +82,7 @@ Google Cloud Interconnect or a Transfer Appliance may be required for large data
 
 Consider the potential impact the migration may have on Oracle license compliance. Do you need to stagger database migrations to avoid running too many concurrent instances?
 
-## Conclusion
+## Next Steps
 
 Specialized workloads like Oracle are difficult to migrate to a cloud environment. They require certified hardware and have complicated
 licensing and support agreements. BMS provides a path to modernize your application infrastructure landscape, while maintaining your existing investments and architecture. BMS migrations require careful planning. Visulate can help. [Contact us](mailto:support@visulate.com?subject=BMS%20Migration) to arrange a 1⁄2 day workshop to develop a plan to move your Oracle workloads to GCP.
