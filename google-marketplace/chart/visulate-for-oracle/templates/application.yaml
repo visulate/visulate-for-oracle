@@ -86,3 +86,5 @@ spec:
       kind: Ingress
     - group: batch/v1
       kind: Job
+    - group: cloud.google.com/v1
+      kind: BackendConfig

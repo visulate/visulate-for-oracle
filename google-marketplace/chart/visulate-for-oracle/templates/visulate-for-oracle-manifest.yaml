@@ -293,10 +293,11 @@ spec:
         - name: logfiles
           emptyDir: {}
 ---
-apiVersion: cloud.google.com/v1beta1
+apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf
+  namespace: {{ .Release.Namespace }}
 spec:
   timeoutSec: {{ .Values.sql.timeout }}
 ---
@@ -305,7 +306,7 @@ kind: Service
 metadata:
   annotations:
     cloud.google.com/backend-config:
-      '{"ports": {"{{ .Values.sql.port }}":"{{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf"}}'
+      '{"default": "{{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf"}'
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc
   labels:
     app: {{ .Chart.Name }}
