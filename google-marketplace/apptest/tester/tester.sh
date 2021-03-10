@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2018 Google LLC
+# Copyright 2021 Visulate LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +27,10 @@ until kubectl get ingress "${APP_INSTANCE_NAME}-igs" \
 do
   sleep 3
 done
+
+# Wait 2 minutes after the ingress reports it is healthy before starting the tests
+# to avoid 502 errors
+sleep 120
 
 EXTERNAL_IP="$(kubectl get ingress/${APP_INSTANCE_NAME}-igs \
   --namespace ${NAMESPACE} \

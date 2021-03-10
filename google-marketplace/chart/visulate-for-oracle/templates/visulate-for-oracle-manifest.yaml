@@ -1,82 +1,22 @@
 ---
+#####################################
+# Secrets and ConfigMaps
+#####################################
+# apiVersion: cloud.google.com/v1
+# kind: BackendConfig
+# metadata:
+#   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf
+#   namespace: {{ .Release.Namespace }}
+# spec:
+#   timeoutSec: {{ .Values.sql.timeout }}
+# ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-ubbagent-config
 data:
-  config.yaml: |
-    # The identity section contains authentication information used
-    # by the agent.
-    identities:
-    - name: gcp
-      gcp:
-        # This parameter accepts a base64-encoded JSON service
-        # account key. The value comes from the reporting secret.
-        encodedServiceAccountKey: $AGENT_ENCODED_KEY
-
-    # The metrics section defines the metric that will be reported.
-    # Metric names should match verbatim the identifiers created
-    # during pricing setup.
-    metrics:
-    - name: database_connections
-      type: int
-      metric_kind: DELTA
-      value_type: INT64
-      unit: h
-
-      # The endpoints section of a metric defines which endpoints the
-      # metric data is sent to.
-      endpoints:
-      - name: on_disk
-      - name: servicecontrol
-      passthrough: {}
-
-    - name: time
-      type: int
-      metric_kind: DELTA
-      value_type: INT64
-      unit: h
-      endpoints:
-      - name: on_disk
-      - name: servicecontrol
-
-      # The passthrough marker indicates that no aggregation should
-      # occur for this metric. Reports received are immediately sent
-      # to the reporting endpoint. We use passthrough for the
-      # instance_time metric since reports are generated
-      # automatically by a heartbeat source defined in a later
-      # section.
-      passthrough: {}
-
-    # The endpoints section defines where metering data is ultimately
-    # sent. Currently supported endpoints include:
-    # * disk - some directory on the local filesystem
-    # * servicecontrol - Google Service Control
-    endpoints:
-    - name: on_disk
-      # The disk endpoint is useful for debugging, but its inclusion
-      # is not necessary in a production deployment.
-      disk:
-        reportDir: /var/lib/ubbagent/reports
-        expireSeconds: 36000
-    - name: servicecontrol
-      servicecontrol:
-        identity: gcp
-        # The service name is unique to your application and will be
-        # provided during onboarding.
-        serviceName: visulate-for-oracle.mp-visulate-llc-public.appspot.com
-        consumerId: $AGENT_CONSUMER_ID  # From the reporting secret.
-
-    # The sources section lists metric data sources run by the agent
-    # itself. The currently-supported source is 'heartbeat', which
-    # sends a defined value to a metric at a defined interval.
-    sources:
-    - name: instance_time_heartbeat
-      heartbeat:
-        metric: time
-        intervalSeconds: 3600
-        value:
-          int64Value: 1
+  config.yaml: |-
+{{ .Files.Get "ubbagent-config.yaml" | indent 4 }}
 ---
 apiVersion: v1
 kind: Secret
@@ -96,6 +36,23 @@ stringData:
   endpoints.json: |-
 {{ .Files.Get "endpoints.json" | indent 4 }}
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-tls
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+    app.kubernetes.io/component: visulate-for-oracle
+data:
+  tls.key: |
+{{ .Values.tls.base64EncodedPrivateKey | indent 4 }}
+  tls.crt: |
+{{ .Values.tls.base64EncodedCertificate | indent 4 }}
+type: kubernetes.io/tls
+---
+#####################################
+# API Server
+#####################################
 apiVersion: v1
 kind: Service
 metadata:
@@ -211,20 +168,9 @@ spec:
           configMap:
             name: {{ .Release.Name }}-ubbagent-config
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Release.Name }}-tls
-  labels:
-    app.kubernetes.io/name: "{{ .Release.Name }}"
-    app.kubernetes.io/component: visulate-for-oracle
-data:
-  tls.key: |
-{{ .Values.tls.base64EncodedPrivateKey | indent 4 }}
-  tls.crt: |
-{{ .Values.tls.base64EncodedCertificate | indent 4 }}
-type: kubernetes.io/tls
----
+#####################################
+# UI
+#####################################
 apiVersion: v1
 kind: Service
 metadata:
@@ -293,20 +239,15 @@ spec:
         - name: logfiles
           emptyDir: {}
 ---
-apiVersion: cloud.google.com/v1
-kind: BackendConfig
-metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf
-  namespace: {{ .Release.Namespace }}
-spec:
-  timeoutSec: {{ .Values.sql.timeout }}
----
+#####################################
+# Query Engine
+#####################################
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    cloud.google.com/backend-config:
-      '{"default": "{{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf"}'
+  # annotations:
+  #   cloud.google.com/backend-config:
+  #     '{"default": "{{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf"}'
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc
   labels:
     app: {{ .Chart.Name }}
@@ -365,6 +306,9 @@ spec:
           secret:
             secretName: {{ .Release.Name }}-empty-endpoints
 ---
+#####################################
+# Ingress
+#####################################
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
