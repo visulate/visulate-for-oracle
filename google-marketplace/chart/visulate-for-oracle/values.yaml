@@ -23,7 +23,6 @@ sql:
     repo: null
     tag: null
   replicas: null
-  timeout: null
   port: 5000
 
 util:
