@@ -159,7 +159,7 @@ Change the http request header `Accept` value from test/csv to application/json 
 
 ## Timeout behavior
 
-Long running queries may timeout before completion. The default setting for this is 5 minutes. The [query engine config](/pages/query-engine-config.html#timeout-duration) guide includes instructions on how to change this.
+Long running queries may timeout before completion. The default setting for this is 30 seconds. The [query engine config](/pages/query-engine-config.html#timeout-duration) guide includes instructions on how to change this.
 
 ## Security considerations
 
