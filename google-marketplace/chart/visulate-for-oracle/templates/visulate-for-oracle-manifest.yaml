@@ -2,14 +2,6 @@
 #####################################
 # Secrets and ConfigMaps
 #####################################
-# apiVersion: cloud.google.com/v1
-# kind: BackendConfig
-# metadata:
-#   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf
-#   namespace: {{ .Release.Namespace }}
-# spec:
-#   timeoutSec: {{ .Values.sql.timeout }}
-# ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -245,9 +237,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  # annotations:
-  #   cloud.google.com/backend-config:
-  #     '{"default": "{{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-conf"}'
   name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc
   labels:
     app: {{ .Chart.Name }}

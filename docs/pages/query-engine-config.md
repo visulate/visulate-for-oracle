@@ -98,55 +98,62 @@ db135.visulate.net:88521/vis115
 
 ## Timeout Duration
 
-The timeout duration for long running requests is controlled using backend service timeouts see [GKE Ingress Documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features#timeout). The Visulate for Oracle kubernetes manifest includes a backendConfig that specifies a timeout value. This backendConfig is associated with the SQL Query Engine service via an annotation.
+By default requests to the SQL Query Engine timeout after 30 seconds. This can be extended using backend service timeouts as described in the [GKE Ingress Documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features#timeout).
 
-The timeout duration for the SQL Query Engine can be specified while provisioning the application. It defaults to 300 seconds (5 minutes). This value can be updated via the backendConfig. Use kubectl to list the backendConfigs:
-
-```shell
-kubectl get backendConfig
-NAME                                                      AGE
-visulate-for-oracle-1107-visulate-for-oracle-sql-conf     3d2h
-```
-
-Download the manifest
-```shell
-kubectl get backendConfig visulate-for-oracle-1107-visulate-for-oracle-sql-conf \
- -oyaml > backendconfig.yaml
- ```
-
- Edit the file updating the `timeoutSec` value at the bottom of the file:
+Use a text editor to create a manifest. For example, the following file creates a backend config called `sql-engine-5-minute-timeout` in the `test-ns` namespace with a timeout value of 300 seconds:
 
 ```yaml
+---
 apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-  {"apiVersion":"cloud.google.com/v1",
-   "kind":"BackendConfig",
-   "metadata":{"annotations":{},
-               "labels":{
-                 "app.kubernetes.io/name":"visulate-for-oracle-1107"},
-                 "name":"visulate-for-oracle-1107-visulate-for-oracle-sql-conf",
-               "namespace":"test-nat-ns"},
-    "spec":{"timeoutSec":300}}
-  creationTimestamp: "2020-08-14T20:04:48Z"
-  generation: 1
-  labels:
-    app.kubernetes.io/name: visulate-for-oracle-1107
-  name: visulate-for-oracle-1107-visulate-for-oracle-sql-conf
-  namespace: test-nat-ns
-  resourceVersion: "52864557"
-  selfLink: /apis/cloud.google.com/v1/namespaces/nat-ns/backendconfigs/visulate-for-oracle-sql-conf
-  uid: 363b3943-112b-4a74-b806-9590b664280c
+  name: sql-engine-5-minute-timeout
+  namespace: test-ns
 spec:
   timeoutSec: 300
 ```
 
-Apply the file:
+Use kubectl to apply the file:
+
+```shell
+kubectl apply -f BackendConfig.yaml
+```
+
+Download the manifest for SQL Engine service. Find the service with the `visulate-for-oracle-sql-svc` suffix
 
 ```
-kubectl apply -f backendconfig.yaml
+ kubectl get service -n test-ns
+NAME                                                   TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+visulate-for-oracle-1121-visulate-for-oracle-api-svc   NodePort   10.202.15.63    <none>        3000:31668/TCP               18d
+visulate-for-oracle-1121-visulate-for-oracle-sql-svc   NodePort   10.202.13.200   <none>        5000:30458/TCP               18d
+visulate-for-oracle-1121-visulate-for-oracle-ui-svc    NodePort   10.202.14.94    <none>        80:31934/TCP,443:30824/TCP   18d
+
+kubectl get service visulate-for-oracle-1121-visulate-for-oracle-sql-svc -n test-nat-ns -oyaml > sqlEngineSrv.yaml
+```
+Edit the generated file (sqlEngineSrv.yaml in the example above). Add an annotation `cloud.google.com/backend-config: '{"default":"sql-engine-5-minute-timeout-conf"}'` as shown below
+
+
+```yaml
+kind: Service
+metadata:
+  annotations:
+    cloud.google.com/backend-config: '{"default":"sql-engine-5-minute-timeout-conf"}'
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"visulate-for-oracle", ... other content
+  creationTimestamp: "2021-03-03T23:20:27Z"
+  labels:
+    ... other content
+
+```
+
+Validate and apply the file:
+
+```
+$ kubectl apply --dry-run=client --validate --namespace=test-ns -f sqlEngineSrv.yaml
+service/visulate-for-oracle-1121-visulate-for-oracle-sql-svc configured (dry run)
+
+$ kubectl apply --namespace=test-ns -f sqlEngineSrv.yaml
+service/visulate-for-oracle-1121-visulate-for-oracle-sql-svc configured
 ```
 
 Wait a few minutes for the changes to take effect. The current timeout is displayed on the Load balancer details screen:
