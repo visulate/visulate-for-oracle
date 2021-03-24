@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.1.8
+  version: 1.1.22
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
@@ -230,6 +230,14 @@ paths:
           schema:
             type: string
             example: rnt_*
+        - in: query
+          name: template
+          description: The name of a handlebars or mustache template to transform the result
+          required: false
+          schema:
+            type: string
+            example: none
+
       responses:
         200:
           description: Returns an array of object names
@@ -295,6 +303,13 @@ paths:
           schema:
             type: string
             example: VALID
+        - in: query
+          name: template
+          description: The name of a handlebars or mustache template to transform the result
+          required: false
+          schema:
+            type: string
+            example: none
       responses:
         200:
           description: >-
@@ -340,6 +355,13 @@ paths:
           schema:
             type: string
             example: RNT_MENUS_PKG
+        - in: query
+          name: template
+          description: The name of a handlebars or mustache template to transform the result
+          required: false
+          schema:
+            type: string
+            example: none
       responses:
         200:
           description: Returns an array of query results

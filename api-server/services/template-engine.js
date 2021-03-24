@@ -1,5 +1,5 @@
 /*!
- * Copyright 2020 Visulate LLC. All Rights Reserved.
+ * Copyright 2020, 2021 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,7 +140,10 @@ function applyTemplate(resultType, resultSet, req) {
     if (template === 'none') {
       resolve(resultObject);
     } else {
-      const templateFile = path.normalize(`${__dirname}/../config/templates/${template}`);
+      // Read template populated by ConfigMap if it exists else use default template
+      const templateFile = (fs.existsSync(path.normalize(`${__dirname}/../hbs-templates/${template}`))) ?
+        path.normalize(`${__dirname}/../hbs-templates/${template}`) :
+        path.normalize(`${__dirname}/../config/hbs-templates/${template}`);
       fs.readFile(templateFile, 'utf8', (err, tpl) => {
         if (err) {
           reject(`Template ${template} not found`);

@@ -42,6 +42,13 @@ data:
 {{ .Values.tls.base64EncodedCertificate | indent 4 }}
 type: kubernetes.io/tls
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-hbs-templates
+data:
+{{- (.Files.Glob "hbs-templates/*").AsConfig | nindent 4}}
+---
 #####################################
 # API Server
 #####################################
@@ -96,6 +103,8 @@ spec:
               mountPath: /etc/ubbagent/
             - name: ubbagent-state
               mountPath: /var/lib/ubbagent
+            - name: hbs-templates-dir
+              mountPath: /visulate-server/hbs-templates
           ports:
             - containerPort: {{ .Values.apiServer.port }}
           env:
@@ -152,6 +161,9 @@ spec:
         - name: config-database-volume
           secret:
             secretName: {{ .Release.Name }}-empty-database-array
+        - name: hbs-templates-dir
+          configMap:
+            name: {{ .Release.Name }}-hbs-templates
         - name: logfiles
           emptyDir: {}
         - name: ubbagent-state

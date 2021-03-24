@@ -1,0 +1,3 @@
+{{#each results}}
+curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=sql_loader.mu -o {{this}}.ctl
+{{/each}}
