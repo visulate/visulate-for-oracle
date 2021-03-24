@@ -224,7 +224,7 @@ module.exports.getDbDetails = getDbDetails;
 /**
  * Implements GET /api/:db/:owner endpoint.
  * @param {*} req - request
- * @param {*} res - reponse
+ * @param {*} res - response
  * @param {*} next - next matching route
  */
 async function getSchemaDetails(req, res, next) {
@@ -295,7 +295,7 @@ async function getObjectList(connection, owner, type, name, status, query) {
  * The first form returns a list of objects for the given db, owner and type combination.
  * The second allows this list to be filtered by status or name wildcard (e.g. AR_*)
  * @param {*} req - request
- * @param {*} res - reponse
+ * @param {*} res - response
  * @param {*} next - next matching route
  */
 async function listObjects(req, res, next) {
@@ -349,7 +349,7 @@ module.exports.listObjects = listObjects;
 /**
  * Call DBMS_METADATA to generate DLL
  * @param {*} req - request
- * @param {*} res - reponse
+ * @param {*} res - response
  * @param {*} next - next matching route
  */
 
@@ -515,7 +515,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
 /**
  * Implements GET /api/:db/:owner/:type/:name endpoint
  * @param {*} req - request
- * @param {*} res - reponse
+ * @param {*} res - response
  * @param {*} next - next matching route
  */
 
@@ -566,7 +566,7 @@ async function getUsesDependencies(connection, object) {
 /**
  * Implements POST /api/collection/:db endpoint.   Returns a list of matched objects
  * @param {*} req - request
- * @param {*} res - reponse
+ * @param {*} res - response
  * @param {*} next - next matching route
  */
 async function getCollection(req, res, next) {

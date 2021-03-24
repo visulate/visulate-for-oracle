@@ -14,6 +14,7 @@ x-google-marketplace:
       v1.1.19 Bump highlight.js from 9.18.1 to 10.4.1 in /ui
       v1.1.20 Improve database connection performance and updates to support BMS migrations
       v1.1.21 Fix for orphaned BackendConfig bug
+      v1.1.23 Support for handlebars template transformations
   images:
     '':
       properties:
