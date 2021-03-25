@@ -7,7 +7,9 @@ Peter Goldthorp, February 2021
 
 ## Cloud innovation while keeping the lights on
 
-Customers and the board of directors expect technical innovation. In reality 80% the budget is spent on maintenance. Most enterprises run a mixture of commercial off the shelf (COTS) software applications and custom code developed in-house. For example, they may run SAP to support their manufacturing operations, Oracle E-Business Suite for Financials and PeopleSoft for human resource management. The systems were customized by systems integrators during the initial implementation and have been extended over the years with business specific logic.
+Customers and the board of directors expect technical innovation. In reality 80% the budget is spent on maintenance. 
+
+Most enterprises run a mixture of commercial off the shelf (COTS) software applications and custom code developed in-house. For example, they may run SAP to support their manufacturing operations, Oracle E-Business Suite for Financials and PeopleSoft for human resource management. The systems were customized by systems integrators during the initial implementation and have been extended over the years with business specific logic.
 
 Each software implementation is different. No two enterprises will be running the same software configuration even if they happen to be running the same application versions. Each change requires extensive testing. Many large Oracle customers are willing to pay additional fees for extended support on an old version of their software to avoid the cost and disruption associated with an upgrade to the latest version.
 
