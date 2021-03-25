@@ -33,10 +33,10 @@
         </div>
       </article>
       <article>
-        <span class="icon solid fa-sitemap"></span>
+        <span class="icon solid fa-search"></span>
         <div class="content">
           <h3>Dependency Analysis</h3>
-         <p>Query the database's dependency model to identify dependencies between objects.</p>
+          <p>Query the database's dependency model to identify dependencies between objects.</p>
         </div>
       </article>
       <article>
@@ -47,12 +47,12 @@
         </div>
       </article>
       <article>
-        <span class="icon solid fa-search"></span>
+        <span class="icon solid fa-sitemap"></span>
         <div class="content">
-          <h3>PL/SQL Analysis</h3>
-          <p>Examine PL/SQL procedures and extract SQL statements from them.</p>
+          <h3>Code Generation</h3>
+         <p>Extract SQL statements from PL/SQL procedures. Generate code from database metadata</p>
         </div>
-      </article>
+      </article>      
       <article>
         <span class="icon solid fa-wrench"></span>
         <div class="content">
