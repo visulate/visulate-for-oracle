@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2021 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,9 @@
  */
 
 const express = require('express');
-const bodyparser = require("body-parser");
 const router = new express.Router();
 const controller = require('./controller.js');
-router.use(bodyparser.json());
+router.use(express.json());
 
 const { Validator, ValidationError } = require('express-json-validator-middleware');
 const validator = new Validator({ allErrors: true });
