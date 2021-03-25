@@ -28,7 +28,7 @@
       <article>
         <span class="icon solid fa-database"></span>
         <div class="content">
-          <h3>Database Object Reporting</h3>
+          <h3>Database Documentation</h3>
           <p>Search and browse the data dictionary in multiple databases.</p>
         </div>
       </article>
