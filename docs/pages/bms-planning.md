@@ -29,7 +29,7 @@ Cloud VMs running Oracle software may incur additional license fees. Oracle Ente
 
 Google Cloud BMS is designed to address this need. It is a colocation offering from Google that allows customers to migrate their Oracle workloads into the cloud “as-is” with support for RAC and older database versions. Customers lease dedicated hardware for fixed terms in data centers distinct from but geographically close to a Google Cloud data center. BMS provides commodity x86-64 server hardware to run specialized workloads with low-latency access to Google Cloud services. Google manages the server hardware, networking, facilities, and other core infrastructure.
 
-Customers sign a 3 year commitment to lease the BMS hardware which Google purchases on their behalf. At the time of writing the hardware options varied from a 16 core machine with 192GB of RAM to 448 cores and 24TB RAM. Customers are responsible for the software, applications, and data that they use and store in the BMS environment.
+Customers sign a 1, 2 or 3 year commitment to lease the BMS hardware which Google purchases on their behalf. At the time of writing the hardware options varied from a 16 core machine with 192GB of RAM to 448 cores and 24TB RAM. Customers are responsible for the software, applications, and data that they use and store in the BMS environment.
 
 ## Analyze Existing Usage
 
