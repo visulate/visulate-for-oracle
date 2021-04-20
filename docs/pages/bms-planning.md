@@ -78,7 +78,7 @@ Develop a migration plan to cover the transformation of each environment to BMS.
 
 Consider the amount of acceptable downtime and data volume for each database. Identify the high level approach (e.g. offline, read-only, rolling update), mechanism (e.g. Data Pump, Transportable Tablespaces, Pluggable database, Dataguard, Golden Gate or SQL Loader) and expected duration of each migration. Use the table below to identify the time required for data transfer.
 
-![Data transfer time](https://cloud.google.com/transfer-appliance/docs/2.2/640w_2x.png){: class="screenshot" }
+![Data transfer time](https://cloud.google.com/transfer-appliance/docs/images/640w_2x.png){: class="screenshot" }
 
 Google Cloud Interconnect or a Transfer Appliance may be required for large data volumes.
 
