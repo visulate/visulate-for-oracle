@@ -1,3 +1,9 @@
+#!/bin/bash
+base_url=https://{{host}}/api/{{params.db}}/{{params.owner}}/{{params.type}}
+
+echo Generating SQL*Loader control files
 {{#each results}}
-curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=sql_loader.mu -o {{this}}.ctl
+
+echo {{this}}.ctl
+curl "$base_url"/{{this}}?template=gen_sql_loader_control_file.hbs -o {{this}}.ctl
 {{/each}}
