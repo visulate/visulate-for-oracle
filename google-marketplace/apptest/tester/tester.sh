@@ -28,9 +28,13 @@ do
   sleep 3
 done
 
-# Wait 2 minutes after the ingress reports it is healthy before starting the tests
+# Wait 5 minutes after the ingress reports it is healthy before starting the tests
 # to avoid 502 errors
-sleep 120
+
+now=$(date +"%T")
+echo "Current time : $now"
+echo "waiting 5 minutes for loadBalancer resources"
+sleep 300
 
 EXTERNAL_IP="$(kubectl get ingress/${APP_INSTANCE_NAME}-igs \
   --namespace ${NAMESPACE} \
@@ -38,6 +42,9 @@ EXTERNAL_IP="$(kubectl get ingress/${APP_INSTANCE_NAME}-igs \
 
 export EXTERNAL_IP
 
+now=$(date +"%T")
+echo "Current time : $now"
+echo "Start tests"
 for test in /tests/*; do
   testrunner -logtostderr "--test_spec=${test}"
 done
