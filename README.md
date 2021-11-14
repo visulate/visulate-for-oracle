@@ -6,7 +6,7 @@ A registration file stores connection details for one or more the databases.  Vi
 
 ![Alt text](docs/images/object-selection.png?raw=true "Visulate for Oracle database object selection")
 
-A report is generated for each database object by querying the appropriate dictionary views (e.g. DBA_TABLES and other views for table objects or DBA_SOURCE for packages)  
+A report is generated for each database object by querying the appropriate dictionary views (e.g. DBA_TABLES and other views for table objects or DBA_SOURCE for packages)
 
 ![Alt text](docs/images/object-details.png?raw=true "Visulate for Oracle object details")
 
@@ -19,15 +19,15 @@ Visulate for Oracle exposes REST endpoints and a UI to browse the metadata for r
 
 The start point for the Express server is app.js.  Most of the source code is in the api-server/services directory. Registered databases  must connect to a user with the SELECT ANY DICTIONARY privilege. The setup directory includes a script to create a user with the minimum required privileges. The SYSTEM account would also work (in a non-production environment) or you can grant SELECT ANY DICTIONARY to an existing user.
 
-An Angular UI makes API calls to the Express server and displays the result. The source code for this is in the ui directory. It reads the apiBase property in the `src/environments/environment.ts` (or environment.prod.ts) file to identify the base url for API calls. 
+An Angular UI makes API calls to the Express server and displays the result. The source code for this is in the ui directory. It reads the apiBase property in the `src/environments/environment.ts` (or environment.prod.ts) file to identify the base url for API calls.
 
 The API server supports cross origin (CORS) requests from locations identified in the `config/http-server.js` file.  The default configuration accepts requests from localhost:4200.  The configuration file can be edited to support other locations.
 
 ## Setup Instructions (Development Environment)
 1. Clone the repo
 2. Run `npm install` in the following directories
- - api-server 
- - ui  
+ - api-server
+ - ui
 3. Follow the instruction in https://oracle.github.io/node-oracledb/INSTALL.html#quickstart to install node-oracledb.
 4. Use the script in the setup directory to setup a database user with the SELECT ANY DICTIONARY privilege in each database you want to register.
 5. Edit the `config/database.js` file to register the databases
@@ -40,11 +40,11 @@ The API server supports cross origin (CORS) requests from locations identified i
 
 ## Testing
 Follow the instructions in the test directory to setup the test environment then
-1. Run `npm test` from the project root to test the API server
+1. Run `npm test` from the express directory to test the API server
 2. Run `ng test` from the client directory to run unit tests for the client
 
 ## Docker Deployment
-1. Angular stores environment variables like the API server location in a file that gets copied into the app bundle at build time. The file contents are concatenated with other sources into a single minified file. The file checked into source control relies on a load balancer to resolve API calls. It needs to be edited if a load balancer is not being used. Review apiBase value in `visulate-for-oracle/ui/src/environments/environment.prod.ts` and edit to match the API server deployment value. For example, if you plan to deploy the API server on a VM called my-api-server.com the file would look like this: 
+1. Angular stores environment variables like the API server location in a file that gets copied into the app bundle at build time. The file contents are concatenated with other sources into a single minified file. The file checked into source control relies on a load balancer to resolve API calls. It needs to be edited if a load balancer is not being used. Review apiBase value in `visulate-for-oracle/ui/src/environments/environment.prod.ts` and edit to match the API server deployment value. For example, if you plan to deploy the API server on a VM called my-api-server.com the file would look like this:
 ```
 export const environment = {
   production: true,
