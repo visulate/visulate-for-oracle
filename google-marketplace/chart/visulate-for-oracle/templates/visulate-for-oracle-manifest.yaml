@@ -114,7 +114,7 @@ spec:
             httpGet:
               path: /endpoints/
               port: {{ .Values.apiServer.port }}
-            initialDelaySeconds: 40
+            initialDelaySeconds: 90
             periodSeconds: 60
             timeoutSeconds: 20
         # Sidecar containers
@@ -228,7 +228,7 @@ spec:
             httpGet:
               path: /
               port: {{ .Values.ui.port }}
-            initialDelaySeconds: 40
+            initialDelaySeconds: 90
             periodSeconds: 20
             timeoutSeconds: 3
         # Sidecar containers
@@ -299,7 +299,7 @@ spec:
             httpGet:
               path: /sql/healthz
               port: {{ .Values.sql.port }}
-            initialDelaySeconds: 40
+            initialDelaySeconds: 90
             periodSeconds: 60
             timeoutSeconds: 20
       volumes:
@@ -310,7 +310,7 @@ spec:
 #####################################
 # Ingress
 #####################################
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}-igs
@@ -320,41 +320,67 @@ metadata:
 spec:
   tls:
     - secretName: {{ .Release.Name }}-tls
-  backend:
-    serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
-    servicePort: {{ .Values.ui.port }}
+  defaultBackend:
+    service:
+      name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
+      port:
+        number: {{ .Values.ui.port }}
   rules:
     - http:
         paths:
           - path: "/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
-              servicePort: {{ .Values.ui.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
+                port:
+                  number: {{ .Values.ui.port }}
           - path: "/api/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-              servicePort: {{ .Values.apiServer.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+                port:
+                  number: {{ .Values.apiServer.port }}
           - path: "/endpoints/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-              servicePort: {{ .Values.apiServer.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+                port:
+                  number: {{ .Values.apiServer.port }}
           - path: "/api-docs/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-              servicePort: {{ .Values.apiServer.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+                port:
+                  number: {{ .Values.apiServer.port }}
           - path: "/find/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-              servicePort: {{ .Values.apiServer.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+                port:
+                  number: {{ .Values.apiServer.port }}
           - path: "/ddl/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-              servicePort: {{ .Values.apiServer.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
+                port:
+                  number: {{ .Values.apiServer.port }}
           - path: "/sql/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc
-              servicePort: {{ .Values.sql.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc
+                port:
+                  number: {{ .Values.sql.port }}
           - path: "/database/*"
+            pathType: ImplementationSpecific
             backend:
-              serviceName: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
-              servicePort: {{ .Values.ui.port }}
+              service:
+                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
+                port:
+                  number: {{ .Values.ui.port }}

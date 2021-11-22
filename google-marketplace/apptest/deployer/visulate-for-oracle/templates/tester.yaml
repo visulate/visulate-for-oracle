@@ -1,10 +1,5 @@
 ---
-# TODO(marketplace-k8s-app-tools/issues/302): Remove this after native
-# Testrunner support is added to deployer
 apiVersion: v1
-# TODO(click-to-deploy/issues/324): Migrate to Job after adding support to
-# deployer
-#kind: Job
 kind: Pod
 metadata:
   name: "{{ .Release.Name }}-tester"
@@ -13,13 +8,10 @@ metadata:
   annotations:
     marketplace.cloud.google.com/verification: test
 spec:
-  # TODO(click-to-deploy/issues/324): Add deadline after migrating to Job
-  # activeDeadlineSeconds: 1200
-  # TODO(click-to-deploy/issues/323): Remove following dependency on internal name
   serviceAccountName: {{ .Release.Name }}-deployer-sa
   containers:
   - name: tester
-    image: "{{ .Values.testerImage }}"
+    image: "{{ .Values.tester.image }}"
     imagePullPolicy: Always
     env:
     - name: NAMESPACE

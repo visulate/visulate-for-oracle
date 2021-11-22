@@ -16,6 +16,7 @@ x-google-marketplace:
       v1.1.21 Fix for orphaned BackendConfig bug
       v1.1.23 Support for handlebars template transformations
       v1.1.24 Security updates
+      v1.1.25 Convert ingress spec to networking.k8s.io/v1
   images:
     '':
       properties:
