@@ -9,6 +9,7 @@ metadata:
     marketplace.cloud.google.com/verification: test
 spec:
   serviceAccountName: {{ .Release.Name }}-deployer-sa
+  # automountServiceAccountToken: false
   containers:
   - name: tester
     image: "{{ .Values.tester.image }}"

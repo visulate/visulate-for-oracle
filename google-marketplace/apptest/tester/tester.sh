@@ -26,14 +26,6 @@ do
   sleep 10
 done
 
-# Wait 5 minutes after the ingress reports it is healthy before starting the tests
-# to avoid 502 errors
-
-# now=$(date +"%T")
-# echo "Current time : $now"
-# echo "waiting 5 minutes for loadBalancer resources"
-# sleep 300
-
 backend_status="$(kubectl get ingress ${APP_INSTANCE_NAME}-igs \
   --namespace ${NAMESPACE} \
   --output jsonpath='{.metadata.annotations.ingress\.kubernetes\.io/backends}')"
