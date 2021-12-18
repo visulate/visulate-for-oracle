@@ -19,14 +19,14 @@ actions:
           html:
             title:
               exactly: 'Visulate for Oracle'
-  - name: UI https request should be 200 OK
-    bashTest:
-      script: curl -f -k https://{{ .Env.EXTERNAL_IP }}/database/
-      expect:
-        stdout:
-          contains: 'Visulate for Oracle'
-        exitCode:
-          equals: 0
+  # - name: UI https request should be 200 OK
+  #   bashTest:
+  #     script: curl -f -k https://{{ .Env.EXTERNAL_IP }}/database/
+  #     expect:
+  #       stdout:
+  #         contains: 'Visulate for Oracle'
+  #       exitCode:
+  #         equals: 0
   - name: http API call should be 200 OK
     bashTest:
       script: curl -k "http://${EXTERNAL_IP}/api/"
@@ -35,12 +35,11 @@ actions:
           contains: 'endpoints'
         exitCode:
           equals: 0
-  - name: https API call should be 200 OK
-    bashTest:
-      script: curl -k "https://${EXTERNAL_IP}/api/"
-      expect:
-        stdout:
-          contains: 'endpoints'
-        exitCode:
-          equals: 0
-
+  # - name: https API call should be 200 OK
+  #   bashTest:
+  #     script: curl -k "https://${EXTERNAL_IP}/api/"
+  #     expect:
+  #       stdout:
+  #         contains: 'endpoints'
+  #       exitCode:
+  #         equals: 0

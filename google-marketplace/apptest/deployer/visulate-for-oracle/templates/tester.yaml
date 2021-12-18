@@ -1,3 +1,9 @@
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: {{ .Release.Name }}-deployer-sa
+# automountServiceAccountToken: false
 ---
 apiVersion: v1
 kind: Pod
@@ -8,12 +14,13 @@ metadata:
   annotations:
     marketplace.cloud.google.com/verification: test
 spec:
-  serviceAccountName: {{ .Release.Name }}-deployer-sa
-  # automountServiceAccountToken: false
   containers:
   - name: tester
     image: "{{ .Values.tester.image }}"
     imagePullPolicy: Always
+    # volumeMounts:
+    # - mountPath: /var/run/secrets/tokens
+    #   name: vault-token
     env:
     - name: NAMESPACE
       valueFrom:
@@ -22,3 +29,12 @@ spec:
     - name: APP_INSTANCE_NAME
       value: {{ .Release.Name }}
   restartPolicy: Never
+  serviceAccountName: {{ .Release.Name }}-deployer-sa
+  # volumes:
+  # - name: vault-token
+  #   projected:
+  #     sources:
+  #     - serviceAccountToken:
+  #         path: vault-token
+  #         expirationSeconds: 3600
+  #         audience: vault
