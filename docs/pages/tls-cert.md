@@ -113,7 +113,7 @@ Create a DNS record for your domain entry which resolves to this address.
 Create a managed certificate manifest file:
 ```
 ---
-apiVersion: networking.gke.io/v1beta1
+apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
   name: visulate-certificate
