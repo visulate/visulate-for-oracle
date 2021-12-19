@@ -2,5 +2,3 @@ properties:
   testerImage:
     type: string
     default: $REGISTRY/visulate-for-oracle/tester:$TAG
-    x-google-property:
-      type: IMAGE
