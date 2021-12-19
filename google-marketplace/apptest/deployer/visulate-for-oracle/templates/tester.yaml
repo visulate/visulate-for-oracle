@@ -16,11 +16,11 @@ metadata:
 spec:
   containers:
   - name: tester
-    image: "{{ .Values.tester.image }}"
+    image: "{{ .Values.testerImage }}"
     imagePullPolicy: Always
-    # volumeMounts:
-    # - mountPath: /var/run/secrets/tokens
-    #   name: vault-token
+    volumeMounts:
+    - mountPath: /var/run/secrets/tokens
+      name: vault-token
     env:
     - name: NAMESPACE
       valueFrom:
@@ -30,11 +30,11 @@ spec:
       value: {{ .Release.Name }}
   restartPolicy: Never
   serviceAccountName: {{ .Release.Name }}-deployer-sa
-  # volumes:
-  # - name: vault-token
-  #   projected:
-  #     sources:
-  #     - serviceAccountToken:
-  #         path: vault-token
-  #         expirationSeconds: 3600
-  #         audience: vault
+  volumes:
+  - name: vault-token
+    projected:
+      sources:
+      - serviceAccountToken:
+          path: vault-token
+          expirationSeconds: 3600
+          audience: vault

@@ -1,4 +1,4 @@
 properties:
-  tester.image:
+  testerImage:
     type: string
     default: $REGISTRY/visulate-for-oracle/tester:$TAG
