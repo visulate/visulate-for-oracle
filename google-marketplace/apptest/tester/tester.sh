@@ -26,6 +26,14 @@ do
   sleep 10
 done
 
+# Wait 2 minutes after the ingress reports it is healthy before starting the tests
+# to avoid 502 errors
+now=$(date +"%T")
+echo "Current time : $now"
+echo "waiting 2 minutes for loadBalancer resources"
+sleep 120
+
+# Start tests
 backend_status="$(kubectl get ingress ${APP_INSTANCE_NAME}-igs \
   --namespace ${NAMESPACE} \
   --output jsonpath='{.metadata.annotations.ingress\.kubernetes\.io/backends}')"
@@ -46,5 +54,4 @@ echo "Current time : $now"
 echo "Start tests"
 for test in /tests/*; do
   testrunner -logtostderr "--test_spec=${test}"
-
 done
