@@ -49,8 +49,6 @@ import { FindObjectComponent } from './components/find-object/find-object.compon
 import { HideInternalPipe } from './models/hide-internal.pipe';
 
 import { HighlightModule, HIGHLIGHT_OPTIONS } from 'ngx-highlightjs';
-// import pgsql from 'highlight.js/lib/languages/pgsql';
-// import sql from 'highlight.js/lib/languages/sql';
 import { FilterObjectsComponent } from './components/filter-objects/filter-objects.component';
 import { SqlComponent } from './components/sql/sql.component';
 import { SqlValidatorDirective } from './components/sql/sql.directive';
