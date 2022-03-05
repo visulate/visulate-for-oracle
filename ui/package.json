@@ -1,6 +1,6 @@
 {
   "name": "visulate-for-oracle-client",
-  "version": "0.0.0",
+  "version": "13.2.5",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
