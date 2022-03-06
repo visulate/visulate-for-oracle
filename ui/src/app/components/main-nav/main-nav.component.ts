@@ -29,7 +29,7 @@ import { CurrentContextModel } from 'src/app/models/current-context.model';
 })
 /**
  * Navigation component
- * The app-routing module routes all requests to this component. It parses the route's path and query 
+ * The app-routing module routes all requests to this component. It parses the route's path and query
  * parameters to extract the database, schema, object type, object name and filter then sets the
  * current context observable.
  * @remarks
@@ -40,27 +40,25 @@ import { CurrentContextModel } from 'src/app/models/current-context.model';
 export class MainNavComponent implements OnInit, OnDestroy {
 
   mobileQuery: MediaQueryList;
-  private _mobileQueryListener: () => void;
+  opened: String = null;
 
   constructor(
-    changeDetectorRef: ChangeDetectorRef, media: MediaMatcher,
+    media: MediaMatcher,
     private route: ActivatedRoute,
-    private state: StateService ) 
-    { 
+    private state: StateService )
+    {
       this.mobileQuery = media.matchMedia('(max-width: 600px)');
-      this._mobileQueryListener = () => changeDetectorRef.detectChanges();
-      this.mobileQuery.addListener(this._mobileQueryListener);
     }
 
   private unsubscribe$ = new Subject<void>();
   public showObjectListInBody: boolean;
   public displaySearchForm: boolean = false;
-  
+
 
   /**
    * Extract parameter values from the router and pass them to the current context observable
    */
-  setContext(): void {    
+  setContext(): void {
     combineLatest([
       this.route.paramMap,
       this.route.queryParamMap
@@ -68,7 +66,7 @@ export class MainNavComponent implements OnInit, OnDestroy {
       .subscribe(([params, queryParams])=> {
         const context = this.state.getCurrentContext();
         const priorContext = new CurrentContextModel
-                (context.endpoint, context.owner, context.objectType, 
+                (context.endpoint, context.owner, context.objectType,
                  context.objectName, context.filter, context.showInternal, context.objectList);
 
         const db = params.get('db');
@@ -80,10 +78,13 @@ export class MainNavComponent implements OnInit, OnDestroy {
         context.setEndpoint(db);
         if (schema != null) { context.setOwner(schema.toUpperCase()); }
         if (type != null) { context.setObjectType(type.toUpperCase()); }
-        if (object != null) { context.setObjectName(object.toUpperCase()); }
+        if (object != null) {
+          context.setObjectName(object.toUpperCase());
+          this.opened = this.mobileQuery.matches? null: "opened";
+        }
         if (filter != null) {context.setFilter(filter);}
 
-        // Preserve the current object list if context has not changed 
+        // Preserve the current object list if context has not changed
         // (e.g when navigating from one object to the next)
         const changeSummary = this.state.getContextDiff(context, priorContext);
         if ((!changeSummary['objectTypeDiff']) && (!changeSummary['filterDiff']))
@@ -95,7 +96,7 @@ export class MainNavComponent implements OnInit, OnDestroy {
 
   toggleSearchForm() {
     this.displaySearchForm = !this.displaySearchForm;
-  } 
+  }
 
   hideSearchForm(){
     this.displaySearchForm = false;
@@ -108,6 +109,5 @@ export class MainNavComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
-    this.mobileQuery.removeListener(this._mobileQueryListener);
   }
 }
