@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:16.14-alpine AS builder
+FROM node:18-alpine AS builder
 COPY . ./visulate-client
 WORKDIR /visulate-client
 RUN npm i
 RUN $(npm bin)/ng build --prod
 
-FROM nginx:1.20-alpine
+FROM nginx:stable-alpine
 COPY --from=builder /visulate-client/dist/client/assets/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /visulate-client/dist/client/ /usr/share/nginx/html
