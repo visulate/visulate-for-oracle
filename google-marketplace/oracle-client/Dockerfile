@@ -1,4 +1,4 @@
-# Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
+# Copyright 2019, 2022 Visulate LLC. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 FROM oraclelinux:7-slim
 
 ARG release=19
-ARG update=6
+ARG update=16
 
 RUN  yum -y install oracle-release-el7 && yum-config-manager --enable ol7_oracle_instantclient && \
      yum -y install oracle-instantclient${release}.${update}-basic oracle-instantclient${release}.${update}-devel oracle-instantclient${release}.${update}-sqlplus && \
