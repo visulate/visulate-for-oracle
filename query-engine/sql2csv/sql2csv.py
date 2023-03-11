@@ -110,6 +110,9 @@ def output_type_handler(cursor, name, default_type, size, precision, scale):
     if default_type == cx_Oracle.OBJECT and object_typename is not None:
         return cursor.var(default_type, arraysize=cursor.arraysize, outconverter=object_out_converter, typename=object_typename)
 
+    if default_type == cx_Oracle.DB_TYPE_VARCHAR:
+        return cursor.var(default_type, size, arraysize=cursor.arraysize, encodingErrors="replace")
+
 
 def iter_csv(data):
     """pipe_results helper function"""
@@ -175,7 +178,9 @@ def pipe_results_as_json(connection, cursor, start_time):
 def get_connection(username, password, connectString):
     """Get an Oracle database connection"""
     try:
-        connection = cx_Oracle.connect(username, password, connectString)
+        connection = cx_Oracle.connect(user=username, password=password,
+                                       dsn=connectString,
+                                       encoding="UTF-8", nencoding="UTF-8")
         connection.outputtypehandler = output_type_handler
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args

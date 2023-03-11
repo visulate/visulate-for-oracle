@@ -1,0 +1,460 @@
+apiVersion: v1
+data:
+  checksum_view.hbs: |-
+    {{!
+    Create an Oracle view from a table definition with a column for each column
+    in the table plus a checksum column based on values for the columns. Used to
+    in web forms to detect changes in tables that do not have audit columns.
+
+    You may need to login as SYS and grant execute on DBMS_CRYPTO to the view's
+    user before running the generated SQL.
+    }}
+    create or replace view {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}_V as
+    select {{#results}}{{#each Columns}}{{#if @first}}{{Name}}
+    {{else}}, {{Name}}
+    {{/if}}{{/each}}{{/results}}, DBMS_CRYPTO.HASH(rawtohex(
+        {{#results}}{{#each Columns}}{{#if @first}}'{{Name}}='||{{Name}}
+        {{else}}||'{{Name}}='||{{Name}}
+        {{/if}}{{/each}}{{/results}}) ,2) as CHECKSUM
+    from {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}};
+  bqddl.hbs: |-
+    CREATE TABLE {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}} (
+    {{#results}}{{#each Columns}}{{Name}}  {{#ifEquals 'NUMBER' Type }}NUMERIC{{/ifEquals }}{{#ifEquals 'VARCHAR2' Type }}STRING{{/ifEquals }}{{#ifEquals 'DATE' Type }}TIMESTAMP{{/ifEquals }}{{#unless @last ~}},
+    {{/unless ~}}{{/each}}{{/results}}
+    );
+  csv_gen.hbs: |-
+    #!/bin/bash
+    oracle_user={{params.owner}}
+    oracle_pw=$1
+
+    url='https://{{host}}/sql/{{params.db}}'
+    content_type='Content-Type: application/json'
+    accept='Accept: text/csv'
+
+    json_query='{ "sql": "select * from {{params.name}}",
+                  "options": {"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}}'
+    curl -u "$oracle_user":"$oracle_pw" -L "$url" -H "$content_type" -H "$accept" -d "$json_query" -o {{params.name}}.csv
+
+
+  select_from_table.hbs: |-
+    {{!
+    Select statement listing every column in a table
+    }}
+    select {{#results}}{{#each Columns}}{{#if @first}}{{Name}}
+    {{else}}, {{Name}}{{/if}}{{/each}}{{/results}}
+    from {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}};
+  curl_from_list.hbs: |-
+    {{#each results}}
+    curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=sql_loader.mu -o {{this}}.ctl
+    {{/each}}
+  gen_crud_objects_from_list.hbs: |-
+    Generate View definition statements
+    {{#each results}}
+    curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=checksum_view.hbs -o {{this}}_V.sql
+    {{/each}}
+
+    Generate PL/SQL packages
+    {{#each results}}
+    curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=plsql_api_gen.hbs -o {{this}}_PKG.sql
+    {{/each}}
+
+    SQL*Plus:
+
+    Generate Sequence definitions
+    {{#each results}}
+    create sequence {{this}}_SEQ;
+    {{/each}}
+
+    Install Views
+    {{#each results}}
+    @@{{this}}_V.sql
+    {{/each}}
+
+    Install Packages
+    {{#each results}}
+    @@{{this}}_PKG.sql
+    {{/each}}
+  gen_sql_loader_control_file.hbs: |-
+    LOAD DATA
+    INFILE './{{#results}}{{#TableDetails}}{{Name}}.csv{{/TableDetails}}{{/results}}'
+    INSERT INTO TABLE {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}
+    FIELDS TERMINATED BY "," OPTIONALLY ENCLOSED BY '"' TRAILING NULLCOLS
+    ({{#results ~}}{{#each Columns ~}}{{Name}}{{#ifEquals 'DATE' Type }} DATE "yyyy-mm-dd HH24:MI:SS"{{/ifEquals }}{{#unless @last ~}},{{/unless ~}} {{/each ~}}{{/results ~}})
+  generate_csv_files.hbs: |-
+    #!/bin/bash
+    oracle_user={{params.owner}}
+    oracle_pw=$1
+
+    url='https://{{host}}/sql/{{params.db}}'
+    content_type='Content-Type: application/json'
+    accept='Accept: text/csv'
+    {{#each results}}
+
+    echo {{this}}.csv
+    json_query='{ "sql": "select * from {{this}}","options": {"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}}'
+    curl -u "$oracle_user":"$oracle_pw" -L "$url" -H "$content_type" -H "$accept" -d "$json_query" -o {{this}}.csv
+    {{/each}}
+  generate_sql_loader_calls.hbs: |-
+    #!/bin/bash
+    oracle_user={{params.owner}}
+    oracle_pw=$1
+    connect_string=$2
+
+    {{#each results}}
+
+    echo {{this}}
+    sqlldr "$oracle_user"/"$oracle_pw"@"$connect_string" direct=true control={{this}}.ctl
+    {{/each}}
+  plsql_api_gen.hbs: |-
+    {{! CRUD package for table that has a sequence generated numeric key.}}
+    {{! Find the table name and assign to a variable}}
+    {{#results ~}}{{#TableDetails ~}}{{assign 'tableName' Name}}{{/TableDetails ~}}{{/results ~}}
+    {{! Find the primary key column name (must be a single column numeric key and assign to a variable)}}
+    {{#results ~}}{{#each Constraints ~}}{{#ifEquals ConstraintType "Primary key" ~}}{{assign 'pkColumn' Column}}{{/ifEquals ~}}{{/each ~}}{{/results ~}}
+    create or replace package {{@root.tableName}}_PKG as
+    /*******************************************************************************
+        Name:      {{@root.tableName}}_PKG
+        Purpose:   Create, Retrieve, Update, Delete package for {{@root.tableName}} table.
+
+        Create   - insert_row function adds a new row to the table using the next value
+                   from the {{@root.tableName}}_SEQ sequence as the primary key. It
+                   returns the generated {{@root.pkColumn}}
+        Retrieve - get_row function returns a value of type {{@root.tableName}}_V%ROWTYPE
+                   {{@root.tableName}}_V is a database view with values for every column in
+                   the {{@root.tableName}} table plus an additional column which holds an MD5
+                   checksum of the row's column values.
+        Update   - update_row procedure updates values for a for the row indicated by
+                   the X_{{@root.pkColumn}} parameter. Queries the {{@root.tableName}}_V view and
+                   compares the MD5 checksums before performing the update to verify the
+                   row has not been updated by another user.
+        delete   - delete_row procedure deletes the row indicated by X_{{@root.pkColumn}}
+                   parameter
+
+        Revision History:
+        Ver        Date               Author           Description
+        --------   ----------------   ---------------- ---------------------
+        1.0        {{runDate}}        Auto Generated   Initial Version
+
+    ********************************************************************************/
+      function get_checksum(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+        return {{@root.tableName}}_V.CHECKSUM%TYPE;
+
+      function insert_row({{#results}}{{#each Columns}}{{#unlessEquals Name @root.pkColumn}}{{#ifEquals '1' @key}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{else}}                     , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{/ifEquals}}{{/unlessEquals}}{{/each}}{{/results}}  ) return {{@root.tableName}}.{{@root.pkColumn}}%TYPE;
+
+      function get_row(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+        return {{@root.tableName}}_V%ROWTYPE;
+
+      procedure update_row({{#results}}{{#each Columns}}{{#if @first}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{else}}                      , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{/if}}{{/each}}{{/results}}                      , X_CHECKSUM IN {{@root.tableName}}_V.CHECKSUM%TYPE );
+
+      procedure delete_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE);
+
+    end {{@root.tableName}}_PKG;
+    /
+
+    create or replace package body {{@root.tableName}}_PKG as
+
+    -------------------------------------------------
+    --  Private Procedures and Functions
+    -------------------------------------------------
+
+      procedure lock_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE ) is
+         cursor c is
+         select * from {{@root.tableName}}
+         where {{@root.pkColumn}} = X_{{@root.pkColumn}}
+         for update nowait;
+
+      begin
+        open c;
+        close c;
+      exception
+        when OTHERS then
+          if SQLCODE = -54 then
+            RAISE_APPLICATION_ERROR(-20001, 'Cannot changed record. Record is locked.');
+          end if;
+      end lock_row;
+
+    -------------------------------------------------
+    --  Public Procedures and Functions
+    -------------------------------------------------
+
+      function get_checksum(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+        return {{@root.tableName}}_V.CHECKSUM%TYPE
+      is
+        v_return_value    {{@root.tableName}}_V.CHECKSUM%TYPE;
+      begin
+        select CHECKSUM
+        into v_return_value
+        from {{@root.tableName}}_V
+        where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+        return v_return_value;
+      end get_checksum;
+
+    {{! Note: template may generate invalid code if PK column is not the first column in the table }}
+      function insert_row({{#results}}{{#each Columns}}{{#unlessEquals Name @root.pkColumn}}{{#ifEquals '1' @key}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{else}}                     , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{/ifEquals}}{{/unlessEquals}}{{/each}}{{/results}}  ) return {{@root.tableName}}.{{@root.pkColumn}}%TYPE
+      is
+        l_return_value    {{@root.tableName}}.{{@root.pkColumn}}%TYPE;
+      begin
+        insert into {{@root.tableName}}
+        ( {{#results}}{{#each Columns}}{{#if @first}}{{Name}}
+    {{else}}    , {{Name}}
+    {{/if}}{{/each}}{{/results}}    ) values
+        ({{#results}}{{#each Columns}}{{#if @first}} {{@root.tableName}}_SEQ.NEXTVAL
+    {{else}}    , X_{{Name}}
+    {{/if}}{{/each}}{{/results}}    ) returning {{@root.pkColumn}} into l_return_value;
+
+        return l_return_value;
+      end insert_row;
+
+      function get_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+        return {{@root.tableName}}_V%ROWTYPE
+      is
+        l_row_rec {{@root.tableName}}_V%ROWTYPE;
+      begin
+        select *
+        into l_row_rec
+        from {{@root.tableName}}_V
+        where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+
+        return l_row_rec;
+      end get_row;
+
+      procedure update_row({{#results}}{{#each Columns}}{{#if @first}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{else}}                      , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE
+    {{/if}}{{/each}}{{/results}}                      , X_CHECKSUM IN {{@root.tableName}}_V.CHECKSUM%TYPE )
+      is
+        l_checksum       {{@root.tableName}}_V.CHECKSUM%TYPE;
+      begin
+        lock_row(X_{{@root.pkColumn}});
+        -- validate checksum
+        l_checksum := get_checksum(X_{{@root.pkColumn}});
+        if X_CHECKSUM != l_checksum then
+          RAISE_APPLICATION_ERROR(-20002, 'Record has been changed another user.');
+        end if;
+
+        update {{@root.tableName}}
+        set {{#results}}{{#each Columns}}{{#if @first}}{{Name}} = X_{{Name}}
+    {{else}}    ,   {{Name}} = X_{{Name}}
+    {{/if}}{{/each}}{{/results}}    where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+      end update_row;
+
+      procedure delete_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)
+      is
+      begin
+        delete from {{@root.tableName}}
+        where {{@root.pkColumn}} = X_{{@root.pkColumn}};
+      end delete_row;
+
+    end {{@root.tableName}}_PKG;
+    /
+  plsql_package_call.hbs: |-
+    {{! Find the package name and assign to a variable}}
+    {{#results ~}}{{#ObjectDetails ~}}{{assign 'packageName' ObjectName}}{{/ObjectDetails ~}}{{/results ~}}
+    /**************************************************************
+      PL/SQL call parameters for {{@root.packageName}}
+      Generated using Visulate for Oracle plsql_package_call.hbs
+      template on {{runDate}} using metadata from DBA_ARGUMENTS.
+
+      This document contains code stubs for calling {{@root.packageName}}.
+      It is broken down into 3 sections.
+
+      The Data Structures section contains declarations for function
+      return values and collections.
+
+      The Assign Values section contains code to populate PL/SQL records
+      and table data structures for use in API calls.
+
+      The API Calls section contains code to make procedure or function
+      calls.
+
+      Usage notes and limitations:
+      - Review the source code in addition to this document. In many
+      cases there may be simpler ways to declare variables than the
+      expanded structure used here. For example:
+      type x_table is table of my_table%rowtype;
+      - The Data Structures section declares a separate variable
+      for each argument of type PL/SQL RECORD, PL/SQL TABLE or VARRAY.
+      - It concatenates the procedure name, overload number and
+      argument name to create the variable name. This may result in
+      a variable name that is greater than the maximum length for
+      a pl/sql variable.
+      - Some structures require manual edits. These are marked with
+      [[TO-DO]] comments.
+    ***************************************************************/
+    declare
+    /**************************************************************
+      Data Structures
+    ***************************************************************/
+    {{assign 'object_name' '' ~}}
+    {{#results ~}}{{#each Arguments ~}}
+    {{! statementSuffix is used to hold closing ");"}}
+    {{#if @first ~}}{{assign 'statementSuffix' ''}}{{/if ~}}
+    {{! Detect new function or procedure name}}
+    {{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}
+    -----------------------------------------------------
+    -- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+    -----------------------------------------------------
+    {{/ifLevelChanged ~}}
+    {{! Detect new overload of function or procedure}}
+    {{#ifLevelChanged OBJECT_NAME Overload ~}}{{@root.statementSuffix}}{{assign 'statementSuffix' ''}}
+    -----------------------------------------------------
+    -- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+    -----------------------------------------------------
+    {{/ifLevelChanged ~}}
+    {{! Render return value variables
+        POSITION = 0 indicates argument is return value from a function
+    }}
+    {{#ifEquals '0' POSITION ~}}
+    {{! Simple return value}}
+    {{#unlessAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}
+    {{OBJECT_NAME}}{{Overload}}_VALUE   {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{/unlessEquals ~}};
+    {{/unlessAppearsIn ~}}
+    {{! Return value is a collection}}
+    {{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}{{@root.statementSuffix}}{{assign 'linePrefix' '( ' ~}}{{assign 'statementSuffix' ');' ~}}
+    type {{OBJECT_NAME}}{{Overload}}_VALUE is {{#ifEquals 'PL/SQL RECORD' DataType }}record{{/ifEquals }}{{#ifEquals 'VARRAY' DataType }}varray ([TO-DO insert size]) of {{assign 'statementSuffix' ';' }}{{/ifEquals }}
+    {{/ifAppearsIn ~}}
+    {{/ifEquals ~}}
+    {{! Render type definitions for collection variables that are not return values
+    }}
+    {{#unlessEquals '0' POSITION ~}}
+    {{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}{{@root.statementSuffix}}{{assign 'linePrefix' '( ' }}{{assign 'statementSuffix' ');' }}
+    {{#unlessEquals null Parameter }}
+
+    type {{OBJECT_NAME}}{{Overload}}_{{Parameter}} is {{#ifEquals 'PL/SQL RECORD' DataType }}record{{/ifEquals }}{{#ifEquals 'VARRAY' DataType }}varray ([TO-DO insert size]) of {{assign 'statementSuffix' ';' }}{{/ifEquals }}
+    {{/unlessEquals }}
+    {{/ifAppearsIn}}
+    {{/unlessEquals ~}}
+    {{! PL/SQL tables are defined by whatever appears on subsequent lines at current Level + 1 }}
+    {{#ifEquals 'PL/SQL TABLE' DataType ~}} table of [[TO-DO insert DataType]]{{assign 'statementSuffix' ';' }}{{/ifEquals ~}}
+    {{! Print Parameter and DataType for all lines with a Level > 0 }}
+    {{#unlessEquals '0' Level ~}}
+    {{#unlessEquals null Parameter }}{{/unlessEquals }}{{! Adds a linefeed}}
+    {{#unlessEquals null Parameter ~}}{{@root.linePrefix}} {{Parameter}} {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{assign 'linePrefix' ', '}}{{/unlessEquals ~}}{{/unlessEquals ~}}
+    {{#ifEquals null Parameter ~}}{{DataType}}{{/ifEquals ~}}
+    {{/unlessEquals ~}}
+    {{! Print a statement suffix for the final line}}
+    {{#if @last ~}}{{@root.statementSuffix}}{{/if ~}}
+    {{/each ~}}{{/results ~}}
+
+
+    begin
+    /**************************************************************
+      Assign Values
+    ***************************************************************/
+    {{assign 'object_name' '' ~}}
+    {{#results ~}}{{#each Arguments ~}}
+    {{! Detect new function or procedure name}}
+    {{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}
+    -----------------------------------------------------
+    -- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+    -----------------------------------------------------
+    {{/ifLevelChanged ~}}
+    {{! Detect new overload of function or procedure}}
+    {{#ifLevelChanged OBJECT_NAME Overload ~}}{{@root.statementSuffix}}{{assign 'statementSuffix' ''}}
+    -----------------------------------------------------
+    -- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+    -----------------------------------------------------
+    {{/ifLevelChanged ~}}
+    {{! Store the parent parameter name for use in record and table assignment calls}}
+    {{#unlessEquals '0' POSITION ~}}
+    {{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE' ~}}
+    {{#unlessEquals null Parameter ~}}{{assign 'currentParameter' Parameter}}{{#ifEquals 'PL/SQL TABLE' DataType}}{{append 'currentParameter' '(i)'}}{{/ifEquals}}{{/unlessEquals }}
+    {{/ifAppearsIn}}
+    {{#ifEquals 'VARRAY' DataType ~}}{{OBJECT_NAME}}{{Overload}}_{{Parameter}} (i) := ; {{/ifEquals ~}}
+    {{/unlessEquals ~}}
+    {{! Print Parameter assignment for all lines with a Level > 0 }}
+    {{#unlessEquals '0' Level ~}}
+    {{#unlessEquals null Parameter }}{{/unlessEquals }}{{! Adds a linefeed}}
+    {{#unlessEquals null Parameter ~}}{{#unlessEquals null @root.currentParameter ~}}
+    {{OBJECT_NAME}}{{Overload}}_{{@root.currentParameter}}.{{Parameter}} := ;  -- {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{/unlessEquals ~}}{{/unlessEquals ~}}{{/unlessEquals ~}}
+    {{/unlessEquals ~}}
+    {{/each ~}}{{/results ~}}
+    /**************************************************************
+      API Calls
+    ***************************************************************/
+    {{assign 'object_name' '' ~}}
+    {{#results ~}}{{#each Arguments ~}}
+    {{! Detect new function or procedure name}}
+    {{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}
+    -----------------------------------------------------
+    -- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+    -----------------------------------------------------
+    {{! Print a variable assignment for function call signature }}
+    {{#ifEquals '0' POSITION ~}}  {{OBJECT_NAME}}{{Overload}}_VALUE := {{/ifEquals ~}}   {{@root.packageName}}.{{OBJECT_NAME}}
+    {{! Level 0 = direct arguments (could be a record or table of records)}}
+    {{#ifEquals '0' Level ~}}  {{/ifEquals ~}}{{assign OBJECT_NAME Overload}}{{assign 'linePrefix' '  ('}}{{/ifLevelChanged ~}}
+    {{! Detect new overload of function or procedure}}
+    {{#ifLevelChanged OBJECT_NAME Overload ~}}    );{{assign 'linePrefix' '  ('}}
+    -----------------------------------------------------
+    -- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+    -----------------------------------------------------
+    {{#ifEquals '0' POSITION ~}}  {{OBJECT_NAME}}{{Overload}}_VALUE := {{/ifEquals ~}}
+    {{@root.packageName}}.{{OBJECT_NAME}}
+    {{/ifLevelChanged ~}}
+    {{! Print the parameters}}
+    {{#ifEquals '0' Level ~}}
+    {{@root.linePrefix}} {{#unlessEquals null Parameter }}{{Parameter}} =>   -- {{Direction}} {{DataType}}{{#unlessEquals null Length }}({{Length}}){{/unlessEquals}}{{assign 'linePrefix' '  ,'}}
+    {{/unlessEquals }}{{/ifEquals ~}}
+    {{#if @last }});
+
+    {{/if }}
+    {{/each ~}}{{/results ~}}
+    end;
+    /
+  sql_loader.mu: |-
+    LOAD DATA
+    INFILE './{{#results}}{{#TableDetails}}{{Name}}.csv{{/TableDetails}}{{/results}}'
+    INSERT INTO TABLE {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}
+    FIELDS TERMINATED BY "," OPTIONALLY ENCLOSED BY '"' TRAILING NULCOLS
+    ({{#results}}{{#Columns}}{{Name}}, {{/Columns}}{{/results}})
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"checksum_view.hbs":"{{!\nCreate an Oracle view from a table definition with a column for each column\nin the table plus a checksum column based on values for the columns. Used to\nin web forms to detect changes in tables that do not have audit columns.\n\nYou may need to login as SYS and grant execute on DBMS_CRYPTO to the view's\nuser before running the generated SQL.\n}}\ncreate or replace view {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}_V as\nselect {{#results}}{{#each Columns}}{{#if @first}}{{Name}}\n{{else}}, {{Name}}\n{{/if}}{{/each}}{{/results}}, DBMS_CRYPTO.HASH(rawtohex(\n    {{#results}}{{#each Columns}}{{#if @first}}'{{Name}}='||{{Name}}\n    {{else}}||'{{Name}}='||{{Name}}\n    {{/if}}{{/each}}{{/results}}) ,2) as CHECKSUM\nfrom {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}};","curl_from_list.hbs":"{{#each results}}\ncurl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=sql_loader.mu -o {{this}}.ctl\n{{/each}}","gen_crud_objects_from_list.hbs":"Generate View definition statements\n{{#each results}}\ncurl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=checksum_view.hbs -o {{this}}_V.sql\n{{/each}}\n\nGenerate PL/SQL packages\n{{#each results}}\ncurl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=plsql_api_gen.hbs -o {{this}}_PKG.sql\n{{/each}}\n\nSQL*Plus:\n\nGenerate Sequence definitions\n{{#each results}}\ncreate sequence {{this}}_SEQ;\n{{/each}}\n\nInstall Views\n{{#each results}}\n@@{{this}}_V.sql\n{{/each}}\n\nInstall Packages\n{{#each results}}\n@@{{this}}_PKG.sql\n{{/each}}","gen_sql_loader_control_file.hbs":"LOAD DATA\nINFILE './{{#results}}{{#TableDetails}}{{Name}}.csv{{/TableDetails}}{{/results}}'\nINSERT INTO TABLE {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}\nFIELDS TERMINATED BY \",\" OPTIONALLY ENCLOSED BY '\"' TRAILING NULLCOLS\n({{#results ~}}{{#each Columns ~}}{{Name}}{{#ifEquals 'DATE' Type }} DATE \"yyyy-mm-dd HH24:MI:SS\"{{/ifEquals }}{{#unless @last ~}},{{/unless ~}} {{/each ~}}{{/results ~}})","generate_csv_files.hbs":"#!/bin/bash\noracle_user={{params.owner}}\noracle_pw=$1\n\nurl='https://{{host}}/sql/{{params.db}}'\ncontent_type='Content-Type: application/json'\naccept='Accept: text/csv'\n{{#each results}}\n\necho {{this}}.csv\njson_query='{ \"sql\": \"select * from {{this}}\",\"options\": {\"download_lobs\": \"N\", \"csv_header\": \"N\", \"cx_oracle_object\": null}}'\ncurl -u \"$oracle_user\":\"$oracle_pw\" -L \"$url\" -H \"$content_type\" -H \"$accept\" -d \"$json_query\" -o {{this}}.csv\n{{/each}}","generate_sql_loader_calls.hbs":"#!/bin/bash\noracle_user={{params.owner}}\noracle_pw=$1\nconnect_string=$2\n\n{{#each results}}\n\necho {{this}}\nsqlldr \"$oracle_user\"/\"$oracle_pw\"@\"$connect_string\" direct=true control={{this}}.ctl\n{{/each}}","plsql_api_gen.hbs":"{{! CRUD package for table that has a sequence generated numeric key.}}\n{{! Find the table name and assign to a variable}}\n{{#results ~}}{{#TableDetails ~}}{{assign 'tableName' Name}}{{/TableDetails ~}}{{/results ~}}\n{{! Find the primary key column name (must be a single column numeric key and assign to a variable)}}\n{{#results ~}}{{#each Constraints ~}}{{#ifEquals ConstraintType \"Primary key\" ~}}{{assign 'pkColumn' Column}}{{/ifEquals ~}}{{/each ~}}{{/results ~}}\ncreate or replace package {{@root.tableName}}_PKG as\n/*******************************************************************************\n    Name:      {{@root.tableName}}_PKG\n    Purpose:   Create, Retrieve, Update, Delete package for {{@root.tableName}} table.\n\n    Create   - insert_row function adds a new row to the table using the next value\n               from the {{@root.tableName}}_SEQ sequence as the primary key. It\n               returns the generated {{@root.pkColumn}}\n    Retrieve - get_row function returns a value of type {{@root.tableName}}_V%ROWTYPE\n               {{@root.tableName}}_V is a database view with values for every column in\n               the {{@root.tableName}} table plus an additional column which holds an MD5\n               checksum of the row's column values.\n    Update   - update_row procedure updates values for a for the row indicated by\n               the X_{{@root.pkColumn}} parameter. Queries the {{@root.tableName}}_V view and\n               compares the MD5 checksums before performing the update to verify the\n               row has not been updated by another user.\n    delete   - delete_row procedure deletes the row indicated by X_{{@root.pkColumn}}\n               parameter\n\n    Revision History:\n    Ver        Date               Author           Description\n    --------   ----------------   ---------------- ---------------------\n    1.0        {{runDate}}        Auto Generated   Initial Version\n\n********************************************************************************/\n  function get_checksum(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)\n    return {{@root.tableName}}_V.CHECKSUM%TYPE;\n\n  function insert_row({{#results}}{{#each Columns}}{{#unlessEquals Name @root.pkColumn}}{{#ifEquals '1' @key}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{else}}                     , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{/ifEquals}}{{/unlessEquals}}{{/each}}{{/results}}  ) return {{@root.tableName}}.{{@root.pkColumn}}%TYPE;\n\n  function get_row(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)\n    return {{@root.tableName}}_V%ROWTYPE;\n\n  procedure update_row({{#results}}{{#each Columns}}{{#if @first}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{else}}                      , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{/if}}{{/each}}{{/results}}                      , X_CHECKSUM IN {{@root.tableName}}_V.CHECKSUM%TYPE );\n\n  procedure delete_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE);\n\nend {{@root.tableName}}_PKG;\n/\n\ncreate or replace package body {{@root.tableName}}_PKG as\n\n-------------------------------------------------\n--  Private Procedures and Functions\n-------------------------------------------------\n\n  procedure lock_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE ) is\n     cursor c is\n     select * from {{@root.tableName}}\n     where {{@root.pkColumn}} = X_{{@root.pkColumn}}\n     for update nowait;\n\n  begin\n    open c;\n    close c;\n  exception\n    when OTHERS then\n      if SQLCODE = -54 then\n        RAISE_APPLICATION_ERROR(-20001, 'Cannot changed record. Record is locked.');\n      end if;\n  end lock_row;\n\n-------------------------------------------------\n--  Public Procedures and Functions\n-------------------------------------------------\n\n  function get_checksum(X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)\n    return {{@root.tableName}}_V.CHECKSUM%TYPE\n  is\n    v_return_value    {{@root.tableName}}_V.CHECKSUM%TYPE;\n  begin\n    select CHECKSUM\n    into v_return_value\n    from {{@root.tableName}}_V\n    where {{@root.pkColumn}} = X_{{@root.pkColumn}};\n    return v_return_value;\n  end get_checksum;\n\n{{! Note: template may generate invalid code if PK column is not the first column in the table }}\n  function insert_row({{#results}}{{#each Columns}}{{#unlessEquals Name @root.pkColumn}}{{#ifEquals '1' @key}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{else}}                     , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{/ifEquals}}{{/unlessEquals}}{{/each}}{{/results}}  ) return {{@root.tableName}}.{{@root.pkColumn}}%TYPE\n  is\n    l_return_value    {{@root.tableName}}.{{@root.pkColumn}}%TYPE;\n  begin\n    insert into {{@root.tableName}}\n    ( {{#results}}{{#each Columns}}{{#if @first}}{{Name}}\n{{else}}    , {{Name}}\n{{/if}}{{/each}}{{/results}}    ) values\n    ({{#results}}{{#each Columns}}{{#if @first}} {{@root.tableName}}_SEQ.NEXTVAL\n{{else}}    , X_{{Name}}\n{{/if}}{{/each}}{{/results}}    ) returning {{@root.pkColumn}} into l_return_value;\n\n    return l_return_value;\n  end insert_row;\n\n  function get_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)\n    return {{@root.tableName}}_V%ROWTYPE\n  is\n    l_row_rec {{@root.tableName}}_V%ROWTYPE;\n  begin\n    select *\n    into l_row_rec\n    from {{@root.tableName}}_V\n    where {{@root.pkColumn}} = X_{{@root.pkColumn}};\n\n    return l_row_rec;\n  end get_row;\n\n  procedure update_row({{#results}}{{#each Columns}}{{#if @first}} X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{else}}                      , X_{{Name}} IN {{@root.tableName}}.{{Name}}%TYPE\n{{/if}}{{/each}}{{/results}}                      , X_CHECKSUM IN {{@root.tableName}}_V.CHECKSUM%TYPE )\n  is\n    l_checksum       {{@root.tableName}}_V.CHECKSUM%TYPE;\n  begin\n    lock_row(X_{{@root.pkColumn}});\n    -- validate checksum\n    l_checksum := get_checksum(X_{{@root.pkColumn}});\n    if X_CHECKSUM != l_checksum then\n      RAISE_APPLICATION_ERROR(-20002, 'Record has been changed another user.');\n    end if;\n\n    update {{@root.tableName}}\n    set {{#results}}{{#each Columns}}{{#if @first}}{{Name}} = X_{{Name}}\n{{else}}    ,   {{Name}} = X_{{Name}}\n{{/if}}{{/each}}{{/results}}    where {{@root.pkColumn}} = X_{{@root.pkColumn}};\n  end update_row;\n\n  procedure delete_row( X_{{@root.pkColumn}} IN {{@root.tableName}}.{{@root.pkColumn}}%TYPE)\n  is\n  begin\n    delete from {{@root.tableName}}\n    where {{@root.pkColumn}} = X_{{@root.pkColumn}};\n  end delete_row;\n\nend {{@root.tableName}}_PKG;\n/","plsql_package_call.hbs":"{{! Find the package name and assign to a variable}}\n{{#results ~}}{{#ObjectDetails ~}}{{assign 'packageName' ObjectName}}{{/ObjectDetails ~}}{{/results ~}}\n/**************************************************************\n  PL/SQL call parameters for {{@root.packageName}}\n  Generated using Visulate for Oracle plsql_package_call.hbs\n  template on {{runDate}} using metadata from DBA_ARGUMENTS.\n\n  This document contains code stubs for calling {{@root.packageName}}.\n  It is broken down into 3 sections.\n\n  The Data Structures section contains declarations for function\n  return values and collections.\n\n  The Assign Values section contains code to populate PL/SQL records\n  and table data structures for use in API calls.\n\n  The API Calls section contains code to make procedure or function\n  calls.\n\n  Usage notes and limitations:\n  - Review the source code in addition to this document. In many\n  cases there may be simpler ways to declare variables than the\n  expanded structure used here. For example:\n  type x_table is table of my_table%rowtype;\n  - The Data Structures section declares a separate variable\n  for each argument of type PL/SQL RECORD, PL/SQL TABLE or VARRAY.\n  - It concatenates the procedure name, overload number and\n  argument name to create the variable name. This may result in\n  a variable name that is greater than the maximum length for\n  a pl/sql variable.\n  - Some structures require manual edits. These are marked with\n  [[TO-DO]] comments.\n***************************************************************/\ndeclare\n/**************************************************************\n  Data Structures\n***************************************************************/\n{{assign 'object_name' '' ~}}\n{{#results ~}}{{#each Arguments ~}}\n{{! statementSuffix is used to hold closing \");\"}}\n{{#if @first ~}}{{assign 'statementSuffix' ''}}{{/if ~}}\n{{! Detect new function or procedure name}}\n{{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}\n-----------------------------------------------------\n-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}\n-----------------------------------------------------\n{{/ifLevelChanged ~}}\n{{! Detect new overload of function or procedure}}\n{{#ifLevelChanged OBJECT_NAME Overload ~}}{{@root.statementSuffix}}{{assign 'statementSuffix' ''}}\n-----------------------------------------------------\n-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}\n-----------------------------------------------------\n{{/ifLevelChanged ~}}\n{{! Render return value variables\n    POSITION = 0 indicates argument is return value from a function\n}}\n{{#ifEquals '0' POSITION ~}}\n{{! Simple return value}}\n{{#unlessAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}\n{{OBJECT_NAME}}{{Overload}}_VALUE   {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{/unlessEquals ~}};\n{{/unlessAppearsIn ~}}\n{{! Return value is a collection}}\n{{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}{{@root.statementSuffix}}{{assign 'linePrefix' '( ' ~}}{{assign 'statementSuffix' ');' ~}}\ntype {{OBJECT_NAME}}{{Overload}}_VALUE is {{#ifEquals 'PL/SQL RECORD' DataType }}record{{/ifEquals }}{{#ifEquals 'VARRAY' DataType }}varray ([TO-DO insert size]) of {{assign 'statementSuffix' ';' }}{{/ifEquals }}\n{{/ifAppearsIn ~}}\n{{/ifEquals ~}}\n{{! Render type definitions for collection variables that are not return values\n}}\n{{#unlessEquals '0' POSITION ~}}\n{{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}{{@root.statementSuffix}}{{assign 'linePrefix' '( ' }}{{assign 'statementSuffix' ');' }}\n{{#unlessEquals null Parameter }}\n\ntype {{OBJECT_NAME}}{{Overload}}_{{Parameter}} is {{#ifEquals 'PL/SQL RECORD' DataType }}record{{/ifEquals }}{{#ifEquals 'VARRAY' DataType }}varray ([TO-DO insert size]) of {{assign 'statementSuffix' ';' }}{{/ifEquals }}\n{{/unlessEquals }}\n{{/ifAppearsIn}}\n{{/unlessEquals ~}}\n{{! PL/SQL tables are defined by whatever appears on subsequent lines at current Level + 1 }}\n{{#ifEquals 'PL/SQL TABLE' DataType ~}} table of [[TO-DO insert DataType]]{{assign 'statementSuffix' ';' }}{{/ifEquals ~}}\n{{! Print Parameter and DataType for all lines with a Level \u003e 0 }}\n{{#unlessEquals '0' Level ~}}\n{{#unlessEquals null Parameter }}{{/unlessEquals }}{{! Adds a linefeed}}\n{{#unlessEquals null Parameter ~}}{{@root.linePrefix}} {{Parameter}} {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{assign 'linePrefix' ', '}}{{/unlessEquals ~}}{{/unlessEquals ~}}\n{{#ifEquals null Parameter ~}}{{DataType}}{{/ifEquals ~}}\n{{/unlessEquals ~}}\n{{! Print a statement suffix for the final line}}\n{{#if @last ~}}{{@root.statementSuffix}}{{/if ~}}\n{{/each ~}}{{/results ~}}\n\n\nbegin\n/**************************************************************\n  Assign Values\n***************************************************************/\n{{assign 'object_name' '' ~}}\n{{#results ~}}{{#each Arguments ~}}\n{{! Detect new function or procedure name}}\n{{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}\n-----------------------------------------------------\n-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}\n-----------------------------------------------------\n{{/ifLevelChanged ~}}\n{{! Detect new overload of function or procedure}}\n{{#ifLevelChanged OBJECT_NAME Overload ~}}{{@root.statementSuffix}}{{assign 'statementSuffix' ''}}\n-----------------------------------------------------\n-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}\n-----------------------------------------------------\n{{/ifLevelChanged ~}}\n{{! Store the parent parameter name for use in record and table assignment calls}}\n{{#unlessEquals '0' POSITION ~}}\n{{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE' ~}}\n{{#unlessEquals null Parameter ~}}{{assign 'currentParameter' Parameter}}{{#ifEquals 'PL/SQL TABLE' DataType}}{{append 'currentParameter' '(i)'}}{{/ifEquals}}{{/unlessEquals }}\n{{/ifAppearsIn}}\n{{#ifEquals 'VARRAY' DataType ~}}{{OBJECT_NAME}}{{Overload}}_{{Parameter}} (i) := ; {{/ifEquals ~}}\n{{/unlessEquals ~}}\n{{! Print Parameter assignment for all lines with a Level \u003e 0 }}\n{{#unlessEquals '0' Level ~}}\n{{#unlessEquals null Parameter }}{{/unlessEquals }}{{! Adds a linefeed}}\n{{#unlessEquals null Parameter ~}}{{#unlessEquals null @root.currentParameter ~}}\n{{OBJECT_NAME}}{{Overload}}_{{@root.currentParameter}}.{{Parameter}} := ;  -- {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{/unlessEquals ~}}{{/unlessEquals ~}}{{/unlessEquals ~}}\n{{/unlessEquals ~}}\n{{/each ~}}{{/results ~}}\n/**************************************************************\n  API Calls\n***************************************************************/\n{{assign 'object_name' '' ~}}\n{{#results ~}}{{#each Arguments ~}}\n{{! Detect new function or procedure name}}\n{{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}\n-----------------------------------------------------\n-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}\n-----------------------------------------------------\n{{! Print a variable assignment for function call signature }}\n{{#ifEquals '0' POSITION ~}}  {{OBJECT_NAME}}{{Overload}}_VALUE := {{/ifEquals ~}}   {{@root.packageName}}.{{OBJECT_NAME}}\n{{! Level 0 = direct arguments (could be a record or table of records)}}\n{{#ifEquals '0' Level ~}}  {{/ifEquals ~}}{{assign OBJECT_NAME Overload}}{{assign 'linePrefix' '  ('}}{{/ifLevelChanged ~}}\n{{! Detect new overload of function or procedure}}\n{{#ifLevelChanged OBJECT_NAME Overload ~}}    );{{assign 'linePrefix' '  ('}}\n-----------------------------------------------------\n-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}\n-----------------------------------------------------\n{{#ifEquals '0' POSITION ~}}  {{OBJECT_NAME}}{{Overload}}_VALUE := {{/ifEquals ~}}\n{{@root.packageName}}.{{OBJECT_NAME}}\n{{/ifLevelChanged ~}}\n{{! Print the parameters}}\n{{#ifEquals '0' Level ~}}\n{{@root.linePrefix}} {{#unlessEquals null Parameter }}{{Parameter}} =\u003e   -- {{Direction}} {{DataType}}{{#unlessEquals null Length }}({{Length}}){{/unlessEquals}}{{assign 'linePrefix' '  ,'}}\n{{/unlessEquals }}{{/ifEquals ~}}\n{{#if @last }});\n\n{{/if }}\n{{/each ~}}{{/results ~}}\nend;\n/","sql_loader.mu":"LOAD DATA\nINFILE './{{#results}}{{#TableDetails}}{{Name}}.csv{{/TableDetails}}{{/results}}'\nINSERT INTO TABLE {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}\nFIELDS TERMINATED BY \",\" OPTIONALLY ENCLOSED BY '\"' TRAILING NULCOLS\n({{#results}}{{#Columns}}{{Name}}, {{/Columns}}{{/results}})"},"kind":"ConfigMap","metadata":{"annotations":{},"labels":{"app.kubernetes.io/name":"visulate-for-oracle-1132"},"name":"visulate-for-oracle-1132-hbs-templates","namespace":"catalog","ownerReferences":[{"apiVersion":"app.k8s.io/v1beta1","blockOwnerDeletion":true,"kind":"Application","name":"visulate-for-oracle-1132","uid":"4a8f98c7-5cb4-4996-9729-92920919f04b"}]}}
+  creationTimestamp: "2022-11-16T16:07:53Z"
+  labels:
+    app.kubernetes.io/name: visulate-for-oracle-1132
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:data:
+        .: {}
+        f:checksum_view.hbs: {}
+        f:curl_from_list.hbs: {}
+        f:gen_crud_objects_from_list.hbs: {}
+        f:gen_sql_loader_control_file.hbs: {}
+        f:generate_csv_files.hbs: {}
+        f:generate_sql_loader_calls.hbs: {}
+        f:plsql_api_gen.hbs: {}
+        f:plsql_package_call.hbs: {}
+        f:sql_loader.mu: {}
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:kubectl.kubernetes.io/last-applied-configuration: {}
+        f:labels:
+          .: {}
+          f:app.kubernetes.io/name: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"4a8f98c7-5cb4-4996-9729-92920919f04b"}: {}
+    manager: kubectl-client-side-apply
+    operation: Update
+    time: "2022-11-16T16:07:53Z"
+  name: visulate-for-oracle-1132-hbs-templates
+  namespace: catalog
+  ownerReferences:
+  - apiVersion: app.k8s.io/v1beta1
+    blockOwnerDeletion: true
+    kind: Application
+    name: visulate-for-oracle-1132
+    uid: 4a8f98c7-5cb4-4996-9729-92920919f04b
+  resourceVersion: "228579493"
+  uid: 0115196c-b61f-4fed-a1be-ddc911798587
