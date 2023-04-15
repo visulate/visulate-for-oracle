@@ -14,7 +14,7 @@
 
 FROM oraclelinux:7-slim
 ARG oracleRelease=19
-ARG oracleUpdate=14
+ARG oracleUpdate=18
 
 RUN  yum -y install oracle-release-el7  oracle-nodejs-release-el7 && \
      yum-config-manager --enable ol7_oracle_instantclient && \

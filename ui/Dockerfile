@@ -15,9 +15,10 @@
 FROM node:18-alpine AS builder
 COPY . ./visulate-client
 WORKDIR /visulate-client
+RUN npm install -g npm@9.6.1
 RUN npm i
-RUN $(npm bin)/ng build --prod
+RUN node_modules/.bin/ng build --configuration production
 
-FROM nginx:stable-alpine
+FROM nginx:stable
 COPY --from=builder /visulate-client/dist/client/assets/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /visulate-client/dist/client/ /usr/share/nginx/html

@@ -13,14 +13,14 @@
 # limitations under the License.
 FROM oraclelinux:7-slim
 ARG oracleRelease=19
-ARG oracleUpdate=6
+ARG oracleUpdate=18
 
 RUN  yum -y install oracle-release-el7 && \
      yum-config-manager --enable ol7_oracle_instantclient && \
      yum -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
      rm -rf /var/cache/yum
 
-RUN yum install -y python36 && \
+RUN yum install -y python3 && \
     rm -rf /var/cache/yum
 
 RUN adduser queryeng
@@ -30,14 +30,14 @@ ENV PYTHONPATH=/query-engine
 
 COPY --chown=queryeng:queryeng . /query-engine/
 WORKDIR /query-engine
-RUN python3.6 -m pip install cx_Oracle --user
-RUN python3.6 -m pip install wheel --user
-RUN python3.6 setup.py bdist_wheel
+RUN python3 -m pip install cx_Oracle --user
+RUN python3 -m pip install wheel --user
+RUN python3 setup.py bdist_wheel
 
 COPY requirements.txt /var/www/requirements.txt
-RUN python3.6 -m pip install -r /var/www/requirements.txt --user
+RUN python3 -m pip install -r /var/www/requirements.txt --user
 
 COPY dist/sql2csv-1.1.0-py3-none-any.whl /var/www/sql2csv-1.1.0-py3-none-any.whl
-RUN python3.6 -m pip install /var/www/sql2csv-1.1.0-py3-none-any.whl --user
+RUN python3 -m pip install /var/www/sql2csv-1.1.0-py3-none-any.whl --user
 
 CMD gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --bind 0.0.0.0:5000 "sql2csv:create_app()"

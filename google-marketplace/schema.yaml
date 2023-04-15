@@ -20,6 +20,7 @@ x-google-marketplace:
       v1.1.26 Update swagger-ui
       v1.1.29 Update UI to Angular 13.2.5
       v1.1.30 Security updates
+      v1.1.33 Security updates
   images:
     '':
       properties:
