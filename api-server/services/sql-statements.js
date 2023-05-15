@@ -210,12 +210,11 @@ collection['TYPE'] = {
   objectTypeQueries: []
 };
 
-
+// https://github.com/visulate/visulate-for-oracle/issues/253
+// use NOLINE for all dependencies
 collection['DEPENDENCIES'] = {
   objectNameIdQueries: [statement['USED-BY-OBJECTS']],
-  // https://github.com/visulate/visulate-for-oracle/issues/253
-  // use NOLINE for all dependencies
-  objectIdQueries: [statement['USES-OBJECTS-NOLINE']],
+  objectIdQueries: [statement['USES-OBJECTS']],
   objectTypeQueries: []
 };
 collection['DEPENDENCIES-NOSOURCE'] = {
