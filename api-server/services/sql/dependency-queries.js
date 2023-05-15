@@ -36,6 +36,9 @@ statement['SOURCE-LINE-DEPENDENCY'] = {
  * Find dependencies to/from the current object.
  * The queries run against the dependency$ table instead of the dba_dependencies
  * view for performance reasons.
+ *
+ * xmlagg - see:
+ * https://blog.tuningsql.com/how-to-fix-ora-01489-result-of-string-concatenation-is-too-long-when-using-listagg/
  */
 
 statement['USED-BY-OBJECTS'] = {
@@ -48,7 +51,7 @@ statement['USED-BY-OBJECTS'] = {
            ,      o.object_type as "Object Type"
            ,      o.owner as "Owner"
            ,      o.owner||'/'||o.object_type||'/'||o.object_name as link
-           ,      LISTAGG(s.line, ', ') WITHIN GROUP (ORDER BY s.line ) as "Line"
+           ,      rtrim(xmlagg(xmlelement(e,s.line,', ').extract('//text()') order by s.line).getclobval(),', ') as "Line"
            from dba_objects o
            ,    sys.dependency$ d
            left join sys.source$ s on d.d_obj# = s.obj# and upper(s.source) like '%'||:object_name||'%'
@@ -73,7 +76,7 @@ statement['USES-OBJECTS'] = {
            ,      o.object_type as "Object Type"
            ,      o.owner as "Owner"
            ,      o.owner||'/'||o.object_type||'/'||o.object_name as link
-           ,      LISTAGG(s.line, ', ') WITHIN GROUP (ORDER BY s.line ) as "Line"
+           ,      rtrim(xmlagg(xmlelement(e,s.line,', ').extract('//text()') order by s.line).getclobval(),', ') as "Line"
            from sys.dependency$ d
            left join sys.source$ s on d.d_obj# = s.obj#
            left join dba_objects o on upper(s.source) like '%'||o.object_name||'%'
