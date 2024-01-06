@@ -72,7 +72,7 @@ curl \
 -H 'Authorization: Basic {{basicAuthCredentials}}' \
 -H 'Content-Type: application/json' \
 -H 'Accept: text/csv' \
--d @- << EOF
+-d &#64;- << EOF
 {{ '{' }} "sql": "{{curlSql}}"<ng-container *ngIf="bindVariables">,
 "binds":  {{bindVariables}}</ng-container><ng-container *ngIf="queryOptions">,
 "options": {{queryOptions}}</ng-container>
