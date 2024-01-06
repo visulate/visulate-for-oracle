@@ -15,7 +15,7 @@
  */
 
 import { Directive } from '@angular/core';
-import { Validator, FormControl, NG_VALIDATORS } from '@angular/forms';
+import { Validator, UntypedFormControl, NG_VALIDATORS } from '@angular/forms';
 @Directive({
     selector: '[validSql][ngModel]',
     providers: [
@@ -23,7 +23,7 @@ import { Validator, FormControl, NG_VALIDATORS } from '@angular/forms';
     ]
 })
 export class SqlValidatorDirective implements Validator {
-    validate(control: FormControl): {[key: string]: any} {
+    validate(control: UntypedFormControl): {[key: string]: any} {
         const sql = control.value
         if (sql && sql.match('.*(\/|;)$'))
             return {

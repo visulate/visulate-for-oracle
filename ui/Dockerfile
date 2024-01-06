@@ -15,7 +15,7 @@
 FROM node:18-alpine AS builder
 COPY . ./visulate-client
 WORKDIR /visulate-client
-RUN npm install -g npm@9.6.1
+RUN npm install -g npm@10.2.5
 RUN npm i
 RUN node_modules/.bin/ng build --configuration production
 

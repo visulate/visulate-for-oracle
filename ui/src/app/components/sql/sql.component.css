@@ -11,11 +11,11 @@
       font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
     }
 
-  .mat-table {
+  .mat-mdc-table {
     overflow-x: scroll;
   }
 
-  .mat-cell, .mat-header-cell {
+  .mat-mdc-cell, .mat-mdc-header-cell {
     word-wrap: initial;
     display: table-cell;
     padding: 0px 10px;
@@ -26,8 +26,8 @@
     vertical-align: middle;
   }
 
-  .mat-row,
-  .mat-header-row {
+  .mat-mdc-row,
+  .mat-mdc-header-row {
     display: table-row;
   }
 
