@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,10 +102,12 @@ statement['EBS-SCHEMA'] = {
 statement['COUNT-INVALID-OBJECTS'] = {
   'title': 'Invalid Objects',
   'description': '',
+  'link': 'Owner',
   'display': ["Owner", "Object Type", "Count"],
   'sql': `select owner as "Owner"
           ,      object_type as "Object Type"
           ,      count(*) as "Count"
+          ,      owner as link
           from dba_objects
           where status = 'INVALID'
           group by owner, object_type
@@ -261,6 +263,27 @@ statement['SCHEMA-INDEXES'] = {
     object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
     esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
    }
+};
+
+statement['SCHEMA-INVALID-OBJECTS'] = {
+  'title': 'Invalid Objects',
+  'description': 'Invalid objects in the schema',
+  'display': ["Type", "Name", "Line", "Error"],
+  'link': 'Name',
+  'sql': `select type as "Type"
+          ,      name as "Name"
+          ,      line as "Line"
+          ,      text as "Error"
+          ,      owner||'/'||type||'/'||name as link
+          from dba_errors
+          where owner = :owner
+          and name like :object_name ESCAPE :esc
+          order by type, name, line`,
+  'params': {
+   owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+   object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
+   esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
+  }
 };
 
 statement['SCHEMA-DATATYPES'] = {

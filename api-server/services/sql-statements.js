@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,8 @@ collection['SCHEMA'] = {
 collection['SCHEMA-FILTERED'] = {
   ownerNameQueries: [
     statement['SCHEMA-DATATYPES'],
-     statement['SCHEMA-INDEXES']
+    statement['SCHEMA-INDEXES'],
+    statement['SCHEMA-INVALID-OBJECTS']
   ]
 };
 

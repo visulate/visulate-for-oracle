@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -251,9 +251,7 @@ async function getSchemaDetails(req, res, next) {
     connection = await dbService.getConnection(poolAlias);
     for (let c of queryCollection.ownerNameQueries) {
       c.params.owner.val = req.params.owner;
-      if (filter) {
-        c.params.object_name.val = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
-      }
+      c.params.object_name.val = (filter) ? filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_') : '%';
       const cResult = await dbService.query(connection, c.sql, c.params);
       result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
     }
