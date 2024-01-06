@@ -15,7 +15,7 @@
  */
 
 import { Component, OnInit, Input } from '@angular/core';
-import { FormControl } from '@angular/forms';
+import { UntypedFormControl } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
 import { EndpointModel } from '../../models/endpoint.model';
@@ -52,8 +52,8 @@ export class FilterObjectsComponent implements OnInit {
   private currentFilter: string;
   private unsubscribe$ = new Subject<void>();
 
-  ebsSelectCtrl = new FormControl();
-  objectFilter = new FormControl(null, { updateOn: 'blur' });
+  ebsSelectCtrl = new UntypedFormControl();
+  objectFilter = new UntypedFormControl(null, { updateOn: 'blur' });
   filteredPrefixes$: Observable<EbsPrefixes[]>;
 
   ebsPrefixes: EbsPrefixes[] = [
