@@ -2,7 +2,7 @@
   width: 300px;
 }
 
-.mat-card {
+.mat-mdc-card {
   max-height: 400px;
   overflow-y: auto;
 }

@@ -1,4 +1,4 @@
-<mat-card>
+<mat-card appearance="outlined">
     <mat-card-title>Database Object Selection</mat-card-title>
     <mat-card-subtitle>Select a database, schema and object type</mat-card-subtitle>
     <app-filter-objects [currentEndpoint]=currentEndpoint></app-filter-objects>
@@ -38,7 +38,7 @@
     </mat-card-content>
 </mat-card>
 
-<mat-card *ngIf="currentObjectType">
+<mat-card appearance="outlined" *ngIf="currentObjectType">
     <mat-card-subtitle>Object Type: {{currentObjectType.type}} ({{currentObjectType.count}})</mat-card-subtitle>
     <mat-card-content>
         <app-db-object-list></app-db-object-list>

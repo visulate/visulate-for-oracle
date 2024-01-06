@@ -1,4 +1,4 @@
-mat-toolbar.mat-toolbar mat-form-field.mat-form-field {
+mat-toolbar.mat-toolbar mat-form-field.mat-mdc-form-field {
   font-size: 12px;
 }
 #dbSelectMenu mat-form-field {

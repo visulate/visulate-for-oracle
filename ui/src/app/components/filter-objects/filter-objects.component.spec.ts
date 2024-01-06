@@ -1,8 +1,8 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatLegacyAutocompleteModule as MatAutocompleteModule } from '@angular/material/legacy-autocomplete';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { FormsModule, ReactiveFormsModule} from '@angular/forms';
-import { MatLegacySelectModule as MatSelectModule} from '@angular/material/legacy-select';
-import { MatLegacyInputModule as MatInputModule} from '@angular/material/legacy-input';
+import { MatSelectModule} from '@angular/material/select';
+import { MatInputModule} from '@angular/material/input';
 import { FilterObjectsComponent } from './filter-objects.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
