@@ -23,7 +23,7 @@ x-google-marketplace:
       v1.1.33 Security updates
       v1.1.34 Security updates
       v1.1.35 Rebuild with latest dependencies
-      v1.1.36 Add invalid object query and update UI to Angular 17
+      v1.1.36 Add invalid object query, update UI to Angular 17 + security updates
   images:
     '':
       properties:
