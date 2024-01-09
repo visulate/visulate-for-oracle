@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM oraclelinux:7-slim
+FROM oraclelinux:8
 ARG oracleRelease=19
 ARG oracleUpdate=18
 
-RUN  yum -y install oracle-release-el7 && \
-     yum-config-manager --enable ol7_oracle_instantclient && \
+RUN  yum -y install oracle-release-el8 && \
+     yum-config-manager --enable ol8_oracle_instantclient && \
      yum -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
      rm -rf /var/cache/yum
 
-RUN yum install -y python3 && \
+RUN yum install -y python3.8 && \
     rm -rf /var/cache/yum
 
 RUN adduser queryeng
@@ -30,7 +30,7 @@ ENV PYTHONPATH=/query-engine
 
 COPY --chown=queryeng:queryeng . /query-engine/
 WORKDIR /query-engine
-RUN python3 -m pip install cx_Oracle --user
+RUN python3 -m pip install cx_Oracle --upgrade --user
 RUN python3 -m pip install wheel --user
 RUN python3 setup.py bdist_wheel
 
