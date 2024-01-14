@@ -86,11 +86,6 @@ export class DbContentComponent implements OnInit, OnDestroy {
       } else {
         this.downloadOptions = [];
       }
-
-      // this.downloadOptions = [
-      //   { name: 'PL/SQL Package Calls', url: `${environment.apiBase}/${endpoint}/${owner}/${type}/${name}?template=plsql_package_call.hbs` },
-      //   { name: 'Node JS SQL Statements', url: `${environment.apiBase}/${endpoint}/${owner}/${type}/${name}?template=plsql2nodejs.hbs` },
-      // ];
     }
   }
 
