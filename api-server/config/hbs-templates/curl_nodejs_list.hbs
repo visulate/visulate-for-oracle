@@ -1,0 +1,9 @@
+#!/bin/bash
+base_url=https://{{host}}/api/{{params.db}}/{{params.owner}}/PACKAGE%20BODY
+
+echo Generating NodeJS SQL library files
+{{#each results}}
+
+echo {{this}}.js
+curl -k "$base_url"/{{this}}?template=plsql2nodejs.hbs -o {{this}}.js
+{{/each}}

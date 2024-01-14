@@ -114,7 +114,7 @@ spec:
             httpGet:
               path: /endpoints/
               port: {{ .Values.apiServer.port }}
-            initialDelaySeconds: 90
+            initialDelaySeconds: 180
             periodSeconds: 60
             timeoutSeconds: 20
         # Sidecar containers

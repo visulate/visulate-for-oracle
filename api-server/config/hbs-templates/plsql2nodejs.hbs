@@ -1,0 +1,15 @@
+/*
+ * Copyright 2023 Visulate LLC. All Rights Reserved.
+ * Source Package Body: {{params.name}}
+ * Source API: https://{{host}}{{{url}}}
+ * Source Doc: https://{{host}}/database/{{params.db}}/{{params.owner}}/{{params.type}}/{{params.name}}
+ */
+let statement = {};
+{{#results}}{{#each SQLStatements}}
+statement['L{{Line}}'] = {
+  name: '',
+  text: '{{{Statement}}}',
+  values: []
+}
+{{/each}}{{/results}}
+module.exports.statement = statement;

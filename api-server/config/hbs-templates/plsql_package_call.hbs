@@ -1,0 +1,153 @@
+{{! Find the package name and assign to a variable}}
+{{#results ~}}{{#ObjectDetails ~}}{{assign 'packageName' ObjectName}}{{/ObjectDetails ~}}{{/results ~}}
+/**************************************************************
+  PL/SQL call parameters for {{@root.packageName}}
+  Generated using Visulate for Oracle plsql_package_call.hbs
+  template on {{runDate}} using metadata from DBA_ARGUMENTS.
+
+  This document contains code stubs for calling {{@root.packageName}}.
+  It is broken down into 3 sections.
+
+  The Data Structures section contains declarations for function
+  return values and collections.
+
+  The Assign Values section contains code to populate PL/SQL records
+  and table data structures for use in API calls.
+
+  The API Calls section contains code to make procedure or function
+  calls.
+
+  Usage notes and limitations:
+  - Review the source code in addition to this document. In many
+  cases there may be simpler ways to declare variables than the
+  expanded structure used here. For example:
+  type x_table is table of my_table%rowtype;
+  - The Data Structures section declares a separate variable
+  for each argument of type PL/SQL RECORD, PL/SQL TABLE or VARRAY.
+  - It concatenates the procedure name, overload number and
+  argument name to create the variable name. This may result in
+  a variable name that is greater than the maximum length for
+  a pl/sql variable.
+  - Some structures require manual edits. These are marked with
+  [[TO-DO]] comments.
+***************************************************************/
+declare
+/**************************************************************
+  Data Structures
+***************************************************************/
+{{assign 'object_name' '' ~}}
+{{#results ~}}{{#each Arguments ~}}
+{{! statementSuffix is used to hold closing ");"}}
+{{#if @first ~}}{{assign 'statementSuffix' ''}}{{/if ~}}
+{{! Detect new function or procedure name}}
+{{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}
+-----------------------------------------------------
+-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+-----------------------------------------------------
+{{/ifLevelChanged ~}}
+{{! Detect new overload of function or procedure}}
+{{#ifLevelChanged OBJECT_NAME Overload ~}}{{@root.statementSuffix}}{{assign 'statementSuffix' ''}}
+-----------------------------------------------------
+-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+-----------------------------------------------------
+{{/ifLevelChanged ~}}
+{{! Render return value variables
+    POSITION = 0 indicates argument is return value from a function
+}}
+{{#ifEquals '0' POSITION ~}}
+{{! Simple return value}}
+{{#unlessAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}
+{{OBJECT_NAME}}{{Overload}}_VALUE   {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{/unlessEquals ~}};
+{{/unlessAppearsIn ~}}
+{{! Return value is a collection}}
+{{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}{{@root.statementSuffix}}{{assign 'linePrefix' '( ' ~}}{{assign 'statementSuffix' ');' ~}}
+type {{OBJECT_NAME}}{{Overload}}_VALUE is {{#ifEquals 'PL/SQL RECORD' DataType }}record{{/ifEquals }}{{#ifEquals 'VARRAY' DataType }}varray ([TO-DO insert size]) of {{assign 'statementSuffix' ';' }}{{/ifEquals }}
+{{/ifAppearsIn ~}}
+{{/ifEquals ~}}
+{{! Render type definitions for collection variables that are not return values
+}}
+{{#unlessEquals '0' POSITION ~}}
+{{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE,VARRAY' ~}}{{@root.statementSuffix}}{{assign 'linePrefix' '( ' }}{{assign 'statementSuffix' ');' }}
+{{#unlessEquals null Parameter }}
+
+type {{OBJECT_NAME}}{{Overload}}_{{Parameter}} is {{#ifEquals 'PL/SQL RECORD' DataType }}record{{/ifEquals }}{{#ifEquals 'VARRAY' DataType }}varray ([TO-DO insert size]) of {{assign 'statementSuffix' ';' }}{{/ifEquals }}
+{{/unlessEquals }}
+{{/ifAppearsIn}}
+{{/unlessEquals ~}}
+{{! PL/SQL tables are defined by whatever appears on subsequent lines at current Level + 1 }}
+{{#ifEquals 'PL/SQL TABLE' DataType ~}} table of [[TO-DO insert DataType]]{{assign 'statementSuffix' ';' }}{{/ifEquals ~}}
+{{! Print Parameter and DataType for all lines with a Level > 0 }}
+{{#unlessEquals '0' Level ~}}
+{{#unlessEquals null Parameter }}{{/unlessEquals }}{{! Adds a linefeed}}
+{{#unlessEquals null Parameter ~}}{{@root.linePrefix}} {{Parameter}} {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{assign 'linePrefix' ', '}}{{/unlessEquals ~}}{{/unlessEquals ~}}
+{{#ifEquals null Parameter ~}}{{DataType}}{{/ifEquals ~}}
+{{/unlessEquals ~}}
+{{! Print a statement suffix for the final line}}
+{{#if @last ~}}{{@root.statementSuffix}}{{/if ~}}
+{{/each ~}}{{/results ~}}
+
+
+begin
+/**************************************************************
+  Assign Values
+***************************************************************/
+{{assign 'object_name' '' ~}}
+{{#results ~}}{{#each Arguments ~}}
+{{! Detect new function or procedure name}}
+{{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}
+-----------------------------------------------------
+-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+-----------------------------------------------------
+{{/ifLevelChanged ~}}
+{{! Detect new overload of function or procedure}}
+{{#ifLevelChanged OBJECT_NAME Overload ~}}{{@root.statementSuffix}}{{assign 'statementSuffix' ''}}
+-----------------------------------------------------
+-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+-----------------------------------------------------
+{{/ifLevelChanged ~}}
+{{! Store the parent parameter name for use in record and table assignment calls}}
+{{#unlessEquals '0' POSITION ~}}
+{{#ifAppearsIn DataType 'PL/SQL RECORD,PL/SQL TABLE' ~}}
+{{#unlessEquals null Parameter ~}}{{assign 'currentParameter' Parameter}}{{#ifEquals 'PL/SQL TABLE' DataType}}{{append 'currentParameter' '(i)'}}{{/ifEquals}}{{/unlessEquals }}
+{{/ifAppearsIn}}
+{{#ifEquals 'VARRAY' DataType ~}}{{OBJECT_NAME}}{{Overload}}_{{Parameter}} (i) := ; {{/ifEquals ~}}
+{{/unlessEquals ~}}
+{{! Print Parameter assignment for all lines with a Level > 0 }}
+{{#unlessEquals '0' Level ~}}
+{{#unlessEquals null Parameter }}{{/unlessEquals }}{{! Adds a linefeed}}
+{{#unlessEquals null Parameter ~}}{{#unlessEquals null @root.currentParameter ~}}
+{{OBJECT_NAME}}{{Overload}}_{{@root.currentParameter}}.{{Parameter}} := ;  -- {{DataType}}{{#unlessEquals null Length ~}}({{Length}}){{/unlessEquals ~}}{{/unlessEquals ~}}{{/unlessEquals ~}}
+{{/unlessEquals ~}}
+{{/each ~}}{{/results ~}}
+/**************************************************************
+  API Calls
+***************************************************************/
+{{assign 'object_name' '' ~}}
+{{#results ~}}{{#each Arguments ~}}
+{{! Detect new function or procedure name}}
+{{#ifLevelChanged 'object_name' OBJECT_NAME ~}}{{assign OBJECT_NAME Overload}}
+-----------------------------------------------------
+-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+-----------------------------------------------------
+{{! Print a variable assignment for function call signature }}
+{{#ifEquals '0' POSITION ~}}  {{OBJECT_NAME}}{{Overload}}_VALUE := {{/ifEquals ~}}   {{@root.packageName}}.{{OBJECT_NAME}}
+{{! Level 0 = direct arguments (could be a record or table of records)}}
+{{#ifEquals '0' Level ~}}  {{/ifEquals ~}}{{assign OBJECT_NAME Overload}}{{assign 'linePrefix' '  ('}}{{/ifLevelChanged ~}}
+{{! Detect new overload of function or procedure}}
+{{#ifLevelChanged OBJECT_NAME Overload ~}}    );{{assign 'linePrefix' '  ('}}
+-----------------------------------------------------
+-- {{OBJECT_NAME}} {{# unlessEquals null Overload }} Overload {{Overload}}{{/unlessEquals }}
+-----------------------------------------------------
+{{#ifEquals '0' POSITION ~}}  {{OBJECT_NAME}}{{Overload}}_VALUE := {{/ifEquals ~}}
+{{@root.packageName}}.{{OBJECT_NAME}}
+{{/ifLevelChanged ~}}
+{{! Print the parameters}}
+{{#ifEquals '0' Level ~}}
+{{@root.linePrefix}} {{#unlessEquals null Parameter }}{{Parameter}} =>   -- {{Direction}} {{DataType}}{{#unlessEquals null Length }}({{Length}}){{/unlessEquals}}{{assign 'linePrefix' '  ,'}}
+{{/unlessEquals }}{{/ifEquals ~}}
+{{#if @last }});
+
+{{/if }}
+{{/each ~}}{{/results ~}}
+end;
+/

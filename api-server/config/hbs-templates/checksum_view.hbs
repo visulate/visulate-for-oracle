@@ -1,0 +1,16 @@
+{{!
+Create an Oracle view from a table definition with a column for each column
+in the table plus a checksum column based on values for the columns. Used to
+in web forms to detect changes in tables that do not have audit columns.
+
+You may need to login as SYS and grant execute on DBMS_CRYPTO to the view's
+user before running the generated SQL.
+}}
+create or replace view {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}}_V as
+select {{#results}}{{#each Columns}}{{#if @first}}{{Name}}
+{{else}}, {{Name}}
+{{/if}}{{/each}}{{/results}}, DBMS_CRYPTO.HASH(rawtohex(
+    {{#results}}{{#each Columns}}{{#if @first}}'{{Name}}='||{{Name}}
+    {{else}}||'{{Name}}='||{{Name}}
+    {{/if}}{{/each}}{{/results}}) ,2) as CHECKSUM
+from {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}};

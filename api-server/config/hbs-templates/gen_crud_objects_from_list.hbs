@@ -1,0 +1,26 @@
+Generate View definition statements
+{{#each results}}
+curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=checksum_view.hbs -o {{this}}_V.sql
+{{/each}}
+
+Generate PL/SQL packages
+{{#each results}}
+curl {{../protocol}}://{{../host}}/api/{{../params.db}}/{{../params.owner}}/{{../params.type}}/{{this}}?template=plsql_api_gen.hbs -o {{this}}_PKG.sql
+{{/each}}
+
+SQL*Plus:
+
+Generate Sequence definitions
+{{#each results}}
+create sequence {{this}}_SEQ;
+{{/each}}
+
+Install Views
+{{#each results}}
+@@{{this}}_V.sql
+{{/each}}
+
+Install Packages
+{{#each results}}
+@@{{this}}_PKG.sql
+{{/each}}

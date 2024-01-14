@@ -1,9 +1,15 @@
 #!/bin/bash
+# Shell script to make Visulate API calls passing a handlebars template
+# Edit the template and suffix variables as required
+# See https://docs.visulate.net/pages/code-generation.html for more information
+
 base_url=https://{{host}}/api/{{params.db}}/{{params.owner}}/{{params.type}}
+template=gen_sql_loader_control_file.hbs
+suffix=ctl
 
 echo Generating SQL*Loader control files
 {{#each results}}
 
-echo {{this}}.ctl
-curl "$base_url"/{{this}}?template=gen_sql_loader_control_file.hbs -o {{this}}.ctl
+echo {{this}}
+curl "$base_url"/{{this}}?template="$template" -o {{this}}."$suffix"
 {{/each}}
