@@ -1,0 +1,13 @@
+#!/bin/bash
+oracle_user={{params.owner}}
+oracle_pw=$1
+
+url='https://{{host}}/sql/{{params.db}}'
+content_type='Content-Type: application/json'
+accept='Accept: text/csv'
+{{#each results}}
+
+echo {{this}}.csv
+json_query='{ "sql": "select * from {{this}}","options": {"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}}'
+curl -u "$oracle_user":"$oracle_pw" -L "$url" -H "$content_type" -H "$accept" -d "$json_query" -o {{this}}.csv
+{{/each}}

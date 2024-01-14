@@ -5,6 +5,7 @@
     <div *ngIf="endpoints.errorMessage"><p class="warning">{{endpoints.errorMessage}}</p></div>
     <mat-card-content>
         <mat-form-field>
+            <mat-label>Database</mat-label>
             <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
                 (selectionChange)="setEndpoint($event.value)">
                 <mat-option *ngFor="let database of endpoints.databases" [value]="database">
@@ -14,6 +15,7 @@
         </mat-form-field>
 
         <mat-form-field *ngIf="currentEndpoint">
+            <mat-label>Schema</mat-label>
 
             <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
                 <mat-checkbox (change)="setShowInternal($event.checked)" [checked]="currentContext.showInternal"  >Show Internal</mat-checkbox>
@@ -25,6 +27,7 @@
         </mat-form-field>
 
         <mat-form-field *ngIf="currentSchema">
+            <mat-label>Object Type</mat-label>
             <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
                 (selectionChange)="setObjectType($event.value)">
                 <mat-option *ngFor="let objectType of currentSchema.objectTypes" [value]="objectType">
@@ -33,7 +36,17 @@
             </mat-select>
         </mat-form-field>
 
-        <a *ngIf="ddlLink" href="{{ddlLink}}">Download DDL</a>
+        <mat-form-field *ngIf="ddlLink" >
+            <mat-label>Download</mat-label>
+            <mat-select [(ngModel)]="selectedOption" (selectionChange)="download()">
+              <mat-option [value]="ddlLink">Oracle DDL</mat-option>
+              <mat-option *ngFor="let option of downloadOptions" [value]="option.url">
+                {{ option.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+
         <p *ngIf="currentEndpoint">{{currentEndpoint.description}} </p>
     </mat-card-content>
 </mat-card>

@@ -45,6 +45,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   public currentContext: CurrentContextModel;
   private unsubscribe$ = new Subject<void>();
   public ddlLink: string;
+  public downloadOptions = [];
   public showInternal: boolean;
   public dbPlaceholder: string;
 
@@ -54,11 +55,26 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     private router: Router,
     private restService: RestService) { }
 
+  selectedOption: string = ''; // To store the selected option
+
+  download() {
+    if (this.selectedOption) {
+      window.open(this.selectedOption, '_blank');
+    }
+  }
+
   setDdlLink(){
     if (this.currentContext && this.currentSchema && !(environment.internalSchemas.includes(this.currentSchema.owner))) {
       const filter = (this.currentContext.filter === '')? '*': this.currentContext.filter;
-      this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0)?
-        `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : ''
+      if (this.currentObjectType && this.currentObjectType.count > 0) {
+        this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0)?
+          `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : ''
+
+        this.downloadOptions = [
+          { name: 'cURL command script',
+            url: `${environment.apiBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}?template=curl_from_list.hbs` },
+        ];
+      }
     }
   }
 

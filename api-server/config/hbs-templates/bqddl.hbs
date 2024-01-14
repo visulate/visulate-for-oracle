@@ -1,0 +1,4 @@
+CREATE TABLE {{#results}}{{#TableDetails}}{{Name}}{{/TableDetails}}{{/results}} (
+{{#results}}{{#each Columns}}{{Name}}  {{#ifEquals 'NUMBER' Type }}NUMERIC{{/ifEquals }}{{#ifEquals 'VARCHAR2' Type }}STRING{{/ifEquals }}{{#ifEquals 'DATE' Type }}TIMESTAMP{{/ifEquals }}{{#unless @last ~}},
+{{/unless ~}}{{/each}}{{/results}}
+);

@@ -23,6 +23,7 @@ import { DatabaseObjectModel } from '../../models/database-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { hbsTemplates } from '../../../environments/hbs-templates';
 
 
 @Component({
@@ -44,17 +45,24 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   public ddlBase = environment.ddlGenBase;
   public ddlLink: string;
+  public downloadOptions = [];
   public connectString: string;
   public currentEndpoint: EndpointModel;
   public sqlEnabled: boolean;
   public queryPanelExpanded: boolean = false;
   public errorMessage: string;
 
-
   constructor(
     private restService: RestService,
     private state: StateService) {
+  }
 
+  selectedOption: string = ''; // To store the selected option
+
+  download() {
+    if (this.selectedOption) {
+      window.open(this.selectedOption, '_blank');
+    }
   }
 
   processObject(objectDetails: DatabaseObjectModel) {
@@ -67,6 +75,17 @@ export class DbContentComponent implements OnInit, OnDestroy {
       this.ddlLink = '';
     } else {
       this.ddlLink = `${environment.ddlGenBase}/${endpoint}/${owner}/${type}/${name}/*`
+
+      if (hbsTemplates.has(type)) {
+        hbsTemplates.get(type).forEach(template => {
+          this.downloadOptions.push({
+            name: template.title,
+            url: `${environment.apiBase}/${endpoint}/${owner}/${type}/${name}?template=${template.template}`
+          });
+        });
+      } else {
+        this.downloadOptions = [];
+      }
     }
   }
 

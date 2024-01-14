@@ -1,0 +1,10 @@
+#!/bin/bash
+oracle_user={{params.owner}}
+oracle_pw=$1
+connect_string=$2
+
+{{#each results}}
+
+echo {{this}}
+sqlldr "$oracle_user"/"$oracle_pw"@"$connect_string" direct=true control={{this}}.ctl
+{{/each}}

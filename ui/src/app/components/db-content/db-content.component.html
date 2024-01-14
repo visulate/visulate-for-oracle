@@ -1,7 +1,20 @@
 <div *ngIf="currentContext && currentContext.objectName; else welcomeMsg">
     <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}} [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>
-    <a *ngIf="ddlLink"  href="{{ddlLink}}"> Download DDL</a>
+
+    <mat-form-field *ngIf="ddlLink" >
+        <mat-label>Download</mat-label>
+        <mat-select [(ngModel)]="selectedOption" (selectionChange)="download()">
+          <mat-option [value]="ddlLink">Oracle DDL</mat-option>
+          <mat-option *ngFor="let option of downloadOptions" [value]="option.url">
+            {{ option.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+
+
     <ng-container *ngTemplateOutlet="queryResults"></ng-container>
+
 </div>
 
 <ng-template #welcomeMsg>
