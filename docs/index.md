@@ -3,19 +3,19 @@
 <section id="banner">
   <div class="content">
     <header>
-      <h1>Oracle to GCP</h1>
-      <p>Supporting Oracle database migrations to Google Cloud Platform</p>
+      <h1>Visulate for Oracle</h1>
+      <p>Supporting Oracle database developers and DBAs</p>
     </header>
     <p>Oracle developers and DBAs are often frustrated by inadequate documentation for databases whose schemas have changed over a number of years.</p>
     <p>Visulate addresses this problem by using Oracle’s internal data dictionary to generate documentation. Users supply read-only connection details for one or more the databases. Visulate queries the data dictionary for each connection. Results can be viewed via a browser based UI or REST API calls.</p>
-    <p>It was developed by a Google Cloud development partner with over 30 years Oracle experience. With Visulate you can spend less time analyzing legacy environments and accelerate your migration to Google Cloud Platform</p>
+    <p>It was developed by Peter Goldthorp a Google certified cloud architect with over 25 years of product development experience at Oracle and OCI. With Visulate you can spend less time analyzing Oracle environments and accelerate your migration to the Cloud</p>
 
     <ul class="actions">
       <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Learn More</a></li>
     </ul>
   </div>
-  <span class="image">
-    <img src="images/visulate-for-oracle.png" alt="Visulate for Oracle" style="height: auto"/>
+  <span class=image>
+    <img src="images/visulate-for-oracle.png" alt="Visulate for Oracle" style="height: 600px; "/>
   </span>
 </section>
 
@@ -52,7 +52,7 @@
           <h3>Code Generation</h3>
          <p>Extract SQL statements from PL/SQL procedures. Generate code from database metadata</p>
         </div>
-      </article>      
+      </article>
       <article>
         <span class="icon solid fa-wrench"></span>
         <div class="content">
@@ -76,16 +76,14 @@
   </header>
 </div>
 
-### On-Premises to GCP Bare Metal
+### On-Premises to Cloud Migrations
 
 Document and analyze on-premises environments prior to migration. Review system utilization for capacity planning. Identify "lift and shift" projects and candidates for conversion to microservices or other database engines. Document custom code in E-Business Suite databases. Review the contents of old databases. Identify targets for consolidation or decommissioning.
 
-### Oracle Data Warehouse to Big Query
+### Data Extracts
 
-Analyze star, snowflake and 3NF schemas in the Oracle data warehouse. Execute queries to review data values and prototype denormalized structures. Generate CSV from SQL statements for download as files or streaming to Google Cloud Storage. Generate code stubs from Oracle table and PL/SQL metadata for use in ETL tools. Replicate data from Oracle via REST APIs.
+Analyze star, snowflake and 3NF schemas in the Oracle data warehouse. Execute queries to review data values and prototype denormalized structures. Generate CSV from SQL statements for download as files or streaming to Cloud Storage. Generate code stubs from Oracle table and PL/SQL metadata for use in ETL tools. Replicate data from Oracle via REST APIs.
 
-### Oracle OLTP to Cloud SQL for PostgreSQL
+### Application Development
 
-Review Oracle schemas to identify Oracle specific data types and indexes. Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages. Download Oracle DDL for manual conversion to PostgreSQL.
-
-Execute Ora2Pg via an easy to use single page web application or REST API.
+Review Oracle schemas to identify Oracle specific data types and indexes. Examine custom PL/SQL and other database related program logic in stored procedures, packages and triggers. Extract SQL statements and business logic. Rewrite in other languages.

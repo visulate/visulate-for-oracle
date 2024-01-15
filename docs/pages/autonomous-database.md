@@ -9,7 +9,7 @@ Connections to Oracle Autonomous Data Warehouse and Transaction Processing insta
 
 Login to your Oracle Cloud tenancy and navigate to the Autonomous Database details page to download a wallet. Download an instance wallet to create a connection for a single database or a regional wallet if you need connections for more than one instance.
 
-![Download the database wallet](/images/download-wallet.png){: class="screenshot" }
+![Download the database wallet](/images/download-wallet.png){: class="screenshot" tabindex="0" }
 
 Expand the zipfile into an empty directory
 

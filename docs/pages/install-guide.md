@@ -88,7 +88,7 @@ community. The source code can be found on
 
 Open the Visulate for Oracle [configuration screen](https://console.cloud.google.com/marketplace/kubernetes/config/visulate-llc-public/visulate-for-oracle) and click on the `Deploy via command line` link.
 
-![Generate license key](/images/generate-license-key.png){: class="screenshot" }
+![Generate license key](/images/generate-license-key.png){: class="screenshot" tabindex="0" }
 
 Select a Reporting Service Account and then press the `Generate license key` button. Save the file and then apply it using kubectl:
 
@@ -265,7 +265,7 @@ echo "https://console.cloud.google.com/kubernetes/application/${ZONE}/${CLUSTER}
 Open the link in a browser to follow progress. Note it may take more than 10 minutes for the instance to deploy. During this time you may see a "Some backend services are in UNKNOWN state"
 warning (see example below). This is normal.
 
-![Warning message](/images/normal-warning.png){: class="screenshot" }
+![Warning message](/images/normal-warning.png){: class="screenshot" tabindex="0" }
 
 Click on the Ingress link or use use kubectl to monitor progress of this step:
 

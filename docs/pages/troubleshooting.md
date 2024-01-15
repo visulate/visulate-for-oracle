@@ -4,17 +4,17 @@
 
 ## Database registration failure
 
-Database registration failures typically appear while updating the deployment but are usually caused by errors in the database registration file.  
+Database registration failures typically appear while updating the deployment but are usually caused by errors in the database registration file.
 
-### Pod errors: CrashLoopBackOff 
+### Pod errors: CrashLoopBackOff
 
 Errors appear on the API Server deployment screen after applying an updated manifest. Example:
 ```
 CrashLoopBackOff Container 'message-log' keeps crashing.
-CrashLoopBackOff Container 'visulate-api' keeps crashing. 
+CrashLoopBackOff Container 'visulate-api' keeps crashing.
 ```
 
-#### What does this mean? 
+#### What does this mean?
 This typically indicates an issue with the database registration file. The deployment container logs may provide additional information. These can be accessed from the Deployment details page. For example, API server will throw an error if there are syntax errors in the registration file. Look for an error like this:
 
 ```
@@ -28,7 +28,7 @@ This typically indicates an issue with the database registration file. The deplo
 ```
 Deployment updates can also fail if the database registration secret was created with the wrong key. If you don't see any syntax errors in the log files it could be an issue with the key. The database registration secret key must be `database.js`. Open the Configuration page in the GKE console for your database registration secret. Examine the key name in the Data section of the page:
 
-![Checking the key](/images/db-secret.png){: class="screenshot"}
+![Checking the key](/images/db-secret.png){: class="screenshot" tabindex="0"}
 
 #### How do I fix it?
 Follow the [validation instructions](/pages/database-registration.html#validate-the-file-for-javascript-syntax-errors) in the database registration guide to check for errors. Create a new secret with the updated file then update the API Server deployment.
@@ -38,13 +38,13 @@ Follow the [validation instructions](/pages/database-registration.html#validate-
 
 The rolling update to a new configuration hangs. The old pods are still active and new ones are not created.
 
-![PodUnschedulable](/images/pod-unschedulable.png){: class="screenshot" }
+![PodUnschedulable](/images/pod-unschedulable.png){: class="screenshot" tabindex="0" }
 
-#### What does this mean? 
+#### What does this mean?
 There are insufficient resources in the cluster. See [GKE troubleshooting](https://cloud.google.com/kubernetes-engine/docs/troubleshooting#PodUnschedulable) guide.
 
 #### How do I fix it?
-Add resources to the cluster or reduce the number of API Server replicas. 
+Add resources to the cluster or reduce the number of API Server replicas.
 
 ### kubectl apply fails with Conflict
 
@@ -58,18 +58,18 @@ Error from server (Conflict): error when applying patch:
 
 :"Progressing"}],"observedGeneration":1,"replicas":1}}
 to:
-Resource: "extensions/v1beta1, Resource=deployments", 
+Resource: "extensions/v1beta1, Resource=deployments",
 GroupVersionKind: "extensions/v1beta1, Kind=Deployment"
 Name: "visulate-1-visulate-api", Namespace: "default"
-for: "../dev-files/deployment.yaml": 
-Operation cannot be fulfilled on deployments.extensions "visulate-1-visulate-api": 
+for: "../dev-files/deployment.yaml":
+Operation cannot be fulfilled on deployments.extensions "visulate-1-visulate-api":
 the object has been modified; please apply your changes to the latest version and try again
 ```
-#### What does this mean? 
-The deployment configuration has changed since the manifest was created. 
+#### What does this mean?
+The deployment configuration has changed since the manifest was created.
 
 #### How do I fix it?
-Follow the instructions in the [database registration](/pages/database-registration.html#update-the-api-server-deployment) 
+Follow the instructions in the [database registration](/pages/database-registration.html#update-the-api-server-deployment)
 guide to generate a new one.
 
 
@@ -103,7 +103,7 @@ head -50 combined.log
 
 ### Make an API call
 
-The UI calls the /api/ endpoint to get the list of databases to display in the dropdown. Use curl to call it.  
+The UI calls the /api/ endpoint to get the list of databases to display in the dropdown. Use curl to call it.
 
 ```shell
 # Find the ingress ip address (substitute your ingress name for "visulate-1-igs")
@@ -135,7 +135,7 @@ Use the network tab to examine the request to the /api/ endpoint. The response s
 
 ### Check the username, password and connect string
 
-Follow the instructions in the [network configuration guide](/pages/network-configuration.html) to open a bash shell in one of the API server pods. Navigate to the "/visulate-server/config" directory. Use the cat command to view the contents of the "database.js" file. 
+Follow the instructions in the [network configuration guide](/pages/network-configuration.html) to open a bash shell in one of the API server pods. Navigate to the "/visulate-server/config" directory. Use the cat command to view the contents of the "database.js" file.
 
 ```
 bash-4.2# cd /visulate-server/config
@@ -148,7 +148,7 @@ This file holds the credentials that the API server read on startup to establish
 
 Follow the steps in the [network configuration guide](/pages/network-configuration.html)
 
-### Check the Visulate account permissions  
+### Check the Visulate account permissions
 
 The visulate account must have been granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY. It must not have any additional privileges for security reasons. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set. These appear in the API Server log file:
 ```
@@ -177,15 +177,11 @@ This is an issue with Google's ingress implementation see [GCP Marketplace Tools
 
 You need to manually delete the orphaned resources. Open the Load balancing page under Network services to remove backend services, health checks and SSL certs:
 
-![Delete the load balancer](/images/delete-lb.png){: class="screenshot"}
+![Delete the load balancer](/images/delete-lb.png){: class="screenshot" tabindex="0"}
 
 Then open the External IP addresses under VPC network to release the IP address:
 
-![Delete IP address](/images/delete-ip.png){: class="screenshot"}
+![Delete IP address](/images/delete-ip.png){: class="screenshot" tabindex="0"}
 
-### Manual edits to the load balancer 
+### Manual edits to the load balancer
 Orphaned resources can also occur if you made manual edits to the load balancer that was created to support the ingress (e.g. as described in the [upgrade guide](/pages/upgrade-guide.html#add-a-new-ip-address-and-forwarding-rule-to-the-load-balancer)).  Manually delete the load balancer and IP address as described above. You may also need to manually delete the ingress.
-
-
-
-

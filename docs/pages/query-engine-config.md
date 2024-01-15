@@ -158,4 +158,4 @@ service/visulate-for-oracle-1121-visulate-for-oracle-sql-svc configured
 
 Wait a few minutes for the changes to take effect. The current timeout is displayed on the Load balancer details screen:
 
-![Backend timeout](/images/backend-timeout.png){: class="screenshot" }
+![Backend timeout](/images/backend-timeout.png){: class="screenshot" tabindex="0" }

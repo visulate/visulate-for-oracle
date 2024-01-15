@@ -4,11 +4,11 @@
 
 Visulate for Oracle allows users to run ad-hoc queries via the UI or API calls. The UI exposes a query editor when the user selects a schema in a registered database. The query editor region is collapsed by default unless the user has navigated to a table or view. Clicking on the title area of the region toggles its visibility.
 
-![Query editor collapsed](/images/query-editor-collapsed.png){: class="screenshot" }
+![Query editor collapsed](/images/query-editor-collapsed.png){: class="screenshot" tabindex="0" }
 
 The expanded region displays an HTML form with username, password, sql query, bind variables and query option fields. Most of the fields are populated with default values when the user navigates to a table or view.
 
-![Query screen](/images/sql2csv.png){: class="screenshot" }
+![Query screen](/images/sql2csv.png){: class="screenshot" tabindex="0" }
 
 Entering the database password for the schema where the table resides to enables the `Run Query` button. Pressing this button causes an HTTP POST request to be made to the SQL Query endpoint passing the SQL statement and database credentials. The SQL Query Engine makes a database connection, executes the query and then closes the connection.
 

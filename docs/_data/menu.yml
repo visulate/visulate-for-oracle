@@ -33,9 +33,9 @@ sections:
       - title: "Application Architecture"
         href: "/pages/application-architecture.html"
         description: "Visulate for Oracle creates 2 kubernetes pods to deliver a browser UI and REST endpoints for one or more Oracle databases."
-      - title: "Google Bare Metal Solution"
-        href: "/pages/bms-planning.html"
-        description: "Google Bare Metal Solution planning using Visulate for Oracle"
+      # - title: "Google Bare Metal Solution"
+      #   href: "/pages/bms-planning.html"
+      #   description: "Google Bare Metal Solution planning using Visulate for Oracle"
   - name: Setup
     items:
       - title: "Installation"

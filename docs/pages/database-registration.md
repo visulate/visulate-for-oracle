@@ -47,13 +47,13 @@ Parameter values are described in the [Oracle node-oracledb](https://oracle.gith
 
 ## Register your databases
 
-The initial deployment from GCP Marketplace provisions an API Server with no registered databases. You must create and apply a database registration file. A Kubernetes Secret is used to deliver a database registration file to the cluster. After the secret has been applied the API Server deployment is updated to use it. 
+The initial deployment from GCP Marketplace provisions an API Server with no registered databases. You must create and apply a database registration file. A Kubernetes Secret is used to deliver a database registration file to the cluster. After the secret has been applied the API Server deployment is updated to use it.
 
 ![Update Database Connections](/images/update-database-connections.png)
 
 ### Create a database registration file
 
-Create a registration file to identify your database connections. Cut and paste the secret below into a text editor or [download from GitHub](https://raw.githubusercontent.com/visulate/visulate-for-oracle/master/api-server/database-setup/sample-db-registration.js). Edit connections in the endpoints array to identify the databases you want to register. Add or remove connection objects as needed.  
+Create a registration file to identify your database connections. Cut and paste the secret below into a text editor or [download from GitHub](https://raw.githubusercontent.com/visulate/visulate-for-oracle/master/api-server/database-setup/sample-db-registration.js). Edit connections in the endpoints array to identify the databases you want to register. Add or remove connection objects as needed.
 ```
 const endpoints = [
 { namespace: 'oracle18XE',
@@ -83,12 +83,12 @@ const endpoints = [
 ];
 module.exports.endpoints = endpoints;
 ```
-**Tip:** keep a copy of the database registration file for future use. For example, when [updating to a new version](/pages/upgrade-guide.html) 
-of Visulate or to create a new secret after changing the database passwords. 
+**Tip:** keep a copy of the database registration file for future use. For example, when [updating to a new version](/pages/upgrade-guide.html)
+of Visulate or to create a new secret after changing the database passwords.
 
 ### Validate the file for JavaScript syntax errors
 
-Use a JavaScript code editor or lint tool to check the registration file for syntax errors before continuing. 
+Use a JavaScript code editor or lint tool to check the registration file for syntax errors before continuing.
 For example, a missing comma in the endpoints object would look like this in in Visual Studio Code:
 
 ![JavaScript syntax error](/images/js-syntax-error.png)
@@ -100,10 +100,10 @@ or this in `jshint`:
 sudo npm install -g jshint
 
 # create a configuration file (do this once)
-echo '{ "esversion": 6 }' > /tmp/jshint.conf 
+echo '{ "esversion": 6 }' > /tmp/jshint.conf
 
 # test the file
-jshint --config /tmp/jshint.conf db-registration.js 
+jshint --config /tmp/jshint.conf db-registration.js
 
 sample-db-registration.js: line 13, col 1, Expected ']' to match '[' from line 1 and instead saw '{'.
 sample-db-registration.js: line 13, col 2, Missing semicolon.
@@ -117,17 +117,17 @@ sample-db-registration.js: line 14, col 3, Unrecoverable syntax error. (53% scan
 
 ### Apply the registration file as a new Kubernetes secret
 
-Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:  
+Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:
 
 ```shell
 kubectl create secret generic oracle-database-connections --from-file=database.js=./db-registration.js --namespace=test-ns
 ```
 
-**Note:** the secret name is not important but **the secret's key must be `database.js`** 
+**Note:** the secret name is not important but **the secret's key must be `database.js`**
 
 The secret details should now appear in the Kubernetes UI.
 
-![Kubernetes Secret](/images/db-secret.png){: class="screenshot" }
+![Kubernetes Secret](/images/db-secret.png){: class="screenshot" tabindex="0" }
 
 ### Update the API Server deployment
 
@@ -179,14 +179,14 @@ $ kubectl apply --namespace=test-ns -f deployment.yaml
 Note: the API server deployment can also be updated using the GKE UI as shown in the [quickstart guide](/pages/quickstart.html#register-your-database-connection)
 
 ### Test the connections
-Wait for the updated deployment to apply then test the connections.  Call the "endpoints" endpoint to list registered database connections: 
+Wait for the updated deployment to apply then test the connections.  Call the "endpoints" endpoint to list registered database connections:
 
 ```
 $ curl https://visulate.mycorp.com/endpoints/
 {"mptest":"35.232.143.223:51521/XEPDB1"}
 ```
 
-The registed connections should also appear in the database dropdown in the UI. 
+The registed connections should also appear in the database dropdown in the UI.
 
 Follow the steps in the  [troubleshooting guide](/pages/troubleshooting.html) if some or all of your database connections are missing
 

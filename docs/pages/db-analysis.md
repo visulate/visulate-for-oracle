@@ -11,7 +11,7 @@ Visulate for Oracle includes a series of pre-defined database analysis queries. 
 
 Select a database on the homepage of the application to run the database analysis queries
 
-![Database instance report](/images/opening-screen.png){: class="screenshot" }
+![Database instance report](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
 This will run the following queries:
 
