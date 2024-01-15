@@ -7,7 +7,7 @@ Peter Goldthorp, February 2021
 
 ## Cloud innovation while keeping the lights on
 
-Customers and the board of directors expect technical innovation. In reality 80% the budget is spent on maintenance. 
+Customers and the board of directors expect technical innovation. In reality 80% the budget is spent on maintenance.
 
 Most enterprises run a mixture of commercial off the shelf (COTS) software applications and custom code developed in-house. For example, they may run SAP to support their manufacturing operations, Oracle E-Business Suite for Financials and PeopleSoft for human resource management. The systems were customized by systems integrators during the initial implementation and have been extended over the years with business specific logic.
 
@@ -78,7 +78,7 @@ Develop a migration plan to cover the transformation of each environment to BMS.
 
 Consider the amount of acceptable downtime and data volume for each database. Identify the high level approach (e.g. offline, read-only, rolling update), mechanism (e.g. Data Pump, Transportable Tablespaces, Pluggable database, Dataguard, Golden Gate or SQL Loader) and expected duration of each migration. Use the table below to identify the time required for data transfer.
 
-![Data transfer time](https://cloud.google.com/transfer-appliance/docs/images/640w_2x.png){: class="screenshot" }
+![Data transfer time](https://cloud.google.com/transfer-appliance/docs/images/640w_2x.png){: class="screenshot" tabindex="0" }
 
 Google Cloud Interconnect or a Transfer Appliance may be required for large data volumes.
 

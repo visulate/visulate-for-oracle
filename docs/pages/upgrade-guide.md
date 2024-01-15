@@ -34,11 +34,11 @@ The following steps describe one option for doing this. It creates a new IP addr
 
 Use the GCP Console (Network services -> Load balancing) to find the load balancer that was created to support the ingress for the new version:
 
-![load balancer list](/images/load-balancer-list.png){: class="screenshot" }
+![load balancer list](/images/load-balancer-list.png){: class="screenshot" tabindex="0" }
 
 Click on the entry to open it then press the `Edit` button. Select `Frontend configuration` on the Edit HTTP(S) load balancer screen:
 
-![edit load balancer](/images/edit-load-balancer.png){: class="screenshot" }
+![edit load balancer](/images/edit-load-balancer.png){: class="screenshot" tabindex="0" }
 
 Click on the button marked `+ Add Frontend IP and port` in the Frontend configuration region
 

@@ -294,6 +294,7 @@ img {
 			line-height: 1.75;
 			padding: 1em 1.5em;
 			overflow-x: auto;
+			max-width: 70em;
 		}
 
 	hr {
@@ -2071,13 +2072,17 @@ img {
 /* Image */
 
   .screenshot {
-    width: 50%;
+    width: 60%;
     border: solid 1px rgba(210, 215, 217, 0.75);
   }
 
   .screenshot:hover {
-    width: 100%;
+    cursor: pointer;
   }
+
+	.screenshot:focus {
+		width: 100%;
+	}
 
 	.image {
 		border-radius: 0.375em;

@@ -11,11 +11,11 @@ Every Oracle database maintains a record of the dependencies between its objects
 
 Dependency reports are included at the bottom of each database object report. For example, to view the dependencies for a table use the navigation menu or search box to open its object report.
 
-![Table details](/images/table-details.png){: class="screenshot" }
+![Table details](/images/table-details.png){: class="screenshot" tabindex="0" }
 
 Scroll to the bottom of the page to see a list of object (e.g. packages, package bodies and views) that reference the table.
 
-![Dependencies](/images/dependencies.png){: class="screenshot" }
+![Dependencies](/images/dependencies.png){: class="screenshot" tabindex="0" }
 
 Clicking on an object name in the dependency list will take you to a report showing its definition. For example, selecting a package body will open a report that shows the source code for the package body and a list of the SQL statement it contains.
 

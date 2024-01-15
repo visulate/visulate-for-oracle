@@ -17,11 +17,11 @@ Make sure you have a valid [TLS Certificate](/pages/tls-cert.html) then follow t
 
 Open the GCP console and navigate to the OAuth consent screen under APIs & Services
 
-![OAuth Consent Screen](/images/iap-oauth-consent.png){: class="screenshot" }
+![OAuth Consent Screen](/images/iap-oauth-consent.png){: class="screenshot" tabindex="0" }
 
 Select internal as User Type and hit the `Create` button.
 
-![OAuth Consent Screen](/images/iap-oauth-consent2.png){: class="screenshot" }
+![OAuth Consent Screen](/images/iap-oauth-consent2.png){: class="screenshot" tabindex="0" }
 
 Enter an App name and support email address then click `Save`.
 
@@ -29,15 +29,15 @@ Enter an App name and support email address then click `Save`.
 
 Navigate to to the Credentials page under APIs & Services
 
-![OAuth Client Screen](/images/iap-oauth-client.png){: class="screenshot" }
+![OAuth Client Screen](/images/iap-oauth-client.png){: class="screenshot" tabindex="0" }
 
 Select Web application in the Application type drop down, supply an name and click `Create`. This will open a dialog showing a newly created OAuth client ID and secret.
 
-![OAuth Client Secret Screen](/images/iap-oauth-client-secret.png){: class="screenshot" }
+![OAuth Client Secret Screen](/images/iap-oauth-client-secret.png){: class="screenshot" tabindex="0" }
 
 Copy the client ID to the clipboard and use the Download JSON link to save the credentials for later use.
 
-![OAuth Redirect URI](/images/iap-redirect-uri.png){: class="screenshot" }
+![OAuth Redirect URI](/images/iap-redirect-uri.png){: class="screenshot" tabindex="0" }
 
 Add a universal redirect URL to the authorized redirect URIs field in the following format
 
@@ -49,11 +49,11 @@ where CLIENT_ID is the OAuth client ID you copied to the clipboard.
 
 Navigate to the Identity-Aware Proxy page under Security. You should see 3 Visulate for Oracle services listed under Backend Services. These will be labeled with -api-svc, -sql-svc and -ui-svc suffixes as shown in the screenshot below. Select the checkboxes for each one and hit the `Add Principal` button on the right  of the screen.
 
-![IAP Backend Service Selection](/images/iap-backend-service-selection.png){: class="screenshot" }
+![IAP Backend Service Selection](/images/iap-backend-service-selection.png){: class="screenshot" tabindex="0" }
 
 In the Add principals dialog that appears, enter the email addresses of groups or individuals who should have access the the Visulate UI and APIs. Select IAP-secured Web App User in the Role field and hit `Save`
 
-![IAP Authorized Users](/images/iap-principals.png){: class="screenshot" }
+![IAP Authorized Users](/images/iap-principals.png){: class="screenshot" tabindex="0" }
 
 ## BackendConfig
 
@@ -102,7 +102,7 @@ kubectl apply -f iap-backend-config.yaml
 
 Navigate to the Services & Ingress page under Kubernetes Engine in the GCP console. For each service, hit the `Edit` button at the top of the page to access the YAML Editor. Add a beta.cloud.google.com/backend-config annotation as shown below (note the "config-default" value matches the BackendConfig name in the previous step)
 
-![IAP Service Annotation](/images/iap-service-manifest.png){: class="screenshot" }
+![IAP Service Annotation](/images/iap-service-manifest.png){: class="screenshot" tabindex="0" }
 
 Example:
 ```

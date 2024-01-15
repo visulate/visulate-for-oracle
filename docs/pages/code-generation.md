@@ -8,7 +8,7 @@ The database object and object list APIs include an optional `template` paramete
 
 Passing `plsql_package_call.hbs` to the template parameter for a PL/SQL package will transform the JSON document that the API returns into a plain text response with the PL/SQL code to call the public functions and procedures in the package:
 
-![Swagger UI template parameter](/images/codegen-swagger-ui.png){: class="screenshot" }
+![Swagger UI template parameter](/images/codegen-swagger-ui.png){: class="screenshot" tabindex="0" }
 
 ```shell
 curl -X GET \
@@ -71,7 +71,7 @@ end;
 
 The Visulate application delivers a set of sample templates via a config map called *App instance name*-hbs-templates.
 
-![Handlebars template config map](/images/codegen-config-map.png){: class="screenshot" }
+![Handlebars template config map](/images/codegen-config-map.png){: class="screenshot" tabindex="0" }
 
 | Template Name | Description |
 | ------------- | ----------- |

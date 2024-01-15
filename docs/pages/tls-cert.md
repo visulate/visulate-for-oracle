@@ -135,11 +135,11 @@ kubectl annotate ingress visulate-for-oracle-01-igs --namespace=test-nat-ns \
 This will trigger an update to  the load balancer associated with the ingress. You can monitor its progress from the Network Services -> Load balancing screen.
 Click on the Frontend HTTPS Certificate entry for the managed cert. Note: there may be more than one certificate associated with the load balancer.
 
-![Frontend HTTPS Certificate entry](/images/load-balancer-cert.png){: class="screenshot" }
+![Frontend HTTPS Certificate entry](/images/load-balancer-cert.png){: class="screenshot" tabindex="0" }
 
 Wait for the status to change from "PROVISIONING" to "ACTIVE"
 
-![Certificate provisioning](/images/cert-provisioning.png){: class="screenshot" }
+![Certificate provisioning](/images/cert-provisioning.png){: class="screenshot" tabindex="0" }
 
 You can remove the temporary TLS cert from the ingress after the Google managed cert becomes active.
 
