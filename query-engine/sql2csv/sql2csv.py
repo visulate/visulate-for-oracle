@@ -230,6 +230,16 @@ def validate_options(options):
     else:
         fail_request(400, description="Invalid query options")
 
+def decode_credentials(encoded_str):
+    # Decode the Base64 string
+    decoded_bytes = base64.b64decode(encoded_str)
+    decoded_str = decoded_bytes.decode('utf-8')
+
+    # Split the string into components
+    user_password, endpoint = decoded_str.split('@')
+    user, password = user_password.split('/')
+    return user, password, endpoint
+
 
 @bp.route('/', methods=['GET'])
 @bp.route('/healthz', methods=['GET'])
@@ -253,10 +263,14 @@ def sql2csv(endpoint):
 
     if request.method == 'POST':
         query = request.json
-        user = request.authorization.username
-        passwd = request.authorization.password
         connStr = get_connect_string(endpoint)
         httpHeaders = request.headers
+        dbCredentials = httpHeaders.get('X-DB-Credentials')
+        if dbCredentials is not None:
+            user, passwd, db = decode_credentials(dbCredentials)
+
+        if db != endpoint:
+            fail_request(403, description='Invalid endpoint credentials')
 
         sql = query.get('sql')
         current_app.logger.info(f"POST {user} @ {endpoint}: {sql}")

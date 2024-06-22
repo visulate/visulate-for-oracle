@@ -4,7 +4,7 @@ const endpoints = [
     connect: { poolAlias: 'vis24',
             user: 'visulate',
             password: 'visLand32754',
-            connectString: '192.168.1.128:1521/visdb',
+            connectString: '192.168.1.152:1521/orclpdb',
             poolMin: 4,
             poolMax: 4,
             poolIncrement: 0
