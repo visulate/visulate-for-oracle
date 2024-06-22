@@ -35,7 +35,7 @@ export class SqlComponent implements OnInit {
   public queryBase: string = environment.queryBase
   public queryUrl: string;
   public password: string;
-  public basicAuthCredentials: string;
+  public dbCredentials: string;
   public sqlStatement: string;
   public curlSql: string;
   public bindVariables: string = '[ ]';
@@ -83,7 +83,7 @@ export class SqlComponent implements OnInit {
    */
   public processPassword(password: string) {
     this.password = password;
-    this.basicAuthCredentials = btoa(`${this.dbUser}:${password}`);
+    this.dbCredentials = btoa(`${this.dbUser}/${password}@${this.currentContext.endpoint}`);
   }
 
 
@@ -96,7 +96,7 @@ export class SqlComponent implements OnInit {
     try{
       const bindVars = this.bindVariables ? JSON.parse(this.bindVariables) : JSON.parse('[]');
       const options = this.queryOptions ? JSON.parse(this.queryOptions) : JSON.parse('{}');
-      this.restService.sql2csv$(this.queryUrl, this.basicAuthCredentials, this.sqlStatement, bindVars, options)
+      this.restService.sql2csv$(this.queryUrl, this.dbCredentials, this.sqlStatement, bindVars, options)
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(result => { this.showResult(result); },
         error => { this.showError(error); }

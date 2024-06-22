@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.1.22
+  version: 1.1.37
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
@@ -568,7 +568,7 @@ paths:
                   db1151.visulate.net:1521/orcl
     post:
       security:
-        - dbBasicAuth: []
+        - dbCustomAuth: []
       summary: Generate CSV or JSON from SQL
       description: |
         Executes a SQL statement in the specified database and returns the result as CSV
@@ -643,10 +643,11 @@ paths:
 
 components:
   securitySchemes:
-    dbBasicAuth:
-      type: http
-      scheme: basic
-      description: Database username and password
+    dbCustomAuth:
+      type: apiKey
+      in: header
+      name: X-DB-Credentials
+      description: Encoded database credentials. The value must be a base64-encoded string of 'username/password@db'.
   schemas:
     WildCardQueryResult:
       type: object
