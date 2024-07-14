@@ -5,6 +5,64 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: {{ .Release.Name }}-nginx-config
+data:
+  nginx.conf: |
+    worker_processes 1;
+    events { worker_connections 1024; }
+    http {
+      sendfile on;
+
+      upstream visapi {
+        server {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc:{{ .Values.apiServer.port }};
+      }
+
+      upstream visui {
+        server {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc:{{ .Values.ui.port }};
+      }
+
+      upstream vissql {
+        server {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc:{{ .Values.sql.port }};
+      }
+
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Host $server_name;
+
+      server {
+        listen 80;
+
+        location / {
+          proxy_pass       http://visui/;
+          proxy_redirect     off;
+        }
+        location /api/ {
+          proxy_pass       http://visapi/api/;
+          proxy_redirect     off;
+        }
+        location /api-docs/ {
+          proxy_pass       http://visapi/api-docs/;
+          proxy_redirect     off;
+        }
+        location /find/ {
+          proxy_pass       http://visapi/find/;
+          proxy_redirect     off;
+        }
+        location /ddl/ {
+          proxy_pass       http://visapi/ddl/;
+          proxy_redirect     off;
+        }
+        location /sql/ {
+          proxy_pass       http://vissql/sql/;
+          proxy_redirect     off;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: {{ .Release.Name }}-ubbagent-config
 data:
   config.yaml: |-
@@ -37,9 +95,9 @@ metadata:
     app.kubernetes.io/component: visulate-for-oracle
 data:
   tls.key: |
-{{ .Values.tls.base64EncodedPrivateKey | indent 4 }}
+    {{ .Values.tls.base64EncodedPrivateKey }}
   tls.crt: |
-{{ .Values.tls.base64EncodedCertificate | indent 4 }}
+    {{ .Values.tls.base64EncodedCertificate }}
 type: kubernetes.io/tls
 ---
 apiVersion: v1
@@ -307,80 +365,58 @@ spec:
           secret:
             secretName: {{ .Release.Name }}-empty-endpoints
 ---
-#####################################
-# Ingress
-#####################################
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+######################################
+# Proxy Server
+######################################
+apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Release.Name }}-igs
+  annotations:
+    cloud.google.com/neg: '{"exposed_ports": {"{{ .Values.proxy.port }}":{"name": "{{ .Release.Name }}-neg"}}}'
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.proxy.label }}-svc
   labels:
-    app.kubernetes.io/name: "{{ .Release.Name }}"
-    app.kubernetes.io/component: visulate-for-oracle
+    app: {{ .Chart.Name }}
+    component: {{ .Values.proxy.label }}
 spec:
-  tls:
-    - secretName: {{ .Release.Name }}-tls
-  defaultBackend:
-    service:
-      name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
-      port:
-        number: {{ .Values.ui.port }}
-  rules:
-    - http:
-        paths:
-          - path: "/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
-                port:
-                  number: {{ .Values.ui.port }}
-          - path: "/api/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-                port:
-                  number: {{ .Values.apiServer.port }}
-          - path: "/endpoints/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-                port:
-                  number: {{ .Values.apiServer.port }}
-          - path: "/api-docs/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-                port:
-                  number: {{ .Values.apiServer.port }}
-          - path: "/find/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-                port:
-                  number: {{ .Values.apiServer.port }}
-          - path: "/ddl/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.apiServer.label }}-svc
-                port:
-                  number: {{ .Values.apiServer.port }}
-          - path: "/sql/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.sql.label }}-svc
-                port:
-                  number: {{ .Values.sql.port }}
-          - path: "/database/*"
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.ui.label }}-svc
-                port:
-                  number: {{ .Values.ui.port }}
+  type: ClusterIP
+  selector:
+    app: {{ .Chart.Name }}
+    component: {{ .Values.proxy.label }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.proxy.label }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.proxy.port }}
+      targetPort: {{ .Values.proxy.port }}
+      name: {{ .Chart.Name }}-{{ .Values.proxy.label }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-{{ .Values.proxy.label }}
+  labels: &ProxyDeploymentLabels
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}-{{ .Values.proxy.label }}
+    app: {{ .Chart.Name }}
+    component: {{ .Values.proxy.label }}
+spec:
+  replicas: {{ .Values.proxy.replicas }}
+  selector:
+    matchLabels: *ProxyDeploymentLabels
+  template:
+    metadata:
+      labels: *ProxyDeploymentLabels
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}-{{ .Values.proxy.label }}
+          image: "{{ .Values.proxy.image.repo }}:{{ .Values.proxy.image.tag }}"
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          ports:
+            - containerPort: {{ .Values.proxy.port }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ .Release.Name }}-nginx-config

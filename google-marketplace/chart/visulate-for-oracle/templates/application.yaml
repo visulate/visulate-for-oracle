@@ -82,7 +82,7 @@ spec:
       kind: Service
     - group: apps/v1
       kind: Deployment
-    - group: networking.k8s.io/v1
-      kind: Ingress
+    # - group: networking.k8s.io/v1
+    #   kind: Ingress
     - group: batch/v1
       kind: Job

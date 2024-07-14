@@ -25,6 +25,14 @@ sql:
   replicas: null
   port: 5000
 
+proxy:
+  label: proxy
+  image:
+    repo: null
+    tag: null
+  replicas: null
+  port: 80
+
 util:
   image: null
 
