@@ -1,7 +1,7 @@
 cx-Oracle==8.0.0
 Flask==2.2.5
-Flask-Cors==3.0.10
 gunicorn==22.0.0
-Werkzeug==2.3.8
+Flask-Cors==4.0.1
+Werkzeug==3.0.3
 simplejson==3.17.5
-sqlparse==0.4.4
+sqlparse==0.5.0

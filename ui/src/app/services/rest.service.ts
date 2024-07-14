@@ -128,7 +128,7 @@ export class RestService {
 
   public sql2csv$(
     url: string,
-    basicAuth: string,
+    dbCredentials: string,
     sql: string,
     binds: JSON,
     options: JSON): Observable<any> {
@@ -136,7 +136,7 @@ export class RestService {
       const httpOptions: Object = {
         headers: new HttpHeaders({
           'Content-Type':  'application/json',
-          'Authorization': `Basic ${basicAuth}`,
+          'X-DB-Credentials': `${dbCredentials}`,
           'Accept': 'application/json',
           observe: 'response'
 

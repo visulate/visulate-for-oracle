@@ -69,7 +69,7 @@
           <code >
 curl \
 -L '{{queryUrl}}' \
--H 'Authorization: Basic {{basicAuthCredentials}}' \
+-H 'X-DB-Credentials: {{dbCredentials}}' \
 -H 'Content-Type: application/json' \
 -H 'Accept: text/csv' \
 -d &#64;- << EOF

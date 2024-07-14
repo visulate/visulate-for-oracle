@@ -1,11 +1,18 @@
 #!/bin/bash
 oracle_user={{params.owner}}
 oracle_pw=$1
+db={{params.db}}
+
+# Base64 encode the credentials
+credentials=$(echo -n "$oracle_user/$oracle_pw@$db" | base64)
 
 url='https://{{host}}/sql/{{params.db}}'
 content_type='Content-Type: application/json'
 accept='Accept: text/csv'
+db_credentials="X-DB-Credentials: $credentials"
 
 json_query='{ "sql": "select * from {{params.name}}",
               "options": {"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}}'
-curl -u "$oracle_user":"$oracle_pw" -L "$url" -H "$content_type" -H "$accept" -d "$json_query" -o {{params.name}}.csv
+curl -L "$url" -H "$content_type" -H "$accept" -H "$db_credentials" -d "$json_query" -o {{params.name}}.csv
+
+exit 0
