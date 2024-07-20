@@ -12,7 +12,7 @@ services:
     expose:
       - "3000"
     volumes:
-      - ./config:/visulate-server/config
+      - ./api-server/config:/visulate-server/config
   visui:
     hostname: visui
     depends_on:
@@ -28,4 +28,4 @@ services:
     expose:
       - "5000"
     volumes:
-      - ./config:/query-engine/sql2csv/config
+      - ./query-engine/sql2csv/config:/query-engine/sql2csv/config

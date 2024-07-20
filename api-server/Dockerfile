@@ -1,4 +1,4 @@
-# Copyright 2019, 2022 Visulate LLC. All Rights Reserved.
+# Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM oraclelinux:7-slim
+FROM oraclelinux:8
 ARG oracleRelease=19
 ARG oracleUpdate=23
 
-RUN  yum -y install oracle-release-el7  oracle-nodejs-release-el7 && \
-     yum-config-manager --enable ol7_oracle_instantclient && \
-     yum -y install nodejs && \
-     yum -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
+# Install Oracle Instant Client and Node.js
+RUN  dnf -y install oracle-release-el8 && \
+     dnf config-manager --set-enabled ol8_oracle_instantclient && \
+     dnf -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
+     dnf -y module enable nodejs:20 && \
+     dnf -y install nodejs npm && \
+     npm install -g npm@latest && \
      rm -rf /var/cache/yum
 
+# Set working directory and copy project files
 WORKDIR /visulate-server
 COPY . /visulate-server
 
+# Copy Oracle configuration file
 COPY ./database-setup/sqlnet.ora /usr/lib/oracle/${oracleRelease}.${oracleUpdate}/client64/lib/network/admin
 
+# Set environment variables
 ENV PATH=$PATH:/usr/lib/oracle/${oracleRelease}.${oracleUpdate}/client64/bin
 
-RUN npm install --production
+# Install npm dependencies without development dependencies
+RUN npm install --omit=dev
+
+# Set the command to start the application
 CMD exec npm start
