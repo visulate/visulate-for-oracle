@@ -28,6 +28,12 @@ Execute the tests by running `pytest` from the `query-engine` directory or via T
 
 ## Build instructions
 
+Create a distribution package:
+
+```
+python3 setup.py bdist_wheel
+```
+
 Generate local config file
 ```
 mkdir ${HOME}/config/

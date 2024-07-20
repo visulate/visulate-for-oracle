@@ -1,0 +1,31 @@
+version: "3.3"
+services:
+  reverseproxy:
+    build: ./proxy-config
+    ports:
+      - 80:80
+  visapi:
+    hostname: visapi
+    depends_on:
+      - reverseproxy
+    build: ./api-server
+    expose:
+      - "3000"
+    volumes:
+      - ./config:/visulate-server/config
+  visui:
+    hostname: visui
+    depends_on:
+      - reverseproxy
+    build: ./ui
+    expose:
+      - "80"
+  vissql:
+    hostname: vissql
+    depends_on:
+      - reverseproxy
+    build: ./query-engine
+    expose:
+      - "5000"
+    volumes:
+      - ./config:/query-engine/sql2csv/config

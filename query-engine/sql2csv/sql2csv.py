@@ -2,7 +2,7 @@ import csv
 import sys
 import io
 import simplejson as json
-import cx_Oracle
+import oracledb as cx_Oracle
 import sqlparse
 import base64
 import logging
@@ -179,8 +179,7 @@ def get_connection(username, password, connectString):
     """Get an Oracle database connection"""
     try:
         connection = cx_Oracle.connect(user=username, password=password,
-                                       dsn=connectString,
-                                       encoding="UTF-8", nencoding="UTF-8")
+                                       dsn=connectString)
         connection.outputtypehandler = output_type_handler
     except cx_Oracle.DatabaseError as e:
         errorObj, = e.args
