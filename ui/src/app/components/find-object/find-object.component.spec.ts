@@ -22,9 +22,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { FormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
-import { HttpClientTestingModule  } from '@angular/common/http/testing';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatInputModule } from '@angular/material/input';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 describe('FindObjectComponent', () => {
   let component: FindObjectComponent;
@@ -32,17 +33,17 @@ describe('FindObjectComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MatCardModule,
-                MatListModule,
-                MatFormFieldModule,
-                MatInputModule,
-                MatIconModule,
-                FormsModule,
-                RouterTestingModule,
-                HttpClientTestingModule,
-                BrowserAnimationsModule],
-      declarations: [ FindObjectComponent ]
-    })
+    declarations: [FindObjectComponent],
+    imports: [MatCardModule,
+        MatListModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatIconModule,
+        FormsModule,
+        RouterTestingModule,
+        BrowserAnimationsModule],
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+})
     .compileComponents();
   }));
 

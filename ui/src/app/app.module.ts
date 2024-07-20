@@ -16,7 +16,7 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule,  ReactiveFormsModule} from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
@@ -53,59 +53,53 @@ import { FilterObjectsComponent } from './components/filter-objects/filter-objec
 import { SqlComponent } from './components/sql/sql.component';
 import { SqlValidatorDirective } from './components/sql/sql.directive';
 
-@NgModule({
-  declarations: [
-    AppComponent,
-    DbSelectionComponent,
-    DbStepSelectionComponent,
-    MainNavComponent,
-    DbObjectListComponent,
-    DbContentComponent,
-    FindObjectComponent,
-    FilterObjectsComponent,
-    HideInternalPipe,
-    SqlComponent,
-    SqlValidatorDirective
-  ],
-  imports: [
-    BrowserModule,
-    CommonModule,
-    AppRoutingModule,
-    BrowserAnimationsModule,
-    CdkTableModule,
-    HttpClientModule,
-    FormsModule,
-    ReactiveFormsModule,
-    MatCardModule,
-    MatToolbarModule,
-    MatSelectModule,
-    MatSidenavModule,
-    MatTableModule,
-    LayoutModule,
-    MatButtonModule,
-    MatIconModule,
-    MatListModule,
-    MatExpansionModule,
-    MatSlideToggleModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatAutocompleteModule,
-    MatCheckboxModule,
-    MatGridListModule,
-    HighlightModule
+@NgModule({ declarations: [
+        AppComponent,
+        DbSelectionComponent,
+        DbStepSelectionComponent,
+        MainNavComponent,
+        DbObjectListComponent,
+        DbContentComponent,
+        FindObjectComponent,
+        FilterObjectsComponent,
+        HideInternalPipe,
+        SqlComponent,
+        SqlValidatorDirective
     ],
-  providers: [
-    {
-      provide: HIGHLIGHT_OPTIONS,
-      useValue: {
-        coreLibraryLoader: () => import('highlight.js/lib/core'),
-        languages: {
-          pgsql: () => import('highlight.js/lib/languages/pgsql'),
-          sql: () => import('highlight.js/lib/languages/sql')
-        }
-      }
-    }
-  ],
-  bootstrap: [AppComponent]
-})
+    bootstrap: [AppComponent], imports: [BrowserModule,
+        CommonModule,
+        AppRoutingModule,
+        BrowserAnimationsModule,
+        CdkTableModule,
+        FormsModule,
+        ReactiveFormsModule,
+        MatCardModule,
+        MatToolbarModule,
+        MatSelectModule,
+        MatSidenavModule,
+        MatTableModule,
+        LayoutModule,
+        MatButtonModule,
+        MatIconModule,
+        MatListModule,
+        MatExpansionModule,
+        MatSlideToggleModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatAutocompleteModule,
+        MatCheckboxModule,
+        MatGridListModule,
+        HighlightModule], providers: [
+        {
+            provide: HIGHLIGHT_OPTIONS,
+            useValue: {
+                coreLibraryLoader: () => import('highlight.js/lib/core'),
+                languages: {
+                    pgsql: () => import('highlight.js/lib/languages/pgsql'),
+                    sql: () => import('highlight.js/lib/languages/sql')
+                }
+            }
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ] })
 export class AppModule { }

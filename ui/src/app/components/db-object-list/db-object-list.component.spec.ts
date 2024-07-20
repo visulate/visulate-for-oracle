@@ -17,8 +17,9 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { DbObjectListComponent } from './db-object-list.component';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 describe('DbObjectListComponent', () => {
   let component: DbObjectListComponent;
@@ -26,10 +27,11 @@ describe('DbObjectListComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [ HttpClientTestingModule, RouterTestingModule],
-      schemas: [ CUSTOM_ELEMENTS_SCHEMA ],
-      declarations: [ DbObjectListComponent ]
-    })
+    schemas: [CUSTOM_ELEMENTS_SCHEMA],
+    declarations: [DbObjectListComponent],
+    imports: [RouterTestingModule],
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+})
     .compileComponents();
   }));
 

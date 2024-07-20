@@ -27,7 +27,7 @@ import { HighlightModule} from 'ngx-highlightjs';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatInputModule} from '@angular/material/input';
 
-import { HttpClientTestingModule  } from '@angular/common/http/testing';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { DbContentComponent } from './db-content.component';
@@ -35,6 +35,7 @@ import { DbSelectionComponent } from '../db-selection/db-selection.component';
 import { DbStepSelectionComponent } from '../db-selection/db-step-selection.component';
 import { DbObjectListComponent} from '../db-object-list/db-object-list.component';
 import { FilterObjectsComponent } from '../filter-objects/filter-objects.component'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 describe('DbContentComponent', () => {
   let component: DbContentComponent;
@@ -42,20 +43,20 @@ describe('DbContentComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [ MatTableModule,
-                 HttpClientTestingModule,
-                 BrowserAnimationsModule,
-                 MatExpansionModule,
-                 MatSlideToggleModule,
-                 HighlightModule,
-                 FormsModule,
-                 MatCardModule,
-                 MatListModule,
-                 MatSelectModule, ReactiveFormsModule,
-                 MatAutocompleteModule, MatInputModule,
-                 RouterTestingModule],
-      declarations: [ DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent, FilterObjectsComponent  ]
-    })
+    declarations: [DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent, FilterObjectsComponent],
+    imports: [MatTableModule,
+        BrowserAnimationsModule,
+        MatExpansionModule,
+        MatSlideToggleModule,
+        HighlightModule,
+        FormsModule,
+        MatCardModule,
+        MatListModule,
+        MatSelectModule, ReactiveFormsModule,
+        MatAutocompleteModule, MatInputModule,
+        RouterTestingModule],
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+})
     .compileComponents();
   }));
 
