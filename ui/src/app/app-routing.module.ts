@@ -1,4 +1,4 @@
-/*!
+/*
  * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,8 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [ 
-    RouterModule.forRoot(routes, { scrollPositionRestoration: 'enabled' }) 
+  imports: [
+    RouterModule.forRoot(routes, { scrollPositionRestoration: 'enabled' })
   ],
   exports: [RouterModule]
 })

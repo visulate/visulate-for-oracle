@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,22 +17,22 @@
 import { Deserializable } from './deserializable.model';
 
 export class DatabaseObjectModel implements Deserializable {
-    public objectProperties: ObjectPropertyModel[];
-    deserialize(input: any): this {
-        this.objectProperties = input.endpoints.map (
-          property => new ObjectPropertyModel().deserialize(property)
-        );
-        return this;
-      }
+  public objectProperties: ObjectPropertyModel[];
+  deserialize(input: any): this {
+    this.objectProperties = input.endpoints.map (
+      property => new ObjectPropertyModel().deserialize(property)
+    );
+    return this;
+  }
 }
 
 export class ObjectPropertyModel implements Deserializable {
-    public title: string;
-    public display: string[];
-    public rows: any[];
+  public title: string;
+  public display: string[];
+  public rows: any[];
 
-    deserialize(input: any): this {
-        Object.assign(this, input);
-        return this;
-    }
+  deserialize(input: any): this {
+    Object.assign(this, input);
+    return this;
+  }
 }

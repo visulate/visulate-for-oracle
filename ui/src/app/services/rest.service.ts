@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +39,7 @@ export class RestService {
    * Gets a list of database endpoints + object type summary
    */
   public getEndpoints$( filter: string = '*'): Observable<EndpointListModel> {
-    const filterParam: any = {'filter': filter};
+    const filterParam: any = {filter};
     return this.http.get<EndpointListModel>(`${environment.apiBase}/`, {params: filterParam}).pipe(
       map(data => new EndpointListModel().deserialize(data))
     );
@@ -66,16 +66,16 @@ export class RestService {
     owner: string,
     filter: string = '*'
   ): Observable<DatabaseObjectModel> {
-    const filterParam: any = {'filter': filter};
+    const filterParam: any = {filter};
     return this.http.get<DatabaseObjectModel>
     (`${environment.apiBase}/${endpoint}/${owner}`, {params: filterParam});
   }
 
 
- /**
- * Find objects in each registered database
- * @param searchTerm - database object name (DBA_OBJECTS.OBJECT_NAME)
- */
+  /**
+   * Find objects in each registered database
+   * @param searchTerm - database object name (DBA_OBJECTS.OBJECT_NAME)
+   */
   public getSearchResults$(searchTerm: string): Observable<FindObjectModel> {
     return this.http.get<FindObjectModel>(`${environment.findObjectBase}/${encodeURIComponent(searchTerm)}`);
   }
@@ -94,8 +94,8 @@ export class RestService {
     objectType: string,
     objectName: string = '*',
     objectStatus: string = '*'): Observable<string[]> {
-      return this.http.get<string[]>
-        (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
+    return this.http.get<string[]>
+    (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
   }
 
   /**
@@ -110,9 +110,9 @@ export class RestService {
     owner: string,
     objectType: string,
     objectName: string ): Observable<DatabaseObjectModel> {
-      return this.http.get<DatabaseObjectModel>
-        (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`);
-    }
+    return this.http.get<DatabaseObjectModel>
+    (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`);
+  }
 
   /**
    * Get connect string for a given endpoint. Used to verify the endpoint has been registered with the query engine
@@ -122,7 +122,7 @@ export class RestService {
     endpoint: string
   ): Observable<string> {
     return this.http.get
-      (`${environment.queryBase}/${endpoint}`, {responseType: 'text'} );
+    (`${environment.queryBase}/${endpoint}`, {responseType: 'text'} );
   }
 
 
@@ -133,23 +133,23 @@ export class RestService {
     binds: JSON,
     options: JSON): Observable<any> {
 
-      const httpOptions: Object = {
-        headers: new HttpHeaders({
-          'Content-Type':  'application/json',
-          'X-DB-Credentials': `${dbCredentials}`,
-          'Accept': 'application/json',
-          observe: 'response'
+    const httpOptions: Object = {
+      headers: new HttpHeaders({
+        'Content-Type':  'application/json',
+        'X-DB-Credentials': `${dbCredentials}`,
+        Accept: 'application/json',
+        observe: 'response'
 
-        })
-      };
-      const bodycontent = {
-        'sql': sql,
-        'binds': binds,
-        'options': options
-      };
+      })
+    };
+    const bodycontent = {
+      sql,
+      binds,
+      options
+    };
 
-     return this.http.post(`${url}`, JSON.stringify(bodycontent), httpOptions );
+    return this.http.post(`${url}`, JSON.stringify(bodycontent), httpOptions );
 
-    }
+  }
 
 }

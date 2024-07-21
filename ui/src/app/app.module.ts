@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,52 +54,52 @@ import { SqlComponent } from './components/sql/sql.component';
 import { SqlValidatorDirective } from './components/sql/sql.directive';
 
 @NgModule({ declarations: [
-        AppComponent,
-        DbSelectionComponent,
-        DbStepSelectionComponent,
-        MainNavComponent,
-        DbObjectListComponent,
-        DbContentComponent,
-        FindObjectComponent,
-        FilterObjectsComponent,
-        HideInternalPipe,
-        SqlComponent,
-        SqlValidatorDirective
-    ],
-    bootstrap: [AppComponent], imports: [BrowserModule,
-        CommonModule,
-        AppRoutingModule,
-        BrowserAnimationsModule,
-        CdkTableModule,
-        FormsModule,
-        ReactiveFormsModule,
-        MatCardModule,
-        MatToolbarModule,
-        MatSelectModule,
-        MatSidenavModule,
-        MatTableModule,
-        LayoutModule,
-        MatButtonModule,
-        MatIconModule,
-        MatListModule,
-        MatExpansionModule,
-        MatSlideToggleModule,
-        MatFormFieldModule,
-        MatInputModule,
-        MatAutocompleteModule,
-        MatCheckboxModule,
-        MatGridListModule,
-        HighlightModule], providers: [
-        {
-            provide: HIGHLIGHT_OPTIONS,
-            useValue: {
-                coreLibraryLoader: () => import('highlight.js/lib/core'),
-                languages: {
-                    pgsql: () => import('highlight.js/lib/languages/pgsql'),
-                    sql: () => import('highlight.js/lib/languages/sql')
-                }
-            }
-        },
-        provideHttpClient(withInterceptorsFromDi())
-    ] })
+  AppComponent,
+  DbSelectionComponent,
+  DbStepSelectionComponent,
+  MainNavComponent,
+  DbObjectListComponent,
+  DbContentComponent,
+  FindObjectComponent,
+  FilterObjectsComponent,
+  HideInternalPipe,
+  SqlComponent,
+  SqlValidatorDirective
+],
+bootstrap: [AppComponent], imports: [BrowserModule,
+  CommonModule,
+  AppRoutingModule,
+  BrowserAnimationsModule,
+  CdkTableModule,
+  FormsModule,
+  ReactiveFormsModule,
+  MatCardModule,
+  MatToolbarModule,
+  MatSelectModule,
+  MatSidenavModule,
+  MatTableModule,
+  LayoutModule,
+  MatButtonModule,
+  MatIconModule,
+  MatListModule,
+  MatExpansionModule,
+  MatSlideToggleModule,
+  MatFormFieldModule,
+  MatInputModule,
+  MatAutocompleteModule,
+  MatCheckboxModule,
+  MatGridListModule,
+  HighlightModule], providers: [
+  {
+    provide: HIGHLIGHT_OPTIONS,
+    useValue: {
+      coreLibraryLoader: () => import('highlight.js/lib/core'),
+      languages: {
+        pgsql: () => import('highlight.js/lib/languages/pgsql'),
+        sql: () => import('highlight.js/lib/languages/sql')
+      }
+    }
+  },
+  provideHttpClient(withInterceptorsFromDi())
+] })
 export class AppModule { }

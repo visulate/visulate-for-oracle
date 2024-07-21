@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,8 @@ import { DbSelectionComponent } from './db-selection.component';
   templateUrl: './db-step-selection.component.html',
   styleUrls: ['./db-selection.component.css']
 })
- /**
-  * Code to display the object selection menu in the content region when
-  * no object selected.
-  */
+/**
+ * Code to display the object selection menu in the content region when
+ * no object selected.
+ */
 export class DbStepSelectionComponent extends DbSelectionComponent { }

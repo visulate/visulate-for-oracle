@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,21 +34,21 @@ export class StateService {
    * use the change summary and previous context to determine whether an API
    * call is required.
    */
-  private _endpoint: string = '';
-  private _owner: string = '';
-  private _objectType: string = '';
-  private _objectName: string = '';
-  private _filter: string = '';
-  private _showInternal: boolean = false;
+  private _endpoint = '';
+  private _owner = '';
+  private _objectType = '';
+  private _objectName = '';
+  private _filter = '';
+  private _showInternal = false;
   private _objectList: string[];
   private _sqlEnabled: boolean;
 
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
   private subjectContext =
-          new BehaviorSubject<ContextBehaviorSubjectModel> (new ContextBehaviorSubjectModel(
-            new  CurrentContextModel('', '', '', '', '', false, []),
-            new  CurrentContextModel('', '', '', '', '', false, []),
-            []));
+    new BehaviorSubject<ContextBehaviorSubjectModel> (new ContextBehaviorSubjectModel(
+      new  CurrentContextModel('', '', '', '', '', false, []),
+      new  CurrentContextModel('', '', '', '', '', false, []),
+      []));
   private sqlEnabled = new BehaviorSubject<boolean>(false);
 
   endpoints$ = this.endpointList.asObservable();
@@ -60,13 +60,13 @@ export class StateService {
   }
 
   getContextDiff(c1: CurrentContextModel, c2: CurrentContextModel){
-    let returnValue = [];
-    returnValue['endpointDiff'] = (c1.endpoint !== c2.endpoint);
-    returnValue['ownerDiff'] = (c1.owner !== c2.owner);
-    returnValue['objectTypeDiff'] = (c1.objectType !== c2.objectType);
-    returnValue['objectNameDiff'] = (c1.objectName !== c2.objectName);
-    returnValue['filterDiff'] = (c1.filter !== c2.filter);
-    returnValue['showInternalDiff'] = (c1.showInternal !== c2.showInternal);
+    const returnValue = [];
+    returnValue.endpointDiff = (c1.endpoint !== c2.endpoint);
+    returnValue.ownerDiff = (c1.owner !== c2.owner);
+    returnValue.objectTypeDiff = (c1.objectType !== c2.objectType);
+    returnValue.objectNameDiff = (c1.objectName !== c2.objectName);
+    returnValue.filterDiff = (c1.filter !== c2.filter);
+    returnValue.showInternalDiff = (c1.showInternal !== c2.showInternal);
     return(returnValue);
   }
 
@@ -111,15 +111,15 @@ export class StateService {
 
   saveContextInLocalStorage(context: CurrentContextModel) {
     const maxHistoryLength = 5;
-    const contextObject = { "endpoint": context.endpoint,
-                            "owner": context.owner,
-                            "objectType": context.objectType,
-                            "objectName": context.objectName,
-                            "filter": context.filter
-                          };
+    const contextObject = { endpoint: context.endpoint,
+      owner: context.owner,
+      objectType: context.objectType,
+      objectName: context.objectName,
+      filter: context.filter
+    };
 
     let history = JSON.parse(localStorage.getItem('objectHistory') || '[]');
-    let contextObjectPosn = history.findIndex( obj => obj.objectName === contextObject.objectName &&
+    const contextObjectPosn = history.findIndex( obj => obj.objectName === contextObject.objectName &&
                                                       obj.objectType === contextObject.objectType &&
                                                       obj.owner === contextObject.owner &&
                                                       obj.endpoint === contextObject.endpoint );

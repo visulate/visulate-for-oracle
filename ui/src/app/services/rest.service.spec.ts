@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,9 +28,9 @@ describe('RestService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-    imports: [],
-    providers: [RestService, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
-});
+      imports: [],
+      providers: [RestService, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+    });
     injector = getTestBed();
     service = injector.get(RestService);
     httpMock = injector.get(HttpTestingController);
