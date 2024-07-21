@@ -9,11 +9,11 @@ export const environment = {
   ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl',
   queryBase:  window.location.protocol + '//' + window.location.hostname + ':5000/sql',
   internalSchemas:
-  ['ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSFWUSER','DBSNMP','DIP','DVF','DVSYS',
-   'GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','LBACSYS','MDSYS','OJVMSYS','OLAPSYS',
-   'ORACLE_OCM','ORDDATA','ORDPLUGINS','ORDSYS','OUTLN','PUBLIC','REMOTE_SCHEDULER_AGENT',
-   'SI_INFORMTN_SCHEMA','SYS$UMF','SYS','SYSBACKUP','SYSDG','SYSKM','SYSRAC','SYSTEM',
-   'WMSYS','XDB','XS$NULL']
+  ['ANONYMOUS', 'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DBSFWUSER', 'DBSNMP', 'DIP', 'DVF', 'DVSYS',
+    'GGSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'LBACSYS', 'MDSYS', 'OJVMSYS', 'OLAPSYS',
+    'ORACLE_OCM', 'ORDDATA', 'ORDPLUGINS', 'ORDSYS', 'OUTLN', 'PUBLIC', 'REMOTE_SCHEDULER_AGENT',
+    'SI_INFORMTN_SCHEMA', 'SYS$UMF', 'SYS', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSRAC', 'SYSTEM',
+    'WMSYS', 'XDB', 'XS$NULL']
 };
 
 /*

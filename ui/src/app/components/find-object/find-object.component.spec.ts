@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +33,8 @@ describe('FindObjectComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-    declarations: [FindObjectComponent],
-    imports: [MatCardModule,
+      declarations: [FindObjectComponent],
+      imports: [MatCardModule,
         MatListModule,
         MatFormFieldModule,
         MatInputModule,
@@ -42,9 +42,9 @@ describe('FindObjectComponent', () => {
         FormsModule,
         RouterTestingModule,
         BrowserAnimationsModule],
-    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
-})
-    .compileComponents();
+      providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+    })
+      .compileComponents();
   }));
 
   beforeEach(() => {

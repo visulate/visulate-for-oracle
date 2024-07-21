@@ -13,11 +13,11 @@ describe('SqlComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-    declarations: [SqlComponent],
-    imports: [FormsModule, TextFieldModule],
-    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
-})
-    .compileComponents();
+      declarations: [SqlComponent],
+      imports: [FormsModule, TextFieldModule],
+      providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+    })
+      .compileComponents();
   }));
 
   beforeEach(() => {

@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, OnDestroy } from '@angular/core';
 import { UntypedFormControl } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
@@ -44,7 +44,7 @@ export interface EbsPrefixes {
  * that uses a product prefix in the object name. The custom logic provides a lookup for these
  * prefixes.
  */
-export class FilterObjectsComponent implements OnInit {
+export class FilterObjectsComponent implements OnInit, OnDestroy {
 
   @Input() currentEndpoint: EndpointModel;
 
@@ -350,7 +350,7 @@ export class FilterObjectsComponent implements OnInit {
 
   private _filteredPrefixes(value: string): EbsPrefixes[] {
     const filterValue = value.toLowerCase();
-    return this.ebsPrefixes.filter(ebsPrefix => ebsPrefix.name.toLowerCase().indexOf(filterValue)===0);
+    return this.ebsPrefixes.filter(ebsPrefix => ebsPrefix.name.toLowerCase().indexOf(filterValue) === 0);
   }
 
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
@@ -370,10 +370,10 @@ export class FilterObjectsComponent implements OnInit {
 
 
     this.filteredPrefixes$ = this.ebsSelectCtrl.valueChanges
-    .pipe(
-      startWith(''),
-      map(ebsPrefix => ebsPrefix ? this._filteredPrefixes(ebsPrefix) : this.ebsPrefixes.slice())
-    );
+      .pipe(
+        startWith(''),
+        map(ebsPrefix => ebsPrefix ? this._filteredPrefixes(ebsPrefix) : this.ebsPrefixes.slice())
+      );
 
     this.objectFilter.valueChanges.subscribe(value => {
       if (value !== this.currentContext.filter) {

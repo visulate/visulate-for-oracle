@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +17,18 @@
 import { Directive } from '@angular/core';
 import { Validator, UntypedFormControl, NG_VALIDATORS } from '@angular/forms';
 @Directive({
-    selector: '[validSql][ngModel]',
-    providers: [
-        { provide: NG_VALIDATORS, useExisting: SqlValidatorDirective, multi: true }
-    ]
+  selector: '[validSql][ngModel]',
+  providers: [
+    { provide: NG_VALIDATORS, useExisting: SqlValidatorDirective, multi: true }
+  ]
 })
 export class SqlValidatorDirective implements Validator {
-    validate(control: UntypedFormControl): {[key: string]: any} {
-        const sql = control.value
-        if (sql && sql.match('.*(\/|;)$'))
-            return {
-                invalidCharacter: ";"
-            }
-        else return null;
-    }
+  validate(control: UntypedFormControl): {[key: string]: any} {
+    const sql = control.value;
+    if (sql && sql.match('.*(\/|;)$'))
+    {return {
+      invalidCharacter: ';'
+    }; }
+    else {return null; }
+  }
 }

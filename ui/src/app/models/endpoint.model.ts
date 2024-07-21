@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,10 +47,10 @@ export class EndpointModel implements Deserializable {
   deserialize(input: any): this {
     Object.assign(this, input);
     const convertedSchema = convertSchema(input.schemas);
-    this.ebsInstance = ((input.schemas.APPLSYS)? true: false);
+    this.ebsInstance = ((input.schemas.APPLSYS) ? true : false);
     this.schemas = convertedSchema.map (
-       schema => new SchemaModel().deserialize(schema)
-     );
+      schema => new SchemaModel().deserialize(schema)
+    );
     return this;
   }
 }
@@ -67,7 +67,7 @@ export class SchemaModel implements Deserializable {
     Object.assign(this, input);
     this.objectTypes
      = input.objectTypes.map(
-       objectType => new ObjectTypeListItem().deserialize(objectType));
+        objectType => new ObjectTypeListItem().deserialize(objectType));
     return this;
   }
 }
@@ -125,11 +125,9 @@ function convertSchema(input: any): SchemaModel[] {
   const outputSchemas = [];
   Object.keys(input).forEach((schema) => {
     const internal = environment.internalSchemas.includes(schema);
-    const objectTypes = input[schema].map((t) => {
-      return {type: t.OBJECT_TYPE, count: t.OBJECT_COUNT};
-    });
+    const objectTypes = input[schema].map((t) => ({type: t.OBJECT_TYPE, count: t.OBJECT_COUNT}));
     outputSchemas.push(
-      {owner: schema, internal: internal, objectTypes}
+      {owner: schema, internal, objectTypes}
     );
   });
   return(outputSchemas);

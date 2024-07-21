@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,13 +46,13 @@ export class MainNavComponent implements OnInit, OnDestroy {
     media: MediaMatcher,
     private route: ActivatedRoute,
     private state: StateService )
-    {
-      this.mobileQuery = media.matchMedia('(max-width: 600px)');
-    }
+  {
+    this.mobileQuery = media.matchMedia('(max-width: 600px)');
+  }
 
   private unsubscribe$ = new Subject<void>();
   public showObjectListInBody: boolean;
-  public displaySearchForm: boolean = false;
+  public displaySearchForm = false;
 
 
   /**
@@ -63,11 +63,11 @@ export class MainNavComponent implements OnInit, OnDestroy {
       this.route.paramMap,
       this.route.queryParamMap
     ]).pipe(takeUntil(this.unsubscribe$))
-      .subscribe(([params, queryParams])=> {
+      .subscribe(([params, queryParams]) => {
         const context = this.state.getCurrentContext();
         const priorContext = new CurrentContextModel
-                (context.endpoint, context.owner, context.objectType,
-                 context.objectName, context.filter, context.showInternal, context.objectList);
+        (context.endpoint, context.owner, context.objectType,
+          context.objectName, context.filter, context.showInternal, context.objectList);
 
         const db = params.get('db');
         const schema = params.get('schema');
@@ -80,15 +80,15 @@ export class MainNavComponent implements OnInit, OnDestroy {
         if (type != null) { context.setObjectType(type.toUpperCase()); }
         if (object != null) {
           context.setObjectName(object.toUpperCase());
-          this.opened = this.mobileQuery.matches? null: "opened";
+          this.opened = this.mobileQuery.matches ? null : 'opened';
         }
-        if (filter != null) {context.setFilter(filter);}
+        if (filter != null) {context.setFilter(filter); }
 
         // Preserve the current object list if context has not changed
         // (e.g when navigating from one object to the next)
         const changeSummary = this.state.getContextDiff(context, priorContext);
-        if ((!changeSummary['objectTypeDiff']) && (!changeSummary['filterDiff']))
-         {context.setObjectList(priorContext.objectList);}
+        if ((!changeSummary.objectTypeDiff) && (!changeSummary.filterDiff))
+        {context.setObjectList(priorContext.objectList); }
 
         this.state.setCurrentContext(context);
       });

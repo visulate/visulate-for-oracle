@@ -15,7 +15,7 @@ describe('FilterObjectsComponent', () => {
       imports: [ MatAutocompleteModule, FormsModule, ReactiveFormsModule, MatSelectModule, MatInputModule, BrowserAnimationsModule ],
       declarations: [ FilterObjectsComponent ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

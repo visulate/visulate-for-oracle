@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,12 +27,12 @@ describe('DbObjectListComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-    schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    declarations: [DbObjectListComponent],
-    imports: [RouterTestingModule],
-    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
-})
-    .compileComponents();
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+      declarations: [DbObjectListComponent],
+      imports: [RouterTestingModule],
+      providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+    })
+      .compileComponents();
   }));
 
   beforeEach(() => {

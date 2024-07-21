@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,13 +24,13 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 describe('AppComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-    schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    declarations: [
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+      declarations: [
         AppComponent
-    ],
-    imports: [RouterTestingModule],
-    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
-}).compileComponents();
+      ],
+      imports: [RouterTestingModule],
+      providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+    }).compileComponents();
   }));
 
   it('should create the app', () => {

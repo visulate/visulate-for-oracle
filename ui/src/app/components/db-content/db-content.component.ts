@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public connectString: string;
   public currentEndpoint: EndpointModel;
   public sqlEnabled: boolean;
-  public queryPanelExpanded: boolean = false;
+  public queryPanelExpanded = false;
   public errorMessage: string;
 
   constructor(
@@ -57,7 +57,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
     private state: StateService) {
   }
 
-  selectedOption: string = ''; // To store the selected option
+  selectedOption = ''; // To store the selected option
 
   download() {
     if (this.selectedOption) {
@@ -74,7 +74,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
     if (environment.internalSchemas.includes(owner)) {
       this.ddlLink = '';
     } else {
-      this.ddlLink = `${environment.ddlGenBase}/${endpoint}/${owner}/${type}/${name}/*`
+      this.ddlLink = `${environment.ddlGenBase}/${endpoint}/${owner}/${type}/${name}/*`;
 
       if (hbsTemplates.has(type)) {
         hbsTemplates.get(type).forEach(template => {
@@ -95,7 +95,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
    * The context state changes when the user selects items in the db-selection component.
    */
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
-    let context = subjectContext.currentContext;
+    const context = subjectContext.currentContext;
     this.currentContext = context;
     this.sqlEnabled = this.state.getSqlEnabled();
 
@@ -110,7 +110,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
             endpoints.setErrorMessage(null);
             this.state.saveEndpoints(endpoints);
           } else {
-            endpoints.setErrorMessage("No database objects match the current Object Filter");
+            endpoints.setErrorMessage('No database objects match the current Object Filter');
             this.state.saveEndpoints(endpoints);
           }
 
@@ -152,13 +152,13 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
       this.setDdlLink(context.endpoint, context.owner, context.objectType, context.objectName);
       if ( context.objectType === 'TABLE' ||
-           context.objectType === 'VIEW'||
+           context.objectType === 'VIEW' ||
            context.objectType === 'MATERIALIZED VIEW') {
-             this.queryPanelExpanded = true;
-           }
+        this.queryPanelExpanded = true;
+      }
 
       this.restService.getObjectDetails$
-        (context.endpoint, context.owner, context.objectType, context.objectName)
+      (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
     }

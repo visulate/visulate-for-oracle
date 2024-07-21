@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, Output, EventEmitter, ElementRef, ViewChild} from '@angular/core';
+import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, AfterContentInit, OnDestroy} from '@angular/core';
 import { RestService } from 'src/app/services/rest.service';
 import { FindObjectModel, ObjectHistoryModel } from '../../models/find-object.model';
 import { Subject } from 'rxjs';
@@ -29,11 +29,11 @@ import { takeUntil } from 'rxjs/operators';
  * Quick find feature tied to search icon in toolbar. Finds objects of
  * a given name in each registered database
  */
-export class FindObjectComponent {
+export class FindObjectComponent implements AfterViewInit, AfterContentInit, OnDestroy {
   public searchResult: FindObjectModel;
   public history: ObjectHistoryModel[] = [];
   private unsubscribe$ = new Subject<void>();
-  public searchTerm: string = '';
+  public searchTerm = '';
   public breakpoint: number;
 
   @ViewChild('searchBox') searchBox: ElementRef;
@@ -45,7 +45,7 @@ export class FindObjectComponent {
   processSearchRequest(searchTerm: string): void{
     this.restService.getSearchResults$(searchTerm)
       .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(searchResult => {this.searchResult = searchResult;});
+      .subscribe(searchResult => {this.searchResult = searchResult; });
   }
 
   processCancel() {
@@ -53,10 +53,10 @@ export class FindObjectComponent {
   }
 
   getHistory() {
-    let localStorageHistory = JSON.parse(localStorage.getItem('objectHistory') || '[]');
+    const localStorageHistory = JSON.parse(localStorage.getItem('objectHistory') || '[]');
     localStorageHistory.forEach((entry) => {
       this.history.push(new ObjectHistoryModel
-        ( entry.endpoint, entry.owner, entry.objectType, entry.objectName, entry.filter));
+      ( entry.endpoint, entry.owner, entry.objectType, entry.objectName, entry.filter));
     });
   }
 

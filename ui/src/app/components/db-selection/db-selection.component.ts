@@ -1,4 +1,4 @@
-/*!
+/* !
  * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,11 +32,11 @@ import { environment } from '../../../environments/environment';
 
 
 
- /**
-  * Code to maintain the Database -> Schema -> Object Type form
-  * Displays the current selections on startup and triggers a router
-  * navigation event when the current selection changes.
-  */
+/**
+ * Code to maintain the Database -> Schema -> Object Type form
+ * Displays the current selections on startup and triggers a router
+ * navigation event when the current selection changes.
+ */
 export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
   public currentEndpoint: EndpointModel;
@@ -55,7 +55,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     private router: Router,
     private restService: RestService) { }
 
-  selectedOption: string = ''; // To store the selected option
+  selectedOption = ''; // To store the selected option
 
   download() {
     if (this.selectedOption) {
@@ -65,10 +65,10 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
   setDdlLink(){
     if (this.currentContext && this.currentSchema && !(environment.internalSchemas.includes(this.currentSchema.owner))) {
-      const filter = (this.currentContext.filter === '')? '*': this.currentContext.filter;
+      const filter = (this.currentContext.filter === '') ? '*' : this.currentContext.filter;
       if (this.currentObjectType && this.currentObjectType.count > 0) {
-        this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0)?
-          `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : ''
+        this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0) ?
+          `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : '';
 
         this.downloadOptions = [
           { name: 'cURL command script',
@@ -82,11 +82,11 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     this.currentObjectType = objectType;
     if (this.currentContext.filter !== ''){
       this.router.navigate
-        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
-          {queryParams: {filter: this.currentContext.filter}});
+      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
+        {queryParams: {filter: this.currentContext.filter}});
     } else {
       this.router.navigate
-        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
+      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
     }
   }
 
@@ -99,11 +99,11 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     this.currentSchema = schema;
     if (this.currentContext.filter !== '') {
       this.router.navigate
-        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`],
-          {queryParams: {filter: this.currentContext.filter}});
+      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`],
+        {queryParams: {filter: this.currentContext.filter}});
     } else {
       this.router.navigate
-        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
+      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
     }
   }
 
@@ -124,10 +124,10 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * @param connectString - current connect string
    */
   setSqlEnabled(endpoint: string, connectString: string){
-      this.restService.getConnectString$(endpoint)
+    this.restService.getConnectString$(endpoint)
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(qeConnectString => {
-        this.state.saveSqlEnabled((connectString === qeConnectString))
+        this.state.saveSqlEnabled((connectString === qeConnectString));
       });
   }
 
