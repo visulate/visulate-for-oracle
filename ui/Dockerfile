@@ -1,4 +1,4 @@
-# Copyright 2019, 2022 Visulate LLC. All Rights Reserved.
+# Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 COPY . ./visulate-client
 WORKDIR /visulate-client
-RUN npm install -g npm@10.2.5
+RUN npm install -g npm@latest
 RUN npm i
 RUN node_modules/.bin/ng build --configuration production
 
 FROM nginx:stable
-COPY --from=builder /visulate-client/dist/client/assets/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /visulate-client/dist/client/ /usr/share/nginx/html
+COPY --from=builder /visulate-client/dist/client/browser/assets/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /visulate-client/dist/client/browser/ /usr/share/nginx/html
