@@ -60,14 +60,15 @@ export class StateService {
   }
 
   getContextDiff(c1: CurrentContextModel, c2: CurrentContextModel){
-    const returnValue = [];
-    returnValue.endpointDiff = (c1.endpoint !== c2.endpoint);
-    returnValue.ownerDiff = (c1.owner !== c2.owner);
-    returnValue.objectTypeDiff = (c1.objectType !== c2.objectType);
-    returnValue.objectNameDiff = (c1.objectName !== c2.objectName);
-    returnValue.filterDiff = (c1.filter !== c2.filter);
-    returnValue.showInternalDiff = (c1.showInternal !== c2.showInternal);
-    return(returnValue);
+    const returnValue = {
+      endpointDiff: (c1.endpoint !== c2.endpoint),
+      ownerDiff: (c1.owner !== c2.owner),
+      objectTypeDiff: (c1.objectType !== c2.objectType),
+      objectNameDiff: (c1.objectName !== c2.objectName),
+      filterDiff: (c1.filter !== c2.filter),
+      showInternalDiff: (c1.showInternal !== c2.showInternal)
+    };
+    return returnValue;
   }
 
   getSqlEnabled(){

@@ -13,12 +13,30 @@
 # limitations under the License.
 
 FROM node:22-alpine AS builder
+
+# Copy the source code
 COPY . ./visulate-client
 WORKDIR /visulate-client
+
+# Install latest npm
 RUN npm install -g npm@latest
-RUN npm i
-RUN node_modules/.bin/ng build --configuration production
+
+# Install all dependencies (both production and development)
+RUN npm ci
+
+# Build the application
+RUN npx ng build --configuration production
+
+# Remove node_modules to clean up unnecessary dependencies
+RUN rm -rf node_modules
+
+# Install only production dependencies
+RUN npm ci --omit=dev
 
 FROM nginx:stable
+
+# Copy the nginx configuration file
 COPY --from=builder /visulate-client/dist/client/browser/assets/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy the built application
 COPY --from=builder /visulate-client/dist/client/browser/ /usr/share/nginx/html
