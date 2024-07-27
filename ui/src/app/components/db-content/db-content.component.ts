@@ -41,8 +41,6 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public objectDetails: DatabaseObjectModel;
   public showLineNumbers = true;
   public schemaColumns: string[] = ['type', 'count'];
-  private unsubscribe$ = new Subject<void>();
-
   public ddlBase = environment.ddlGenBase;
   public ddlLink: string;
   public downloadOptions = [];
@@ -52,12 +50,15 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public queryPanelExpanded = false;
   public errorMessage: string;
 
+  selectedOption = ''; // To store the selected option
+  private unsubscribe$ = new Subject<void>();
+
   constructor(
     private restService: RestService,
     private state: StateService) {
   }
 
-  selectedOption = ''; // To store the selected option
+
 
   download() {
     if (this.selectedOption) {
@@ -77,6 +78,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
       this.ddlLink = `${environment.ddlGenBase}/${endpoint}/${owner}/${type}/${name}/*`;
 
       if (hbsTemplates.has(type)) {
+        this.downloadOptions = [];
         hbsTemplates.get(type).forEach(template => {
           this.downloadOptions.push({
             name: template.title,
@@ -151,10 +153,11 @@ export class DbContentComponent implements OnInit, OnDestroy {
         subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff)) {
 
       this.setDdlLink(context.endpoint, context.owner, context.objectType, context.objectName);
-      if ( context.objectType === 'TABLE' ||
-           context.objectType === 'VIEW' ||
-           context.objectType === 'MATERIALIZED VIEW') {
-        this.queryPanelExpanded = true;
+      // Un-comment the following lines to expand the query panel when a table, view or materialized view is selected
+      // if ( context.objectType === 'TABLE' ||
+      //      context.objectType === 'VIEW' ||
+      //      context.objectType === 'MATERIALIZED VIEW') {
+      //   this.queryPanelExpanded = true;
       }
 
       this.restService.getObjectDetails$
@@ -163,23 +166,22 @@ export class DbContentComponent implements OnInit, OnDestroy {
         .subscribe(result => { this.processObject(result); });
     }
 
-  }
+    ngOnInit() {
+      this.currentContext = this.state.getCurrentContext();
+      this.state.endpoints$
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(endpoints => { this.endpointList = endpoints; });
+      this.state.currentContext$
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(context => { this.processContextChange(context); });
+      this.state.sqlEnabled$
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(sqlEnabled => {this.sqlEnabled = sqlEnabled; });
+    }
 
-  ngOnInit() {
-    this.currentContext = this.state.getCurrentContext();
-    this.state.endpoints$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(endpoints => { this.endpointList = endpoints; });
-    this.state.currentContext$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(context => { this.processContextChange(context); });
-    this.state.sqlEnabled$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(sqlEnabled => {this.sqlEnabled = sqlEnabled; });
-  }
+    ngOnDestroy() {
+      this.unsubscribe$.next();
+      this.unsubscribe$.complete();
+    }
 
-  ngOnDestroy() {
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
   }
-}

@@ -1,5 +1,11 @@
 // Map containing the Handlebars templates used by the application.
-export const hbsTemplates = new Map();
+interface Template {
+  title: string;
+  template: string;
+}
+
+export const hbsTemplates: Map<string, Template[]> = new Map();
+
 hbsTemplates.set('TABLE', [
   {title: 'CRUD Package', template: 'plsql_api_gen.hbs'},
   {title: 'Checksum View', template: 'checksum_view.hbs'},
