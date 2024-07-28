@@ -32,28 +32,9 @@ spec:
       url: https://docs.visulate.net
     notes: |-
 
-      ### Wait for the instance to reach ready state
+      ### Quickstart
 
-      It may take over 10 minutes for the instance to deploy. Most of this time is spent creating network resources to
-      support the ingress component. You can monitor the progress of this from the ingress screen. The instance is ready when the
-      Backend services reach a health state.
-
-      ### Find the ingress IP address
-
-      Use the following command to get the IP address for the instance:
-
-      ```
-      INGRESS_IP=$(kubectl get ingress {{ .Release.Name }}-igs \
-        --namespace {{ .Release.Namespace }} \
-        --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
-
-      echo "http://${INGRESS_IP}/"
-      ```
-
-      ### Verify the instance
-
-      Follow the [verification steps](https://docs.visulate.net/pages/quickstart.html#verify-the-instance)
-      in the Visulate for Oracle quickstart guide to verify the application is working correctly.
+      Follow the steps in the Visulate for Oracle [quickstart guide](https://docs.visulate.net/pages/quickstart.html#kubernetes-deployment) to verify the application is working correctly.
 
       ### Database registration
 
@@ -67,9 +48,6 @@ spec:
 
       Follow the steps in the [Query Engine configuration](https://docs.visulate.net/pages/query-engine-config.html) guide.
 
-      ### Update the TLS certificate
-
-      The [TLS certification ](https://docs.visulate.net/pages/tls-cert.html) guide describes how to update the TLS certificate.
   selector:
     matchLabels:
       app.kubernetes.io/name: "{{ .Release.Name }}"
@@ -82,7 +60,5 @@ spec:
       kind: Service
     - group: apps/v1
       kind: Deployment
-    # - group: networking.k8s.io/v1
-    #   kind: Ingress
     - group: batch/v1
       kind: Job
