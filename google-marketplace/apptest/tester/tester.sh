@@ -18,42 +18,6 @@ set -xeo pipefail
 shopt -s nullglob
 
 echo "Starting tests"
-
-# # Wait until no Ingress backends report "Unknown" status
-# until kubectl get ingress "${APP_INSTANCE_NAME}-igs" \
-#   --namespace "${NAMESPACE}" \
-#   --output jsonpath='{.metadata.annotations.ingress\.kubernetes\.io/backends}' \
-#   | jq -e '([.. | strings | select(. == "Unknown")] | length == 0)'
-# do
-#   sleep 10
-# done
-
-# # Wait 2 minutes after the ingress reports it is healthy before starting the tests
-# # to avoid 502 errors
-# now=$(date +"%T")
-# echo "Current time : $now"
-# echo "waiting 2 minutes for loadBalancer resources"
-# sleep 120
-
-# # Start tests
-# backend_status="$(kubectl get ingress ${APP_INSTANCE_NAME}-igs \
-#   --namespace ${NAMESPACE} \
-#   --output jsonpath='{.metadata.annotations.ingress\.kubernetes\.io/backends}')"
-
-# echo "Backend Status : $backend_status"
-
-# EXTERNAL_IP="$(kubectl get ingress/${APP_INSTANCE_NAME}-igs \
-#   --namespace ${NAMESPACE} \
-#   --output jsonpath='{.status.loadBalancer.ingress[0].ip}')"
-
-
-# until kubectl get service "${APP_INSTANCE_NAME}-proxy-svc" \
-#   --namespace "${NAMESPACE}" \
-#   --output jsonpath='{.spec.clusterIP}'
-# do
-#   sleep 10
-# done
-
 echo "Get External IP"
 
 EXTERNAL_IP="$(kubectl get service/${APP_INSTANCE_NAME}-visulate-for-oracle-proxy-svc \
