@@ -1,6 +1,6 @@
 {
   "name": "visulate-for-oracle",
-  "version": "1.1.36",
+  "version": "2.0.0",
   "description": "Oracle data dictionary catalog APIs",
   "main": "app.js",
   "scripts": {

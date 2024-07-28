@@ -1,7 +1,7 @@
 oracledb
-Flask
+Flask >= 2.2.5
 gunicorn
 Flask-Cors
-Werkzeug
+Werkzeug >= 2.2.3
 simplejson
-sqlparse
+sqlparse >= 0.5

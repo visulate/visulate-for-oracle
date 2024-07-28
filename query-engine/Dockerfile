@@ -11,15 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM oraclelinux:8
+FROM oraclelinux:9-slim
+
 # Install Python 3.11 and pip
-RUN dnf install -y python3.11 python3-pip && \
+RUN microdnf install -y python3.11 python3-pip && \
     python3.11 -m ensurepip --upgrade && \
     rm -rf /var/cache/yum && \
-    python3.11 --version && python3.11 -m pip --version
-
-# Update alternatives to use Python 3.11 as default python3
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    python3.11 --version && python3.11 -m pip --version && \
+    python3.11 -m pip install --upgrade pip && \
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     alternatives --set python3 /usr/bin/python3.11
 
 # Create a new user and set up the environment
@@ -31,18 +31,26 @@ ENV PYTHONPATH=/query-engine
 # Copy the project files and install dependencies
 COPY --chown=queryeng:queryeng . /query-engine/
 WORKDIR /query-engine
-RUN python3.11 -m pip install --upgrade pip && python3.11 -m pip install setuptools-rust && \
-    python3.11 -m pip install oracledb --upgrade --user && \
-    python3.11 -m pip install wheel --user && \
-    python3.11 setup.py bdist_wheel
 
-# Install requirements
-COPY requirements.txt /var/www/requirements.txt
-RUN python3.11 -m pip install -r /var/www/requirements.txt --user
+# Install dependencies and build the wheel
+RUN python3.11 -m pip install --upgrade pip setuptools-rust wheel --user && \
+    python3.11 -m pip install oracledb --upgrade --user && \
+    python3.11 -m pip install -r requirements.txt --user && \
+    python3.11 setup.py bdist_wheel && \
+    rm -rf /home/queryeng/.cache/pip
 
 # Install the built wheel
-COPY dist/sql2csv-2.0.0-py3-none-any.whl /var/www/sql2csv-2.0.0-py3-none-any.whl
-RUN python3.11 -m pip install /var/www/sql2csv-2.0.0-py3-none-any.whl --user
+COPY --chown=queryeng:queryeng dist/sql2csv-2.0.0-py3-none-any.whl /var/www/sql2csv-2.0.0-py3-none-any.whl
+RUN python3.11 -m pip install /var/www/sql2csv-2.0.0-py3-none-any.whl --user && \
+    rm -rf /home/queryeng/.cache/pip
+
+# Remove old pip and setuptools from site-packages
+USER root
+RUN rm -rf /usr/lib/python3.9/site-packages/pip* && \
+    rm -rf /usr/lib/python3.9/site-packages/setuptools* && \
+    rm -rf /usr/lib/python3.9/site-packages/__pycache__ && \
+    pip3 install --upgrade setuptools
 
 # Set the command to run the application
+USER queryeng
 CMD gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --bind 0.0.0.0:5000 "sql2csv:create_app()"
