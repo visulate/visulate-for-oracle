@@ -4,8 +4,7 @@
 # Visulate for Oracle Installation
 
 ## Architecture
-
-![K8S Architecture](/images/k8s.png)
+![K8S Architecture](/images/k8s.png){: width="720px"}
 
 Visulate for Oracle comprises UI, API and SQL deployments exposed to an ingress via NodePorts. Web users connect to the application via the Ingress resource. Http path rules in the ingress spec route requests to the UI, API or SQL Service as required.
 
