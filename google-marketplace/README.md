@@ -64,6 +64,32 @@ mpdev /scripts/install  \
 
 ```
 
+## VM Image
+
+
+
+```
+gcloud compute instances create vm-visulate4oracle \
+  --project=visulate-app \
+  --zone=us-east1-b \
+  --machine-type=e2-medium \
+  --image-family=cos-stable \
+  --image-project=cos-cloud \
+  --boot-disk-size=10GB \
+  --boot-disk-type=pd-ssd \
+  --network=projects/visulate-docker/global/networks/visulate-docker-vpc  \
+  --subnet=projects/visulate-docker/regions/us-east1/subnetworks/us-east1-01  \
+  --tags=http-server \
+  --scopes=https://www.googleapis.com/auth/cloud-platform  \
+  --metadata-from-file=startup-script=./vm-image/startup-script.sh
+```
+
+Wait for VM to respond then shutdown and create a boot disk image
+
+
+sudo journalctl -u google-startup-scripts.service
+
+
 ## Reference
 1. [Marketplace Tools](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools)
 2. [Billing Integration](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/master/docs/billing-integration.md)

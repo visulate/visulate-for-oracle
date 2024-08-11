@@ -8,6 +8,9 @@ sections:
       - title: "Quickstart"
         href: "/pages/quickstart.html"
         description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
+      - title: "GKE Quickstart"
+        href: "/pages/quickstart-k8s.html"
+        description: "Create a Visulate for Oracle instance on Google Kubernetes Engine (GKE) and connect it to an Oracle database."
   - name: How-to guides
     items:
       - title: "Database analysis"
@@ -41,7 +44,10 @@ sections:
       - title: "Installation"
         href: "/pages/install-guide.html"
         description: "How-to instructions for installing Visulate for Oracle"
-      - title: "Setup a database account"
+      - title: "Create a test database"
+        href: "/pages/create-test-db.html"
+        description: "How-to create an Oracle 23 Free instance on Google Cloud using a container image"
+      - title: "Setup a Visulate account"
         href: "/pages/database-setup.html"
         description: "Visulate for Oracle needs a user with the minimum privileges to read the data dictionary in each database."
       - title: "Register a database"
