@@ -1,60 +1,95 @@
 * TOC
 {:toc id="toc"}
+# Quickstart Guide
 
-# Visulate for Oracle quickstart
-This page shows you how to create a Visulate for Oracle instance and connect it to an Oracle database.
+Running Visulate for Oracle on a Virtual Machine.
 
-Allow around 60 minutes to complete this tutorial.
+## Before you begin
 
+1. Create an Oracle 23 Free database in GCP for testing. Follow the instructions on the [Create a Test Database](/pages/create-test-db.html) page
+2. Install Visulate from the Google Cloud Marketplace Console
 
-## Kubernetes Deployment
+<ul class="actions">
+  <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-vm__draft" class="button big">Go to Google Cloud Marketplace Console</a></li>
+</ul>
 
-How to create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database.
+## Post install setup
 
+1. Wait for the VM to start and then use the Cloud Console or `gcloud compute ssh` to ssh into to it.
 
-### Before you begin
-1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in GCP2.
-2. Open the Visulate for Oracle Console
+2. Create a `.bash_profile` file in your home directory
 
-<a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle"
-   class="button big" target="_blank">Go to Console</a>
+    ```
+    echo -e "# Source .bashrc if it exists\nif [ -f ~/.bashrc ]; then\n    source ~/.bashrc\nfi" > ~/.bash_profile
+    ```
 
-### Configure an instance
+3. Create aliases for *update-visulate*, *docker-compose* and *sqlplus*
 
-Review the terms of service and click the `Purchase Plan` button followed by the `Configure` button.
+    ```
+    echo "source /home/visulate/alias.env" >> ~/.bashrc
+    source ~/.bashrc
+    ```
 
-Complete the deploy screen
+4. Check for updates
 
-![Deploy Screen](/images/mp-deploy-visulate.png){: class="screenshot" tabindex="0" tabindex="0"}
+    ```
+    update-visulate
 
-- Select or create a namespace
-- Change the default instance name to visulate-01 (see note below)
-- Accept the defaults for the remaining fields and press the `Deploy` button
+    latest: Pulling from docker/compose
+    Digest: sha256:b60a020c0f68047b353a4a747f27f5e5ddb17116b7b018762edfb6f7a6439a82
+    Status: Image is up to date for docker/compose:latest
+    docker.io/docker/compose:latest
+    2.0: Pulling from visulate-llc-public/visulate-for-oracle
+    Digest: sha256:c09c621f9b5d419b8ec07d6ef4c6cd1003d40c9a7f035e8c4cf1d4ba5c4c135b
+    Status: Image is up to date for gcr.io/visulate-llc-public/visulate-for-oracle:2.0
+    gcr.io/visulate-llc-public/visulate-for-oracle:2.0
+    2.0: Pulling from visulate-llc-public/visulate-for-oracle/ui
+    Digest: sha256:32d073e0d67e1eca50756c940d720733cdd387e28da6a65ae445c751c9f9784e
+    Status: Image is up to date for gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.0
+    gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.0
+    2.0: Pulling from visulate-llc-public/visulate-for-oracle/sql
+    Digest: sha256:f4510ce604a17031cdd2e4e634ae89483e0c519753d10b392c0100ebb065ab4e
+    Status: Image is up to date for gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0
+    gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0
+    2.0: Pulling from visulate-llc-public/visulate-for-oracle/proxy
+    Digest: sha256:ddc6cbae74c01143d3ac22810ef0f1ca4a57165ad537edc0d3e2ae1258483616
+    Status: Image is up to date for gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
+    gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
+    ```
 
-### Wait for instance to reach ready state
+## Start Visulate
 
-It may take a few minutes for the instance to deploy
+The visulate code is delivered as a series of docker containers using a docker compose file located in the `/home/visulate` directory. Navigate to that directory and run `docker-compose up -d` to start the application.
 
-![Components Pending](/images/mp-components-pending.png){: class="screenshot" tabindex="0" }
+```
+cd /home/visulate
+docker-compose up -d
 
-### Create a Load Balancer
+Starting reverseproxy ... done
+Starting visapi       ... done
+Starting vissql       ... done
+Starting visui        ... done
+```
 
-1. Navigate to [Google Cloud Load balancing](https://console.cloud.google.com/net-services/loadbalancing/list/loadBalancers) and click the `+ CREATE LOAD BALANCER` link at the top of the screen
-2. Select the following options on the setup screen
-    1. Application Load Balancer (HTTP/HTTPS)
-    2. Public facing (external)
-    3. Global
-    4. Global external Application Load Balancer
-3. Connect the the load balancer to NEG
+Wait a few minutes then verify all 4 containers are running:
 
+```
+docker ps
+CONTAINER ID   IMAGE                                                      COMMAND                  CREATED          STATUS                        PORTS                               NAMES
+6ccc9b701592   gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.0      "/docker-entrypoint.…"   11 minutes ago   Up About a minute (healthy)   80/tcp                              visui
+ed7e88fbb0a7   gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0     "/bin/sh -c 'gunicor…"   11 minutes ago   Up About a minute (healthy)   5000/tcp                            vissql
+34492d16bd07   gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0   "/docker-entrypoint.…"   11 minutes ago   Up About a minute             0.0.0.0:80->80/tcp, :::80->80/tcp   reverseproxy
+899942a4618e   gcr.io/visulate-llc-public/visulate-for-oracle:2.0         "/bin/sh -c 'exec np…"   11 minutes ago   Up About a minute (healthy)   3000/tcp                            visapi
+```
 
+### Open a firewall port to allow access on port 80
 
-
+Use network tags or other mechanisms to open the VM for http traffic.
 
 
 ### Verify the instance
 
-Click on the Load balancer IP address to open the Visulate for Oracle UI. Ingress rules should rewrite the url appending "/database" to the ip address as shown in the screenshot below.
+Navigate to the public IP address of the Visulate VM in a browser window
 
 ![UI Homepage](/images/ui-screen.png){: class="screenshot" tabindex="0" }
 
@@ -66,73 +101,91 @@ Change "/api/" to "/api-docs/" to review the API documentation.
 
 ![Swagger UI](/images/swagger.png){: class="screenshot" tabindex="0" }
 
-At this point you have a Visulate for Oracle instance running. Now we need to connect it to an Oracle database.
 
-### Create a database user in the database you want to document
+### Register a database
 
-Login to SQL*Plus as SYSTEM, create a database user called "VISULATE" and grant CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY privileges to it:
-```
-create user visulate identified by &password;
-alter user visulate account unlock;
-grant create session to visulate;
-grant select any dictionary to visulate;
-grant select_catalog_role to visulate;
-```
-Note: the API server runs a query on startup to verify account privileges. It drops the connection if the account does not have the required grants **or if the account has more privileges than it needs**. See the [database setup guide](/pages/database-setup.html) for additional details.
+1. Login to the Visulate VM and use sqlplus to verify the connection to the [test database](/pages/create-test-db.html) you created earlier
+
+    ```
+    user@vm-visulate-20240811 /home/visulate $ sqlplus visulate@10.0.0.31:1521/freepdb1
+
+    SQL*Plus: Release 19.0.0.0.0 - Production on Sun Aug 11 20:19:17 2024
+    Version 19.23.0.0.0
+
+    Copyright (c) 1982, 2023, Oracle.  All rights reserved.
+
+    Enter password:
+    Last Successful login time: Sun Aug 11 2024 20:18:47 +00:00
+
+    Connected to:
+    Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+    Version 23.4.0.24.05
+
+    SQL> exit
+    Disconnected from Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+    Version 23.4.0.24.05
+    ```
+
+    **Note:** this command runs sqlplus from the same container that Visulate uses for database connections. Investigate and resolve any connection issues before continuing.
+
+5. Stop Visulate
+
+    ```
+    docker-compose down
+
+    Stopping visulate_visui_1        ... done
+    Stopping visulate_vissql_1       ... done
+    Stopping visulate_visapi_1       ... done
+    Stopping visulate_reverseproxy_1 ... done
+
+    Removing visulate_visui_1        ... done
+    Removing visulate_vissql_1       ... done
+    Removing visulate_visapi_1       ... done
+    Removing visulate_reverseproxy_1 ... done
+
+    Removing network visulate_default
+    ```
+
+6. Create database registration entries
+
+  - Edit `database.js` file in the `/home/visulate/config` directory with the connect details
+
+    ```
+    vi config/database.js
+
+    const endpoints = [
+    { namespace: 'testdb',
+        description: 'Example endpoint',
+        connect: { poolAlias: 'testdb',
+                user: 'visulate',
+                password: 'vis1066r',
+                connectString: 'oratest.us-east1-b.c.visulate-llc-dev.internal:1521/free23pdb1',
+                poolMin: 4,
+                poolMax: 4,
+                poolIncrement: 0
+                }
+    }
+    ];
+    ```
+
+  - Edit `endpoints.json` in the `/home/visulate/config` directory to enable query access for a database. Note: the json key must match an endpoint declared in the database.js file and the json value must match its connectString.
+
+    ```
+    vi config/endpoints.json
+
+    {"testdb":"oratest.us-east1-b.c.visulate-llc-dev.internal:1521/free23pdb1"}
+    ```
+
+  - Restart Visulate
+
+    ```
+    docker-compose up
+    ```
 
 
-### Register your database connection
-
-A kubernetes secret is used to pass database connection details to the instance. Open a text editor and create a file called db-connections.js. With the following content:
-```
-const endpoints = [
-{ namespace: 'vis13',
-  description: 'Test instance',
-  connect: { poolAlias: 'vis13',
-            user: 'visulate',
-            password: 'jkafDD!@997',
-            connectString: 'dev115.visulate.net:1521/vis13',
-            poolMin: 4,
-            poolMax: 4,
-            poolIncrement: 0
-          }
-}
-];
-module.exports.endpoints = endpoints;
-```
-
-Edit the password and connectString values to match the ones for your database instance.
-
-Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:
-
-```shell
-kubectl create secret generic oracle-database-connections --from-file=database.js=./db-connections.js
-```
-**Note:** the secret's name is not important but **it's key must be `database.js`**
-
-Open the API deployment screen (from GCP -> Kubernetes Engine -> Workloads) and press the `Edit` button
-
-![API Deployment Screen](/images/api-deployment.png){: class="screenshot" tabindex="0" }
-
-Find the "config-database-volume" entry and change the secretName value to "oracle-database-connections"
-
-![Edit API Deployment](/images/edit-api-deployment.png){: class="screenshot" tabindex="0" }
-
-The edited value should look like this:
-```
-      volumes:
-      - name: config-database-volume
-      - secret:
-          defaultMode: 420
-          secretName: oracle-database-connections
-```
-
-Press the `Save` button and wait for a new pod to deploy replacing the previous revision.
-
-Note: See the [database registration guide](/pages/database-registration.html) for additional details on this step.
 
 ### Review your database and its data model
-Open the Visulate for Oracle UI (using the load balancer IP address assigned by the Ingress). Click on the Database dropdown list. You should see an entry called "vis13". Select the value and wait for database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
+Open the Visulate for Oracle UI. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
@@ -168,33 +221,6 @@ Click on the "Visulate for Oracle" title at the top (center) of the screen to re
 
 ![Filter condition](/images/filter.png){: class="screenshot" tabindex="0" }
 
-### SQL Query Engine Configuration
-
-The SQL Query Engine exposes a REST API to generate CSV files from user supplied SQL. Access to this feature is controlled by a configuration file. This allows a DBA to limit the list of database environments that allow SQL access. For example, they may wish to allow access for development databases but not production.
-
-Use the `/endpoints` API to generate a configuration file for your database:
-
-```shell
-curl http://load-balancer-ip/endpoints/ > endpoints.json
-```
-
-Generate a kubernetes secret from the file with a key of `endpoints.json`:
-
-```shell
-kubectl create secret generic sql-endpoints --from-file=endpoints.json=./endpoints.json
-```
-
-Edit the config-endpoints-volume entry in the deployment manifest for the SQL query engine deployment (`-sql` suffix):
-
-```yaml
-      volumes:
-      - name: config-endpoints-volume
-        secret:
-          defaultMode: 420
-          secretName: sql-endpoints
-```
-
-Follow the steps outlined in the [database registration](#register-your-database-connection) process above or review the [Query engine configuration guide](/pages/query-engine-config.html) for detailed instructions.
 
 ### Generate a CSV file
 
@@ -204,15 +230,9 @@ Open the Visulate for Oracle UI and navigate to a database table. A query editor
 
 Enter the database password for the schema where the table resides to enable the `Run Query` button. Note: database credentials are passed to the SQL Query Engine using a basic auth header. Make sure you are using a secure (https) connection before submitting the query (you may need to accept some browser warnings). Run the query and review the results.
 
-A curl command appears below the results. Cut an paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't [setup a TLS certificate](/pages/tls-cert.html)
+A curl command appears below the results. Cut an paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't setup a TLS certificate
 
+## Next Steps
 
-### Clean up
-
-- Use the Kubernetes Engine -> Applications screen to delete the instance. Select the check box next to the application name then press the `Delete` button at the top of the screen
-
-![Delete Visulate for Oracle](/images/mp-delete-app.png){: class="screenshot" tabindex="0" }
-
-- Delete the GKE Cluster if it is no longer required.
-- Drop the visulate user from the database. Login to SQL*Plus as SYSTEM and run `drop user visulate cascade;`
-- Verify the Load balancer that was created to support the Ingress resource has been removed (see the [troubleshooting guide](/pages/troubleshooting.html#orphaned-network-resources) for details).
+- [Configure an Identity Aware Proxy](/pages/iap-setup.html) to control who has access to Visulate
+- [Register additional databases](/pages/database-registration)
