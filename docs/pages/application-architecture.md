@@ -54,12 +54,28 @@ EOF
 
 The endpoints.json file populates a Python dictionary of endpoint:connect string pairs. The Query Engine accepts the endpoint as a path parameter (vis115 in the example above) and uses the dictionary to lookup its connect string. It combines this with the username and password passed in the header to establish a database connection. The SQL Query Engine does not use connection pooling. Each request makes a new database connection, executes the query, streams the result and then closes the connection.
 
-## Kubernetes Architecture
+## Deployment
 
-![K8S Architecture](/images/k8s.png)
+Visulate for Oracle provides 2 deployment options. A *Compute Engine* deployment configures all of the application components on a single Google Compute Engine (GCE) virtual machine. A *Kubernetes* deployment configures a Google Kubernetes Engine (GKE) application with separate services and deployments for the API, UI and Query Engine components.
 
-Web users connect to the application via an Ingress resource. Http path rules in the ingress spec route requests to the UI, API or SQL Service as required. Database registration is performed using a Secret.  The Secret manifest delivers the database.js configuration file that the Express server reads during initialization as part of the API Server deployment. A similar mechanism is used to deliver the SQL Query Engine's endpoints.json file.
+Compute Engine deployments are easier to setup and manage. Kubernetes deployments provide more control over individual resources. We recommend most users start with a Compute Engine deployment.
 
-The UI and API Server deployment manifests include sidecar containers to support Google Cloud Platform (GCP) integration. The UI and API Server manifests use sidecar containers to make log file contents available to Stackdriver. The API Server manifest creates 2 additional sidecars to support GCP Marketplace. The SQL Query Engine sends its logs to stderr and stdout instead of writing to a file. This avoids the need for a sidecar to populate Stackdriver
+### Compute Engine Architecture
+
+![Google Compute Engine (GCE) Architecture](/images/gce.png)
+
+Web users connect to the application via an Nginx reverse proxy container listening on port 80. The connection can be via a load balancer or direct if the VM has been configured with a public IP address. Configuring a load balancer is the recommended approach. The Visulate VM is provisioned with a private IP address and no public IP address. The private IP is added to a Network Endpoint Group (NEG) for inclusion in a load balancer backend configuration. The load balanced backend service uses Identity Aware Proxy (IAP) to control access to the application.
+
+Database registration is performed by editing files in an OS directory that has been volume mounted to the API and SQL Query containers.
+
+### Kubernetes Architecture
+
+![Google Kubernetes Engine (GKE) Architecture](/images/k8s.png)
+
+Web users connect to the application via a ClusterIP resource. This exposes an nginx deployment which proxies requests to the UI, API or SQL Service as required. The proxy service exposes an Network Endpoint Group (NEG) for inclusion in a load balancer backend configuration. The load balanced backend service uses Identity Aware Proxy (IAP) to control access to the application.
+
+Database registration is performed using a Secret.  The Secret manifest delivers the database.js configuration file that the Express server reads during initialization as part of the API Server deployment. A similar mechanism is used to deliver the SQL Query Engine's endpoints.json file.
+
+The UI and API Server deployment manifests include sidecar containers to support Google Cloud Platform (GCP) integration. The UI and API Server manifests use sidecar containers to make log file contents available to Cloud Logging. The API Server manifest creates 2 additional sidecars to support GCP Marketplace. The SQL Query Engine sends its logs to stderr and stdout instead of writing to a file. This avoids the need for a sidecar to populate Cloud Logging
 
 The application's [helm chart](https://github.com/visulate/visulate-for-oracle/tree/master/google-marketplace/chart/visulate-for-oracle) is available in GitHub. The [install guide](/pages/install-guide.html#command-line-instructions) has instructions for using it.
