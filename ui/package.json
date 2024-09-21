@@ -27,6 +27,7 @@
     "@angular/router": "^18.1.1",
     "highlight.js": "^10.4.1",
     "ngx-highlightjs": "^9.0.0",
+    "ngx-markdown": "^18.0.0",
     "rxjs": "~6.5.5",
     "save-dev": "^0.0.1-security",
     "tslib": "^2.6.3",

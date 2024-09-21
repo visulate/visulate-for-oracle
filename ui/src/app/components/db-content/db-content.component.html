@@ -28,6 +28,22 @@
 
 
 <ng-template #queryResults>
+
+    <mat-accordion *ngIf="currentContext && currentContext.objectName  && objectDetails">
+        <mat-expansion-panel [(expanded)]=queryPanelExpanded>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                   Generative AI
+                </mat-panel-title>
+                <mat-panel-description>
+                  Code Generation and Analysis
+                </mat-panel-description>
+            </mat-expansion-panel-header>
+            <app-chat [currentContext]="currentContext" [currentObject]="objectDetails"></app-chat>
+        </mat-expansion-panel>
+        </mat-accordion>
+
+
     <mat-accordion *ngIf="sqlEnabled && currentContext && currentContext.endpoint">
         <mat-expansion-panel [(expanded)]=queryPanelExpanded>
             <mat-expansion-panel-header>

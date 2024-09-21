@@ -36,7 +36,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import {MatGridListModule} from '@angular/material/grid-list';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -52,6 +53,8 @@ import { HighlightModule, HIGHLIGHT_OPTIONS } from 'ngx-highlightjs';
 import { FilterObjectsComponent } from './components/filter-objects/filter-objects.component';
 import { SqlComponent } from './components/sql/sql.component';
 import { SqlValidatorDirective } from './components/sql/sql.directive';
+import { MarkdownModule } from 'ngx-markdown';
+import { ChatComponent } from './components/chat/chat.component';
 
 @NgModule({ declarations: [
   AppComponent,
@@ -64,7 +67,8 @@ import { SqlValidatorDirective } from './components/sql/sql.directive';
   FilterObjectsComponent,
   HideInternalPipe,
   SqlComponent,
-  SqlValidatorDirective
+  SqlValidatorDirective,
+  ChatComponent
 ],
 bootstrap: [AppComponent], imports: [BrowserModule,
   CommonModule,
@@ -89,6 +93,8 @@ bootstrap: [AppComponent], imports: [BrowserModule,
   MatAutocompleteModule,
   MatCheckboxModule,
   MatGridListModule,
+  MatProgressSpinnerModule,
+  MarkdownModule.forRoot(),
   HighlightModule], providers: [
   {
     provide: HIGHLIGHT_OPTIONS,

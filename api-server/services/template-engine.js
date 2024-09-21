@@ -70,6 +70,30 @@ handlebars.registerHelper('ifLevelChanged', function (levelName, newLevel, optio
   }
 });
 
+// Trim trailing comma from an array
+handlebars.registerHelper('formatLinks', function(objects, options) {
+  let links = [];
+
+  // Collect links from ForeignKeys, ForeignKeystothisTable, UsedBy, and Uses
+  objects.forEach(result => {
+      if (result.ForeignKeys && result.ForeignKeys.length) {
+          result.ForeignKeys.forEach(fk => links.push(fk.LINK));
+      }
+      if (result.ForeignKeystothisTable && result.ForeignKeystothisTable.length) {
+          result.ForeignKeystothisTable.forEach(fktt => links.push(fktt.LINK));
+      }
+      if (result.UsedBy && result.UsedBy.length) {
+          result.UsedBy.forEach(ub => links.push(ub.LINK));
+      }
+      if (result.Uses && result.Uses.length) {
+          result.Uses.forEach(use => links.push(use.LINK));
+      }
+  });
+
+  // Return the formatted links as a string, separated by commas, and properly formatted for JSON
+  return new handlebars.SafeString('"' + links.join('",\n"') + '"');
+});
+
 
 /**
  * Mutate object by stripping space characters from keys

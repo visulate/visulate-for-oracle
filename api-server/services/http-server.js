@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const httpServerConfig = require('../config/http-server.js');
 const router = require('./router.js');
+const bodyParser = require('body-parser');
 let httpServer;
 
 /**
@@ -55,6 +56,8 @@ function initialize() {
       corsOptions = { origin: false };
     }
 
+    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
     app.use(cors(corsOptions));
     httpServer = http.createServer(app);
