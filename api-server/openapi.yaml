@@ -465,6 +465,68 @@ paths:
           description: DDL generation not supported for Oracle internal objects
         404:
           description: Requested database was not found
+
+  /api/collection:
+    post:
+      summary: Retrieve details of related objects
+      description: This endpoint retrieves details of related objects based on the provided input. Calls the database object report endpoint for each related object and returns the results.
+      operationId: getRelatedObjectDetails
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                object:
+                  type: string
+                  example: "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
+                baseUrl:
+                  type: string
+                  example: "https://yourhost.com/api/vis24/"
+                baseDB:
+                  type: string
+                  example: "vis24"
+                baseOwner:
+                  type: string
+                  example: "RNTMGR2"
+                baseType:
+                  type: string
+                  example: "TABLE"
+                baseObject:
+                  type: string
+                  example: "RNT_ACCOUNTS_RECEIVABLE"
+                relatedObjects:
+                  type: array
+                  items:
+                    type: string
+                    example:
+                      - "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
+                      - "RNTMGR2/TABLE/RNT_AGREEMENT_ACTIONS"
+                      - "RNTMGR2/TABLE/RNT_LOANS"
+              example:
+                object: "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
+                baseUrl: "https://yourhost.com/api/vis24/"
+                baseDB: "vis24"
+                baseOwner: "RNTMGR2"
+                baseType: "TABLE"
+                baseObject: "RNT_ACCOUNTS_RECEIVABLE"
+                relatedObjects:
+                  - "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
+                  - "RNTMGR2/TABLE/RNT_AGREEMENT_ACTIONS"
+                  - "RNTMGR2/TABLE/RNT_LOANS"
+      responses:
+        '200':
+          description: A list of related object details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QueryResult"
+        '400':
+          description: Bad request
+
   /api/collection/{db}:
     post:
       summary: Database object collection

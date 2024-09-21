@@ -43,6 +43,40 @@ const collectionSchema = {
   }
 };
 
+const objectListSchema = {
+  type: 'object',
+  required: ['object', 'baseUrl', 'baseDB', 'baseOwner', 'baseType', 'baseObject', 'relatedObjects'],
+  properties: {
+    object: { type: 'string' },
+    baseUrl: { type: 'string' },
+    baseDB: { type: 'string' },
+    baseOwner: { type: 'string' },
+    baseType: { type: 'string' },
+    baseObject: { type: 'string' },
+    relatedObjects: {
+      type: 'array',
+      items: { type: 'string' }
+    }
+  }
+};
+
+const aiSchema = {
+  type: 'object',
+  required: ['message', 'context'],
+  properties: {
+    message: { type: 'string' },
+    context: { type: ['object', 'array'],
+      items: {
+        type: 'object'
+      }
+    }
+  }
+};
+
+const transformSchema = {
+  type: 'array'
+}
+
 router.route('/')
   .get(controller.getEndpoints);
 
@@ -78,10 +112,18 @@ router.route('/ddl/:db/:owner/:type/:name/:status')
   .get(controller.generateDDL);
 
 router.route('/api/:db/:owner/:type/:name')
-  .get(controller.showObject);
+  .get(controller.showObject)
+  .post(validate({ body: transformSchema }), controller.transformObject);
+
+router.route('/api/collection')
+  .post(validate({ body: objectListSchema }), controller.getObjectReferences);
 
 router.route('/api/collection/:db')
   .post(validate({ body: collectionSchema }), controller.getCollection);
+
+router.route('/ai')
+  .post(validate({body: aiSchema}), controller.generativeAI);
+
 
 // Error handler JSON Schema errors
 router.use((err, req, res, next) => {

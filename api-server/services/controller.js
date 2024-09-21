@@ -15,6 +15,7 @@
  */
 
 const dbConfig = require('../config/database.js');
+const httpConfig = require('../config/http-server.js');
 const dbService = require('./database.js');
 const sql = require('./sql-statements');
 const logger = require('./logger.js');
@@ -23,6 +24,8 @@ const endpointList = getEndpointList(dbConfig.endpoints);
 const dbConstants = require('../config/db-constants');
 const templateEngine = require('./template-engine');
 const async = require('async');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(httpConfig.googleAiKey);
 
 /**
  * Gets a list of endpoints
@@ -395,14 +398,53 @@ module.exports.generateDDL = generateDDL;
 // Show object details
 ////////////////////////////////////////////////////////////////////////////////
 
+async function getDependencies(connection, sql, dbService, owner, object_type, object_name, object_id) {
+  let result = [];
+  const query = sql.statement['ADB-YN'];
+  const r = await dbService.query(connection, query.sql, query.params);
+  const absDb = (r[0]['Autonomous Database'] === 'Yes') ? true : false;
+
+  if (absDb) { // Autonomous DB query dba_dependencies
+    const queryCollection = sql.collection['DEPENDENCIES-ADB'];
+    for (let c of queryCollection.objectTypeQueries) {
+      c.params.owner.val = owner;
+      c.params.object_type.val = object_type;
+      c.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+  } else { // Query dependency$ table
+    /**
+     * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
+     */
+    const queryCollection = ['PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TRIGGER', 'TYPE', 'TYPE BODY', 'LIBRARY', 'ASSEMBLY']
+      .includes(object_type) ? sql.collection['DEPENDENCIES'] : sql.collection['DEPENDENCIES-NOSOURCE'];
+
+    for (let c of queryCollection.objectNameIdQueries) {
+      c.params.object_id.val = object_id;
+      c.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+    for (let c of queryCollection.objectIdQueries) {
+      c.params.object_id.val = object_id;
+      const cResult = await dbService.query(connection, c.sql, c.params);
+      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+    }
+  }
+
+  return result;
+}
+
 /**
  * Run object detail queries
  * @param {*} poolAlias - database connection
  * @param {*} owner - schema
  * @param {*} object_type - database object type
  * @param {*} object_name - database object name
+ * @param {boolean} [include_dependencies=true] - whether to include dependencies
  */
-async function getObjectDetails(poolAlias, owner, object_type, object_name) {
+async function getObjectDetails(poolAlias, owner, object_type, object_name, include_dependencies = true) {
   let query = sql.statement['OBJECT-DETAILS'];
   query.params.owner.val = owner;
   query.params.object_type.val = object_type;
@@ -468,44 +510,13 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name) {
         result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
       }
     }
-
   }
 
-  query = sql.statement['ADB-YN'];
-  r = await dbService.query(connection, query.sql, query.params);
-  const absDb = (r[0]['Autonomous Database'] === 'Yes') ? true : false;
-
-  if (absDb) { // Autonomous DB query dba_dependencies
-    queryCollection = sql.collection['DEPENDENCIES-ADB'];
-    for (let c of queryCollection.objectTypeQueries) {
-      c.params.owner.val = owner;
-      c.params.object_type.val = object_type;
-      c.params.object_name.val = object_name;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-    }
+  if (include_dependencies) {
+    const dependencies = await getDependencies(connection, sql, dbService, owner, object_type, object_name, object_id);
+    result.push(...dependencies);
   }
-  else { // Query dependency$ table
-    /**
-     * If object_type source is stored in sys.source$ find the line numbers for each  "uses" dependency
-     */
-    ['PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TRIGGER', 'TYPE', 'TYPE BODY', 'LIBRARY', 'ASSEMBLY']
-      .includes(object_type) ? queryCollection = sql.collection['DEPENDENCIES'] :
-      queryCollection = sql.collection['DEPENDENCIES-NOSOURCE'];
 
-    for (let c of queryCollection.objectNameIdQueries) {
-      c.params.object_id.val = object_id;
-      c.params.object_name.val = object_name;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-    }
-    for (let c of queryCollection.objectIdQueries) {
-      c.params.object_id.val = object_id;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
-    }
-
-  }
   await dbService.closeConnection(connection);
   return result;
 }
@@ -545,14 +556,64 @@ async function showObject(req, res, next) {
   } else {
     res.status(200).json(objectDetails);
   }
-
 }
-
 module.exports.showObject = showObject;
+
+/**
+ * Implements POST /api/:db/:owner/:type/:name endpoint
+ * Transform the object details using a handlebars template
+ * @param {*} req - request
+ * @param {*} res - response
+ */
+
+async function transformObject(req, res) {
+  const objectDetails = req.body
+  if (req.query.template) {
+    templateEngine.applyTemplate('object', objectDetails, req)
+      .then(result => {
+        if (typeof (result) === "string") { res.type('txt'); }
+        res.status(200).send(result);
+      })
+      .catch(err => { res.status(404).send(err) });
+  } else {
+    res.status(400).send("Missing template parameter");
+  }
+}
+module.exports.transformObject = transformObject;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Object collections
 ////////////////////////////////////////////////////////////////////////////////
+
+async function getObjectReferences(req, res, next) {
+  const { object, baseDB, relatedObjects } = req.body;
+  const results = [];
+
+  for (const obj of relatedObjects) {
+    if (obj !== object) {
+      const [owner, object_type, object_name] = obj.split('/');
+      const details = await getObjectDetails(
+        baseDB, owner, object_type, object_name, false
+      ).catch((error) => {
+        logger.log('error',
+          `controller.js getObjectReferences() failed for ${baseDB}, ${owner}, ${object_type}, ${object_name}`);
+        logger.log('error', error);
+        res.status(503).send(`Database connection failed for ${baseDB}`);
+        next(error);
+      });
+      // push the object details to the results array as a key value pair with
+      // ${baseDB}.${owner}.${object_type}.${object_name} as the key
+      if (details !== '404') {
+        results.push({ [`${baseDB}.${owner}.${object_type}.${object_name}`]: details });
+      }
+   }}
+
+  res.status(200).json(results);
+}
+
+module.exports.getObjectReferences = getObjectReferences;
+
 
 async function getUsesDependencies(connection, object) {
   query = sql.statement['DEPENDS-ON'];
@@ -626,3 +687,45 @@ async function getCollection(req, res, next) {
   res.status(200).json(result);
 }
 module.exports.getCollection = getCollection;
+
+
+/**
+ * Implements POST /ai endpoint.  Calls Google AI to generate text
+ * @param {*} req - request
+ * @param {*} res - response
+ */
+async function generativeAI(req, res) {
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: `You are a database architect called Visulate. You responsible for the design of an oracle database.
+   You have access to a tool that generates json documents describing database objects and
+   their related objects. The json documents follow a predictable structure for each database object.
+   Each object comprises an array of properties. These properties vary by object type. but follow a
+   consistent pattern. Title, description and display elements are followed by a list of rows. The display
+   property lists items from the rows that should be displayed in a user interface.
+
+   The context object for this exercise will include 2 objects. The first one will be called "objectDetails"
+   and will contain the details of a database object that the user would like to ask questions about.
+   The second object will be called "relatedObjects". It will contain a list of objects that are related to the
+   objectDetails object. An additional object called "chatHistory" will contain the conversation history.
+
+   Do not mention the JSON document in your response.
+
+   Assume any questions the user asks are be about the objectDetails object unless the question states otherwise.
+   Use the relatedObjects objects to provide context for the answers. Try to be expansive in your answers where
+   appropriate. For example, if the user asks for a SQL statement for a table include the table's columns and
+   join conditions to related tables in the response.`
+   });
+
+   let contextText;
+   if (typeof req.body.context === 'object') {
+     contextText = JSON.stringify(req.body.context);
+   } else {
+     contextText = req.body.context;
+   }
+
+  const prompt = `${req.body.message} \n\n ${contextText}`;
+  const result = await model.generateContent(prompt);
+  res.status(200).json(result.response.text());
+}
+module.exports.generativeAI = generativeAI;
