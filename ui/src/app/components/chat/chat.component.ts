@@ -9,7 +9,7 @@ import { environment } from '../../../environments/environment';
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css']
 })
-export class ChatComponent implements OnInit, OnChanges, AfterViewChecked {
+export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
   @Input() currentContext: any;
   @Input() currentObject: any;
   @ViewChild('messageContainer') private messageContainer: ElementRef;
@@ -52,9 +52,10 @@ export class ChatComponent implements OnInit, OnChanges, AfterViewChecked {
     }
   }
 
-  ngAfterViewChecked(): void {
-    this.scrollToBottom();
-  }
+  // ngAfterViewChecked(): void {
+  //   //this.scrollToBottom();
+  // }
+
   sendMessage(): void {
     const userMessage = this.chatForm.get('message').value;
     this.messages.push({ user: 'You', text: userMessage });
@@ -72,6 +73,8 @@ export class ChatComponent implements OnInit, OnChanges, AfterViewChecked {
         this.isLoading = false;
         this.stopCounter();
         this.updateContext('Visulate', response);
+        this.scrollToTopOfRecentMessage();
+        this.scrollToBottom();
       },
       error => {
         console.error('Error calling LLM:', error);
@@ -82,7 +85,8 @@ export class ChatComponent implements OnInit, OnChanges, AfterViewChecked {
   }
 
   callLLM(message: string): Observable<string> {
-    const apiUrl = `${environment.aiBase}`;
+    const apiUrl = `${environment.aiBase}/`;
+    this.startCounter();
     const payload = {
       context: this.collectionData,
       message: message
@@ -95,6 +99,18 @@ export class ChatComponent implements OnInit, OnChanges, AfterViewChecked {
       this.messageContainer.nativeElement.scrollTop = this.messageContainer.nativeElement.scrollHeight;
     } catch(err) {
       console.error('Scroll to bottom failed:', err);
+    }
+  }
+
+  private scrollToTopOfRecentMessage(): void {
+    try {
+      const messageElements = this.messageContainer.nativeElement.querySelectorAll('.message');
+      if (messageElements.length > 0) {
+        const lastMessageElement = messageElements[messageElements.length - 1];
+        lastMessageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (err) {
+      console.error('Scroll to top of recent message failed:', err);
     }
   }
 

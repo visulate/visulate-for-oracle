@@ -7,6 +7,7 @@ export const environment = {
   findObjectBase: '/find',
   ddlGenBase: '/ddl',
   queryBase:  window.location.protocol + '//' + window.location.hostname + '/sql',
+  aiBase: '/ai',
   internalSchemas:
   ['ANONYMOUS', 'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DBSFWUSER', 'DBSNMP', 'DIP', 'DVF', 'DVSYS',
     'GGSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'LBACSYS', 'MDSYS', 'OJVMSYS', 'OLAPSYS',

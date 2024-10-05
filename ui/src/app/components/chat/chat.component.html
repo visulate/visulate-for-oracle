@@ -1,17 +1,21 @@
 <div class="chat-container">
+  <div *ngIf="isLoading">
+    <p>Working... {{ counter }} seconds</p>
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
   <div class="messages" #messageContainer>
+
+
+
     <div *ngFor="let msg of messages" class="message">
       <strong>{{ msg.user }}:</strong>
       <div markdown>{{ msg.text }}</div>
     </div>
-    <div *ngIf="isLoading">
-      <p>Working... {{ counter }} seconds</p>
-      <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
-    </div>
+
   </div>
-  <form [formGroup]="chatForm" (ngSubmit)="sendMessage()">
-    <input formControlName="message" placeholder="Type your message" />
-    <button type="submit">Send</button>
+  <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="chat-form">
+    <input formControlName="message" placeholder="Type your message" class="large-text"/>
+    <button type="submit" class="large-text">Send</button>
   </form>
-  <button (click)="downloadMessages()">Download Messages</button>
+  <button (click)="downloadMessages()" class="large-text">Download Messages</button>
 </div>

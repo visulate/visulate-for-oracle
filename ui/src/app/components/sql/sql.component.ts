@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Pipe, PipeTransform } from '@angular/core';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
@@ -129,4 +129,14 @@ export class SqlComponent implements OnInit, OnDestroy {
     this.unsubscribe$.complete();
   }
 
+}
+
+@Pipe({
+  name: 'trim'
+})
+export class TrimPipe implements PipeTransform {
+  transform(value: string): string {
+    if (!value) return value;
+    return value.replace(/\s+/g, ' ').trim();
+  }
 }

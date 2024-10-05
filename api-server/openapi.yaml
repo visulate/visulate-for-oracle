@@ -703,6 +703,83 @@ paths:
                 ],
                 "executionTime":	0.47812914848327637}
 
+  /ai:
+    get:
+      summary: Check if AI is enabled
+      description: |
+        Returns a JSON object indicating whether the AI feature is enabled.
+      responses:
+        200:
+          description: AI feature status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    example: true
+
+    post:
+      summary: Generate text using Google AI
+      description: |
+        Calls Google AI to generate text based on the provided message and context.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: "What is the structure of the users table?"
+                context:
+                  type: object
+                  example: {
+                    "objectDetails": {
+                      "title": "Users Table",
+                      "description": "Details of the users table",
+                      "display": ["username", "email"],
+                      "rows": [
+                        {"username": "john_doe", "email": "john@example.com"},
+                        {"username": "jane_doe", "email": "jane@example.com"}
+                      ]
+                    },
+                    "relatedObjects": [
+                      {
+                        "title": "Orders Table",
+                        "description": "Details of the orders table",
+                        "display": ["order_id", "user_id"],
+                        "rows": [
+                          {"order_id": 1, "user_id": "john_doe"},
+                          {"order_id": 2, "user_id": "jane_doe"}
+                        ]
+                      }
+                    ],
+                    "chatHistory": [
+                      {"user": "You", "text": "Tell me about the users table."},
+                      {"user": "Visulate", "text": "The users table contains details of users including username and email."}
+                    ]
+                  }
+      responses:
+        200:
+          description: Generated text
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    example: "The users table contains details of users including username and email."
+        503:
+          description: Service unavailable
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Google AI key is not set"
 components:
   securitySchemes:
     dbCustomAuth:

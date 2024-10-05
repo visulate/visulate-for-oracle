@@ -25,7 +25,9 @@ const dbConstants = require('../config/db-constants');
 const templateEngine = require('./template-engine');
 const async = require('async');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(httpConfig.googleAiKey);
+
+
+
 
 /**
  * Gets a list of endpoints
@@ -688,44 +690,65 @@ async function getCollection(req, res, next) {
 }
 module.exports.getCollection = getCollection;
 
+/**
+ * Implements GET /ai endpoint.
+ * Returns true if httpConfig.googleAiKey is set and false otherwise
+ * @param {*} req - request
+ * @param {*} res - response
+ */
+function aiEnabled(req, res) {
+  if (httpConfig.googleAiKey) {
+    res.status(200).json({enabled: true});
+  } else {
+    res.status(200).json({enabled: false});
+  }
+}
+module.exports.aiEnabled = aiEnabled;
+
 
 /**
- * Implements POST /ai endpoint.  Calls Google AI to generate text
+ * Implements POST /ai/ endpoint.  Calls Google AI to generate text
  * @param {*} req - request
  * @param {*} res - response
  */
 async function generativeAI(req, res) {
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: `You are a database architect called Visulate. You responsible for the design of an oracle database.
-   You have access to a tool that generates json documents describing database objects and
-   their related objects. The json documents follow a predictable structure for each database object.
-   Each object comprises an array of properties. These properties vary by object type. but follow a
-   consistent pattern. Title, description and display elements are followed by a list of rows. The display
-   property lists items from the rows that should be displayed in a user interface.
+  // Create a new instance of the GoogleGenerativeAI class if the GOOGLE_AI_KEY is set
+  if (httpConfig.googleAiKey) {
+    const genAI = new GoogleGenerativeAI(httpConfig.googleAiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: `You are a database architect called Visulate. You responsible for the design of an oracle database.
+     You have access to a tool that generates json documents describing database objects and
+     their related objects. The json documents follow a predictable structure for each database object.
+     Each object comprises an array of properties. These properties vary by object type. but follow a
+     consistent pattern. Title, description and display elements are followed by a list of rows. The display
+     property lists items from the rows that should be displayed in a user interface.
 
-   The context object for this exercise will include 2 objects. The first one will be called "objectDetails"
-   and will contain the details of a database object that the user would like to ask questions about.
-   The second object will be called "relatedObjects". It will contain a list of objects that are related to the
-   objectDetails object. An additional object called "chatHistory" will contain the conversation history.
+     The context object for this exercise will include 2 objects. The first one will be called "objectDetails"
+     and will contain the details of a database object that the user would like to ask questions about.
+     The second object will be called "relatedObjects". It will contain a list of objects that are related to the
+     objectDetails object. An additional object called "chatHistory" will contain the conversation history.
 
-   Do not mention the JSON document in your response.
+     Do not mention the JSON document in your response.
 
-   Assume any questions the user asks are be about the objectDetails object unless the question states otherwise.
-   Use the relatedObjects objects to provide context for the answers. Try to be expansive in your answers where
-   appropriate. For example, if the user asks for a SQL statement for a table include the table's columns and
-   join conditions to related tables in the response.`
-   });
+     Assume any questions the user asks are be about the objectDetails object unless the question states otherwise.
+     Use the relatedObjects objects to provide context for the answers. Try to be expansive in your answers where
+     appropriate. For example, if the user asks for a SQL statement for a table include the table's columns and
+     join conditions to related tables in the response.`
+     });
 
-   let contextText;
-   if (typeof req.body.context === 'object') {
-     contextText = JSON.stringify(req.body.context);
-   } else {
-     contextText = req.body.context;
-   }
+     let contextText;
+     if (typeof req.body.context === 'object') {
+       contextText = JSON.stringify(req.body.context);
+     } else {
+       contextText = req.body.context;
+     }
 
-  const prompt = `${req.body.message} \n\n ${contextText}`;
-  const result = await model.generateContent(prompt);
-  res.status(200).json(result.response.text());
+    const prompt = `${req.body.message} \n\n ${contextText}`;
+    const result = await model.generateContent(prompt);
+    res.status(200).json(result.response.text());
+  } else {
+    res.status(503).send("Google AI key is not set");
+  }
 }
 module.exports.generativeAI = generativeAI;

@@ -121,7 +121,9 @@ router.route('/api/collection')
 router.route('/api/collection/:db')
   .post(validate({ body: collectionSchema }), controller.getCollection);
 
+
 router.route('/ai')
+  .get(controller.aiEnabled)
   .post(validate({body: aiSchema}), controller.generativeAI);
 
 
