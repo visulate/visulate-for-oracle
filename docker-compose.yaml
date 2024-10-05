@@ -13,6 +13,9 @@ services:
       - "3000"
     volumes:
       - ./api-server/config:/visulate-server/config
+    environment:
+      - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
+      - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
   visui:
     hostname: visui
     depends_on:

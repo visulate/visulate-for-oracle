@@ -1,5 +1,5 @@
 /* !
- * Copyright 2019 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,6 +123,13 @@ export class RestService {
   ): Observable<string> {
     return this.http.get
     (`${environment.queryBase}/${endpoint}`, {responseType: 'text'} );
+  }
+
+  /**
+   * Check if AI is enabled
+   */
+  public getAiEnabled$(): Observable<{ enabled: boolean }> {
+    return this.http.get<{ enabled: boolean }>(`${environment.aiBase}`);
   }
 
 

@@ -29,8 +29,8 @@
 
 <ng-template #queryResults>
 
-    <mat-accordion *ngIf="currentContext && currentContext.objectName  && objectDetails">
-        <mat-expansion-panel [(expanded)]=queryPanelExpanded>
+    <mat-accordion *ngIf="aiEnabled && currentContext && currentContext.objectName  && objectDetails">
+        <mat-expansion-panel expanded=false>
             <mat-expansion-panel-header>
                 <mat-panel-title>
                    Generative AI

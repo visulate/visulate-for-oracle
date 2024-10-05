@@ -48,6 +48,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public currentEndpoint: EndpointModel;
   public sqlEnabled: boolean;
   public queryPanelExpanded = false;
+  public aiEnabled: boolean;
   public errorMessage: string;
 
   selectedOption = ''; // To store the selected option
@@ -177,11 +178,27 @@ export class DbContentComponent implements OnInit, OnDestroy {
       this.state.sqlEnabled$
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(sqlEnabled => {this.sqlEnabled = sqlEnabled; });
+      this.state.aiEnabled$
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe(aiEnabled => { this.aiEnabled = aiEnabled; });
+
+      this.checkAiEnabled();
     }
 
     ngOnDestroy() {
       this.unsubscribe$.next();
       this.unsubscribe$.complete();
+    }
+
+    private checkAiEnabled(): void {
+      this.restService.getAiEnabled$().pipe(takeUntil(this.unsubscribe$)).subscribe(
+        (data: { enabled: boolean }) => {
+          this.state.saveAiEnabled(data.enabled);
+        },
+        error => {
+          this.errorMessage = error.message;
+        }
+      );
     }
 
   }

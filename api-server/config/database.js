@@ -9,6 +9,17 @@ const endpoints = [
             poolMax: 4,
             poolIncrement: 0
             }
+},
+{ namespace: 'vis24win',
+    description: 'Visulate 2024 Windows Instance',
+    connect: { poolAlias: 'vis24win',
+            user: 'visulate',
+            password: 'visLand32754',
+            connectString: '192.168.1.28:1521/vis24pdb',
+            poolMin: 4,
+            poolMax: 4,
+            poolIncrement: 0
+            }
 }
 ];
 module.exports.endpoints = endpoints;

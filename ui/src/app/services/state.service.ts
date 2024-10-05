@@ -1,5 +1,5 @@
 /* !
- * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,10 +50,12 @@ export class StateService {
       new  CurrentContextModel('', '', '', '', '', false, []),
       []));
   private sqlEnabled = new BehaviorSubject<boolean>(false);
+  private aiEnabledSubject = new BehaviorSubject<boolean>(false);
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
   sqlEnabled$ = this.sqlEnabled.asObservable();
+  aiEnabled$ = this.aiEnabledSubject.asObservable();
 
   getCurrentContext() {
     return this.getStoredContext();
@@ -108,6 +110,10 @@ export class StateService {
   saveSqlEnabled(sqlEnabled: boolean) {
     this._sqlEnabled = sqlEnabled;
     this.sqlEnabled.next(sqlEnabled);
+  }
+
+  saveAiEnabled(aiEnabled: boolean) {
+    this.aiEnabledSubject.next(aiEnabled);
   }
 
   saveContextInLocalStorage(context: CurrentContextModel) {

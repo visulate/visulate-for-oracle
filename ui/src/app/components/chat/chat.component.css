@@ -5,7 +5,7 @@
 }
 
 .messages {
-  height: 720px;
+  height: 600px;
   overflow-y: scroll;
   margin-bottom: 10px;
 }
@@ -21,4 +21,18 @@ input {
 
 button {
   padding: 5px;
+}
+
+.large-text {
+  font-size: 1.2em; /* Adjust the size as needed */
+}
+
+.chat-form input {
+  width: calc(100% - 100px); /* Adjust width to fit the container */
+  padding: 10px;
+  margin-right: 10px;
+}
+
+.chat-form button {
+  padding: 10px;
 }

@@ -73,7 +73,7 @@ curl \
 -H 'Content-Type: application/json' \
 -H 'Accept: text/csv' \
 -d &#64;- << EOF
-{{ '{' }} "sql": "{{curlSql}}"<ng-container *ngIf="bindVariables">,
+{{ '{' }} "sql": "{{curlSql | trim}}"<ng-container *ngIf="bindVariables">,
 "binds":  {{bindVariables}}</ng-container><ng-container *ngIf="queryOptions">,
 "options": {{queryOptions}}</ng-container>
 {{ '}' }}
