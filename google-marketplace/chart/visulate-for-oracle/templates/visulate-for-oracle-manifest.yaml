@@ -53,6 +53,18 @@ data:
           proxy_pass       http://visapi/ddl/;
           proxy_redirect     off;
         }
+        location /endpoints/ {
+          proxy_pass       http://visapi/endpoints/;
+          proxy_redirect     off;
+        }
+        location /ai {
+          proxy_pass       http://visapi/ai/;
+          proxy_redirect     off;
+        }
+        location /ai/ {
+          proxy_pass       http://visapi/ai/;
+          proxy_redirect     off;
+        }
         location /sql/ {
           proxy_pass       http://vissql/sql/;
           proxy_redirect     off;
@@ -168,6 +180,8 @@ spec:
           env:
             - name: CORS_ORIGIN_WHITELIST
               value: "{{ .Values.apiServer.corsOriginWhitelist }}"
+            - name: GOOGLE_AI_KEY
+              value: "{{ .Values.apiServer.googleAiKey }}"
           livenessProbe:
             httpGet:
               path: /endpoints/

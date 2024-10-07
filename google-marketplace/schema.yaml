@@ -26,6 +26,7 @@ x-google-marketplace:
       v1.1.36 Integrate handlebars templates into UI, add invalid object query, update UI to Angular 17 + security updates
       v1.1.37 Support for query engine behind IAP
       v2.0.0 Replace ingres with nginx reverse proxy
+      v2.0.1 Add Gen AI to database object report
   images:
     '':
       properties:
