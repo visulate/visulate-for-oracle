@@ -151,7 +151,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
   - Edit `database.js` file in the `/home/visulate/config` directory with the connect details
 
     ```
-    vi config/database.js
+    sudo vi config/database.js
 
     const endpoints = [
     { namespace: 'testdb',
@@ -171,7 +171,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
   - Edit `endpoints.json` in the `/home/visulate/config` directory to enable query access for a database. Note: the json key must match an endpoint declared in the database.js file and the json value must match its connectString.
 
     ```
-    vi config/endpoints.json
+    sudo vi config/endpoints.json
 
     {"testdb":"oratest.us-east1-b.c.visulate-llc-dev.internal:1521/free23pdb1"}
     ```
@@ -179,7 +179,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
   - Restart Visulate
 
     ```
-    docker-compose up
+    docker-compose up -d
     ```
 
 
@@ -231,6 +231,54 @@ Open the Visulate for Oracle UI and navigate to a database table. A query editor
 Enter the database password for the schema where the table resides to enable the `Run Query` button. Note: database credentials are passed to the SQL Query Engine using a basic auth header. Make sure you are using a secure (https) connection before submitting the query (you may need to accept some browser warnings). Run the query and review the results.
 
 A curl command appears below the results. Cut an paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't setup a TLS certificate
+
+### Enable Google Gemini AI
+
+1. Register an API key in [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+2. Edit the `docker-compose.yaml` in the `/home/visulate` directory to add the key as an environment variable for the `visapi` service
+
+    ```
+    version: "3.8"
+    services:
+      reverseproxy:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
+        container_name: reverseproxy
+        ports:
+          - 80:80
+        networks:
+          - visulate_network
+
+      visapi:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle:2.0
+        container_name: visapi
+        expose:
+          - "3000"
+        volumes:
+          - /home/visulate/config:/visulate-server/config
+        environment:
+          - GOOGLE_AI_KEY=your-google-api-key
+        networks:
+          - visulate_network
+        healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:3000"]
+          interval: 30s
+          timeout: 10s
+          retries: 3
+    ```
+
+3. Restart Visulate
+
+    ```
+    docker-compose down
+    docker-compose up -d
+    ```
+
+4. Navigate to a database table screen and start asking questions
+
+
+    ![Visulate for Oracle Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
+
 
 ## Next Steps
 
