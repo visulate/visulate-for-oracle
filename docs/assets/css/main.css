@@ -3662,3 +3662,10 @@ img {
 			margin-top: 0;
 			padding-top: 0;
 		}
+
+		.video {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			margin-top: 20px;
+		}
