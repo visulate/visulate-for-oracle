@@ -40,6 +40,8 @@ The query engine supports 3 optional arguments to modify its behavior:
 
 These are passed as an object e.g. `{"download_lobs": "N", "csv_header": "N", "cx_oracle_object":  "MDSYS.SDO_GEOMETRY"}`
 
+**Note** the cx_oracle_object functionality is currently unavailable due to [Github Issue 317](https://github.com/visulate/visulate-for-oracle/issues/317)
+
 ### download_lobs
 
 By default the query engine returns a character string with the LOB size rather than the actual content for queries that include a CLOB or BLOB column. This behavior can be modified by passing a value of "Y" for the download_lobs option. This will cause the query engine to return CLOB and BLOB values in the results as long as the values do not exceed 1 GB in length. BLOB values base64 encoded prior to download.
@@ -49,6 +51,8 @@ By default the query engine returns a character string with the LOB size rather 
 ### csv_header
 
 The csv_header option includes or excludes the generation of a header row in the results with column names from the query. It affects the CSV file contents returned from the REST API (e.g. via curl). The UI ignores this parameter.
+
+<!-- comment out until fix for https://github.com/visulate/visulate-for-oracle/issues/317 is available
 
 ### cx_oracle_object
 
@@ -110,7 +114,7 @@ EOF
 "
 ```
 
-**Note:** The query engine only allows one object type per query
+**Note:** The query engine only allows one object type per query -->
 
 ## CSV file generation
 
@@ -159,9 +163,75 @@ Change the http request header `Accept` value from test/csv to application/json 
 
 ## Timeout behavior
 
-Long running queries may timeout before completion. The default setting for this is 30 seconds. The [query engine config](/pages/query-engine-config.html#timeout-duration) guide includes instructions on how to change this.
+Long running queries may timeout before completion. The default setting for this is 30 seconds. Update the load balancer backend timeout to increase this value.
 
 ## Security considerations
 
 - Access to this feature can be controlled by a configuration file. This allows an admin to limit the list of database environments that allow query access. For example, they may wish to allow access for development databases but not production. See The [query engine config](/pages/query-engine-config.html) guide for details.
 - Database credentials are passed to the SQL Query Engine using a basic auth header. It should only be used via a secure (https) connection.
+
+## Using curl in an IAP enabled environment
+
+curl requests to Visulate will fail with an empty token error if IAP has been enabled:
+
+```
+curl \
+-L 'https://catalog2.visulate.com/sql/testdb' \
+-H 'X-DB-Credentials: SFIvaHIyMIDzQHRlc3RkYg==' \
+-H 'Content-Type: application/json' \
+-H 'Accept: text/csv' \
+-d @- << EOF
+{ "sql": "select * from EMPLOYEES where rownum < :maxrows",
+"binds":  {"maxrows": 10 },
+"options": {"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}
+}
+EOF
+
+Invalid IAP credentials: empty token
+```
+
+Additional setup steps are required to enable access:
+
+1. Grant the [service account token creator](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountTokenCreator) role to the user that needs to make the request
+2. Create a service account for Visulate access
+3. Grant the *IAP-secured Web App User* role to the service account for the IAP protected endpoint (see [IAP setup](/pages/iap-setup.html#setup-iap-access) document)
+4. Identify the OAUTH_CLIENT_ID for the IAP protected endpoint from [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) screen
+5. Verify the *User Type* on the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) is set to **External**
+6. Call the API:
+
+    ```
+    gcloud auth application-default login
+
+    OAUTH_CLIENT_ID=214450074222-rlc11nhjs22cf4n9mafupf417a7p16l2.apps.googleusercontent.com
+    AUTHORIZED_SA=visulate-iap-cur@my-project.iam.gserviceaccount.com
+
+    ID_TOKEN=$(
+    gcloud auth print-identity-token \
+    --audiences  $OAUTH_CLIENT_ID \
+    --include-email \
+    --impersonate-service-account $AUTHORIZED_SA
+    )
+
+    curl \
+    -L 'https://catalog2.visulate.com/sql/testdb' \
+    -H "Proxy-Authorization: Bearer $ID_TOKEN" \
+    -H 'X-DB-Credentials: SFIvaHIyMDIzQHRlc3RkYg==' \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: text/csv' \
+    -d @- << EOF
+    { "sql": "select * from EMPLOYEES where rownum < :maxrows",
+    "binds":  {"maxrows": 10 },
+    "options": {"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}
+    }
+    EOF
+
+    100,"Steven","King","SKING","1.515.555.0100","2013-06-17 00:00:00","AD_PRES",24000.0,"","",90
+    101,"Neena","Yang","NYANG","1.515.555.0101","2015-09-21 00:00:00","AD_VP",17000.0,"",100,90
+    102,"Lex","Garcia","LGARCIA","1.515.555.0102","2011-01-13 00:00:00","AD_VP",17000.0,"",100,90
+    103,"Alexander","James","AJAMES","1.590.555.0103","2016-01-03 00:00:00","IT_PROG",9000.0,"",102,60
+    104,"Bruce","Miller","BMILLER","1.590.555.0104","2017-05-21 00:00:00","IT_PROG",6000.0,"",103,60
+    105,"David","Williams","DWILLIAMS","1.590.555.0105","2015-06-25 00:00:00","IT_PROG",4800.0,"",103,60
+    106,"Valli","Jackson","VJACKSON","1.590.555.0106","2016-02-05 00:00:00","IT_PROG",4800.0,"",103,60
+    107,"Diana","Nguyen","DNGUYEN","1.590.555.0107","2017-02-07 00:00:00","IT_PROG",4200.0,"",103,60
+    108,"Nancy","Gruenberg","NGRUENBE","1.515.555.0108","2012-08-17 00:00:00","FI_MGR",12008.0,"",101,100
+  ```

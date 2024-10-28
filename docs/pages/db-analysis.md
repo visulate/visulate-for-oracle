@@ -5,7 +5,7 @@
 
 The first step in an Oracle database migration is to analyze the source database's complexity. Much of the information required to do this can be obtained by querying the Oracle data dictionary. The Oracle database dictionary is a set of system catalog views which contain metadata about the database. This metadata includes the number and type of different schema objects used, the source code for stored procedures, the server configuration and more.
 
-Visulate for Oracle includes a series of pre-defined database analysis queries. They run automatically when the database or schema selection changes in the UI.
+Visulate for Oracle includes a series of predefined database analysis queries. They run automatically when the database or schema selection changes in the UI.
 
 ## Database Analysis
 

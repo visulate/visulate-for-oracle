@@ -2,9 +2,111 @@
 {:toc id="toc"}
 # Troubleshooting
 
-## Database registration failure
+## Registered database does not appear in the UI drop down
+Follow these steps if the database registration succeeds but some (or all) of your databases are missing.
 
-Database registration failures typically appear while updating the deployment but are usually caused by errors in the database registration file.
+### Call the /endpoints api
+The endpoints api lists valid and invalid database connections. Call the api with no arguments to get a list of valid connections. Pass `status=invalid` as a get parameter to identify invalid ones. Example:
+
+```
+curl https://catalog.visulate.net:3000/endpoints?status=invalid
+{"ora18xe":{"connectString":"ap884.visulate.net:91521/XEPDB1","error":"Get connection timed out after 5000 ms"}}
+```
+
+### Review the API Server deployment log files
+The API Server writes log file entries when the connection fails. These can be accessed from the Deployment details page of the GKE console by selecting the "Container logs" link. They can also be accessed from an api server pod. Use kubectl exec to login to the pod. The log files are located in the /visulate-server/logs directory.
+
+```
+kubectl exec -it {visulate-api-podname} -- bash
+
+bash-4.2# cd logs
+
+bash-4.2# pwd
+/visulate-server/logs
+
+bash-4.2# ls
+access.log  combined.log  error.log
+
+head -50 combined.log
+```
+
+### Make an API call
+
+The UI calls the /api/ endpoint to get the list of databases to display in the dropdown. Use curl to call it.
+
+### Check your browser developer tools for network and console errors
+Use the network tab to examine the request to the /api/ endpoint. The response should equal the curl request above. Make sure the Object Filter field in the UI is empty. This is passed as a get parameter to the API. It adds a wildcard filter to the result set which could cause a database to be excluded.
+
+### Check the username, password and connect string
+
+Follow the instructions in the [network configuration guide](/pages/network-configuration.html) to open a bash shell in one of the API server pods. Navigate to the "/visulate-server/config" directory. Use the cat command to view the contents of the "database.js" file.
+
+```
+bash-4.2# cd /visulate-server/config
+bash-4.2# cat database.js
+```
+
+This file holds the credentials that the API server reads on startup to establish database connection pools. See the [database registration guide](/pages/database-registration.html) for additional details
+
+### Test your firewall rules
+
+Follow the steps in the [network configuration guide](/pages/network-configuration.html)
+
+### Check the Visulate account permissions
+
+The visulate account must have been granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY. It must not have any additional privileges for security reasons. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set. These appear in the API Server log file:
+```
+{"level":"info","message":"Creating poolAlias system for db25.visulate.net:401521/XEPDB1",
+         "timestamp":"2020-05-11T19:40:57.104Z"}
+...
+{"level":"error","message":"Closing poolAlias system. Account has invalid privileges.
+          Expected: 'CREATE SESSION,SELECT ANY DICTIONARY,SELECT_CATALOG_ROLE'
+          Found: 'AQ_ADMINISTRATOR_ROLE,CREATE MATERIALIZED VIEW,CREATE TABLE,DBA,DEQUEUE ANY QUEUE,
+          ENQUEUE ANY QUEUE,GLOBAL QUERY REWRITE,MANAGE ANY QUEUE,SELECT ANY TABLE,UNLIMITED TABLESPACE'",
+         "timestamp":"2020-05-11T19:41:04.414Z"}
+```
+
+## Query Editor is not displayed in the UI
+
+The Query Editor display is controlled by values in the [endpoints.json](/pages/query-engine-config.html#endpointsjson-file) file. If the editor is not being displayed the most likely reason is a missing or misconfigured entry in that file.
+
+The entries in the file must match those of the corresponding database in the database.js file. For example, if the database.js file contains the following endpoint:
+
+```
+{ namespace: 'oracle18XE',
+    description: '18c XE PDB instance running in a docker container',
+    connect: { poolAlias: 'oracle18XE',
+              user: 'visulate',
+              password: 'HtuUDK%?4JY#]L3:',
+              connectString: 'db20.visulate.net:41521/XEPDB1',
+              poolMin: 4,
+              poolMax: 4,
+              poolIncrement: 0,
+              poolPingInterval: 0
+            }
+  }
+```
+
+The endpoint.json file must reference the same endpoint and connectString:
+
+```
+{"oracle18XE":"db205.visulate.net:41521/XEPDB1"}
+```
+
+The /endpoints API can be used to get a list of endpoints and connectStrings. The UI calls the /api/{db} API to determine whether to show the query region. The region is shown if a connect string is returned and it matches the connect string returned by the API server for the same database endpoint
+
+## AI Chatbot is not displayed in the UI
+
+The **GOOGLE_AI_KEY** value was not set as an environment variable prior to starting the API server process. Edit the [docker-compose.yaml](/pages/quickstart.html#enable-google-gemini-ai) file or [kubernetes manifest](/pages/quickstart-k8s.html#enable-google-gemini-ai) to set a value.
+
+The UI calls the /ai endpoint to determine whether the AI feature is enabled.
+
+## Lost database registration file
+
+Login to an API server pod to view its details - see the [username, password and connect string](#check-the-username-password-and-connect-string) step above.
+
+
+## Google Kubernetes Engine Errors
 
 ### Pod errors: CrashLoopBackOff
 
@@ -71,117 +173,3 @@ The deployment configuration has changed since the manifest was created.
 #### How do I fix it?
 Follow the instructions in the [database registration](/pages/database-registration.html#update-the-api-server-deployment)
 guide to generate a new one.
-
-
-## Registered database does not appear in the UI drop down
-Follow these steps if the database registration succeeds but some (or all) of your databases are missing.
-
-### Call the /endpoints api
-The endpoints api lists valid and invalid database connections. Call the api with no arguments to get a list of valid connections. Pass `status=invalid` as a get parameter to identify invalid ones. Example:
-
-```
-curl https://catalog.visulate.net:3000/endpoints?status=invalid
-{"ora18xe":{"connectString":"ap884.visulate.net:91521/XEPDB1","error":"Get connection timed out after 5000 ms"}}
-```
-
-### Review the API Server deployment log files
-The API Server writes logfile entries when the connection fails. These can be accessed from the Deployment details page of the GKE console by selecting the "Container logs" link. They can also be accessed from an api server pod. Use kubectl exec to login to the pod. The logfiles are located in the /visulate-server/logs directory.
-
-```
-kubectl exec -it {visulate-api-podname} -- bash
-
-bash-4.2# cd logs
-
-bash-4.2# pwd
-/visulate-server/logs
-
-bash-4.2# ls
-access.log  combined.log  error.log
-
-head -50 combined.log
-```
-
-### Make an API call
-
-The UI calls the /api/ endpoint to get the list of databases to display in the dropdown. Use curl to call it.
-
-```shell
-# Find the ingress ip address (substitute your ingress name for "visulate-1-igs")
-INGRESS_IP=$(kubectl get ingress visulate-1-igs \
-  --namespace default \
-  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
-
-# get the database list and pipe to json_pp for formatting
-curl http://${INGRESS_IP}/api/ | json_pp
-
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  3903  100  3903    0     0   5481      0 --:--:-- --:--:-- --:--:--  5474
-{
-   "endpoints" : [
-      {
-         "connectString" : "db25.visulate.net:401521/XEPDB1",
-         "description" : "18c PDB instance running in a docker container",
-         "endpoint" : "oracle18E",
-         "schemas" : {
-            "HR" : [
-
-...
-}
-```
-
-### Check your browser developer tools for network and console errors
-Use the network tab to examine the request to the /api/ endpoint. The response should equal the curl request above. Make sure the Object Filter field in the UI is empty. This is passed as a get parameter to the API. It adds a wildcard filter to the result set which could cause a database to be excluded.
-
-### Check the username, password and connect string
-
-Follow the instructions in the [network configuration guide](/pages/network-configuration.html) to open a bash shell in one of the API server pods. Navigate to the "/visulate-server/config" directory. Use the cat command to view the contents of the "database.js" file.
-
-```
-bash-4.2# cd /visulate-server/config
-bash-4.2# cat database.js
-```
-
-This file holds the credentials that the API server read on startup to establish database connection pools. See the [database registration guide](/pages/database-registration.html) for additional details
-
-### Test your firewall rules
-
-Follow the steps in the [network configuration guide](/pages/network-configuration.html)
-
-### Check the Visulate account permissions
-
-The visulate account must have been granted CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY. It must not have any additional privileges for security reasons. The API server checks the account's privileges on startup. It drops the connection if it finds any more or less that the required set. These appear in the API Server log file:
-```
-{"level":"info","message":"Creating poolAlias system for db25.visulate.net:401521/XEPDB1",
-         "timestamp":"2020-05-11T19:40:57.104Z"}
-...
-{"level":"error","message":"Closing poolAlias system. Account has invalid privileges.
-          Expected: 'CREATE SESSION,SELECT ANY DICTIONARY,SELECT_CATALOG_ROLE'
-          Found: 'AQ_ADMINISTRATOR_ROLE,CREATE MATERIALIZED VIEW,CREATE TABLE,DBA,DEQUEUE ANY QUEUE,
-          ENQUEUE ANY QUEUE,GLOBAL QUERY REWRITE,MANAGE ANY QUEUE,SELECT ANY TABLE,UNLIMITED TABLESPACE'",
-         "timestamp":"2020-05-11T19:41:04.414Z"}
-```
-
-## Lost database registration file
-
-See [Check the username, password and connect string](#check-the-username-password-and-connect-string) step above.
-
-
-## Orphaned network resources
-Network resources that were created to support the ingress are usually removed automatically when the Visulate application is deleted. There are 2 circumstances where this automatic cleanup can fail:
-1. The combined length of the namespace and instance name exceed 32 characters
-2. The loadbalancer that supports the ingress was updated manually
-
-### Namespace and instance name exceed 32 characters
-This is an issue with Google's ingress implementation see [GCP Marketplace Tools issue 495](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/issues/495).
-
-You need to manually delete the orphaned resources. Open the Load balancing page under Network services to remove backend services, health checks and SSL certs:
-
-![Delete the load balancer](/images/delete-lb.png){: class="screenshot" tabindex="0"}
-
-Then open the External IP addresses under VPC network to release the IP address:
-
-![Delete IP address](/images/delete-ip.png){: class="screenshot" tabindex="0"}
-
-### Manual edits to the load balancer
-Orphaned resources can also occur if you made manual edits to the load balancer that was created to support the ingress (e.g. as described in the [upgrade guide](/pages/upgrade-guide.html#add-a-new-ip-address-and-forwarding-rule-to-the-load-balancer)).  Manually delete the load balancer and IP address as described above. You may also need to manually delete the ingress.
