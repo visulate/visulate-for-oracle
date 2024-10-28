@@ -11,7 +11,7 @@ Each database in the Visulate catalog needs to be registered. The API server mai
 
 ## Database registration file
 
-The database registration file (/config/database.js in the diagram) exports a Javascript array objects with connection details for the Visulate account in each database (see [database setup guide](/pages/database-setup.html)).  A sample file appears below.
+The database registration file (/config/database.js in the diagram) exports a Javascript array object with connection details for the Visulate account in each database (see [database setup guide](/pages/database-setup.html)).  A sample file appears below.
 
 ```
 const endpoints = [
@@ -45,7 +45,18 @@ module.exports.endpoints = endpoints;
 
 Parameter values are described in the [Oracle node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#connpooling) documentation. The Visulate for Oracle sets the [UV_THREADPOOL_SIZE environment variable](http://docs.libuv.org/en/v1.x/threadpool.html) to the sum of the poolMax values + 4 before starting the Express server.
 
-## Register your databases
+## VM Registration
+
+In a VM deployment the *database.js* file is located in the **/home/visulate/config** directory and can be edited directly. ssh into the VM to change its values and then restart the service using docker-compose:
+
+```
+cd /home/visulate
+sudo vi config/database.js
+docker-compose down
+docker-compose up -d
+```
+
+## Kubernetes Registration
 
 The initial deployment from GCP Marketplace provisions an API Server with no registered databases. You must create and apply a database registration file. A Kubernetes Secret is used to deliver a database registration file to the cluster. After the secret has been applied the API Server deployment is updated to use it.
 
@@ -144,7 +155,7 @@ Download the API Server deployment manifest
 kubectl get deploy test-deployment-visulate-for-oracle-api --namespace=test-ns -oyaml > deployment.yaml
 ```
 
-Edit the downloaded deployment manifest. Update the secretName with the value from the previous step (use `kubectl get secret` if you forgot to make a note the value).
+Edit the downloaded deployment manifest. Update the secretName with the value from the previous step (use `kubectl get secret` if you forgot to make a note of the value).
 ```
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -163,7 +174,7 @@ metadata:
         name: logfiles
 status: {}
 ```
-**Tip:** the API server deployment manifest is quite long, look for a volumes secret called "config-database-volume". It should have a default secretName in the form {{ Release.Name }}-empty-database-array
+**Tip:** the API server deployment manifest is quite long, look for a volume's secret called "config-database-volume". It should have a default secretName in the form {{ Release.Name }}-empty-database-array
 
 Validate the edited manifest:
 ```
@@ -186,7 +197,7 @@ $ curl https://visulate.mycorp.com/endpoints/
 {"mptest":"35.232.143.223:51521/XEPDB1"}
 ```
 
-The registed connections should also appear in the database dropdown in the UI.
+The registered connections should also appear in the database dropdown in the UI.
 
 Follow the steps in the  [troubleshooting guide](/pages/troubleshooting.html) if some or all of your database connections are missing
 

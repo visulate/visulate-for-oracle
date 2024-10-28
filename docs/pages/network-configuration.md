@@ -156,6 +156,6 @@ If the SQL*Plus connections fail you may need to update the database server's fi
 
 ## Create an Egress IP address using NAT
 
-You will need an Egress IP if your database firewall only allows connections from known external IP addresses. This can achieved using network address translation (NAT). Visulate for Oracle has been tested using [Cloud NAT](https://cloud.google.com/nat/docs/overview) to allocate an Egress IP address to the cluster.
+You will need an Egress IP if your database firewall only allows connections from known external IP addresses. This can be achieved using network address translation (NAT). Visulate for Oracle has been tested using [Cloud NAT](https://cloud.google.com/nat/docs/overview) to allocate an Egress IP address to the cluster.
 
 ![Cluster with egress IP](/images/ingress-egress2.png)

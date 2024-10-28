@@ -13,15 +13,21 @@ Dependency reports are included at the bottom of each database object report. Fo
 
 ![Table details](/images/table-details.png){: class="screenshot" tabindex="0" }
 
-Scroll to the bottom of the page to see a list of object (e.g. packages, package bodies and views) that reference the table.
+Scroll to the bottom of the page to see a list of objects (e.g. packages, package bodies and views) that reference the table.
 
 ![Dependencies](/images/dependencies.png){: class="screenshot" tabindex="0" }
 
 Clicking on an object name in the dependency list will take you to a report showing its definition. For example, selecting a package body will open a report that shows the source code for the package body and a list of the SQL statement it contains.
 
+## AI powered dependency analysis
+
+An AI chat session can be used to identify dependencies for an individual database object. Navigate to the object you want to analyze and ask a series of questions. The AI model is pre-populated with details of the object and each of its dependent objects.
+
+![Dependencies](/images/ai-dependency.png){: class="screenshot" tabindex="0" }
+
 ## Using the object report API
 
-The database object report that the UI displays can also be accessed via an API call. Call the `/api` endpoint passing the database, schema, object type and object name as path parameters `/api/{database}/{schema}/{object type}/{object name}` Example:
+The database object reports that the UI displays can also be accessed via an API call. Call the `/api` endpoint passing the database, schema, object type and object name as path parameters `/api/{database}/{schema}/{object type}/{object name}` Example:
 
 ``` shell
 curl -X GET "https://my-domain.com/api/my-db/WIKI/PACKAGE/RNT_MENUS_PKG" \

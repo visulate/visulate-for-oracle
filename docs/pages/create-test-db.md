@@ -6,7 +6,7 @@ Use the Oracle 23 Free docker image to create a test instance on a Compute Engin
 
 ## Create a VM
 
-Use the Cloud Console or a gcloud command to create a VM with a 30GB boot disk using Google's Container Optimize OS:
+Use the Cloud Console or a gcloud command to create a VM with a 30GB boot disk using Google's Container Optimized OS:
 
 ```
 gcloud compute instances create vm-oracle23free \

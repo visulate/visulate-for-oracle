@@ -15,7 +15,7 @@ Running Visulate for Oracle on a Virtual Machine.
 
 ## Post install setup
 
-1. Wait for the VM to start and then use the Cloud Console or `gcloud compute ssh` to ssh into to it.
+1. Wait for the VM to start and then use the Cloud Console or `gcloud compute ssh` to ssh into it.
 
 2. Create a `.bash_profile` file in your home directory
 
@@ -185,7 +185,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
 
 
 ### Review your database and its data model
-Open the Visulate for Oracle UI. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
+Open the Visulate for Oracle UI. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
@@ -197,7 +197,7 @@ Click on one of the tables to open the table report. This report shows table det
 
 ![Table details](/images/table-details.png){: class="screenshot" tabindex="0" }
 
-Scroll to the bottom of the page to see a list of object (e.g. packages, package bodies and views) that reference the table.
+Scroll to the bottom of the page to see a list of objects (e.g. packages, package bodies and views) that reference the table.
 
 ![Dependencies](/images/dependencies.png){: class="screenshot" tabindex="0" }
 
@@ -230,7 +230,7 @@ Open the Visulate for Oracle UI and navigate to a database table. A query editor
 
 Enter the database password for the schema where the table resides to enable the `Run Query` button. Note: database credentials are passed to the SQL Query Engine using a basic auth header. Make sure you are using a secure (https) connection before submitting the query (you may need to accept some browser warnings). Run the query and review the results.
 
-A curl command appears below the results. Cut an paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't setup a TLS certificate
+A curl command appears below the results. Cut and paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't setup a TLS certificate
 
 ### Enable Google Gemini AI
 

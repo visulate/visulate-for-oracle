@@ -19,7 +19,7 @@ A search form provides direct access to individual schema objects. For example, 
 
 Oracle applies a naming convention to associate E-Business Suite database objects with the products that own them. Each product is assigned a 2 or 3 character product prefix. For example, all Accounts Receivable object names are prefixed with AR_. Visulate's object filter feature can be used to filter objects by product prefix.
 
- The Database Object Selection screen presents a list of product prefixes when the an E-Business Suite database is selected in the Database drop down.
+ The Database Object Selection screen presents a list of product prefixes when an E-Business Suite database is selected in the Database drop down.
 
 ![Product Lookup](/images/ebs-product-lookup.png){: class="screenshot" tabindex="0" }
 

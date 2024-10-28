@@ -10,7 +10,7 @@ Access to this feature is controlled by a configuration file. This allows a DBA 
 
 ## endpoints.json file
 
-The configuration file is called `endpoints.json`. It contains an object of key value pairs with keys that correspond to database endpoints and a values that represent their connect strings. Example:
+The configuration file is called `endpoints.json`. It contains an object of key value pairs with keys that correspond to database endpoints and values that represent their connect strings. Example:
 
 ```
 {"oracle18XE":"db205.visulate.net:98521/XEPDB1",
@@ -26,7 +26,18 @@ curl http://load-balancer-ip/endpoints/ > endpoints.json
 
 Edit the generated file to remove any entries you don't want to expose. Note: Do not edit individual endpoint keys or connect string values. The UI will not enable the query editor for database endpoints where the API Server and SQL Query Engine values do not match.
 
-## Apply the endpoints.json file as a new Kubernetes secret
+## Edit the endpoints.json for a VM deployment
+
+In a VM deployment the *endpoints.json* file is located in the **/home/visulate/config** directory. ssh into the VM to change its value and then restart the service using docker-compose:
+
+```
+cd /home/visulate
+sudo vi config/endpoints.json
+docker-compose down
+docker-compose up -d
+```
+
+## Apply the endpoints.json file as a new secret for a Kubernetes deployment
 
 Generate a kubernetes secret from the file with a key of `endpoints.json`:
 
@@ -98,64 +109,4 @@ db135.visulate.net:88521/vis115
 
 ## Timeout Duration
 
-By default requests to the SQL Query Engine timeout after 30 seconds. This can be extended using backend service timeouts as described in the [GKE Ingress Documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features#timeout).
-
-Use a text editor to create a manifest. For example, the following file creates a backend config called `sql-engine-5-minute-timeout` in the `test-ns` namespace with a timeout value of 300 seconds:
-
-```yaml
----
-apiVersion: cloud.google.com/v1
-kind: BackendConfig
-metadata:
-  name: sql-engine-5-minute-timeout
-  namespace: test-ns
-spec:
-  timeoutSec: 300
-```
-
-Use kubectl to apply the file:
-
-```shell
-kubectl apply -f BackendConfig.yaml
-```
-
-Download the manifest for SQL Engine service. Find the service with the `visulate-for-oracle-sql-svc` suffix
-
-```
- kubectl get service -n test-ns
-NAME                                                   TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
-visulate-for-oracle-1121-visulate-for-oracle-api-svc   NodePort   10.202.15.63    <none>        3000:31668/TCP               18d
-visulate-for-oracle-1121-visulate-for-oracle-sql-svc   NodePort   10.202.13.200   <none>        5000:30458/TCP               18d
-visulate-for-oracle-1121-visulate-for-oracle-ui-svc    NodePort   10.202.14.94    <none>        80:31934/TCP,443:30824/TCP   18d
-
-kubectl get service visulate-for-oracle-1121-visulate-for-oracle-sql-svc -n test-nat-ns -oyaml > sqlEngineSrv.yaml
-```
-Edit the generated file (sqlEngineSrv.yaml in the example above). Add an annotation `cloud.google.com/backend-config: '{"default":"sql-engine-5-minute-timeout-conf"}'` as shown below
-
-
-```yaml
-kind: Service
-metadata:
-  annotations:
-    cloud.google.com/backend-config: '{"default":"sql-engine-5-minute-timeout-conf"}'
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"visulate-for-oracle", ... other content
-  creationTimestamp: "2021-03-03T23:20:27Z"
-  labels:
-    ... other content
-
-```
-
-Validate and apply the file:
-
-```
-$ kubectl apply --dry-run=client --validate --namespace=test-ns -f sqlEngineSrv.yaml
-service/visulate-for-oracle-1121-visulate-for-oracle-sql-svc configured (dry run)
-
-$ kubectl apply --namespace=test-ns -f sqlEngineSrv.yaml
-service/visulate-for-oracle-1121-visulate-for-oracle-sql-svc configured
-```
-
-Wait a few minutes for the changes to take effect. The current timeout is displayed on the Load balancer details screen:
-
-![Backend timeout](/images/backend-timeout.png){: class="screenshot" tabindex="0" }
+By default requests to the SQL Query Engine timeout after 30 seconds. This can be extended by modifying the timeout duration for the load balancer backend.

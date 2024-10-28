@@ -1,19 +1,54 @@
 * TOC
 {:toc id="toc"}
 
-# Identity-Aware Proxy Configuration
+# Restricting access to Visulate
 
-## Overview
+Setup and configure an Identity-Aware Proxy to control who has access to Visulate before registering any databases that you do not want published on the public internet.
 
 Identity-Aware Proxy ([IAP](https://cloud.google.com/iap)) is a Google Cloud Platform service that provides access controls for https resources. IAP secures authentication for https requests and only grants access to users you authorize. This allows users to connect from untrusted networks without using a VPN.
 
-Visulate for Oracle supports IAP via the Ingress component
+The process for configuring IAP is outlined in the following documents:
 
-## Enable IAP
+- [Enabling IAP for Compute Engine](https://cloud.google.com/iap/docs/enabling-compute-howto) or
+- [Enabling IAP for Kubernetes Engine](https://cloud.google.com/iap/docs/enabling-kubernetes-howto)
 
-Make sure you have a valid [TLS Certificate](/pages/tls-cert.html) then follow the instructions in [Enabling IAP for GKE](https://cloud.google.com/iap/docs/enabling-kubernetes-howto) and summarized below
+This document describes the process to follow to setup an IAP enabled Visulate environment.
 
-### Configure the OAuth consent screen
+## Create or identify a NEG
+
+Create or identify a Zonal [Network endpoint group](https://cloud.google.com/load-balancing/docs/negs) (NEG) for to use as a backend in a load balancer
+
+  - **VM based deployments:**
+
+    - Remove any public IP addresses associated with the VM
+    - Create a Zonal NEG and allocate the Visulate VM to it.
+
+  - **Kubernetes:**
+    - Find the `cloud.google.com/neg` annotation in the proxy service that was created automatically when the service deployed e.g. "visulate-for-oracle-203-neg" in the example below
+
+      ```
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          cloud.google.com/neg: '{"exposed_ports": {"80":{"name": "visulate-for-oracle-203-neg"}}}'
+          cloud.google.com/neg-status: '{"network_endpoint_groups":{"80":"visulate-for-oracle-203-neg"},"zones":["us-east1-c"]}'
+          kubectl.kubernetes.io/last-applied-configuration: |
+            {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{"cloud.google.com/neg":"{\"exposed_ports\": {\"80\":{\"name\": \"visulate-for-oracle-203-neg\"}}}"},"labels":{"app":"visulate-for-oracle","app.kubernetes.io/name":"visulate-for-oracle-203","component":"proxy"},"name":"visulate-for-oracle-203-visulate-for-oracle-proxy-svc","namespace":"catalog","ownerReferences":[{"apiVersion":"app.k8s.io/v1beta1","blockOwnerDeletion":true,"kind":"Application","name":"visulate-for-oracle-203","uid":"324b652d-3226-4aa6-89e9-9bd150eb1de9"}]},"spec":{"ports":[{"name":"visulate-for-oracle-proxy","port":80,"protocol":"TCP","targetPort":80}],"selector":{"app":"visulate-for-oracle","app.kubernetes.io/component":"visulate-for-oracle-proxy","app.kubernetes.io/name":"visulate-for-oracle-203","component":"proxy"},"type":"ClusterIP"}}
+        creationTimestamp: "2024-10-06T21:30:38Z"
+        labels:
+      ```
+
+## Create a Load Balancer
+
+Create a Global external Application load balancer:
+- Use a [Google Managed Certificate](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs) as a frontend
+- and a [Zonal NEG](https://cloud.google.com/load-balancing/docs/https/setting-up-ext-global-https-hybrid#set_up_the_zonal_neg) as a backend.
+- Make sure CDN is **disabled** for the backend service as IAP is not supported for CDN backed resources.
+
+Wait for the load balancer to deploy and then test access using a browser. At this point Visulate should be accessible to the public internet. The following steps will restrict this access to a named list of users.
+
+## Configure the OAuth consent screen
 
 Open the GCP console and navigate to the OAuth consent screen under APIs & Services
 
@@ -25,7 +60,7 @@ Select internal as User Type and hit the `Create` button.
 
 Enter an App name and support email address then click `Save`.
 
-### Create OAuth credentials
+## Create OAuth credentials
 
 Navigate to to the Credentials page under APIs & Services
 
@@ -45,74 +80,18 @@ https://iap.googleapis.com/v1/oauth/clientIds/`CLIENT_ID`:handleRedirect
 
 where CLIENT_ID is the OAuth client ID you copied to the clipboard.
 
-### Setup IAP access
+## Setup IAP access
 
-Navigate to the Identity-Aware Proxy page under Security. You should see 3 Visulate for Oracle services listed under Backend Services. These will be labeled with -api-svc, -sql-svc and -ui-svc suffixes as shown in the screenshot below. Select the checkboxes for each one and hit the `Add Principal` button on the right  of the screen.
+Navigate to the Identity-Aware Proxy page under Security. You should see an entry for the load balancer backend service. Select the checkbox at the start of the row and hit the `Add Principal` button on the right  of the screen.
 
 ![IAP Backend Service Selection](/images/iap-backend-service-selection.png){: class="screenshot" tabindex="0" }
 
-In the Add principals dialog that appears, enter the email addresses of groups or individuals who should have access the the Visulate UI and APIs. Select IAP-secured Web App User in the Role field and hit `Save`
+In the Add principals dialog that appears, enter the email addresses of groups or individuals who should have access the Visulate UI and APIs. Select IAP-secured Web App User in the Role field and hit `Save`
 
 ![IAP Authorized Users](/images/iap-principals.png){: class="screenshot" tabindex="0" }
 
-## BackendConfig
+Use the toggle control on the Visulate row to enable IAP.
 
+## Test IAP
 
-
-### Create a Kubernetes secret
-
-Use the client_id and client_secret values from the client_secret JSON file downloaded earlier
-
-```
-kubectl create secret generic visulate-iap-secret --namespace=catalog-ns \
-    --from-literal=client_id=client_id_key \
-    --from-literal=client_secret=client_secret_key
-```
-
-### Create a BackendConfig
-
-Use a text editor to create a manifest file
-
-```
-vi iap-backend-config.yaml
-```
-
-Example:
-```
----
-apiVersion: cloud.google.com/v1
-kind: BackendConfig
-metadata:
-  name: config-default
-  namespace: catalog-ns
-spec:
-  iap:
-    enabled: true
-    oauthclientCredentials:
-      secretName: visulate-iap-secret
-```
-
-Apply the file to your cluster
-
-```
-kubectl apply -f iap-backend-config.yaml
-```
-
-### Annotate Services
-
-Navigate to the Services & Ingress page under Kubernetes Engine in the GCP console. For each service, hit the `Edit` button at the top of the page to access the YAML Editor. Add a beta.cloud.google.com/backend-config annotation as shown below (note the "config-default" value matches the BackendConfig name in the previous step)
-
-![IAP Service Annotation](/images/iap-service-manifest.png){: class="screenshot" tabindex="0" }
-
-Example:
-```
-metadata:
-  annotations:
-    beta.cloud.google.com/backend-config: '{"default": "config-default"}'
-```
-
-Complete this step for each Service (-api-svc, -sql-svc and -ui-svc)
-
-## Test
-
-Wait for the changes to take effect then open the Visulate UI in a new Incognito window. You should be required to authenticate with your Google credentials.
+Wait for the changes to take effect then open the Visulate UI in a new Incognito window. You should be required to authenticate with your Google credentials. Verify that each user that has been assigned *IAP-secured Web App User* access is able to use Visulate while logged in with Google credentials. Also verify that users who have not been granted access are unable to use Visulate.

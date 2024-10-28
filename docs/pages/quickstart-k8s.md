@@ -39,6 +39,8 @@ It may take a few minutes for the instance to deploy
 
 ### Create a Load Balancer
 
+Visulate creates an Nginx proxy service which exposes a network endpoint group (NEG). Create a load balancer with the NEG as a backend
+
 1. Navigate to [Google Cloud Load balancing](https://console.cloud.google.com/net-services/loadbalancing/list/loadBalancers) and click the `+ CREATE LOAD BALANCER` link at the top of the screen
 2. Select the following options on the setup screen
     1. Application Load Balancer (HTTP/HTTPS)
@@ -47,18 +49,13 @@ It may take a few minutes for the instance to deploy
     4. Global external Application Load Balancer
 3. Connect the the load balancer to NEG
 
-
-
-
-
-
 ### Verify the instance
 
-Click on the Load balancer IP address to open the Visulate for Oracle UI. Ingress rules should rewrite the url appending "/database" to the ip address as shown in the screenshot below.
+Click on the Load balancer IP address to open the Visulate for Oracle UI. Rewrite rules should append "/database" to the ip address as shown in the screenshot below.
 
 ![UI Homepage](/images/ui-screen.png){: class="screenshot" tabindex="0" }
 
-Edit the url changing "/database" to "/api/". This should make a call to the API server. **Tip:** make sure you include the trailing slash "/" in "/api/"
+Edit the url changing "/database" to "/api/". This should make a call to the API server.
 
 ![Empty API Response](/images/empty-api-response.png){: class="screenshot" tabindex="0" }
 
@@ -132,7 +129,7 @@ Press the `Save` button and wait for a new pod to deploy replacing the previous 
 Note: See the [database registration guide](/pages/database-registration.html) for additional details on this step.
 
 ### Review your database and its data model
-Open the Visulate for Oracle UI (using the load balancer IP address assigned by the Ingress). Click on the Database dropdown list. You should see an entry called "vis13". Select the value and wait for database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
+Open the Visulate for Oracle UI (using the load balancer IP address assigned by the Ingress). Click on the Database dropdown list. You should see an entry called "vis13". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
@@ -144,7 +141,7 @@ Click on one of the tables to open the table report. This report shows table det
 
 ![Table details](/images/table-details.png){: class="screenshot" tabindex="0" }
 
-Scroll to the bottom of the page to see a list of object (e.g. packages, package bodies and views) that reference the table.
+Scroll to the bottom of the page to see a list of objects (e.g. packages, package bodies and views) that reference the table.
 
 ![Dependencies](/images/dependencies.png){: class="screenshot" tabindex="0" }
 
@@ -204,7 +201,43 @@ Open the Visulate for Oracle UI and navigate to a database table. A query editor
 
 Enter the database password for the schema where the table resides to enable the `Run Query` button. Note: database credentials are passed to the SQL Query Engine using a basic auth header. Make sure you are using a secure (https) connection before submitting the query (you may need to accept some browser warnings). Run the query and review the results.
 
-A curl command appears below the results. Cut an paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't [setup a TLS certificate](/pages/tls-cert.html)
+A curl command appears below the results. Cut and paste this into a console window to execute the REST API call outside of the UI. Note you may need to pass `-k` or `--insecure` option if you haven't [setup a TLS certificate](/pages/tls-cert.html)
+
+### Enable Google Gemini AI
+
+1. Register an API key in [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+2. Open the API deployment screen (from GCP -> Kubernetes Engine -> Workloads) and enter a value for the `GOOGLE_AI_KEY` as shown below:
+
+    ```
+        spec:
+          containers:
+          - env:
+            - name: CORS_ORIGIN_WHITELIST
+            - name: GOOGLE_AI_KEY
+              value: <add-api-key-value-here>
+            image: gcr.io/visulate-for-oracle/visulate-for-oracle:20.1.3
+            imagePullPolicy: IfNotPresent
+            livenessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /endpoints/
+                port: 3000
+                scheme: HTTP
+              initialDelaySeconds: 180
+              periodSeconds: 60
+              successThreshold: 1
+              timeoutSeconds: 20
+            name: visulate-for-oracle-api
+    ```
+
+3. Save your changes and wait for the deployment to redeploy.
+
+4. Navigate to a database table screen and start asking questions
+
+
+    ![Visulate for Oracle Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
+
 
 
 ### Clean up
