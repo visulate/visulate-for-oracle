@@ -4,13 +4,16 @@
   <div class="content">
     <header>
       <h1>Oracle to Google AI</h1>
-      <p>Visulate: Empowering Database Developers with Oracle-Google Gemini AI Integration</p>
+      <p>Connect your Oracle databases to Google's AI</p>
     </header>
     <p><b>Visulate for Oracle</b> is a powerful tool designed to streamline the work of database developers by seamlessly integrating <b>Oracle databases</b> with <b>Google Gemini AI</b>. It unlocks new levels of productivity by reading metadata from the Oracle Data Dictionary, understanding object structures, relationships, and dependencies. With this knowledge, Visulate automates the generation of optimized code in <b>any programming language</b>, streamlining complex SQL, PL/SQL, and API interactions, and supporting AI-powered development workflows.</p>
 
     <ul class="actions">
-      <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle" class="button big">Install from Google Cloud Marketplace</a></li>
+      <li><a href="https://console.cloud.google.com/marketplace/product/visulate-llc-public/visulate-vm">
+        <img style="height: 6em; width: auto" src="/images/google-marketplace-button.png" alt="Launch on Google Cloud Marketplace" />
+      </a></li>
     </ul>
+
   </div>
 <span class="video">
   <iframe width="600" height="338"
@@ -26,7 +29,7 @@
 <!-- Section -->
   <section>
     <header class="major">
-      <h2>Designed for Developers: Automated Code, Smart Insights</h2>
+      <h2>Designed for Developers: Smart Insights, Automated Code</h2>
     </header>
     <div class="features">
       <article>

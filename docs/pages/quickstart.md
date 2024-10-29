@@ -10,7 +10,7 @@ Running Visulate for Oracle on a Virtual Machine.
 2. Install Visulate from the Google Cloud Marketplace Console
 
 <ul class="actions">
-  <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-vm__draft" class="button big">Go to Google Cloud Marketplace Console</a></li>
+  <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-vm" class="button big">Go to Google Cloud Marketplace</a></li>
 </ul>
 
 ## Post install setup
