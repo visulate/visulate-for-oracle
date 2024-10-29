@@ -13,11 +13,11 @@ How to create a Visulate for Oracle instance on Google Cloud Platform (GCP) and 
 
 
 ### Before you begin
-1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in GCP2.
-2. Open the Visulate for Oracle Console
+1. Identify or [create a Kubernetes cluster](https://cloud.google.com/kubernetes-engine/docs/quickstart) in Google Cloud.
+2. Install Visulate from the Google Cloud Marketplace Console
 
 <a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle"
-   class="button big" target="_blank">Go to Console</a>
+   class="button big" target="_blank">Go to Google Cloud Marketplace</a>
 
 ### Configure an instance
 
