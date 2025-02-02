@@ -11,6 +11,17 @@ sections:
       - title: "GKE Quickstart"
         href: "/pages/quickstart-k8s.html"
         description: "Create a Visulate for Oracle instance on Google Kubernetes Engine (GKE) and connect it to an Oracle database."
+  - name: Visulate Services
+    items:
+      - title: "Technical Design"
+        href: "/pages/design.html"
+        description: "Visulate for Oracle provides a browser UI to view and analyze Oracle database metadata"
+      - title: "Application Development"
+        href: "/pages/implementation.html"
+        description: "Visulate for Oracle uses AI to generate code from Oracle metadata"
+      - title: "Product Support"
+        href: "/pages/support.html"
+        description: "Visulate for Oracle provides a REST API to access Oracle metadata"
   - name: How-to guides
     items:
       - title: "Database analysis"

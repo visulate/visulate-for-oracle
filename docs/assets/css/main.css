@@ -2071,6 +2071,12 @@ img {
 
 /* Image */
 
+	.photo {
+		width: 60%;
+		border: solid 1px rgba(210, 215, 217, 0.75);
+	}
+
+
   .screenshot {
     width: 60%;
     border: solid 1px rgba(210, 215, 217, 0.75);
