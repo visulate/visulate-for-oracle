@@ -75,7 +75,7 @@ gcloud compute instances create vm-visulate4oracle \
   --machine-type=e2-medium \
   --image-family=cos-stable \
   --image-project=cos-cloud \
-  --boot-disk-size=10GB \
+  --boot-disk-size=20GB \
   --boot-disk-type=pd-ssd \
   --network=projects/visulate-docker/global/networks/visulate-docker-vpc  \
   --subnet=projects/visulate-docker/regions/us-east1/subnetworks/us-east1-01  \
@@ -88,6 +88,13 @@ Wait for VM to respond then shutdown and create a boot disk image
 
 
 sudo journalctl -u google-startup-scripts.service
+
+gcloud compute images create visulate-vm-feb25  \
+  --project visulate-llc-public  \
+  --source-disk projects/visulate-app/zones/us-east1-b/disks/vm-visulate4oracle  \
+  --licenses projects/visulate-llc-public/global/licenses/cloud-marketplace-bb6cb067de6855d1-df1ebeb69c0ba664  \
+  --description "Visulate for Oracle VM image - Feb 2025"
+
 
 
 ## Reference
