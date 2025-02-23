@@ -1,4 +1,4 @@
-## Privacy Notice for Google Marketplace Customers
+## Privacy Notice for Google Cloud Marketplace Customers
 
 **Effective Date:** February 23, 2025
 
