@@ -1,12 +1,11 @@
 import csv
 import sys
-import io
 import simplejson as json
-import oracledb as cx_Oracle
+import oracledb
 import sqlparse
 import base64
-import logging
 import time
+import datetime
 
 from flask import (
     Blueprint, Response, request, abort, current_app, make_response
@@ -29,7 +28,6 @@ class Line(object):
 def format_bytes(num):
     """Convert bytes to KB, MB, GB or TB"""
     step_unit = 1024
-
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
         if num < step_unit:
             return "%3.1f %s" % (num, x)
@@ -37,6 +35,7 @@ def format_bytes(num):
 
 def get_option(option, default):
     """Return an option from the query options dictionary"""
+    # This function is called *within* the request context
     query = request.json
     options = query.get('options')
     if options is not None:
@@ -44,144 +43,163 @@ def get_option(option, default):
     else:
         return default
 
-def print_lob_size(value):
-    """Return the LOB size instead of the LOB itself for display in UI"""
-    lobsize = sys.getsizeof(value)
-    lobsizeStr = format_bytes(lobsize)
-    return f'LOB (size: {lobsizeStr})'
+def dump_oracle_object_to_dict(obj):
+    """
+    Recursively converts an oracledb.Object (or collection) into a dictionary or list.
+    """
+    if not isinstance(obj, oracledb.Object):
+        return obj
 
-def download_clob(value):
-    """Download CLOB if less that 1 GB"""
-    lobsize = sys.getsizeof(value)
-    if lobsize < 1073741824:
-        return value
-    else:
-        fail_request(400, description="LOB download size exceeds 1 GB")
-
-def download_blob(value):
-    """Encode BLOB using base64 encoding and download if less that 1 GB"""
-    lobsize = sys.getsizeof(value)
-    if lobsize < 1073741824:
-        return base64.b64encode(value)
-    else:
-        fail_request(400, description="LOB download size exceeds 1 GB")
-
-def expand_object(obj, expanded_object, prefix = ""):
-    """Expand the contents of and Oracle Object"""
     if obj.type.iscollection:
-        print(prefix, "[", file=expanded_object)
-        for value in obj.aslist():
-            if isinstance(value, cx_Oracle.Object):
-                expand_object(value, expanded_object , prefix + "  ")
-            else:
-                print(prefix + "  ", repr(value), file=expanded_object)
-        print(prefix, "]", file=expanded_object)
+        result = []
+        if hasattr(obj, 'aslist'):
+            for value in obj.aslist():
+                result.append(dump_oracle_object_to_dict(value))
+        return result
     else:
-        print(prefix, "{", file=expanded_object)
+        result = {}
         for attr in obj.type.attributes:
-            value = getattr(obj, attr.name)
-            if isinstance(value, cx_Oracle.Object):
-                print(prefix + "   " + attr.name + ":", file=expanded_object)
-                expand_object(value, expanded_object , prefix + "  ")
-            else:
-                print(prefix + "   " + attr.name + ":", repr(value), file=expanded_object)
-        print(prefix, "}", file=expanded_object)
+            try:
+                value = getattr(obj, attr.name)
+                result[attr.name] = dump_oracle_object_to_dict(value)
+            except AttributeError:
+                result[attr.name] = f"Error: Attribute '{attr.name}' not found/accessible"
+        return result
 
-def object_out_converter(obj):
-    expanded_object = io.StringIO()
-    expand_object(obj, expanded_object, "")
-    return expanded_object.getvalue()
+def convert_db_value(value, download_lobs_flag): # Now accepts download_lobs_flag
+    """
+    Converts a single database value to a Python-friendly format suitable for JSON/CSV.
+    Handles LOBs, bytes, datetimes, and oracledb.Objects.
+    """
+    if isinstance(value, oracledb.LOB):
+        if download_lobs_flag.upper() == 'Y':
+            try:
+                lob_data = value.read()
+                if value.type == oracledb.DB_TYPE_BLOB:
+                    return base64.b64encode(lob_data).decode('utf-8')
+                return lob_data
+            except Exception as e:
+                return f"ERROR_LOB_DOWNLOAD: {str(e)}"
+        else:
+            lobsize = sys.getsizeof(value)
+            return f'LOB (size: {format_bytes(lobsize)})'
+    elif isinstance(value, bytes):
+        return value.decode('utf-8', errors='replace')
+    elif isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    elif isinstance(value, oracledb.Object):
+        return dump_oracle_object_to_dict(value)
+    else:
+        return value
 
 def output_type_handler(cursor, name, default_type, size, precision, scale):
-    """Modify the fetched data types for LOB and OBJECT columns"""
-    download_lobs = get_option("download_lobs", "N")
+    """
+    Modify the fetched data types for LOB and OBJECT columns.
+    For LOBs, we set long types to enable direct reading.
+    For OBJECTs, we just let oracledb return the Object directly; conversion
+    happens later in pipe_results_as_json/pipe_results.
+    """
+    if default_type == oracledb.CLOB:
+        return cursor.var(oracledb.DB_TYPE_LONG, arraysize=cursor.arraysize)
+    if default_type == oracledb.BLOB:
+        return cursor.var(oracledb.DB_TYPE_LONG_RAW, arraysize=cursor.arraysize)
 
-    if default_type == cx_Oracle.CLOB and download_lobs.upper() == 'Y':
-        return cursor.var(cx_Oracle.DB_TYPE_LONG, arraysize=cursor.arraysize, outconverter=download_clob)
-    if default_type == cx_Oracle.BLOB and download_lobs.upper() == 'Y':
-        return cursor.var(cx_Oracle.DB_TYPE_LONG_RAW, arraysize=cursor.arraysize, outconverter=download_blob)
+    object_typename = get_option("oracle_object_type", None)
+    if default_type == oracledb.OBJECT and object_typename is not None:
+        return cursor.var(default_type, arraysize=cursor.arraysize, typename=object_typename)
 
-    if default_type == cx_Oracle.CLOB and download_lobs.upper() != 'Y':
-        return cursor.var(cx_Oracle.LONG_STRING, arraysize=cursor.arraysize, outconverter=print_lob_size)
-    if default_type == cx_Oracle.BLOB and download_lobs.upper() != 'Y':
-        return cursor.var(cx_Oracle.LONG_BINARY, arraysize=cursor.arraysize, outconverter=print_lob_size)
-
-    object_typename = get_option("cx_oracle_object", None)
-    if default_type == cx_Oracle.OBJECT and object_typename is not None:
-        return cursor.var(default_type, arraysize=cursor.arraysize, outconverter=object_out_converter, typename=object_typename)
-
-    if default_type == cx_Oracle.DB_TYPE_VARCHAR:
+    if default_type == oracledb.DB_TYPE_VARCHAR:
         return cursor.var(default_type, size, arraysize=cursor.arraysize, encodingErrors="replace")
 
+    return None
 
-def iter_csv(data):
-    """pipe_results helper function"""
-    line = Line()
-    writer = csv.writer(line)
-    for csv_line in data:
-        writer.writerow(csv_line)
-        yield line.read()
-
-def pipe_results(connection, cursor, csv_header):
+def pipe_results(connection, cursor, csv_header, download_lobs): # Added download_lobs
     """Loop through a SQL statement's result set and return as CSV"""
     if cursor is None:
         connection.close()
-        return "Statement processed"
+        yield "Statement processed"
+        return
+
     line = Line()
     writer = csv.writer(line, delimiter=',', lineterminator="\n", quoting=csv.QUOTE_NONNUMERIC)
+
     try:
         if csv_header.upper() == "Y":
             columns = [col[0] for col in cursor.description]
             writer.writerow(columns)
             yield line.read()
+
         for row in cursor:
-            writer.writerow(row)
+            # Pass download_lobs directly to convert_db_value
+            processed_row = [convert_db_value(value, download_lobs) for value in row]
+            final_csv_row = []
+            for item in processed_row:
+                if isinstance(item, (dict, list)):
+                    final_csv_row.append(json.dumps(item, default=str))
+                else:
+                    final_csv_row.append(item)
+            writer.writerow(final_csv_row)
             yield line.read()
+
         cursor.close()
         connection.close()
-    except cx_Oracle.DatabaseError as e:
+    except oracledb.DatabaseError as e:
         errorObj, = e.args
         fail_request(400, description=errorObj.message)
+    except Exception as e:
+        fail_request(500, description=f"Error processing CSV results: {str(e)}")
 
-def pipe_results_as_json(connection, cursor, start_time):
+def pipe_results_as_json(connection, cursor, start_time, download_lobs): # Added download_lobs
     """Loop through a SQL statement's result set and return as a JSON object"""
     if cursor is None:
         connection.close()
         return Response('{"message": "Statement processed"}', mimetype='application/json')
-    def generate():
+
+    def generate(download_lobs_arg): # Generator now accepts download_lobs as an argument
         columns = [col[0] for col in cursor.description]
-        cursor.rowfactory = lambda *args: dict(zip(columns, args))
-        yield('{')
+
+        yield('{\n')
         yield(f'"columns":{json.dumps(columns)}, \n')
-        yield('"rows": ')
-        yield('[')
+        yield('"rows": [\n')
         try:
             firstRow = True
             for row in cursor:
                 if firstRow:
                     firstRow = False
-                    yield('\n')
                 else:
                     yield (',\n')
-                yield(json.dumps(row, default=str))
+
+                row_dict = {}
+                for i, col_value in enumerate(row):
+                    col_name = columns[i]
+                    # Use the argument passed to the generator
+                    row_dict[col_name] = convert_db_value(col_value, download_lobs_arg)
+
+                yield(json.dumps(row_dict, default=str))
+
             cursor.close()
             connection.close()
             yield('\n],')
             yield(f'"executionTime":{json.dumps(time.time() - start_time)} \n')
             yield('}')
-        except cx_Oracle.DatabaseError as e:
+        except oracledb.DatabaseError as e:
             errorObj, = e.args
-            fail_request(400, description=errorObj.message)
+            current_app.logger.error(f"Database Error during JSON streaming: {errorObj.message}")
+            yield(f'{{"error": "Database Error: {errorObj.message}"}}')
+        except Exception as e:
+            current_app.logger.error(f"Error during JSON streaming: {str(e)}")
+            yield(f'{{"error": "Internal Server Error: {str(e)}"}}')
 
-    return Response(generate(), mimetype='application/json')
+    # Pass download_lobs to the generator when creating the Response
+    return Response(generate(download_lobs), mimetype='application/json')
 
 def get_connection(username, password, connectString):
     """Get an Oracle database connection"""
     try:
-        connection = cx_Oracle.connect(user=username, password=password,
-                                       dsn=connectString)
+        connection = oracledb.connect(user=username, password=password,
+                                         dsn=connectString)
         connection.outputtypehandler = output_type_handler
-    except cx_Oracle.DatabaseError as e:
+    except oracledb.DatabaseError as e:
         errorObj, = e.args
         fail_request(401, description=errorObj.message)
     else:
@@ -192,20 +210,19 @@ def get_cursor(connection, sql, binds):
     try:
         cursor = connection.cursor()
         cursor.execute("set transaction read only")
-        if binds == None:
+        if binds is None or not binds:
             return cursor.execute(sql)
         else:
             return cursor.execute(sql, binds)
-    except cx_Oracle.DatabaseError as e:
+    except oracledb.DatabaseError as e:
         errorObj, = e.args
         fail_request(400, description=errorObj.message)
 
 def get_connect_string(endpoint):
     """Get the connect string for a registered endpoint"""
     connectString = current_app.endpoints.get(endpoint)
-    if connectString == None:
+    if connectString is None:
         return ''
-
     return connectString
 
 def validate_binds(binds):
@@ -219,7 +236,7 @@ def validate_binds(binds):
     else:
         fail_request(400, description=\
             "Bind variables must be a simple array e.g. [280, \"Accounts\"]\
-                 or object { \"dept_id\": 280, \"dept_name\": \"Accounts\"}")
+                     or object { \"dept_id\": 280, \"dept_name\": \"Accounts\"}")
 
 def validate_options(options):
     if isinstance(options, dict):
@@ -249,16 +266,7 @@ def healthz():
 
 @bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
 def sql2csv(endpoint):
-    """Generate a CSV file or JSON object from a SQL statement
-
-    POST a SQL statement + optional bind variables to a registered endpoint
-    passing the database username and password as basic auth credentials.
-    Returns a CSV stream or JSON object based on the value passed to the
-    http Accept header.
-
-    GET the connect string for a registered endpoint. Used by the UI to
-    control access to the query functionality.
-    """
+    """Generate a CSV file or JSON object from a SQL statement"""
 
     if request.method == 'POST':
         query = request.json
@@ -289,10 +297,16 @@ def sql2csv(endpoint):
         connection = get_connection(user, passwd, connStr)
         cursor = get_cursor(connection, sql, vbinds)
 
+        # Retrieve download_lobs here, within the request context
+        download_lobs = get_option("download_lobs", "N")
+        csv_header = get_option("csv_header", "N") # Also for CSV
+
         if httpHeaders.get('accept') == 'application/json':
-            response = pipe_results_as_json(connection, cursor, start_time)
+            # Pass download_lobs to the streaming function
+            response = pipe_results_as_json(connection, cursor, start_time, download_lobs)
         else:
-            response = Response(pipe_results(connection, cursor, get_option("csv_header", "N")),
+            # Pass download_lobs to the streaming function
+            response = Response(pipe_results(connection, cursor, csv_header, download_lobs),
                                 mimetype='text/csv')
 
         return response
