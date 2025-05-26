@@ -716,7 +716,7 @@ async function generativeAI(req, res) {
   if (httpConfig.googleAiKey) {
     const genAI = new GoogleGenerativeAI(httpConfig.googleAiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: `You are a database architect called Visulate. You responsible for the design of an oracle database.
      You have access to a tool that generates json documents describing database objects and
      their related objects. The json documents follow a predictable structure for each database object.

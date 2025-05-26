@@ -1,5 +1,5 @@
 /* !
- * Copyright 2019, 2020 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2025 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,7 +137,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
     }
 
     // Call the object list API when the object type selection changes or a new filter is applied.
-    if (context.endpoint && context.owner && context.objectType
+    if ((context.endpoint && context.owner && context.objectType)
       && (subjectContext.changeSummary.objectTypeDiff || subjectContext.changeSummary.filterDiff)) {
       const filter = (context.filter) ? context.filter : '*';
       this.restService.getObjectList$(context.endpoint, context.owner, context.objectType, filter)
@@ -149,7 +149,8 @@ export class DbContentComponent implements OnInit, OnDestroy {
     }
 
     // Call the database object API on object selection
-    if (context.endpoint && context.owner && context.objectType && context.objectName
+    //
+    if ((context.endpoint && context.owner && context.objectType && context.objectName)
       && (subjectContext.changeSummary.objectNameDiff ||
         subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff)) {
 
@@ -159,13 +160,14 @@ export class DbContentComponent implements OnInit, OnDestroy {
       //      context.objectType === 'VIEW' ||
       //      context.objectType === 'MATERIALIZED VIEW') {
       //   this.queryPanelExpanded = true;
-      }
+      //}
 
       this.restService.getObjectDetails$
       (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
     }
+  }
 
     ngOnInit() {
       this.currentContext = this.state.getCurrentContext();
