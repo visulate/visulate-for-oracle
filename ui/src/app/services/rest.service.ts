@@ -1,5 +1,5 @@
 /* !
- * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2025 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,6 +94,9 @@ export class RestService {
     objectType: string,
     objectName: string = '*',
     objectStatus: string = '*'): Observable<string[]> {
+    if (!objectType) {
+      throw new Error('Object type is required');
+    }
     return this.http.get<string[]>
     (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
   }

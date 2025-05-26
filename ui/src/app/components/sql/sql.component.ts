@@ -65,7 +65,7 @@ export class SqlComponent implements OnInit, OnDestroy {
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
       this.setSql(`select * from ${this.currentContext.objectName} where rownum < :maxrows`);
       this.bindVariables = '{"maxrows": 10 }';
-      this.queryOptions = '{"download_lobs": "N", "csv_header": "N", "cx_oracle_object": null}';
+      this.queryOptions = '{"download_lobs": "N", "csv_header": "N"}';
       this.resultSet = new SqlModel();
     }
   }

@@ -52,10 +52,6 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
     }
   }
 
-  // ngAfterViewChecked(): void {
-  //   //this.scrollToBottom();
-  // }
-
   sendMessage(): void {
     const userMessage = this.chatForm.get('message').value;
     this.messages.push({ user: 'You', text: userMessage });
@@ -73,8 +69,6 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
         this.isLoading = false;
         this.stopCounter();
         this.updateContext('Visulate', response);
-        this.scrollToTopOfRecentMessage();
-        this.scrollToBottom();
       },
       error => {
         console.error('Error calling LLM:', error);
@@ -92,26 +86,6 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
       message: message
     };
     return this.http.post<string>(apiUrl, payload);
-  }
-
-  private scrollToBottom(): void {
-    try {
-      this.messageContainer.nativeElement.scrollTop = this.messageContainer.nativeElement.scrollHeight;
-    } catch(err) {
-      console.error('Scroll to bottom failed:', err);
-    }
-  }
-
-  private scrollToTopOfRecentMessage(): void {
-    try {
-      const messageElements = this.messageContainer.nativeElement.querySelectorAll('.message');
-      if (messageElements.length > 0) {
-        const lastMessageElement = messageElements[messageElements.length - 1];
-        lastMessageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } catch (err) {
-      console.error('Scroll to top of recent message failed:', err);
-    }
   }
 
   private fetchData(): void {
