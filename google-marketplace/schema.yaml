@@ -26,6 +26,8 @@ x-google-marketplace:
       v1.1.36 Integrate handlebars templates into UI, add invalid object query, update UI to Angular 17 + security updates
       v1.1.37 Support for query engine behind IAP
       v2.0.0 Replace ingres with nginx reverse proxy
+      v2.0.1 Gemini AI integration
+      v2.0.2 Update Gemini version, query engine and Angular observable bug fixes
   images:
     '':
       properties:
