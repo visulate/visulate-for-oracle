@@ -21,9 +21,10 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 @Component({
-  selector: 'app-db-object-list',
-  templateUrl: './db-object-list.component.html',
-  styleUrls: ['./db-object-list.component.css']
+    selector: 'app-db-object-list',
+    templateUrl: './db-object-list.component.html',
+    styleUrls: ['./db-object-list.component.css'],
+    standalone: false
 })
 export class DbObjectListComponent implements OnInit, OnDestroy {
   /**

@@ -1,7 +1,10 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { SchemaModel } from './endpoint.model';
 
-@Pipe({name: 'hideInternal', pure: false})
+@Pipe({
+    name: 'hideInternal', pure: false,
+    standalone: false
+})
 export class HideInternalPipe implements PipeTransform {
   transform(schemaList: SchemaModel[], showInternal: boolean) {
     if (showInternal) {

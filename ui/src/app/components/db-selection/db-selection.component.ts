@@ -25,9 +25,10 @@ import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 @Component({
-  selector: 'app-db-selection',
-  templateUrl: './db-selection.component.html',
-  styleUrls: ['./db-selection.component.css']
+    selector: 'app-db-selection',
+    templateUrl: './db-selection.component.html',
+    styleUrls: ['./db-selection.component.css'],
+    standalone: false
 })
 
 

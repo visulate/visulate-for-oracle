@@ -5,9 +5,10 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Component({
-  selector: 'app-chat',
-  templateUrl: './chat.component.html',
-  styleUrls: ['./chat.component.css']
+    selector: 'app-chat',
+    templateUrl: './chat.component.html',
+    styleUrls: ['./chat.component.css'],
+    standalone: false
 })
 export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
   @Input() currentContext: any;

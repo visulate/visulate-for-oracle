@@ -53,6 +53,18 @@ data:
           proxy_pass       http://visapi/ddl/;
           proxy_redirect     off;
         }
+        location /endpoints/ {
+          proxy_pass       http://visapi/endpoints/;
+          proxy_redirect     off;
+        }
+        location /ai {
+          proxy_pass       http://visapi/ai/;
+          proxy_redirect     off;
+        }
+        location /ai/ {
+          proxy_pass       http://visapi/ai/;
+          proxy_redirect     off;
+        }
         location /sql/ {
           proxy_pass       http://vissql/sql/;
           proxy_redirect     off;

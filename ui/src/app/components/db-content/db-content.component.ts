@@ -27,9 +27,10 @@ import { hbsTemplates } from '../../../environments/hbs-templates';
 
 
 @Component({
-  selector: 'app-db-content',
-  templateUrl: './db-content.component.html',
-  styleUrls: ['./db-content.component.css']
+    selector: 'app-db-content',
+    templateUrl: './db-content.component.html',
+    styleUrls: ['./db-content.component.css'],
+    standalone: false
 })
 
 /**
