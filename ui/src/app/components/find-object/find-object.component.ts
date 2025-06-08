@@ -20,9 +20,10 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 @Component({
-  selector: 'app-find-object',
-  templateUrl: './find-object.component.html',
-  styleUrls: ['./find-object.component.css']
+    selector: 'app-find-object',
+    templateUrl: './find-object.component.html',
+    styleUrls: ['./find-object.component.css'],
+    standalone: false
 })
 
 /**

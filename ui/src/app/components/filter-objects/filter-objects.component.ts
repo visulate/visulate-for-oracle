@@ -31,9 +31,10 @@ export interface EbsPrefixes {
 }
 
 @Component({
-  selector: 'app-filter-objects',
-  templateUrl: './filter-objects.component.html',
-  styleUrls: ['./filter-objects.component.css']
+    selector: 'app-filter-objects',
+    templateUrl: './filter-objects.component.html',
+    styleUrls: ['./filter-objects.component.css'],
+    standalone: false
 })
 
 /**

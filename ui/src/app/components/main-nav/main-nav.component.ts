@@ -23,9 +23,10 @@ import { CurrentContextModel } from 'src/app/models/current-context.model';
 
 
 @Component({
-  selector: 'app-main-nav',
-  templateUrl: './main-nav.component.html',
-  styleUrls: ['./main-nav.component.css']
+    selector: 'app-main-nav',
+    templateUrl: './main-nav.component.html',
+    styleUrls: ['./main-nav.component.css'],
+    standalone: false
 })
 /**
  * Navigation component

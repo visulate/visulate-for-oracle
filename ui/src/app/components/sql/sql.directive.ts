@@ -17,10 +17,11 @@
 import { Directive } from '@angular/core';
 import { Validator, UntypedFormControl, NG_VALIDATORS } from '@angular/forms';
 @Directive({
-  selector: '[validSql][ngModel]',
-  providers: [
-    { provide: NG_VALIDATORS, useExisting: SqlValidatorDirective, multi: true }
-  ]
+    selector: '[validSql][ngModel]',
+    providers: [
+        { provide: NG_VALIDATORS, useExisting: SqlValidatorDirective, multi: true }
+    ],
+    standalone: false
 })
 export class SqlValidatorDirective implements Validator {
   validate(control: UntypedFormControl): {[key: string]: any} {
