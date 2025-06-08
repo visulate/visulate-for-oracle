@@ -1,150 +1,106 @@
-# go-containerregistry
+# Google Marketplace Integration
 
-[![GitHub Actions Build Status](https://github.com/google/go-containerregistry/workflows/Build/badge.svg)](https://github.com/google/go-containerregistry/actions?query=workflow%3ABuild)
-[![GoDoc](https://godoc.org/github.com/google/go-containerregistry?status.svg)](https://godoc.org/github.com/google/go-containerregistry)
-[![Code Coverage](https://codecov.io/gh/google/go-containerregistry/branch/main/graph/badge.svg)](https://codecov.io/gh/google/go-containerregistry)
+## Architecture
 
-## Introduction
+![K8S Architecture](/docs/images/k8s.png)
 
-This is a golang library for working with container registries.
-It's largely based on the [Python library of the same name](https://github.com/google/containerregistry).
+The API Server Deployment provisions a Node JS instance and 2 sidecar containers.  One echos logfile data to stdout for display in Stackdriver. The other integrates with [Google's billing infrastructure](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/64181befcb4d3a5417e84d4f59fea82b016988ab/docs/billing-integration.md). The API Server Service exposes a NodePort which connects to the API Server Instance container.
 
-The following diagram shows the main types that this library handles.
-![OCI image representation](images/ociimage.jpeg)
+The UI Deployment provisions an Angular/Nginx instance with a sidecar container to echo logfiles. The UI Service exposes a NodePort which connects to this.
 
-## Philosophy
+Web users connect to the application via an Ingress resource. Http path rules in the ingress spec route requests to the UI or API Service as required.
 
-The overarching design philosophy of this library is to define interfaces that present an immutable
-view of resources (e.g. [`Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#Image),
-[`Layer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#Layer),
-[`ImageIndex`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#ImageIndex)),
-which can be backed by a variety of medium (e.g. [registry](./pkg/v1/remote/README.md),
-[tarball](./pkg/v1/tarball/README.md), [daemon](./pkg/v1/daemon/README.md), ...).
+Database registration is performed using a Secret. The Secret manifest delivers the database.js configuration file that the Express server reads during initialization as part of the API Server deployment
 
-To complement these immutable views, we support functional mutations that produce new immutable views
-of the resulting resource (e.g. [mutate](./pkg/v1/mutate/README.md)).  The end goal is to provide a
-set of versatile primitives that can compose to do extraordinarily powerful things efficiently and easily.
+## Configuration
 
-Both the resource views and mutations may be lazy, eager, memoizing, etc, and most are optimized
-for common paths based on the tooling we have seen in the wild (e.g. writing new images from disk
-to the registry as a compressed tarball).
+The application is configured using a Helm chart located in the chart/visulate-for-oracle directory. Templates values are passed into the chart during deployment from the schema.yaml file. Values are copied from it into the chart/visulate-for-oracle/values.yaml file for use by Helm. This mirrors the production behavior where values are passed from the GCP Marketplace form.
+
+The contents of the Marketplace form are controlled by the schema.yaml file and values submitted on the [partner solutions page](https://console.cloud.google.com/partner/solutions?project=visulate-llc-public).
+
+Use `helm` to preview and debug the template:
+
+```
+cd google-marketplace/chart/visulate-for-oracle
+helm  template $APP_NAME-2004 . > generated.yaml
+cat generated.yaml
+```
+
+## Billing Infrastructure
+
+Billing metrics are defined in a config map (see ubbagent-config.yaml). There are 2 metrics: database_connections and time. Both reported hourly. The time metric uses the ubbagent's built-in "heartbeat" source. The database_connections metric uses a shell script in the util-image. The shell script makes a REST api call to the api endpoint, counts the number of database connections in the json document this returns and then posts the result to the ubbagent endpoint. A sidecar container in the api-server-deployment calls the shell script once per hour.
+
+## Build and Test
+
+Deployment orchestration is performed by a `deployer` image defined in the deployer directory. The deployer defines the UI for users who are deploying the application from the Google Cloud Console and can be executed as a standalone Job. After a user enters the input parameters, the Job's Pod installs all the components of the application, then exits.
+
+The deployer and application images can be tested using the `mpdev` development tools.  Example:
+
+```
+export REGISTRY=gcr.io/$(gcloud config get-value project | tr ':' '/')
+export APP_NAME=visulate-for-oracle
+
+docker build \
+--build-arg REGISTRY=gcr.io/visulate-for-oracle \
+--build-arg TAG=1.0.3-7 \
+--build-arg MARKETPLACE_TOOLS_TAG=0.9.10 \
+--tag $REGISTRY/$APP_NAME/deployer -f deployer/Dockerfile .
+
+docker push $REGISTRY/$APP_NAME/deployer
+
+mpdev /scripts/install  \
+--deployer=$REGISTRY/$APP_NAME/deployer \
+--parameters='{"name": "td01", "namespace": "test-ns"}'
+
+mpdev verify --deployer=$REGISTRY/$APP_NAME/deployer --wait_timeout=900 > /tmp/mpdev.log
+```
+
+Pass a reporting secret to test billing integration:
+
+```
+mpdev /scripts/install  \
+--deployer=$REGISTRY/$APP_NAME/deployer \
+--parameters='{"name": "td01", "namespace": "test-ns", "reportingSecret": "gs://cloud-marketplace-tools/reporting_secrets/fake_reporting_secret.yaml"}'
+
+```
+
+## VM Image
 
 
-### Experiments
 
-Over time, we will add new functionality under experimental environment variables listed here.
+```
+gcloud compute instances create vm-visulate4oracle \
+  --project=visulate-app \
+  --zone=us-east1-b \
+  --machine-type=e2-medium \
+  --image-family=cos-stable \
+  --image-project=cos-cloud \
+  --boot-disk-size=20GB \
+  --boot-disk-type=pd-ssd \
+  --network=projects/visulate-docker/global/networks/visulate-docker-vpc  \
+  --subnet=projects/visulate-docker/regions/us-east1/subnetworks/us-east1-01  \
+  --tags=http-server \
+  --scopes=https://www.googleapis.com/auth/cloud-platform  \
+  --metadata-from-file=startup-script=./vm-image/startup-script.sh
+```
 
-| Env Var | Value(s) | What is does |
-|---------|----------|--------------|
-| `GGCR_EXPERIMENT_ESTARGZ` | `"1"` | ⚠️DEPRECATED⚠️: When enabled this experiment will direct `tarball.LayerFromOpener` to emit [estargz](https://github.com/opencontainers/image-spec/issues/815) compatible layers, which enable them to be lazily loaded by an appropriately configured containerd. |
+Wait for VM to respond then shutdown and create a boot disk image
 
 
-### `v1.Image`
+sudo journalctl -u google-startup-scripts.service
 
-#### Sources
+gcloud compute images create visulate-vm-feb25  \
+  --project visulate-llc-public  \
+  --source-disk projects/visulate-app/zones/us-east1-b/disks/vm-visulate4oracle  \
+  --licenses projects/visulate-llc-public/global/licenses/cloud-marketplace-bb6cb067de6855d1-df1ebeb69c0ba664  \
+  --description "Visulate for Oracle VM image - Feb 2025"
 
-* [`remote.Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote#Image)
-* [`tarball.Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball#Image)
-* [`daemon.Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/daemon#Image)
-* [`layout.Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/layout#Path.Image)
-* [`random.Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/random#Image)
 
-#### Sinks
 
-* [`remote.Write`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote#Write)
-* [`tarball.Write`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball#Write)
-* [`daemon.Write`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/daemon#Write)
-* [`legacy/tarball.Write`](https://godoc.org/github.com/google/go-containerregistry/pkg/legacy/tarball#Write)
-* [`layout.AppendImage`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/layout#Path.AppendImage)
-
-### `v1.ImageIndex`
-
-#### Sources
-
-* [`remote.Index`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote#Index)
-* [`random.Index`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/random#Index)
-* [`layout.ImageIndexFromPath`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/layout#ImageIndexFromPath)
-
-#### Sinks
-
-* [`remote.WriteIndex`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote#WriteIndex)
-* [`layout.Write`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/layout#Write)
-
-### `v1.Layer`
-
-#### Sources
-
-* [`remote.Layer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote#Layer)
-* [`tarball.LayerFromFile`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball#LayerFromFile)
-* [`random.Layer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/random#Layer)
-* [`stream.Layer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/stream#Layer)
-
-#### Sinks
-
-* [`remote.WriteLayer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote#WriteLayer)
-
-## Overview
-
-### `mutate`
-
-The simplest use for these libraries is to read from one source and write to another.
-
-For example,
-
- * `crane pull` is `remote.Image -> tarball.Write`,
- * `crane push` is `tarball.Image -> remote.Write`,
- * `crane cp` is `remote.Image -> remote.Write`.
-
-However, often you actually want to _change something_ about an image.
-This is the purpose of the [`mutate`](pkg/v1/mutate) package, which exposes
-some commonly useful things to change about an image.
-
-### `partial`
-
-If you're trying to use this library with a different source or sink than it already supports,
-it can be somewhat cumbersome. The `Image` and `Layer` interfaces are pretty wide, with a lot
-of redundant information. This is somewhat by design, because we want to expose this information
-as efficiently as possible where we can, but again it is a pain to implement yourself.
-
-The purpose of the [`partial`](pkg/v1/partial) package is to make implementing a `v1.Image`
-much easier, by filling in all the derived accessors for you if you implement a minimal
-subset of `v1.Image`.
-
-### `transport`
-
-You might think our abstractions are bad and you just want to authenticate
-and send requests to a registry.
-
-This is the purpose of the [`transport`](pkg/v1/remote/transport) and [`authn`](pkg/authn) packages.
-
-## Tools
-
-This repo hosts some tools built on top of the library.
-
-### `crane`
-
-[`crane`](cmd/crane/README.md) is a tool for interacting with remote images
-and registries.
-
-### `gcrane`
-
-[`gcrane`](cmd/gcrane/README.md) is a GCR-specific variant of `crane` that has
-richer output for the `ls` subcommand and some basic garbage collection support.
-
-### `krane`
-
-[`krane`](cmd/krane/README.md) is a drop-in replacement for `crane` that supports
-common Kubernetes-based workload identity mechanisms using [`k8schain`](#k8schain)
-as a fallback to traditional authentication mechanisms.
-
-### `k8schain`
-
-[`k8schain`](pkg/authn/k8schain/README.md) implements the authentication
-semantics used by kubelets in a way that is easily consumable by this library.
-
-`k8schain` is not a standalone tool, but it is linked here for visibility.
-
-### Emeritus: [`ko`](https://github.com/google/ko)
-
-This tool was originally developed in this repo but has since been moved to its
-own repo.
+## Reference
+1. [Marketplace Tools](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools)
+2. [Billing Integration](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/master/docs/billing-integration.md)
+3. [Example Deployments](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-example)
+4. [More Examples](https://github.com/GoogleCloudPlatform/click-to-deploy/tree/master/k8s)
+5. [Partner Docs](https://cloud.google.com/marketplace/docs/partners/kubernetes-solutions)
+6. [marketplace-k8s-app-tools](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/master/docs)
