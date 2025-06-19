@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:22-alpine AS builder
+FROM node:lts-alpine AS builder
 
 # Copy the source code
 COPY . ./visulate-client
@@ -33,7 +33,7 @@ RUN rm -rf node_modules
 # Install only production dependencies
 RUN npm ci --omit=dev
 
-FROM nginx:stable
+FROM nginx:alpine
 
 # Copy the nginx configuration file
 COPY --from=builder /visulate-client/dist/client/browser/assets/nginx.conf /etc/nginx/conf.d/default.conf
