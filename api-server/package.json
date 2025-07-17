@@ -30,7 +30,7 @@
     "express": "^4.21.2",
     "express-json-validator-middleware": "^2.1.1",
     "handlebars": "^4.7.7",
-    "morgan": "^1.10.0",
+    "morgan": "^1.10.1",
     "oracledb": "^5.0.0",
     "swagger-ui-express": "^4.3.0",
     "winston": "^3.3.3",
