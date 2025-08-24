@@ -18,6 +18,30 @@ The configuration file is called `endpoints.json`. It contains an object of key 
  "vis115":"db135.visulate.net:88521/vis115"}
 ```
 
+### Wallet-Based Connections
+
+The SQL Query Engine can connect to Oracle Autonomous Database instances that require a wallet. To enable this, the endpoint configuration in `endpoints.json` must be an object containing the `dsn`, `wallet_location`, and optionally `wallet_password`.
+
+Here is an example of an `endpoints.json` file with both a traditional connect string and a wallet-based connection:
+
+```json
+{
+    "oracle18XE": "db205.visulate.net:98521/APDB1",
+    "my_adb": {
+        "dsn": "my_adb_tns_alias",
+        "wallet_location": "/usr/src/app/wallet"
+    }
+}
+```
+
+- `dsn`: The TNS alias for the database from your `tnsnames.ora` file.
+- `wallet_location`: The directory path inside the container where the wallet files are located.
+- `wallet_password`: (Optional) The password for the wallet, if required.
+
+When using a wallet, the UI validation logic will check the `dsn` value against the value returned by the API server.
+
+## /endpoints API
+
 The API server exposes an `/endpoints` endpoint which returns a list of valid endpoints based on the [database registration file](/pages/database-registration.html#database-registration-file). Use the /endpoints API to generate a default configuration file for your environment:
 
 ```shell

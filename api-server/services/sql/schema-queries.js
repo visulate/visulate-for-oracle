@@ -211,7 +211,7 @@ statement['PATCHES'] = {
            ,      version as "Version"
            ,      id as "ID"
            ,      comments as "Comments"
-           from  sys.REGISTRY$HISTORY
+           from  DBA_REGISTRY_HISTORY
            order by action_time`,
    'params': {
    }

@@ -79,6 +79,8 @@ function initialize() {
         resolve();
       })
       .on('error', err => {
+        logger.log('error', 'HTTP server initialization failed');
+        logger.log('error', err);
         reject(err);
       });
   });
@@ -92,6 +94,8 @@ function close() {
   return new Promise((resolve, reject) => {
     httpServer.close((err) => {
       if (err) {
+        logger.log('error', 'HTTP server close failed');
+        logger.log('error', err);
         reject(err);
         return;
       }
