@@ -24,53 +24,15 @@
 /**
  * Creates a connection pool for each endpoint
  */
-async function initialize() {
-  logger.log('info', `node-oracledb version: ${oracledb.versionString}`);
-  logger.log('info', `Oracle client version: ${oracledb.oracleClientVersionString}`);
-  for (const endpoint of dbConfig.endpoints){
-    try {
-      logger.log('info',
-        `Creating poolAlias ${endpoint.connect.poolAlias} for ${endpoint.connect.connectString}`);
-        await oracledb.createPool(endpoint.connect);
-    } catch (err) {
-      logger.log('error', err);
-      logger.log('error', 
-      `Connection failed for poolAlias ${endpoint.connect.poolAlias} using ${endpoint.connect.user}@${endpoint.connect.connectString}`);
-    } 
-  }
-}
-module.exports.initialize = initialize;
 
-/**
- * Make sure the connected user has the correct privileges and only the correct privileges
- */
-async function validateConnections() {
-  for (const endpoint of dbConfig.endpoints){
-    try {
-      const privs = await simpleExecute(endpoint.connect.poolAlias, schemaSql.statement['VALIDATE-CONNECTION'].sql);
-      const privList = privs.map(r => r.PRIVILEGE ).sort().toString();
-      if (privList !== dbConstants.values.requiredPrivilages.toString()) {
-        logger.log('error',
-          `Closing poolAlias ${endpoint.connect.poolAlias}. Account has invalid privileges.
-           Expected: '${dbConstants.values.requiredPrivilages.toString()}'
-           Found: '${privList}'`
-        );
-      const pool = oracledb.getPool(endpoint.connect.poolAlias);
-      await pool.close(10);
-      }
-    } catch (err) {
-      logger.log('error', err);
-    }
-  }
-}
-module.exports.validateConnections = validateConnections;
 
 async function closePool(poolAlias) {
   try {
     logger.log('info', `Disconnecting from poolAlias ${poolAlias}`);
     const pool = oracledb.getPool(poolAlias);
-    await pool.close(0);    
+    await pool.close(0);
   } catch (err) {
+    logger.log('error', `Failed to close pool ${poolAlias}`);
     logger.log('error', err);
   }
 }
@@ -82,8 +44,9 @@ module.exports.closePool = closePool;
 async function close() {
   for (const endpoint of dbConfig.endpoints){
     try {
-      closePool(endpoint.connect.poolAlias);
+      await closePool(endpoint.connect.poolAlias);
     } catch (err) {
+      logger.log('error', `Failed to close pool for ${endpoint.connect.poolAlias}`);
       logger.log('error', err);
     }
   }
@@ -100,13 +63,22 @@ module.exports.close = close;
  * @param {*} opts - Execution options
  */
 async function simpleExecute(poolAlias, statement, binds = [], opts = {}) {
+  let conn;
   try {
-      const conn = await getConnection(poolAlias);
-      const result = await query(conn, statement, binds, opts);
-      await closeConnection(conn);
-      return result;
-  } catch(err){
+    conn = await getConnection(poolAlias);
+    const result = await query(conn, statement, binds, opts);
+    return result;
+  } catch (err) {
     logger.log('error', err);
+    throw err;
+  } finally {
+    if (conn) {
+      try {
+        await closeConnection(conn);
+      } catch (err) {
+        logger.log('error', err);
+      }
+    }
   }
 }
 module.exports.simpleExecute = simpleExecute;
@@ -116,14 +88,37 @@ module.exports.simpleExecute = simpleExecute;
  * @param {*} poolAlias - Connection pool alias
  * @returns connection - a database connection
  */
+/**
+ * Gets a connection from the connection pool.
+ * Creates the pool if it does not exist
+ * @param {*} poolAlias - Connection pool alias
+ * @returns connection - a database connection
+ */
 function getConnection(poolAlias){
   return new Promise(async (resolve, reject) => {
     try {
-      const connection = await oracledb.getConnection(poolAlias);
+      const pool = oracledb.getPool(poolAlias);
+      const connection = await pool.getConnection();
       resolve(connection);
     } catch (err) {
-      logger.log('error', err.message);
-      reject(err);
+      // Pool does not exist. Create it.
+      if (err.message.startsWith('NJS-047')) {
+        try {
+          const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
+          await oracledb.createPool(endpoint.connect);
+          const pool = oracledb.getPool(poolAlias);
+          const connection = await pool.getConnection();
+          resolve(connection);
+        } catch (err) {
+          logger.log('error', `Failed to create pool for ${poolAlias}`);
+          logger.log('error', err.message);
+          reject(err);
+        }
+      } else {
+        logger.log('error', `Failed to get connection from pool ${poolAlias}`);
+        logger.log('error', err.message);
+        reject(err);
+      }
     }
   });
 }
@@ -132,21 +127,30 @@ module.exports.getConnection = getConnection;
 /**
  * Checks that a poolAlias connection is usable and the network to the database is valid.
  * Closes the connection pool if the connection is not usable.
- * 
+ *
  * @param {*} poolAlias - Connection pool alias name
  */
 
 function pingConnection(poolAlias){
   return new Promise(async (resolve, reject) => {
+    let connection;
     try {
       const pool = oracledb.getPool(poolAlias);
-      const connection = await pool.getConnection();
-      await closeConnection(connection);   
+      connection = await pool.getConnection();
       resolve();
     } catch (err) {
-      
-      logger.log('error', `${poolAlias} health check failed: ${err.message}`);
-      reject(err);     
+      logger.log('error', `Health check failed for ${poolAlias}`);
+      logger.log('error', err.message);
+      reject(err);
+    } finally {
+      if (connection) {
+        try {
+          await closeConnection(connection);
+        } catch (err) {
+          logger.log('error', `Failed to close connection during health check for ${poolAlias}`);
+          logger.log('error', err);
+        }
+      }
     }
   });
 }
@@ -162,6 +166,7 @@ function closeConnection(connection){
       await connection.close();
       resolve();
     } catch (err) {
+      logger.log('error', 'Failed to close connection');
       logger.log('error', err);
       reject(err);
     }
@@ -181,23 +186,32 @@ function query(connection, statement, binds = [], opts = {}){
     opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
     opts.resultSet = true;
     oracledb.fetchAsString = [ oracledb.CLOB ];
+    let rs;
 
     try {
       const result = await connection.execute(
         statement, binds, opts
       );
-      const rs = result.resultSet;
+      rs = result.resultSet;
       let row;
       let returnResult = [];
-
       while ((row = await rs.getRow())) {
         returnResult.push(row);
       }
-      await rs.close();
       resolve(returnResult);
     } catch (err) {
-      logger.log('error', `${statement} \n ${err}`);
+      logger.log('error', `Query failed: ${statement}`);
+      logger.log('error', err);
       reject(err);
+    } finally {
+      if (rs) {
+        try {
+          await rs.close();
+        } catch (err) {
+          logger.log('error', 'Failed to close result set');
+          logger.log('error', err);
+        }
+      }
     }
   });
 }

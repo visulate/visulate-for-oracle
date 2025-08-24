@@ -37,18 +37,11 @@ logger.log('info', `UV_THREADPOOL_SIZE set to ${process.env.UV_THREADPOOL_SIZE}`
 async function startup() {
   logger.log('info', 'Starting application');
   try {
-    logger.log('info', 'Initializing database module');
-    await database.initialize();
-    await database.validateConnections();
-  } catch (err) {
-    logger.log('error', err);
-    process.exit(1); // Non-zero failure code
-  }
-  try {
     logger.log('info', 'Initializing http server module');
     await httpServer.initialize();
     eventEmitter.emit('httpServerStarted');
   } catch (err) {
+    logger.log('error', 'HTTP server initialization failed');
     logger.log('error', err);
     process.exit(1); // Non-zero failure code
   }
@@ -63,6 +56,7 @@ async function shutdown(e) {
     logger.log('info', 'Closing http server module');
     await httpServer.close();
   } catch (e) {
+    logger.log('error', 'HTTP server close failed');
     logger.log('error', e);
     err = err || e;
   }
@@ -71,6 +65,7 @@ async function shutdown(e) {
     logger.log('info', 'Closing database module');
     await database.close();
   } catch (e) {
+    logger.log('error', 'Database close failed');
     logger.log('error', e);
     err = err || e;
   }
@@ -85,12 +80,12 @@ module.exports.shutdown = shutdown;
 
 // Trap Ctrl-C and force clean shutdown
 process.on('SIGTERM', () => {
-  logger.log('info', 'Received SIGTERM');
+  logger.log('info', 'Received SIGTERM, shutting down');
   shutdown();
 });
 
 process.on('SIGINT', () => {
-  logger.log('info', 'Received SIGINT');
+  logger.log('info', 'Received SIGINT, shutting down');
   shutdown();
 });
 

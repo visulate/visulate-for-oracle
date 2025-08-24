@@ -29,6 +29,7 @@ x-google-marketplace:
       v2.0.1 Gemini AI integration
       v2.0.2 Update Gemini version, query engine and Angular observable bug fixes
       v2.0.3 Switch ui image to use nginx:alpine
+      v2.0.4 Fix connection pool leak in api server, Angular update and support for wallet connections in query engine
   images:
     '':
       properties:

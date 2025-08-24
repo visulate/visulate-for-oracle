@@ -6,6 +6,7 @@ import sqlparse
 import base64
 import time
 import datetime
+import os
 
 from flask import (
     Blueprint, Response, request, abort, current_app, make_response
@@ -193,11 +194,20 @@ def pipe_results_as_json(connection, cursor, start_time, download_lobs): # Added
     # Pass download_lobs to the generator when creating the Response
     return Response(generate(download_lobs), mimetype='application/json')
 
-def get_connection(username, password, connectString):
+def get_connection(username, password, params):
     """Get an Oracle database connection"""
     try:
-        connection = oracledb.connect(user=username, password=password,
-                                         dsn=connectString)
+        # Check for wallet parameters and initialize the client if needed
+        wallet_location = params.get("wallet_location")
+        if wallet_location:
+            connection = oracledb.connect(user=username, password=password,
+                                             dsn=params.get("dsn"),
+                                             config_dir=wallet_location,
+                                             wallet_location=wallet_location,
+                                             wallet_password=params.get("wallet_password"))
+        else:
+            connection = oracledb.connect(user=username, password=password, dsn=params.get("dsn"))
+
         connection.outputtypehandler = output_type_handler
     except oracledb.DatabaseError as e:
         errorObj, = e.args
@@ -218,12 +228,15 @@ def get_cursor(connection, sql, binds):
         errorObj, = e.args
         fail_request(400, description=errorObj.message)
 
-def get_connect_string(endpoint):
-    """Get the connect string for a registered endpoint"""
-    connectString = current_app.endpoints.get(endpoint)
-    if connectString is None:
-        return ''
-    return connectString
+def get_connection_params(endpoint):
+    """Get the connection parameters for a registered endpoint"""
+    params = current_app.endpoints.get(endpoint)
+    if params is None:
+        fail_request(404, description=f"Endpoint '{endpoint}' not found")
+    # If params is just a string, convert it to the dict structure for backward compatibility
+    if isinstance(params, str):
+        return {"dsn": params}
+    return params
 
 def validate_binds(binds):
     """Verify bind varables are a list or dict of database chars or numbers"""
@@ -270,11 +283,13 @@ def sql2csv(endpoint):
 
     if request.method == 'POST':
         query = request.json
-        connStr = get_connect_string(endpoint)
+        conn_params = get_connection_params(endpoint)
         httpHeaders = request.headers
         dbCredentials = httpHeaders.get('X-DB-Credentials')
         if dbCredentials is not None:
             user, passwd, db = decode_credentials(dbCredentials)
+        else:
+            fail_request(401, description='Missing X-DB-Credentials header')
 
         if db != endpoint:
             fail_request(403, description='Invalid endpoint credentials')
@@ -294,7 +309,7 @@ def sql2csv(endpoint):
         validate_options(options)
 
         start_time = time.time()
-        connection = get_connection(user, passwd, connStr)
+        connection = get_connection(user, passwd, conn_params)
         cursor = get_cursor(connection, sql, vbinds)
 
         # Retrieve download_lobs here, within the request context
@@ -312,6 +327,15 @@ def sql2csv(endpoint):
         return response
 
     # return connect string or empty string for GET request
-    response = make_response(get_connect_string(endpoint), 200)
+    conn_params = current_app.endpoints.get(endpoint)
+    dsn = ""
+    if conn_params is None:
+        dsn = ""
+    elif isinstance(conn_params, dict):
+        dsn = conn_params.get("dsn", "")
+    elif isinstance(conn_params, str): # Keep backward compatibility
+        dsn = conn_params
+
+    response = make_response(dsn, 200)
     response.mimetype="text/plain"
     return response
