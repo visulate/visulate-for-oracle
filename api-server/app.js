@@ -37,15 +37,6 @@ logger.log('info', `UV_THREADPOOL_SIZE set to ${process.env.UV_THREADPOOL_SIZE}`
 async function startup() {
   logger.log('info', 'Starting application');
   try {
-    logger.log('info', 'Initializing database module');
-    await database.initialize();
-    await database.validateConnections();
-  } catch (err) {
-    logger.log('error', 'Database initialization failed');
-    logger.log('error', err);
-    process.exit(1); // Non-zero failure code
-  }
-  try {
     logger.log('info', 'Initializing http server module');
     await httpServer.initialize();
     eventEmitter.emit('httpServerStarted');

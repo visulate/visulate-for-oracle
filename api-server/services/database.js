@@ -24,48 +24,7 @@
 /**
  * Creates a connection pool for each endpoint
  */
-async function initialize() {
-  logger.log('info', `node-oracledb version: ${oracledb.versionString}`);
-  logger.log('info', `Oracle client version: ${oracledb.oracleClientVersionString}`);
-  for (const endpoint of dbConfig.endpoints){
-    try {
-      logger.log('info',
-        `Creating poolAlias ${endpoint.connect.poolAlias} for ${endpoint.connect.connectString}`);
-        await oracledb.createPool(endpoint.connect);
-    } catch (err) {
-      logger.log('error', `Failed to create pool for ${endpoint.connect.poolAlias}`);
-      logger.log('error', err);
-      logger.log('error',
-      `Connection failed for poolAlias ${endpoint.connect.poolAlias} using ${endpoint.connect.user}@${endpoint.connect.connectString}`);
-    }
-  }
-}
-module.exports.initialize = initialize;
 
-/**
- * Make sure the connected user has the correct privileges and only the correct privileges
- */
-async function validateConnections() {
-  for (const endpoint of dbConfig.endpoints){
-    try {
-      const privs = await simpleExecute(endpoint.connect.poolAlias, schemaSql.statement['VALIDATE-CONNECTION'].sql);
-      const privList = privs.map(r => r.PRIVILEGE ).sort().toString();
-      if (privList !== dbConstants.values.requiredPrivilages.toString()) {
-        logger.log('error',
-          `Closing poolAlias ${endpoint.connect.poolAlias}. Account has invalid privileges.
-           Expected: '${dbConstants.values.requiredPrivilages.toString()}'
-           Found: '${privList}'`
-        );
-      const pool = oracledb.getPool(endpoint.connect.poolAlias);
-      await pool.close(10);
-      }
-    } catch (err) {
-      logger.log('error', `Connection validation failed for ${endpoint.connect.poolAlias}`);
-      logger.log('error', err);
-    }
-  }
-}
-module.exports.validateConnections = validateConnections;
 
 async function closePool(poolAlias) {
   try {
@@ -129,15 +88,37 @@ module.exports.simpleExecute = simpleExecute;
  * @param {*} poolAlias - Connection pool alias
  * @returns connection - a database connection
  */
+/**
+ * Gets a connection from the connection pool.
+ * Creates the pool if it does not exist
+ * @param {*} poolAlias - Connection pool alias
+ * @returns connection - a database connection
+ */
 function getConnection(poolAlias){
   return new Promise(async (resolve, reject) => {
     try {
-      const connection = await oracledb.getConnection(poolAlias);
+      const pool = oracledb.getPool(poolAlias);
+      const connection = await pool.getConnection();
       resolve(connection);
     } catch (err) {
-      logger.log('error', `Failed to get connection from pool ${poolAlias}`);
-      logger.log('error', err.message);
-      reject(err);
+      // Pool does not exist. Create it.
+      if (err.message.startsWith('NJS-047')) {
+        try {
+          const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
+          await oracledb.createPool(endpoint.connect);
+          const pool = oracledb.getPool(poolAlias);
+          const connection = await pool.getConnection();
+          resolve(connection);
+        } catch (err) {
+          logger.log('error', `Failed to create pool for ${poolAlias}`);
+          logger.log('error', err.message);
+          reject(err);
+        }
+      } else {
+        logger.log('error', `Failed to get connection from pool ${poolAlias}`);
+        logger.log('error', err.message);
+        reject(err);
+      }
     }
   });
 }
