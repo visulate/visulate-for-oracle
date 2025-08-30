@@ -373,6 +373,61 @@ paths:
           description: No objects match the database, owner + object_type combination
         503:
           description: Database connection failure
+    post:
+      summary: Transform object details using a template
+      description: Transform the object details using a handlebars template
+      parameters:
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+        - in: path
+          name: owner
+          description: database schema
+          required: true
+          schema:
+            type: string
+            example: RNTMGR2
+        - in: path
+          name: type
+          description: database object type
+          required: true
+          schema:
+            type: string
+            example: TABLE
+        - in: path
+          name: name
+          description: database object name
+          required: true
+          schema:
+            type: string
+            example: RNT_ACCOUNTS_RECEIVABLE
+        - in: query
+          name: template
+          description: The name of a handlebars or mustache template to transform the result.
+          required: true
+          schema:
+            type: string
+            example: extract_links.hbs
+      requestBody:
+        description: The full JSON object details for the specified database object, as returned by the GET method of this endpoint.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryResult'
+      responses:
+        '200':
+          description: A payload containing the base object and a list of related object identifiers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpLinkExtractionPayload'
+        '400':
+          description: Bad request, likely a missing or invalid template parameter.
   /ddl/{db}/{owner}/{type}:
     get:
       summary: Generate DDL
@@ -476,48 +531,10 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                object:
-                  type: string
-                  example: "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
-                baseUrl:
-                  type: string
-                  example: "https://yourhost.com/api/vis24/"
-                baseDB:
-                  type: string
-                  example: "vis24"
-                baseOwner:
-                  type: string
-                  example: "RNTMGR2"
-                baseType:
-                  type: string
-                  example: "TABLE"
-                baseObject:
-                  type: string
-                  example: "RNT_ACCOUNTS_RECEIVABLE"
-                relatedObjects:
-                  type: array
-                  items:
-                    type: string
-                    example:
-                      - "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
-                      - "RNTMGR2/TABLE/RNT_AGREEMENT_ACTIONS"
-                      - "RNTMGR2/TABLE/RNT_LOANS"
-              example:
-                object: "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
-                baseUrl: "https://yourhost.com/api/vis24/"
-                baseDB: "vis24"
-                baseOwner: "RNTMGR2"
-                baseType: "TABLE"
-                baseObject: "RNT_ACCOUNTS_RECEIVABLE"
-                relatedObjects:
-                  - "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
-                  - "RNTMGR2/TABLE/RNT_AGREEMENT_ACTIONS"
-                  - "RNTMGR2/TABLE/RNT_LOANS"
+              $ref: '#/components/schemas/McpLinkExtractionPayload'
       responses:
         '200':
-          description: A list of related object details
+          description: An array containing the full QueryResult details for the base object and all related objects.
           content:
             application/json:
               schema:
@@ -526,7 +543,6 @@ paths:
                   $ref: "#/components/schemas/QueryResult"
         '400':
           description: Bad request
-
   /api/collection/{db}:
     post:
       summary: Database object collection
@@ -721,9 +737,12 @@ paths:
                     example: true
 
     post:
-      summary: Generate text using Google AI
-      description: |
-        Calls Google AI to generate text based on the provided message and context.
+      summary: (MCP) Generate text using Google AI
+      description: >-
+        (Model-Context Protocol Step 3) The reasoning and execution phase for the AI agent.
+        The agent sends a natural language message (the user's query or an internal verification question)
+        along with the full context it gathered from the `/mcp/context` endpoint. The server forwards
+        this to the Google AI model for processing and returns the generated text.
       requestBody:
         required: true
         content:
@@ -735,33 +754,7 @@ paths:
                   type: string
                   example: "What is the structure of the users table?"
                 context:
-                  type: object
-                  example: {
-                    "objectDetails": {
-                      "title": "Users Table",
-                      "description": "Details of the users table",
-                      "display": ["username", "email"],
-                      "rows": [
-                        {"username": "john_doe", "email": "john@example.com"},
-                        {"username": "jane_doe", "email": "jane@example.com"}
-                      ]
-                    },
-                    "relatedObjects": [
-                      {
-                        "title": "Orders Table",
-                        "description": "Details of the orders table",
-                        "display": ["order_id", "user_id"],
-                        "rows": [
-                          {"order_id": 1, "user_id": "john_doe"},
-                          {"order_id": 2, "user_id": "jane_doe"}
-                        ]
-                      }
-                    ],
-                    "chatHistory": [
-                      {"user": "You", "text": "Tell me about the users table."},
-                      {"user": "Visulate", "text": "The users table contains details of users including username and email."}
-                    ]
-                  }
+                  $ref: '#/components/schemas/McpContextPayload'
       responses:
         200:
           description: Generated text
@@ -780,6 +773,111 @@ paths:
               schema:
                 type: string
                 example: "Google AI key is not set"
+
+  /mcp/context/{db}:
+    post:
+      summary: (MCP) Get full context for a starting object
+      description: >-
+        (Model-Context Protocol Step 2) A consolidated endpoint for an AI agent to perform the entire
+        context-gathering phase in a single call. The agent provides the
+        coordinates of a starting object, and the server performs the multi-step process of
+        fetching details, extracting links, and gathering the full collection context internally.
+        This is the primary endpoint for an agent to use after discovering an object.
+      parameters:
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner, name, type]
+              properties:
+                owner:
+                  type: string
+                  example: RNTMGR2
+                name:
+                  type: string
+                  example: RNT_ACCOUNTS_RECEIVABLE
+                type:
+                  type: string
+                  example: TABLE
+      responses:
+        '200':
+          description: The complete context payload, ready to be sent to the /ai endpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpContextPayload'
+        '404':
+          description: The specified starting object was not found.
+
+  /mcp/search-objects/{db}:
+    post:
+      summary: (MCP) Search for database objects
+      description: >-
+        (Model-Context Protocol Step 1) This endpoint is the discovery mechanism for an AI agent.
+        It takes a set of natural language search terms and finds relevant database objects
+        (tables, views, etc.) by searching their names and comments. It returns a ranked
+        list of candidates that the agent can use as a starting point for more detailed
+        context gathering.
+      parameters:
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+            example: oracle18XE
+      requestBody:
+        required: true
+        description: The search terms and object types to query for.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [search_terms, object_types]
+              properties:
+                search_terms:
+                  type: array
+                  items:
+                    type: string
+                  example: ["amount", "due", "rental", "agreement"]
+                object_types:
+                  type: array
+                  items:
+                    type: string
+                  example: ["TABLE", "VIEW"]
+      responses:
+        '200':
+          description: A ranked list of matching database objects.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    owner:
+                      type: string
+                      example: RNTMGR2
+                    name:
+                      type: string
+                      example: RNT_ACCOUNTS_RECEIVABLE
+                    type:
+                      type: string
+                      example: TABLE
+                    relevance_score:
+                      type: number
+                      example: 95.5
+        '400':
+          description: Bad request, likely missing search_terms.
 components:
   securitySchemes:
     dbCustomAuth:
@@ -788,6 +886,55 @@ components:
       name: X-DB-Credentials
       description: Encoded database credentials. The value must be a base64-encoded string of 'username/password@db'.
   schemas:
+    McpContextPayload:
+      type: object
+      description: The complete context payload sent to the AI for reasoning.
+      properties:
+        objectDetails:
+          $ref: '#/components/schemas/QueryResult'
+        relatedObjects:
+          type: object
+          description: A map of related objects, where the key is the object identifier and the value is its details.
+          additionalProperties:
+            $ref: '#/components/schemas/QueryResult'
+        chatHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              user:
+                type: string
+              text:
+                type: string
+    McpLinkExtractionPayload:
+      type: object
+      description: Payload containing the base object and its extracted list of related objects. Used as the request for the collection details step.
+      properties:
+        object:
+          type: string
+          example: "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
+        baseUrl:
+          type: string
+          example: "https://yourhost.com/api/vis24/"
+        baseDB:
+          type: string
+          example: "vis24"
+        baseOwner:
+          type: string
+          example: "RNTMGR2"
+        baseType:
+          type: string
+          example: "TABLE"
+        baseObject:
+          type: string
+          example: "RNT_ACCOUNTS_RECEIVABLE"
+        relatedObjects:
+          type: array
+          items:
+            type: string
+          example:
+            - "RNTMGR2/TABLE/RNT_ACCOUNTS_RECEIVABLE"
+            - "RNTMGR2/TABLE/RNT_AGREEMENT_ACTIONS"
     WildCardQueryResult:
       type: object
       properties:

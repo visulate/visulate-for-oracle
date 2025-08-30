@@ -843,3 +843,146 @@ async function generativeAI(req, res, next) {
   }
 }
 module.exports.generativeAI = generativeAI;
+
+/**
+ * Implements POST /mcp/search-objects/:db endpoint.
+ * @param {*} req - request
+ * @param {*} res - response
+ * @param {*} next - next matching route
+ */
+async function searchObjects(req, res, next) {
+  const db = req.params.db;
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    res.status(404).send("Requested database was not found");
+    return;
+  }
+
+  const { search_terms, object_types } = req.body;
+
+  // The validator in router.js should prevent this, but as a safeguard:
+  if (!search_terms || search_terms.length === 0) {
+    return res.status(400).json({ error: 'search_terms array is required' });
+  }
+
+  // Sanitize and prepare search terms to prevent SQL injection
+  const sanitizedTerms = search_terms.map(term => term.toLowerCase().replace(/'/g, "''"));
+
+  // 1. Construct the dynamic part of the WHERE clause for keywords
+  const searchConditions = sanitizedTerms.map(term => `
+    (LOWER(o.object_name) LIKE '%${term}%' OR
+     LOWER(tc.comments) LIKE '%${term}%' OR
+     LOWER(cc.comments) LIKE '%${term}%')
+  `).join(' OR ');
+
+  // 2. Construct the ranking logic in a CASE statement
+  const rankingLogic = sanitizedTerms.map(term => `
+    (CASE WHEN LOWER(o.object_name) LIKE '%${term}%' THEN 10 ELSE 0 END) +
+    (CASE WHEN LOWER(tc.comments) LIKE '%${term}%' THEN 5 ELSE 0 END) +
+    (CASE WHEN LOWER(cc.comments) LIKE '%${term}%' THEN 1 ELSE 0 END)
+  `).join(' + ');
+
+  const sql = `
+    SELECT
+      o.owner,
+      o.object_name as name,
+      o.object_type as type,
+      SUM(${rankingLogic}) as relevance_score
+    FROM
+      dba_objects o
+    LEFT JOIN
+      dba_tab_comments tc ON o.owner = tc.owner AND o.object_name = tc.table_name
+    LEFT JOIN
+      dba_col_comments cc ON o.owner = cc.owner AND o.object_name = cc.table_name
+    WHERE
+      o.object_type IN ('${object_types.join("','")}') AND
+      (${searchConditions})
+    GROUP BY
+      o.owner, o.object_name, o.object_type
+    HAVING
+      SUM(${rankingLogic}) > 0
+    ORDER BY
+      relevance_score DESC
+    FETCH FIRST 20 ROWS ONLY
+  `;
+
+  try {
+    const result = await dbService.simpleExecute(poolAlias, sql, {});
+    res.status(200).json(result);
+  } catch (err) {
+    logger.log('error', `MCP search failed for ${db}`);
+    logger.log('error', err);
+    res.status(503).send(err);
+    next(err);
+  }
+}
+module.exports.searchObjects = searchObjects;
+
+/**
+ * Implements POST /mcp/context/:db endpoint
+ * @param {*} req - request
+ * @param {*} res - response
+ * @param {*} next - next matching route
+ */
+async function getContext(req, res, next) {
+  const db = req.params.db;
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    res.status(404).send("Requested database was not found");
+    return;
+  }
+
+  const { owner, type, name } = req.body;
+
+  try {
+    // Step 1: Get the details of the primary/starting object, including its own dependencies
+    const objectDetails = await getObjectDetails(poolAlias, owner, type, name, true);
+    if (objectDetails === '404') {
+      return res.status(404).send('The specified starting object was not found.');
+    }
+
+    // Step 2: Extract related object links from the dependency sections
+    let relatedObjectLinks = [];
+    objectDetails.forEach(section => {
+      const keysToScan = ['Foreign Keys', 'Foreign Keys to this Table', 'Used By', 'Uses'];
+      if (keysToScan.includes(section.title) && section.rows) {
+        section.rows.forEach(row => {
+          if (row.LINK) {
+            relatedObjectLinks.push(row.LINK);
+          }
+        });
+      }
+    });
+    const uniqueLinks = [...new Set(relatedObjectLinks)];
+
+    // Step 3: Fetch details for all related objects and build a map
+    const relatedObjectsMap = {};
+    await Promise.all(
+      uniqueLinks.map(async (link) => {
+        const [objOwner, objType, objName] = link.split('/');
+        const details = await getObjectDetails(poolAlias, objOwner, objType, objName, false);
+        if (details !== '404') {
+          const key = `${db}.${objOwner}.${objType}.${objName}`;
+          relatedObjectsMap[key] = details;
+        }
+      })
+    );
+
+    // Step 4: Assemble the final McpContextPayload
+    const contextPayload = {
+      objectDetails: objectDetails,
+      relatedObjects: relatedObjectsMap,
+      chatHistory: [] // Always starts with an empty history
+    };
+
+    res.status(200).json(contextPayload);
+
+  } catch (err) {
+    logger.log('error', `MCP getContext failed for ${db}/${owner}/${type}/${name}`);
+    logger.log('error', err);
+    res.status(503).send(err);
+    next(err);
+  }
+}
+module.exports.getContext = getContext;
+
