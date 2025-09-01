@@ -17,6 +17,7 @@
 const express = require('express');
 const router = new express.Router();
 const controller = require('./controller.js');
+const aiService = require('./ai-service.js');
 router.use(express.json());
 
 const { Validator, ValidationError } = require('express-json-validator-middleware');
@@ -70,6 +71,15 @@ const aiSchema = {
         type: 'object'
       }
     }
+  }
+};
+
+const mcpPlanSchema = {
+  type: 'object',
+  required: ['current_prompt'],
+  properties: {
+    current_prompt: { type: 'string' },
+    history: { type: 'array' }
   }
 };
 
@@ -148,14 +158,20 @@ router.route('/api/collection/:db')
 
 
 router.route('/ai')
-  .get(controller.aiEnabled)
-  .post(validate({body: aiSchema}), controller.generativeAI);
+  .get(aiService.aiEnabled)
+  .post(validate({body: aiSchema}), aiService.generativeAI);
+
+router.route('/mcp')
+  .post(aiService.handleMcpRequest);
+
+router.route('/mcp/plan')
+  .post(validate({body: mcpPlanSchema}), aiService.agentPlanner);
 
 router.route('/mcp/context/:db')
-  .post(validate({body: mcpContextSchema}), controller.getContext);
+  .post(validate({body: mcpContextSchema}), aiService.getContext);
 
 router.route('/mcp/search-objects/:db')
-  .post(validate({body: mcpSearchSchema}), controller.searchObjects);
+  .post(validate({body: mcpSearchSchema}), aiService.searchObjects);
 
 
 // Error handler JSON Schema errors

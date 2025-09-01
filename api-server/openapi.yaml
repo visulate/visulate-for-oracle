@@ -23,7 +23,7 @@ info:
     name: Apache 2.0
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
 servers:
-  - url: '/'
+  - url: 'http://localhost:3000'
 paths:
   /endpoints/:
     summary: Database endpoints
@@ -739,10 +739,7 @@ paths:
     post:
       summary: (MCP) Generate text using Google AI
       description: >-
-        (Model-Context Protocol Step 3) The reasoning and execution phase for the AI agent.
-        The agent sends a natural language message (the user's query or an internal verification question)
-        along with the full context it gathered from the `/mcp/context` endpoint. The server forwards
-        this to the Google AI model for processing and returns the generated text.
+        Once you have gathered all necessary context with getContext, use this tool to generate the final, human-readable answer for the user.
       requestBody:
         required: true
         content:
@@ -774,15 +771,42 @@ paths:
                 type: string
                 example: "Google AI key is not set"
 
+  /mcp/plan:
+    post:
+      summary: (MCP) Get the next action plan from the agentic planner
+      description: >-
+        (Model-Context Protocol) This is the primary entry point for an agent's reasoning loop.
+        The agent sends the current user prompt and conversation history. The server uses Gemini's
+        Function Calling capability to decide which tool (`searchObjects`, `getContext`, or `finalAnswer`)
+        the agent should execute next. The response is a structured tool call that the agent can then execute.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_prompt:
+                  type: string
+                  example: "Find tables related to rental agreements"
+                history:
+                  type: array
+                  description: "The history of the conversation, including previous tool calls and their results."
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: A Gemini response containing a functionCall to be executed by the agent.
+          content:
+            application/json:
+              schema:
+                type: object
+
   /mcp/context/{db}:
     post:
       summary: (MCP) Get full context for a starting object
       description: >-
-        (Model-Context Protocol Step 2) A consolidated endpoint for an AI agent to perform the entire
-        context-gathering phase in a single call. The agent provides the
-        coordinates of a starting object, and the server performs the multi-step process of
-        fetching details, extracting links, and gathering the full collection context internally.
-        This is the primary endpoint for an agent to use after discovering an object.
+        After finding a specific object with searchObjects, use this tool to get its full context, including details of all related objects. After gathering the context, call generativeAI with the context and the original user message.
       parameters:
         - in: path
           name: db
@@ -822,11 +846,7 @@ paths:
     post:
       summary: (MCP) Search for database objects
       description: >-
-        (Model-Context Protocol Step 1) This endpoint is the discovery mechanism for an AI agent.
-        It takes a set of natural language search terms and finds relevant database objects
-        (tables, views, etc.) by searching their names and comments. It returns a ranked
-        list of candidates that the agent can use as a starting point for more detailed
-        context gathering.
+        Searches a specific database for objects matching a user's natural language query. Use this as the first step to find a starting point when the user's query is ambiguous. The tool will respond with an array of matching objects. Example response: [ { "OWNER": "RNTMGR2", "NAME": "RNT_TENANCY_AGREEMENT", "TYPE": "TABLE", "RELEVANCE_SCORE": 460 }, { "OWNER": "RNTMGR2", "NAME": "RNT_TENANCY_AGREEMENT_V", "TYPE": "VIEW", "RELEVANCE_SCORE": 230 } ] Select the object with the highest RELEVANCE_SCORE value. After using this tool, call getContext with the owner, name, and type of the highest scoring object.
       parameters:
         - in: path
           name: db
