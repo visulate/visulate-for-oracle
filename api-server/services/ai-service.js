@@ -170,7 +170,7 @@ async function searchObjectsInternal(db, args) {
       SUM(${rankingLogic}) > 0
     ORDER BY
       relevance_score DESC
-    FETCH FIRST 20 ROWS ONLY
+    FETCH FIRST 7 ROWS ONLY
   `;
   const result = await dbService.simpleExecute(poolAlias, sql, {});
   return result;
@@ -396,7 +396,7 @@ async function handleMcpRequest(req, res, next) {
               description: "After finding a specific object with searchObjects, use this tool to get its full context, including details of all related objects. After gathering the context, call generativeAI with the context and the original user message.",
               parameters: { type: "OBJECT", properties: { db: { type: "STRING" }, owner: { type: "STRING" }, name: { type: "STRING" }, type: { type: "STRING" } }, required: ["db", "owner", "name", "type"] }
             },
-            "visulate.generativeAI": {
+            "visulate.finalAnswer": {
               description: "Once you have gathered all necessary context with getContext, use this tool to generate the final, human-readable answer for the user.",
               parameters: { type: "OBJECT", properties: { message: { type: "STRING" }, context: { type: "OBJECT" } }, required: ["message", "context"] }
             }
@@ -415,7 +415,7 @@ async function handleMcpRequest(req, res, next) {
       const tools = [
         {
           name: "visulate.searchObjects",
-          description: "Searches a specific database for objects matching a user's natural language query. Use this as the first step to find a starting point when the user's query is ambiguous. The tool will respond with an array of matching objects. Example response: [ { \"OWNER\": \"RNTMGR2\", \"NAME\": \"RNT_TENANCY_AGREEMENT\", \"TYPE\": \"TABLE\", \"RELEVANCE_SCORE\": 460 }, { \"OWNER\": \"RNTMGR2\", \"NAME\": \"RNT_TENANCY_AGREEMENT_V\", \"TYPE\": \"VIEW\", \"RELEVANCE_SCORE\": 230 } ] Select the object with the highest RELEVANCE_SCORE value.",
+          description: "Searches a specific database for objects matching a user's natural language query. Use this as the first step to find a starting point when the user's query is ambiguous. The tool will respond with an array of matching objects. Example response: [ { \"OWNER\": \"RNTMGR2\", \"NAME\": \"RNT_TENANCY_AGREEMENT\", \"TYPE\": \"TABLE\", \"RELEVANCE_SCORE\": 460 }, { \"OWNER\": \"RNTMGR2\", \"NAME\": \"RNT_TENANCY_AGREEMENT_V\", \"TYPE\": \"VIEW\", \"RELEVANCE_SCORE\": 230 } ] The tool will respond with an array of matching objects, ranked by a relevance score. The first object in the array is the most relevant.",
           inputSchema: {
             type: "object",
             properties: {
@@ -436,7 +436,7 @@ async function handleMcpRequest(req, res, next) {
           inputSchema: { type: "object", properties: { db: { type: "STRING" }, owner: { type: "STRING" }, name: { type: "STRING" }, type: { type: "STRING" } }, required: ["db", "owner", "name", "type"] }
         },
         {
-          name: "visulate.generativeAI",
+          name: "visulate.finalAnswer",
           description: "Once you have gathered all necessary context with getContext, use this tool to generate the final, human-readable answer for the user.",
           inputSchema: { type: "object", properties: { message: { type: "STRING" }, context: { type: "OBJECT" } }, required: ["message", "context"] }
         }
@@ -463,7 +463,7 @@ async function handleMcpRequest(req, res, next) {
         case 'visulate.getContext':
           result = await getContextInternal(args);
           break;
-        case 'visulate.generativeAI':
+        case 'visulate.finalAnswer':
           result = await generativeAIInternal(args);
           break;
         default:
@@ -502,7 +502,7 @@ async function handleMcpRequest(req, res, next) {
         case 'visulate.getContext':
           result = await getContextInternal(args);
           break;
-        case 'visulate.generativeAI':
+        case 'visulate.finalAnswer':
           result = await generativeAIInternal(args);
           break;
         default:
