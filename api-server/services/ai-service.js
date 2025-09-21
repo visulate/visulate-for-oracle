@@ -131,10 +131,6 @@ async function searchObjectsInternal(db, args) {
     throw new Error('search_terms array is required');
   }
 
-  if (!search_terms || search_terms.length === 0) {
-    return res.status(400).json({ error: 'search_terms array is required' });
-  }
-
   const sanitizedTerms = search_terms.map(term => term.toLowerCase().replace(/'/g, "''"));
 
   const searchConditions = sanitizedTerms.map(term => `
@@ -154,6 +150,8 @@ async function searchObjectsInternal(db, args) {
       o.owner,
       o.object_name as name,
       o.object_type as type,
+      tc.comments as table_comments,
+      LISTAGG(cc.column_name || ': ' || cc.comments, '; ') WITHIN GROUP (ORDER BY cc.column_name) as column_comments,
       SUM(${rankingLogic}) as relevance_score
     FROM
       dba_objects o
@@ -162,10 +160,10 @@ async function searchObjectsInternal(db, args) {
     LEFT JOIN
       dba_col_comments cc ON o.owner = cc.owner AND o.object_name = cc.table_name
     WHERE
-      o.object_type IN ('${object_types.join("',\'")}') AND
+      o.object_type IN ('${object_types.join("','")}') AND
       (${searchConditions})
     GROUP BY
-      o.owner, o.object_name, o.object_type
+      o.owner, o.object_name, o.object_type, tc.comments
     HAVING
       SUM(${rankingLogic}) > 0
     ORDER BY
@@ -173,7 +171,20 @@ async function searchObjectsInternal(db, args) {
     FETCH FIRST 7 ROWS ONLY
   `;
   const result = await dbService.simpleExecute(poolAlias, sql, {});
-  return result;
+  const transformedResult = result.map(row => {
+    const newRow = {};
+    for (const key in row) {
+      newRow[key.toLowerCase()] = row[key];
+    }
+    if (newRow.relevance_score) {
+      newRow.relevance_score = Number(newRow.relevance_score);
+    }
+    return newRow;
+  });
+  // console.log('Result from dbService.simpleExecute:', result);
+  // console.log('Transformed result:', transformedResult);
+  // console.log('Final transformed result being returned:', JSON.stringify(transformedResult, null, 2));
+  return transformedResult;
 }
 
 /**
@@ -282,7 +293,7 @@ async function agentPlannerInternal(args) {
       functionDeclarations: [
         {
           name: "searchObjects",
-          description: "Searches a registered database for objects matching a user's natural language query. Use this as the first step when the user's query is ambiguous and doesn't mention a specific database object.",
+          description: "Searches a specific database for objects matching a user's natural language query. The tool will respond with an array of matching objects, ranked by a relevance score. After using this tool, call getContext with the owner, name, and type of the highest scoring object.",
           parameters: {
             type: "OBJECT",
             properties: {
@@ -357,7 +368,6 @@ async function agentPlanner(req, res, next) {
 }
 module.exports.agentPlanner = agentPlanner;
 
-
 // #############################################################################
 // SECTION: Entry Point for MCP Clients
 // #############################################################################
@@ -366,8 +376,8 @@ async function handleMcpRequest(req, res, next) {
   const request = req.body;
 
   try {
+    // 1. Handle the standard MCP methods first.
     if (request.method === 'initialize') {
-      // This is the handshake. Respond with the server's capabilities.
       const capabilities = {
         protocolVersion: "2024-11-05",
         serverInfo: {
@@ -377,28 +387,44 @@ async function handleMcpRequest(req, res, next) {
         capabilities: {
           tools: {
             "visulate.searchObjects": {
-              description: "Searches a specific database for objects matching a user's natural language query. Use this as the first step to find a starting point when the user's query is ambiguous. After using this tool, call getContext with the owner, name, and type of the highest scoring object.",
+              description: "Searches a specific database for objects matching a user's natural language query.",
               parameters: {
-                type: "OBJECT",
+                type: "object",
                 properties: {
-                  db: { type: "STRING", description: "The database to search in (e.g., 'pdb21')." },
-                  search_terms: { type: "ARRAY", items: { type: "STRING" }, description: "Keywords extracted from the user's query." },
+                  db: { type: "string", description: "The database to search in (e.g., 'pdb21')." },
+                  search_terms: { type: "array", items: { type: "string" }, description: "Keywords extracted from the user's query." },
                   object_types: {
-                    type: "ARRAY",
-                    items: { type: "STRING" },
+                    type: "array",
+                    items: { type: "string" },
                     description: "A list of object types to search for. For example, ['TABLE', 'VIEW']"
                   }
                 },
                 required: ["db", "search_terms", "object_types"]
+              },
+              // CORRECTED: The output schema is a nested object
+              outputSchema: {
+                type: "object",
+                properties: {
+                  output: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        owner: { type: "string" },
+                        name: { type: "string" },
+                        type: { type: "string" },
+                        table_comments: { type: "string", nullable: true },
+                        column_comments: { type: "string", nullable: true },
+                        relevance_score: { type: "number" }
+                      }
+                    }
+                  }
+                }
               }
             },
             "visulate.getContext": {
-              description: "After finding a specific object with searchObjects, use this tool to get its full context, including details of all related objects. After gathering the context, call generativeAI with the context and the original user message.",
-              parameters: { type: "OBJECT", properties: { db: { type: "STRING" }, owner: { type: "STRING" }, name: { type: "STRING" }, type: { type: "STRING" } }, required: ["db", "owner", "name", "type"] }
-            },
-            "visulate.finalAnswer": {
-              description: "Once you have gathered all necessary context with getContext, use this tool to generate the final, human-readable answer for the user.",
-              parameters: { type: "OBJECT", properties: { message: { type: "STRING" }, context: { type: "OBJECT" } }, required: ["message", "context"] }
+              description: "Get the full context, including details of all related objects for a given database object",
+              parameters: { type: "object", properties: { db: { type: "string" }, owner: { type: "string" }, name: { type: "string" }, type: { type: "string" } }, required: ["db", "owner", "name", "type"] }
             }
           }
         }
@@ -415,30 +441,45 @@ async function handleMcpRequest(req, res, next) {
       const tools = [
         {
           name: "visulate.searchObjects",
-          description: "Searches a specific database for objects matching a user's natural language query. Use this as the first step to find a starting point when the user's query is ambiguous. The tool will respond with an array of matching objects. Example response: [ { \"OWNER\": \"RNTMGR2\", \"NAME\": \"RNT_TENANCY_AGREEMENT\", \"TYPE\": \"TABLE\", \"RELEVANCE_SCORE\": 460 }, { \"OWNER\": \"RNTMGR2\", \"NAME\": \"RNT_TENANCY_AGREEMENT_V\", \"TYPE\": \"VIEW\", \"RELEVANCE_SCORE\": 230 } ] The tool will respond with an array of matching objects, ranked by a relevance score. The first object in the array is the most relevant.",
+          description: "Searches a specific database for objects matching a user's natural language query.",
           inputSchema: {
             type: "object",
             properties: {
-              db: { type: "STRING", description: "The database to search in (e.g., 'pdb21')." },
-              search_terms: { type: "ARRAY", items: { type: "STRING" }, description: "Keywords extracted from the user's query." },
+              db: { type: "string", description: "The database to search in (e.g., 'pdb21')." },
+              search_terms: { type: "array", items: { type: "string" }, description: "Keywords extracted from the user's query." },
               object_types: {
-                type: "ARRAY",
-                items: { type: "STRING" },
+                type: "array",
+                items: { type: "string" },
                 description: "A list of object types to search for. For example, ['TABLE', 'VIEW']"
               }
             },
             required: ["db", "search_terms", "object_types"]
+          },
+          // The output schema is a nested object
+          outputSchema: {
+            type: "object",
+            properties: {
+              output: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    owner: { type: "string" },
+                    name: { type: "string" },
+                    type: { type: "string" },
+                    table_comments: { type: "string", nullable: true },
+                    column_comments: { type: "string", nullable: true },
+                    relevance_score: { type: "number" }
+                  }
+                }
+              }
+            }
           }
         },
         {
           name: "visulate.getContext",
-          description: "After finding a specific object with searchObjects, use this tool to get its full context, including details of all related objects.",
-          inputSchema: { type: "object", properties: { db: { type: "STRING" }, owner: { type: "STRING" }, name: { type: "STRING" }, type: { type: "STRING" } }, required: ["db", "owner", "name", "type"] }
-        },
-        {
-          name: "visulate.finalAnswer",
-          description: "Once you have gathered all necessary context with getContext, use this tool to generate the final, human-readable answer for the user.",
-          inputSchema: { type: "object", properties: { message: { type: "STRING" }, context: { type: "OBJECT" } }, required: ["message", "context"] }
+          description: "Get the full context, including details of all related objects for a given database object",
+          inputSchema: { type: "object", properties: { db: { type: "string" }, owner: { type: "string" }, name: { type: "string" }, type: { type: "string" } }, required: ["db", "owner", "name", "type"] }
         }
       ];
       const jsonRpcResponse = {
@@ -463,34 +504,28 @@ async function handleMcpRequest(req, res, next) {
         case 'visulate.getContext':
           result = await getContextInternal(args);
           break;
-        case 'visulate.finalAnswer':
-          result = await generativeAIInternal(args);
-          break;
         default:
           throw new Error(`Unknown tool: ${toolName}`);
       }
       const jsonRpcResponse = {
         jsonrpc: "2.0",
         id: request.id,
+        // The result is a nested object, which matches the schema above
         result: {
-          result: result
+          output: result
         }
       };
+      // console.log('tools/call response:', JSON.stringify(jsonRpcResponse, null, 2));
       return res.status(200).json(jsonRpcResponse);
     }
 
     if (request.method === 'notifications/initialized') {
       logger.log('info', 'MCP client initialized');
-      const jsonRpcResponse = {
-        jsonrpc: "2.0",
-        id: request.id,
-        result: {}
-      };
-      return res.status(200).json(jsonRpcResponse);
+      return res.status(200).end();
     }
 
+    // ADDED: The direct method call handler (catch-all for custom methods)
     if (request.method) {
-      // This is a tool call.
       const toolName = request.method;
       const args = request.params;
       let result;
@@ -502,16 +537,16 @@ async function handleMcpRequest(req, res, next) {
         case 'visulate.getContext':
           result = await getContextInternal(args);
           break;
-        case 'visulate.finalAnswer':
-          result = await generativeAIInternal(args);
-          break;
         default:
           throw new Error(`Unknown tool: ${toolName}`);
       }
       const jsonRpcResponse = {
         jsonrpc: "2.0",
         id: request.id,
-        result: result
+        // The result is a nested object, which matches the schema above
+        result: {
+          output: result
+        }
       };
       return res.status(200).json(jsonRpcResponse);
     }
