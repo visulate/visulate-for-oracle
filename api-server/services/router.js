@@ -74,15 +74,6 @@ const aiSchema = {
   }
 };
 
-const mcpPlanSchema = {
-  type: 'object',
-  required: ['current_prompt'],
-  properties: {
-    current_prompt: { type: 'string' },
-    history: { type: 'array' }
-  }
-};
-
 const mcpContextSchema = {
   type: 'object',
   required: ['owner', 'name', 'type'],
@@ -162,10 +153,9 @@ router.route('/ai')
   .post(validate({body: aiSchema}), aiService.generativeAI);
 
 router.route('/mcp')
-  .post(aiService.handleMcpRequest);
-
-router.route('/mcp/plan')
-  .post(validate({body: mcpPlanSchema}), aiService.agentPlanner);
+  .get(aiService.handleMcpRequest)
+  .post(aiService.handleMcpRequest)
+  .delete(aiService.handleMcpRequest);
 
 router.route('/mcp/context/:db')
   .post(validate({body: mcpContextSchema}), aiService.getContext);
