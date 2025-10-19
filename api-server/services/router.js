@@ -17,6 +17,7 @@
 const express = require('express');
 const router = new express.Router();
 const controller = require('./controller.js');
+const aiService = require('./ai-service.js');
 router.use(express.json());
 
 const { Validator, ValidationError } = require('express-json-validator-middleware');
@@ -73,6 +74,31 @@ const aiSchema = {
   }
 };
 
+const mcpContextSchema = {
+  type: 'object',
+  required: ['owner', 'name', 'type'],
+  properties: {
+    owner: { type: 'string' },
+    name: { type: 'string' },
+    type: { type: 'string' }
+  }
+};
+
+const mcpSearchSchema = {
+  type: 'object',
+  required: ['search_terms', 'object_types'],
+  properties: {
+    search_terms: {
+      type: 'array',
+      items: { type: 'string' }
+    },
+    object_types: {
+      type: 'array',
+      items: { type: 'string' }
+    }
+  }
+};
+
 const transformSchema = {
   type: 'array'
 }
@@ -123,8 +149,19 @@ router.route('/api/collection/:db')
 
 
 router.route('/ai')
-  .get(controller.aiEnabled)
-  .post(validate({body: aiSchema}), controller.generativeAI);
+  .get(aiService.aiEnabled)
+  .post(validate({body: aiSchema}), aiService.generativeAI);
+
+router.route('/mcp')
+  .get(aiService.handleMcpRequest)
+  .post(aiService.handleMcpRequest)
+  .delete(aiService.handleMcpRequest);
+
+router.route('/mcp/context/:db')
+  .post(validate({body: mcpContextSchema}), aiService.getContext);
+
+router.route('/mcp/search-objects/:db')
+  .post(validate({body: mcpSearchSchema}), aiService.searchObjects);
 
 
 // Error handler JSON Schema errors
