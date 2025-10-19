@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.1.37
+  version: 1.1.38
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
@@ -771,36 +771,61 @@ paths:
                 type: string
                 example: "Google AI key is not set"
 
-  /mcp/plan:
-    post:
-      summary: (MCP) Get the next action plan from the agentic planner
+  /mcp:
+    get:
+      summary: (MCP) Model Context Protocol Server
       description: >-
-        (Model-Context Protocol) This is the primary entry point for an agent's reasoning loop.
-        The agent sends the current user prompt and conversation history. The server uses Gemini's
-        Function Calling capability to decide which tool (`searchObjects`, `getContext`, or `finalAnswer`)
-        the agent should execute next. The response is a structured tool call that the agent can then execute.
+        Main endpoint for the Model Context Protocol (MCP) server implementation.
+        This endpoint handles MCP client connections using Server-Sent Events (SSE) for real-time communication.
+        Provides access to database introspection tools and Oracle query generation capabilities.
+      responses:
+        '200':
+          description: SSE stream established for MCP communication
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    post:
+      summary: (MCP) Model Context Protocol Request Handler
+      description: >-
+        Handles MCP protocol messages for database introspection and query generation.
+        Supports tools for searching database objects, getting object context, and generating SQL queries.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              properties:
-                current_prompt:
-                  type: string
-                  example: "Find tables related to rental agreements"
-                history:
-                  type: array
-                  description: "The history of the conversation, including previous tool calls and their results."
-                  items:
-                    type: object
+              description: MCP protocol message
       responses:
         '200':
-          description: A Gemini response containing a functionCall to be executed by the agent.
+          description: MCP response
           content:
             application/json:
               schema:
                 type: object
+        '400':
+          description: Bad request
+        '500':
+          description: Server error
+    delete:
+      summary: (MCP) Cleanup MCP Session
+      description: >-
+        Cleanup endpoint for MCP sessions. Handles connection cleanup and resource management.
+      responses:
+        '200':
+          description: Session cleaned up successfully
+        '500':
+          description: Server error
 
   /mcp/context/{db}:
     post:
