@@ -91,4 +91,7 @@ def create_app(test_config=None):
     from . import sql2csv
     app.register_blueprint(sql2csv.bp)
 
+    from . import mcp
+    app.register_blueprint(mcp.bp)
+
     return app

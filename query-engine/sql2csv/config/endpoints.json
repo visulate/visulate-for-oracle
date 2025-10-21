@@ -1,1 +1,1 @@
-{"vis24prod":"192.168.1.153:1521/orclpdb", "vis24win":"visulate.goldthorp.org:1521/vis24pdb" }
+{"vis24":"192.168.1.153:1521/orclpdb","pdb21":"192.168.1.170:1522/pdb21.goldthorp.org","pdb22":"192.168.1.170:1522/pdb22.goldthorp.org","pdb23":"192.168.1.170:1522/pdb23.goldthorp.org","adb25":"vis25adb_high"}
