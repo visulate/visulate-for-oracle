@@ -8,10 +8,9 @@ import logging
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.exceptions import BadRequest
 
-# Import MCP types and server components
+# Check if MCP library is available
 try:
-    from mcp.types import Tool, TextContent, CallToolRequest, ListToolsRequest
-    from mcp.server import Server
+    import mcp
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
