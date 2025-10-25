@@ -5,3 +5,4 @@ Flask-Cors
 Werkzeug >= 2.2.3
 simplejson
 sqlparse >= 0.5
+mcp >= 1.0.0

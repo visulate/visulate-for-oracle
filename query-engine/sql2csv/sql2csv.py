@@ -228,6 +228,57 @@ def get_cursor(connection, sql, binds):
         errorObj, = e.args
         fail_request(400, description=errorObj.message)
 
+def execute_sql_internal(endpoint, sql_query, username, password):
+    """
+    Internal function to execute SQL queries for MCP endpoints.
+    Returns the result as a Python object (list of dicts).
+    """
+    try:
+        # Get connection parameters
+        conn_params = get_connection_params(endpoint)
+
+        # Validate SQL is SELECT only
+        statements = list(sqlparse.parse(sql_query))
+        for statement in statements:
+            if statement.get_type() != 'SELECT':
+                raise ValueError('SQL statement is not of type SELECT')
+
+        # Establish connection
+        connection = get_connection(username, password, conn_params)
+        cursor = get_cursor(connection, sql_query, None)
+
+        # Fetch all results
+        columns = [desc[0] for desc in cursor.description]
+        rows = cursor.fetchall()
+
+        # Convert to list of dictionaries
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                column_name = columns[i]
+                # Handle Oracle-specific data types
+                if hasattr(value, 'read'):  # LOB object
+                    row_dict[column_name] = value.read()
+                elif isinstance(value, (datetime.datetime, datetime.date)):
+                    row_dict[column_name] = value.isoformat()
+                else:
+                    row_dict[column_name] = value
+            result.append(row_dict)
+
+        # Clean up
+        cursor.close()
+        connection.close()
+
+        return result
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Error executing SQL internally for endpoint '{endpoint}', user '{username}', query: {sql_query!r}: {e}"
+        )
+        raise
+
+
 def get_connection_params(endpoint):
     """Get the connection parameters for a registered endpoint"""
     params = current_app.endpoints.get(endpoint)
