@@ -110,16 +110,7 @@ def handle_mcp_request():
 
                     result = McpTools.execute_sql_query(database, sql_query, username, password)
 
-                    if result["success"]:
-                        response_text = f"Query executed successfully on {database} as {username}:\n\n"
-                        response_text += f"SQL: {sql_query}\n\n"
-                        if result.get("row_count") is not None:
-                            response_text += f"Rows returned: {result['row_count']}\n\n"
-                        response_text += f"Results:\n{json.dumps(result['data'], indent=2)}"
-                    else:
-                        response_text = f"Query failed on {database} as {username}:\n\n"
-                        response_text += f"SQL: {sql_query}\n\n"
-                        response_text += f"Error: {result['error']}"
+                    response_text = format_sql_response(database, username, sql_query, result)
 
                     return jsonify({
                         "jsonrpc": "2.0",
