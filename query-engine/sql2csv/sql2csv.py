@@ -273,7 +273,9 @@ def execute_sql_internal(endpoint, sql_query, username, password):
         return result
 
     except Exception as e:
-        current_app.logger.error(f"Error executing SQL internally: {e}")
+        current_app.logger.error(
+            f"Error executing SQL internally for endpoint '{endpoint}', user '{username}', query: {sql_query!r}: {e}"
+        )
         raise
 
 
