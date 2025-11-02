@@ -238,14 +238,28 @@ def execute_sql_internal(endpoint, sql_query, username, password):
         conn_params = get_connection_params(endpoint)
 
         # Validate SQL is SELECT only
-        statements = list(sqlparse.parse(sql_query))
-        for statement in statements:
-            if statement.get_type() != 'SELECT':
-                raise ValueError('SQL statement is not of type SELECT')
+        # Clean the SQL query (remove extra whitespace, ensure proper formatting)
+        sql_query_clean = sql_query.strip()
+        if not sql_query_clean.endswith(';'):
+            # Add semicolon if missing, but remove it for Oracle execution
+            sql_query_for_parsing = sql_query_clean
+            sql_query_for_execution = sql_query_clean
+        else:
+            sql_query_for_parsing = sql_query_clean
+            sql_query_for_execution = sql_query_clean.rstrip(';')
+        
+        statements = list(sqlparse.parse(sql_query_for_parsing))
+        current_app.logger.info(f"Parsed {len(statements)} SQL statements")
+        
+        for i, statement in enumerate(statements):
+            statement_type = statement.get_type()
+            current_app.logger.info(f"Statement {i+1} type: {statement_type}")
+            if statement_type != 'SELECT':
+                raise ValueError(f'SQL statement {i+1} is not of type SELECT (got: {statement_type})')
 
         # Establish connection
         connection = get_connection(username, password, conn_params)
-        cursor = get_cursor(connection, sql_query, None)
+        cursor = get_cursor(connection, sql_query_for_execution, None)
 
         # Fetch all results
         columns = [desc[0] for desc in cursor.description]
@@ -274,8 +288,12 @@ def execute_sql_internal(endpoint, sql_query, username, password):
 
     except Exception as e:
         current_app.logger.error(
-            f"Error executing SQL internally for endpoint '{endpoint}', user '{username}', query: {sql_query!r}: {e}"
+            f"Error executing SQL internally for endpoint '{endpoint}', user '{username}': {e}"
         )
+        current_app.logger.error(f"SQL query length: {len(sql_query)} characters")
+        current_app.logger.error(f"SQL query (first 500 chars): {sql_query[:500]}")
+        if hasattr(e, 'args') and len(e.args) > 0:
+            current_app.logger.error(f"Error details: {e.args}")
         raise
 
 
