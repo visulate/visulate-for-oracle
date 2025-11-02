@@ -8,7 +8,6 @@ import time
 import base64
 import threading
 import hashlib
-import tempfile
 import os
 import glob
 import json
