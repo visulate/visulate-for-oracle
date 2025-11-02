@@ -5,6 +5,7 @@ Provides MCP-compatible endpoints for SQL execution.
 
 import json
 import logging
+import time
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.exceptions import BadRequest
 
@@ -17,10 +18,27 @@ except ImportError:
 
 # Import local SQL execution functions
 from . import sql2csv
+from .secure_credentials import credential_manager
 
 bp = Blueprint('mcp', __name__, url_prefix='/mcp')
 
 logger = logging.getLogger(__name__)
+
+
+def format_sql_response(database, username, sql_query, result):
+    """Format SQL execution result into a readable response text. Sanitized to avoid credential exposure."""
+    if result["success"]:
+        response_text = f"Query executed successfully on {database}:\n\n"
+        response_text += f"SQL: {sql_query}\n\n"
+        if result.get("row_count") is not None:
+            response_text += f"Rows returned: {result['row_count']}\n\n"
+        response_text += f"Results:\n{json.dumps(result['data'], indent=2)}"
+    else:
+        response_text = f"Query failed on {database}:\n\n"
+        response_text += f"SQL: {sql_query}\n\n"
+        response_text += f"Error: {result['error']}"
+
+    return response_text
 
 
 @bp.route('/', methods=['GET', 'POST', 'DELETE'])
@@ -97,19 +115,75 @@ def handle_mcp_request():
                 if tool_name == "execute_sql":
                     database = arguments.get("database")
                     sql_query = arguments.get("sql")
-                    username = arguments.get("username")
-                    password = arguments.get("password")
+                    credential_token = arguments.get("credential_token")
 
-                    if not all([database, sql_query, username, password]):
+                    if not all([database, sql_query, credential_token]):
                         return jsonify({
                             "jsonrpc": "2.0",
                             "id": request_id,
-                            "error": {"code": -32602, "message": "Missing required arguments: database, sql, username, password"}
+                            "error": {"code": -32602, "message": "Missing required arguments: database, sql, credential_token"}
                         }), 400
 
-                    result = McpTools.execute_sql_query(database, sql_query, username, password)
+                    result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token)
 
+                    # Get username for logging (without exposing password)
+                    username = result.get("username", "unknown")
                     response_text = format_sql_response(database, username, sql_query, result)
+
+                    return jsonify({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [{"type": "text", "text": response_text}]
+                        }
+                    })
+
+                elif tool_name == "create_credential_token":
+                    username = arguments.get("username")
+                    password = arguments.get("password")
+                    database = arguments.get("database")
+                    expiry_minutes = arguments.get("expiry_minutes", 30)  # 30 minutes default
+
+                    if not all([username, password, database]):
+                        return jsonify({
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {"code": -32602, "message": "Missing required arguments: username, password, database"}
+                        }), 400
+
+                    token = credential_manager.create_credential_token(username, password, database, expiry_minutes)
+
+                    # Log token creation for debugging (without sensitive data)
+                    logger.info(f"Credential token created for {database}, user {username}, expires in {expiry_minutes}min")
+
+                    response_text = f"Credential token created successfully for {database}.\n"
+                    response_text += f"Token expires in {expiry_minutes} minutes.\n"
+                    response_text += f"Use this token for execute_sql calls: {token}"
+
+                    return jsonify({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [{"type": "text", "text": response_text}]
+                        }
+                    })
+
+                elif tool_name == "revoke_credential_token":
+                    credential_token = arguments.get("credential_token")
+
+                    if not credential_token:
+                        return jsonify({
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {"code": -32602, "message": "Missing required argument: credential_token"}
+                        }), 400
+
+                    revoked = credential_manager.revoke_token(credential_token)
+
+                    if revoked:
+                        response_text = "Credential token revoked successfully."
+                    else:
+                        response_text = "Credential token not found or already expired."
 
                     return jsonify({
                         "jsonrpc": "2.0",
@@ -124,7 +198,7 @@ def handle_mcp_request():
                     response_text = "Available databases for SQL execution:\n\n"
                     for name, connection_string in databases.items():
                         response_text += f"- {name}: {connection_string}\n"
-                    response_text += "\nNote: You'll need valid database credentials (username/password) to execute queries."
+                    response_text += "\nNote: Create a credential token first using create_credential_token, then use that token for execute_sql calls."
 
                     return jsonify({
                         "jsonrpc": "2.0",
@@ -178,8 +252,39 @@ class McpTools:
 
         tools = [
             {
+                "name": "create_credential_token",
+                "description": "Create a temporary, secure credential token for database access. This token can then be used for SQL execution without exposing passwords in subsequent calls.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "database": {
+                            "type": "string",
+                            "description": f"Database name. Available: {', '.join(available_dbs)}",
+                            "enum": available_dbs
+                        },
+                        "username": {
+                            "type": "string",
+                            "description": "Database username (e.g., schema owner like RNTMGR2)"
+                        },
+                        "password": {
+                            "type": "string",
+                            "description": "Database password for the username (will be securely stored temporarily)"
+                        },
+                        "expiry_minutes": {
+                            "type": "integer",
+                            "description": "Token expiration time in minutes (default: 30)",
+                            "default": 30,
+                            "minimum": 1,
+                            "maximum": 1440
+                        }
+                    },
+                    "required": ["database", "username", "password"]
+                }
+            },
+
+            {
                 "name": "execute_sql",
-                "description": "Execute a SQL query on a specified database. Used when the api-server generates a query that needs to be executed against actual data tables (not data dictionary).",
+                "description": "Execute a SQL query on a specified database using a secure credential token. Create a credential token first using create_credential_token. Used when the AI model needs to query application tables rather than metadata in the data dictionary.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -192,16 +297,27 @@ class McpTools:
                             "type": "string",
                             "description": "SQL query to execute (SELECT statements only)"
                         },
-                        "username": {
+                        "credential_token": {
                             "type": "string",
-                            "description": "Database username (e.g., schema owner like RNTMGR2)"
-                        },
-                        "password": {
-                            "type": "string",
-                            "description": "Database password for the username"
+                            "description": "Secure credential token obtained from create_credential_token"
                         }
                     },
-                    "required": ["database", "sql", "username", "password"]
+                    "required": ["database", "sql", "credential_token"]
+                }
+            },
+
+            {
+                "name": "revoke_credential_token",
+                "description": "Immediately revoke a credential token for security purposes",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "credential_token": {
+                            "type": "string",
+                            "description": "The credential token to revoke"
+                        }
+                    },
+                    "required": ["credential_token"]
                 }
             },
 
@@ -219,11 +335,40 @@ class McpTools:
         return tools
 
     @staticmethod
-    def execute_sql_query(database, sql_query, username, password):
-        """Execute SQL using existing sql2csv functionality."""
+    def execute_sql_query_with_token(database, sql_query, credential_token):
+        """Execute SQL using secure credential token."""
         try:
+            # Retrieve credentials using the token
+            credentials = credential_manager.get_credentials(credential_token)
+            if not credentials:
+                # Debug information about credential manager state
+                manager_info = credential_manager.get_instance_info()
+                logger.warning(f"Token validation failed for {database}. Manager info: active_tokens={manager_info['active_tokens']}, instance_id={manager_info['instance_id']}")
+                return {
+                    "success": False,
+                    "error": "Invalid or expired credential token",
+                    "database": database,
+                    "query": sql_query,
+                    "username": "unknown"
+                }
+
+            username, password, token_database = credentials
+
+            # Verify database matches
+            if token_database != database:
+                return {
+                    "success": False,
+                    "error": f"Credential token is for database '{token_database}', not '{database}'",
+                    "database": database,
+                    "query": sql_query,
+                    "username": username
+                }
+
             # Use the internal SQL execution function
             result = sql2csv.execute_sql_internal(database, sql_query, username, password)
+
+            # Secure logging - no sensitive data
+            logger.info(f"SQL executed successfully on {database} for user {username}")
 
             return {
                 "success": True,
@@ -235,13 +380,14 @@ class McpTools:
             }
 
         except Exception as e:
-            logger.error(f"Error executing SQL: {e}")
+            # Secure logging - no sensitive data
+            logger.error(f"Error executing SQL on {database} for user {credentials[0] if credentials else 'unknown'}: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "database": database,
                 "query": sql_query,
-                "username": username
+                "username": credentials[0] if credentials else "unknown"
             }
 
 
@@ -279,27 +425,55 @@ def call_tool():
         logger.info(f"Calling MCP tool: {tool_name} with arguments: {arguments}")
 
         # Route to appropriate tool handler
-        if tool_name == "execute_sql":
-            database = arguments.get("database")
-            sql_query = arguments.get("sql")
+        if tool_name == "create_credential_token":
             username = arguments.get("username")
             password = arguments.get("password")
+            database = arguments.get("database")
+            expiry_minutes = arguments.get("expiry_minutes", 30)  # 30 minutes default
 
-            if not all([database, sql_query, username, password]):
-                raise BadRequest("Missing required arguments: database, sql, username, password")
+            if not all([username, password, database]):
+                raise BadRequest("Missing required arguments: username, password, database")
 
-            result = McpTools.execute_sql_query(database, sql_query, username, password)
+            token = credential_manager.create_credential_token(username, password, database, expiry_minutes)
 
-            if result["success"]:
-                response_text = f"Query executed successfully on {database} as {username}:\n\n"
-                response_text += f"SQL: {sql_query}\n\n"
-                if result.get("row_count") is not None:
-                    response_text += f"Rows returned: {result['row_count']}\n\n"
-                response_text += f"Results:\n{json.dumps(result['data'], indent=2)}"
+            response_text = f"Credential token created successfully for {database}.\n"
+            response_text += f"Token expires in {expiry_minutes} minutes.\n"
+            response_text += f"Use this token for execute_sql calls: {token}"
+
+            return jsonify({
+                "content": [{"type": "text", "text": response_text}]
+            })
+
+        elif tool_name == "execute_sql":
+            database = arguments.get("database")
+            sql_query = arguments.get("sql")
+            credential_token = arguments.get("credential_token")
+
+            if not all([database, sql_query, credential_token]):
+                raise BadRequest("Missing required arguments: database, sql, credential_token")
+
+            result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token)
+
+            # Get username for logging (without exposing password)
+            username = result.get("username", "unknown")
+            response_text = format_sql_response(database, username, sql_query, result)
+
+            return jsonify({
+                "content": [{"type": "text", "text": response_text}]
+            })
+
+        elif tool_name == "revoke_credential_token":
+            credential_token = arguments.get("credential_token")
+
+            if not credential_token:
+                raise BadRequest("Missing required argument: credential_token")
+
+            revoked = credential_manager.revoke_token(credential_token)
+
+            if revoked:
+                response_text = "Credential token revoked successfully."
             else:
-                response_text = f"Query failed on {database} as {username}:\n\n"
-                response_text += f"SQL: {sql_query}\n\n"
-                response_text += f"Error: {result['error']}"
+                response_text = "Credential token not found or already expired."
 
             return jsonify({
                 "content": [{"type": "text", "text": response_text}]
@@ -311,14 +485,14 @@ def call_tool():
             response_text = "Available databases for SQL execution:\n\n"
             for name, connection_string in databases.items():
                 response_text += f"- {name}: {connection_string}\n"
-            response_text += "\nNote: You'll need valid database credentials (username/password) to execute queries."
+            response_text += "\nNote: Create a credential token first using create_credential_token, then use that token for execute_sql calls."
 
             return jsonify({
                 "content": [{"type": "text", "text": response_text}]
             })
 
         else:
-            return jsonify({"error": f"Unknown tool: {tool_name}. Available tools: execute_sql, list_databases"}), 400
+            return jsonify({"error": f"Unknown tool: {tool_name}. Available tools: create_credential_token, execute_sql, revoke_credential_token, list_databases"}), 400
 
     except BadRequest as e:
         return jsonify({"error": str(e)}), 400
@@ -334,6 +508,16 @@ def mcp_status():
         "status": "running",
         "mcp_available": MCP_AVAILABLE,
         "available_databases": McpTools.get_available_databases(),
-        "available_tools": ["execute_sql", "list_databases"],
-        "purpose": "SQL execution only - database introspection handled by api-server"
+        "available_tools": ["create_credential_token", "execute_sql", "revoke_credential_token", "list_databases"],
+        "purpose": "SQL execution only - database introspection handled by api-server",
+        "credential_manager": credential_manager.get_instance_info()
+    })
+
+
+@bp.route('/debug/credentials', methods=['GET'])
+def debug_credentials():
+    """Debug endpoint to check credential manager status."""
+    return jsonify({
+        "credential_manager_info": credential_manager.get_instance_info(),
+        "timestamp": time.time()
     })

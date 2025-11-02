@@ -17,6 +17,22 @@ info:
     The APIs + an associated UI provide an Oracle data dictionary browsing service to help
     data engineers understand the structure and dependencies in Oracle databases
     that they plan to migrate to the Cloud.
+
+    ## MCP (Model Context Protocol) Support
+
+    Visulate provides comprehensive MCP support through two service endpoints:
+
+    **API Server (port 3000):** Database introspection and AI integration
+    - `/mcp` - Protocol server and message handling
+    - `/mcp/context/{db}` - Object context retrieval
+    - `/mcp/search-objects/{db}` - Natural language object search
+    - `/ai` - AI-powered analysis with context
+
+    **Query Engine (port 5000):** Secure SQL execution
+    - `/mcp-sql` - Secure credential management and SQL execution
+    - Eliminates password exposure through secure token system
+    - RAM-only credential storage with automatic cleanup
+    - Multi-worker support via shared filesystem storage
   contact:
     name: Peter Goldthorp
   license:
@@ -923,6 +939,311 @@ paths:
                       example: 95.5
         '400':
           description: Bad request, likely missing search_terms.
+
+  /mcp-sql:
+    get:
+      summary: (MCP) Secure SQL Execution Server
+      description: >-
+        Main endpoint for the secure MCP SQL server implementation in the query-engine.
+        This endpoint provides secure credential management and SQL execution capabilities.
+        Uses secure token-based authentication to avoid password exposure in API calls.
+      responses:
+        '200':
+          description: Service status and available tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "MCP SQL server running"
+                  available_tools:
+                    type: array
+                    items:
+                      type: string
+                    example: ["create_credential_token", "execute_sql", "revoke_credential_token", "list_databases"]
+        '500':
+          description: Server error
+    post:
+      summary: (MCP) Secure SQL Tool Execution
+      description: >-
+        Executes secure MCP tools for SQL operations with credential management.
+        Supports create_credential_token, execute_sql, revoke_credential_token, and list_databases tools.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, arguments]
+              properties:
+                name:
+                  type: string
+                  enum: [create_credential_token, execute_sql, revoke_credential_token, list_databases]
+                  example: create_credential_token
+                arguments:
+                  type: object
+                  description: Tool-specific arguments
+                  example: {"database": "pdb21", "username": "RNTMGR2", "password": "secret", "expiry_minutes": 30}
+      responses:
+        '200':
+          description: Tool execution result
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request or invalid tool parameters
+        '500':
+          description: Server error
+
+  /mcp-sql/create_credential_token:
+    post:
+      summary: (MCP) Create Secure Credential Token
+      description: >-
+        Creates a secure, temporary token for database credentials. This eliminates the need
+        to pass plaintext passwords in subsequent SQL execution requests. Tokens are stored
+        securely in RAM-only storage with automatic expiration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [database, username, password]
+              properties:
+                database:
+                  type: string
+                  example: pdb21
+                  description: Database endpoint name
+                username:
+                  type: string
+                  example: RNTMGR2
+                  description: Database username
+                password:
+                  type: string
+                  example: secretpassword
+                  description: Database password (stored securely, never logged)
+                expiry_minutes:
+                  type: integer
+                  example: 30
+                  description: "Token expiration time in minutes (default: 30)"
+      responses:
+        '200':
+          description: Credential token created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credential_token:
+                    type: string
+                    example: "abc123def456..."
+                    description: Secure token to use for SQL execution
+                  expires_in_minutes:
+                    type: integer
+                    example: 30
+                  message:
+                    type: string
+                    example: "Credential token created successfully"
+        '400':
+          description: Bad request - missing required parameters
+        '500':
+          description: Server error
+
+  /mcp-sql/execute_sql:
+    post:
+      summary: (MCP) Execute SQL with Secure Token
+      description: >-
+        Executes SQL using a secure credential token instead of plaintext passwords.
+        This is the primary method for secure SQL execution in MCP environments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [database, credential_token, sql]
+              properties:
+                database:
+                  type: string
+                  example: pdb21
+                  description: Database endpoint name
+                credential_token:
+                  type: string
+                  example: "abc123def456..."
+                  description: Secure credential token from create_credential_token
+                sql:
+                  type: string
+                  example: "SELECT COUNT(*) FROM user_tables"
+                  description: SQL statement to execute
+                binds:
+                  type: object
+                  example: {"maxrows": 10}
+                  description: Optional bind variables for the SQL statement
+      responses:
+        '200':
+          description: SQL executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                    description: Query result rows
+                  columns:
+                    type: array
+                    items:
+                      type: string
+                    description: Column names
+                  execution_time:
+                    type: number
+                    example: 0.125
+                    description: Query execution time in seconds
+        '400':
+          description: Bad request - invalid token or SQL
+        '401':
+          description: Invalid or expired credential token
+        '500':
+          description: Database connection or execution error
+
+  /mcp-sql/revoke_credential_token:
+    post:
+      summary: (MCP) Revoke Credential Token
+      description: >-
+        Immediately revokes a credential token, making it invalid for future use.
+        This is useful for cleanup and security when tokens are no longer needed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential_token]
+              properties:
+                credential_token:
+                  type: string
+                  example: "abc123def456..."
+                  description: The credential token to revoke
+      responses:
+        '200':
+          description: Token revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Credential token revoked successfully"
+        '400':
+          description: Bad request - missing token parameter
+        '404':
+          description: Token not found or already expired
+
+  /mcp-sql/list_databases:
+    get:
+      summary: (MCP) List Available Databases
+      description: >-
+        Returns a list of database endpoints available for secure SQL execution.
+        This helps MCP clients discover available databases for connection.
+      responses:
+        '200':
+          description: List of available databases
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  databases:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        endpoint:
+                          type: string
+                          example: "pdb21"
+                        description:
+                          type: string
+                          example: "Oracle 21c Database"
+                        status:
+                          type: string
+                          example: "available"
+        '500':
+          description: Server error
+
+  /mcp-sql/tools:
+    get:
+      summary: (MCP) List Available Tools
+      description: >-
+        Returns metadata about available MCP tools for secure SQL operations.
+        This endpoint is used by MCP clients to discover capabilities.
+      responses:
+        '200':
+          description: Available tools metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "create_credential_token"
+                        description:
+                          type: string
+                          example: "Create a secure credential token"
+                        parameters:
+                          type: object
+                          description: Tool parameter schema
+
+  /mcp-sql/status:
+    get:
+      summary: (MCP) Service Status
+      description: >-
+        Returns the current status of the secure MCP SQL service including
+        credential manager information and active token statistics.
+      responses:
+        '200':
+          description: Service status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "running"
+                  version:
+                    type: string
+                    example: "2.1.0"
+                  credential_manager:
+                    type: object
+                    properties:
+                      storage_type:
+                        type: string
+                        example: "shared_filesystem_dev_shm"
+                      active_tokens:
+                        type: integer
+                        example: 3
+                      storage_security:
+                        type: string
+                        example: "ram_based_no_disk_persistence"
+
 components:
   securitySchemes:
     dbCustomAuth:

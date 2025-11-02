@@ -30,6 +30,7 @@ x-google-marketplace:
       v2.0.2 Update Gemini version, query engine and Angular observable bug fixes
       v2.0.3 Switch ui image to use nginx:alpine
       v2.0.4 Fix connection pool leak in api server, Angular update and support for wallet connections in query engine
+      v2.1.0 MCP server implementation.
   images:
     '':
       properties:
