@@ -3,10 +3,10 @@
 systemctl start docker
 # Pull the Docker container images
 docker pull docker/compose:latest
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle:2.0
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.0
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle:2.1
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.1
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.1
 
 # Create visulate directory if it doesn't exist
 if [ ! -d /home/visulate ]; then
@@ -18,12 +18,12 @@ if [ ! -d /home/visulate/config ]; then
   mkdir /home/visulate/config
 
   # copy the API server config files from the container to the host
-  api_container=$(docker create --rm gcr.io/visulate-llc-public/visulate-for-oracle:2.0)
+  api_container=$(docker create --rm gcr.io/visulate-llc-public/visulate-for-oracle:2.1)
   docker cp "$api_container:/visulate-server/config" /home/visulate
   docker rm "$api_container"
 
   # copy the query engine config files from the container to the host
-  docker run --rm gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
+  docker run --rm gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
 fi
 
 # Create docker-compose.yml if not already present
@@ -32,7 +32,7 @@ cat << 'EOF' > /home/visulate/docker-compose.yaml
 version: "3.8"
 services:
   reverseproxy:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
+    image: gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.1
     container_name: reverseproxy
     ports:
       - 80:80
@@ -40,7 +40,7 @@ services:
       - visulate_network
 
   visapi:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle:2.0
+    image: gcr.io/visulate-llc-public/visulate-for-oracle:2.1
     container_name: visapi
     expose:
       - "3000"
@@ -55,7 +55,7 @@ services:
       retries: 3
 
   visui:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.0
+    image: gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.1
     container_name: visui
     expose:
       - "80"
@@ -68,7 +68,7 @@ services:
       retries: 3
 
   vissql:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0
+    image: gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1
     container_name: vissql
     expose:
       - "5000"
@@ -105,10 +105,10 @@ if [ ! -f /home/visulate/update-visulate.sh ]; then
   cat << 'SCRIPT' > /home/visulate/update-visulate.sh
 #!/bin/bash
 docker pull docker/compose:latest
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle:2.0
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.0
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.0
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle:2.1
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.1
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1
+docker pull gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.1
 SCRIPT
   chmod +x /home/visulate/update-visulate.sh
 fi
