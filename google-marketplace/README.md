@@ -92,7 +92,7 @@ sudo journalctl -u google-startup-scripts.service
 gcloud compute images create visulate-vm-feb25  \
   --project visulate-llc-public  \
   --source-disk projects/visulate-app/zones/us-east1-b/disks/vm-visulate4oracle  \
-  --licenses projects/visulate-llc-public/global/licenses/cloud-marketplace-bb6cb067de6855d1-df1ebeb69c0ba664  \
+  --licenses ... \
   --description "Visulate for Oracle VM image - Feb 2025"
 
 
