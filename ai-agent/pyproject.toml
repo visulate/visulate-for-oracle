@@ -1,0 +1,37 @@
+[project]
+name = "visulate-ai-agent"
+version = "2.1.0"
+description = "AI Agent for Oracle database interactions using Visulate"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Visulate LLC", email = "support@visulate.com"},
+]
+keywords = ["oracle", "database", "ai", "agent", "mcp", "google-adk"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "a2a-sdk==0.3.3",
+    "fastmcp==2.11.3",
+    "google-adk==1.13.0",
+    "google-genai>=1.17.0",
+    "python-dotenv>=1.1.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+visulate-agent = "visulate_ai_agent.agent:main"
+
+[project.urls]
+Homepage = "https://visulate.net"
+Documentation = "https://github.com/visulate/visulate-for-oracle/blob/main/ai-agent/README.md"
+Repository = "https://github.com/visulate/visulate-for-oracle.git"
