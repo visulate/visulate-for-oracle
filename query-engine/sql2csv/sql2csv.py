@@ -247,10 +247,10 @@ def execute_sql_internal(endpoint, sql_query, username, password):
         else:
             sql_query_for_parsing = sql_query_clean
             sql_query_for_execution = sql_query_clean.rstrip(';')
-        
+
         statements = list(sqlparse.parse(sql_query_for_parsing))
         current_app.logger.info(f"Parsed {len(statements)} SQL statements")
-        
+
         for i, statement in enumerate(statements):
             statement_type = statement.get_type()
             current_app.logger.info(f"Statement {i+1} type: {statement_type}")
@@ -271,13 +271,9 @@ def execute_sql_internal(endpoint, sql_query, username, password):
             row_dict = {}
             for i, value in enumerate(row):
                 column_name = columns[i]
-                # Handle Oracle-specific data types
-                if hasattr(value, 'read'):  # LOB object
-                    row_dict[column_name] = value.read()
-                elif isinstance(value, (datetime.datetime, datetime.date)):
-                    row_dict[column_name] = value.isoformat()
-                else:
-                    row_dict[column_name] = value
+                # Use convert_db_value to handle LOBs, Objects, Dates, etc.
+                # Default download_lobs to 'Y' for MCP/Agent usage so we get the content
+                row_dict[column_name] = convert_db_value(value, 'Y')
             result.append(row_dict)
 
         # Clean up

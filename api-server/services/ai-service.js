@@ -19,6 +19,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const dbConfig = require('../config/database.js');
 const dbService = require('./database.js');
 const { getObjectDetails } = require('./controller.js');
+const templateEngine = require('./template-engine');
 
 /**
  * Gets a list of endpoints
@@ -42,9 +43,9 @@ const endpointList = getEndpointList(dbConfig.endpoints);
  */
 function aiEnabled(req, res) {
   if (httpConfig.googleAiKey) {
-    res.status(200).json({enabled: true});
+    res.status(200).json({ enabled: true });
   } else {
-    res.status(200).json({enabled: false});
+    res.status(200).json({ enabled: false });
   }
 }
 module.exports.aiEnabled = aiEnabled;
@@ -336,7 +337,20 @@ async function getContextInternal(args) {
 async function getContext(req, res, next) {
   try {
     const result = await getContextInternal({ ...req.params, ...req.body });
-    res.status(200).json(result);
+    if (req.query.template) {
+      try {
+        const templateResult = await templateEngine.applyTemplate('context', result, req);
+        if (typeof (templateResult) === "string") { res.type('txt'); }
+        res.status(200).send(templateResult);
+      } catch (err) {
+        logger.log('error', `Template application failed for ${req.query.template}`);
+        logger.log('error', err);
+        res.status(404).send(err);
+        next(err);
+      }
+    } else {
+      res.status(200).json(result);
+    }
   } catch (err) {
     logger.log('error', `getContext failed for ${req.params.db}/${req.body.owner}/${req.body.type}/${req.body.name}`);
     logger.log('error', err);
@@ -400,8 +414,8 @@ setInterval(() => {
   // Clean up stale SSE connections (additional safety check)
   sseConnections.forEach((connection, sessionId) => {
     if (!mcpSessions[sessionId] ||
-        (connection.res && connection.res.writableEnded) ||
-        (connection.startTime && (now - connection.startTime) > SSE_CONNECTION_TIMEOUT_MS)) {
+      (connection.res && connection.res.writableEnded) ||
+      (connection.startTime && (now - connection.startTime) > SSE_CONNECTION_TIMEOUT_MS)) {
       cleanupSSEConnection(sessionId);
       cleanedSSEConnections++;
     }
@@ -632,11 +646,51 @@ function createMcpServer() {
       owner: z.string().describe("The database schema/owner of the database object."),
       name: z.string().describe("The name of the database object."),
       type: z.string().describe("The type of the database object."),
-      relationship_types: z.string().optional().describe("Relationship types to include. Valid values are 'FK', 'ALL', and 'NONE'. If not provided, Foreign Key (FK) related object types are included."),
     },
-    async ({ db, owner, name, type, relationship_types }) => {
+    async ({ db, owner, name, type, relationship_types = 'FK', format = 'FORMATTED' }) => {
       try {
         const result = await getContextInternal({ db, owner, name, type, relationship_types });
+
+        // Apply formatting based on format parameter
+        if (format === 'FORMATTED') {
+          try {
+            // Create a mock request object for template engine
+            const mockReq = {
+              query: { template: 'ai-context.hbs' },
+              headers: { host: 'localhost' },
+              protocol: 'http',
+              get: function(name) {
+                if (name === 'host') return this.headers.host;
+                return '';
+              }
+            };
+
+            const templateResult = await templateEngine.applyTemplate('context', result, mockReq);
+            // Return as text if template returns a string, otherwise JSON
+            if (typeof templateResult === "string") {
+              return {
+                content: [
+                  { type: 'text', text: templateResult }
+                ]
+              };
+            } else {
+              return {
+                content: [
+                  { type: 'text', text: JSON.stringify(templateResult, null, 2) }
+                ]
+              };
+            }
+          } catch (templateError) {
+            logger.log('error', `Template application failed for ai-context.hbs: ${templateError.message}`);
+            return {
+              content: [
+                { type: 'text', text: JSON.stringify({ error: `Template error: ${templateError.message}`, type: 'templateError' }, null, 2) }
+              ]
+            };
+          }
+        }
+
+        // RAW format - return JSON response
         return {
           content: [
             { type: 'text', text: JSON.stringify(result, null, 2) }
@@ -772,7 +826,7 @@ async function handleMcpRequest(req, res, next) {
       // Update last activity time
       sessionEntry.lastActivity = new Date();
 
-    // Case 2: Initialization request → create new transport + server
+      // Case 2: Initialization request → create new transport + server
     } else if (!sessionIdHeader && req.body && req.body.method === 'initialize') {
       // Enforce connection limits before creating new session
       enforceConnectionLimits();

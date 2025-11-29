@@ -76,7 +76,7 @@ async function endpoints(filter) {
   }
 
   const rows = [];
-  await async.each (dbConfig.endpoints, async function (ep) {
+  await async.each(dbConfig.endpoints, async function (ep) {
     try {
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
       if (result.length > 0) {
@@ -88,7 +88,7 @@ async function endpoints(filter) {
     }
   });
 
-  return rows.sort(function(a, b) {
+  return rows.sort(function (a, b) {
     const endpointA = a.endpoint.toUpperCase();
     const endpointB = b.endpoint.toUpperCase();
     if (endpointA < endpointB) { return -1; }
@@ -448,18 +448,19 @@ module.exports.generateDDL = generateDDL;
 
 async function getDependencies(connection, sql, dbService, owner, object_type, object_name, object_id) {
   let result = [];
-  const query = sql.statement['ADB-YN'];
+  const query = JSON.parse(JSON.stringify(sql.statement['ADB-YN']));
   const r = await dbService.query(connection, query.sql, query.params);
   const absDb = (r[0]['Autonomous Database'] === 'Yes') ? true : false;
 
   if (absDb) { // Autonomous DB query dba_dependencies
     const queryCollection = sql.collection['DEPENDENCIES-ADB'];
     for (let c of queryCollection.objectTypeQueries) {
-      c.params.owner.val = owner;
-      c.params.object_type.val = object_type;
-      c.params.object_name.val = object_name;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+      let query = JSON.parse(JSON.stringify(c));
+      query.params.owner.val = owner;
+      query.params.object_type.val = object_type;
+      query.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, query.sql, query.params);
+      result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
     }
   } else { // Query dependency$ table
     /**
@@ -469,15 +470,17 @@ async function getDependencies(connection, sql, dbService, owner, object_type, o
       .includes(object_type) ? sql.collection['DEPENDENCIES'] : sql.collection['DEPENDENCIES-NOSOURCE'];
 
     for (let c of queryCollection.objectNameIdQueries) {
-      c.params.object_id.val = object_id;
-      c.params.object_name.val = object_name;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+      let query = JSON.parse(JSON.stringify(c));
+      query.params.object_id.val = object_id;
+      query.params.object_name.val = object_name;
+      const cResult = await dbService.query(connection, query.sql, query.params);
+      result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
     }
     for (let c of queryCollection.objectIdQueries) {
-      c.params.object_id.val = object_id;
-      const cResult = await dbService.query(connection, c.sql, c.params);
-      result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+      let query = JSON.parse(JSON.stringify(c));
+      query.params.object_id.val = object_id;
+      const cResult = await dbService.query(connection, query.sql, query.params);
+      result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
     }
   }
 
@@ -493,7 +496,7 @@ async function getDependencies(connection, sql, dbService, owner, object_type, o
  * @param {boolean} [include_dependencies=true] - whether to include dependencies
  */
 async function getObjectDetails(poolAlias, owner, object_type, object_name, include_dependencies = true) {
-  let query = sql.statement['OBJECT-DETAILS'];
+  let query = JSON.parse(JSON.stringify(sql.statement['OBJECT-DETAILS']));
   query.params.owner.val = owner;
   query.params.object_type.val = object_type;
   query.params.object_name.val = object_name;
@@ -507,7 +510,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name, incl
     }
     let result = [{ title: query.title, description: query.description, display: query.display, rows: r }];
     if (r[0]['Status'] === 'INVALID') {
-      query = sql.statement['ERRORS'];
+      query = JSON.parse(JSON.stringify(sql.statement['ERRORS']));
       query.params.owner.val = owner;
       query.params.object_type.val = object_type;
       query.params.object_name.val = object_name;
@@ -521,18 +524,20 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name, incl
     let queryCollection = sql.collection[object_type];
     if (queryCollection) {
       for (let c of queryCollection.objectNameQueries) {
-        c.params.owner.val = owner;
-        c.params.object_name.val = object_name;
-        const cResult = await dbService.query(connection, c.sql, c.params);
-        result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+        let query = JSON.parse(JSON.stringify(c));
+        query.params.owner.val = owner;
+        query.params.object_name.val = object_name;
+        const cResult = await dbService.query(connection, query.sql, query.params);
+        result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
       }
       for (let c of queryCollection.objectTypeQueries) {
-        c.params.owner.val = owner;
-        c.params.object_type.val = object_type;
-        c.params.object_name.val = object_name;
-        const cResult = await dbService.query(connection, c.sql, c.params);
-        if (c.then && object_type !== 'PACKAGE') {
-          switch (c.then) {
+        let query = JSON.parse(JSON.stringify(c));
+        query.params.owner.val = owner;
+        query.params.object_type.val = object_type;
+        query.params.object_name.val = object_name;
+        const cResult = await dbService.query(connection, query.sql, query.params);
+        if (query.then && object_type !== 'PACKAGE') {
+          switch (query.then) {
             case 'extractSqlStatements':
               result.push({
                 title: 'SQL Statements',
@@ -544,19 +549,20 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name, incl
               break;
           }
         }
-        result.push({ title: c.title, description: c.description, display: c.display, rows: cResult });
+        result.push({ title: query.title, description: query.description, display: query.display, rows: cResult });
       }
       for (let c of queryCollection.objectIdQueries) {
-        c.params.object_id.val = object_id;
-        const cResult = await dbService.query(connection, c.sql, c.params);
+        let query = JSON.parse(JSON.stringify(c));
+        query.params.object_id.val = object_id;
+        const cResult = await dbService.query(connection, query.sql, query.params);
         //
-        if (object_type === 'PACKAGE' && c.title === 'Arguments') {
+        if (object_type === 'PACKAGE' && query.title === 'Arguments') {
           const procedures = util.groupRows(cResult, 'OBJECT_NAME');
           procedures.forEach(p => {
-            result.push({ title: c.title, description: p.id, display: c.display, link: c.link, rows: p.rows });
+            result.push({ title: query.title, description: p.id, display: query.display, link: query.link, rows: p.rows });
           });
         } else {
-          result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
+          result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
         }
       }
     }
@@ -773,4 +779,3 @@ async function getCollection(req, res, next) {
   }
 }
 module.exports.getCollection = getCollection;
-
