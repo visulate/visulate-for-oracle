@@ -22,18 +22,3 @@ Usage:
 """
 
 from . import agent
-
-# __version__ = "2.1.0"
-# __author__ = "Visulate LLC"
-# __description__ = "Intelligent Oracle database agent using Google ADK and MCP"
-
-# # Export main components for easy access
-# __all__ = [
-#     "agent",
-#     "create_oracle_agent",
-#     "main"
-# ]
-
-# # Make key functions available at package level
-# create_oracle_agent = agent.create_oracle_agent
-# main = agent.main
