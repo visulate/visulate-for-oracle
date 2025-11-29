@@ -68,3 +68,6 @@ docs/_site/
 .vscode/
 *.bkp
 
+__pycache__/
+*.pyc
+uv.lock

@@ -1,0 +1,81 @@
+{
+  "object": {
+    {{#each results.objectDetails}}
+      {{#ifEquals title "Object Details"}}
+        "owner": "{{rows.[0].Owner}}",
+        "name": "{{rows.[0].ObjectName}}",
+        "type": "{{rows.[0].Type}}",
+      {{/ifEquals}}
+      {{#ifEquals title "Table Description"}}
+        "description": "{{rows.[0].Description}}",
+      {{/ifEquals}}
+    {{/each}}
+    "columns": [
+    {{#each results.objectDetails}}
+      {{#ifEquals title "Columns"}}
+        {{#each rows}}
+          {
+            "name": "{{Name}}",
+            "dataType": "{{Type}}",
+            "nullable": "{{Nullable}}",
+            "description": "{{Comments}}"
+          }{{#unless @last}},{{/unless}}
+        {{/each}}
+      {{/ifEquals}}
+    {{/each}}
+    ],
+    "primaryKey": [
+    {{#each results.objectDetails}}
+      {{#ifEquals title "Constraints"}}
+        {{#each rows}}
+          {{#ifEquals ConstraintType "Primary key"}}
+            "{{Column}}"
+          {{/ifEquals}}
+        {{/each}}
+      {{/ifEquals}}
+    {{/each}}
+    ],
+    "foreignKeys": [
+    {{#each results.objectDetails}}
+      {{#ifEquals title "Foreign Keys"}}
+        {{#each rows}}
+          {
+            "table": "{{Table}}",
+            "owner": "{{Owner}}"
+          }{{#unless @last}},{{/unless}}
+        {{/each}}
+      {{/ifEquals}}
+    {{/each}}
+    ]
+  },
+  "related": [
+    {{#each results.relatedObjects}}
+      {
+        {{#each this}}
+          {{#ifEquals title "Object Details"}}
+            "owner": "{{rows.[0].Owner}}",
+            "name": "{{rows.[0].ObjectName}}",
+            "type": "{{rows.[0].Type}}",
+          {{/ifEquals}}
+          {{#ifEquals title "Table Description"}}
+            "description": "{{rows.[0].Description}}",
+          {{/ifEquals}}
+        {{/each}}
+        "columns": [
+        {{#each this}}
+          {{#ifEquals title "Columns"}}
+            {{#each rows}}
+              {
+                "name": "{{Name}}",
+                "dataType": "{{Type}}",
+                "nullable": "{{Nullable}}",
+                "description": "{{Comments}}"
+              }{{#unless @last}},{{/unless}}
+            {{/each}}
+          {{/ifEquals}}
+        {{/each}}
+        ]
+      }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ]
+}
