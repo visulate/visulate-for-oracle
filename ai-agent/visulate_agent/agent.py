@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import requests
 from typing import Dict
 
@@ -39,8 +38,8 @@ You have access to two powerful MCP (Model Context Protocol) toolsets:
 ## Important Guidelines
 
 1. **Database Context**: Before executing SQL queries:
-   - Use search tools to understand the database structure
-   - Get object context to understand relationships
+   - Use search tools to identify relevant database tables and views
+   - Get object context to understand the table's structure and relationships
    - Provide meaningful explanations of your findings
 
 2. **User Experience**:
@@ -67,10 +66,10 @@ class CredentialManager:
         if self.gcp_project:
             try:
                 self.secret_client = secretmanager.SecretManagerServiceClient()
-                logger.info("🔑 GCP Secret Manager client initialized.")
+                logger.info("GCP Secret Manager client initialized.")
             except Exception as e:
                 logger.warning(
-                    f"⚠️ Failed to initialize GCP Secret Manager client: {e}"
+                    f"Failed to initialize GCP Secret Manager client: {e}"
                 )
                 self.gcp_project = None
 
@@ -91,20 +90,20 @@ class CredentialManager:
                     request={"name": secret_path}
                 )
                 password = response.payload.data.decode("UTF-8")
-                logger.info(f"✅ Fetched secret '{secret_name}' from GCP.")
+                logger.info(f"Fetched secret '{secret_name}' from GCP.")
                 return password
             except exceptions.NotFound:
-                logger.info(f"🔍 Secret '{secret_name}' not found in GCP, checking .env.")
+                logger.info(f"Secret '{secret_name}' not found in GCP, checking .env.")
             except Exception as e:
-                logger.warning(f"⚠️ Error fetching secret '{secret_name}' from GCP: {e}")
+                logger.warning(f"Error fetching secret '{secret_name}' from GCP: {e}")
 
         # Fallback to environment variables
         env_var_name = f"DB_PASSWORD_{db_name.upper()}_{schema_name.upper()}"
         password = os.getenv(env_var_name)
         if password:
-            logger.info(f"✅ Fetched password from env var '{env_var_name}'.")
+            logger.info(f"Fetched password from env var '{env_var_name}'.")
         else:
-            logger.warning(f"❌ Password not found in GCP or for env var '{env_var_name}'.")
+            logger.warning(f"Password not found in GCP or for env var '{env_var_name}'.")
         return password
 
 def create_connection_token_tool(query_engine_tools: MCPToolset) -> FunctionTool:
@@ -193,11 +192,11 @@ def get_mcp_urls():
 
     return api_server_url, query_engine_url
 
-logger.info("--- 🔧 Loading MCP tools from Visulate servers... ---")
+logger.info("--- Loading MCP tools from Visulate servers... ---")
 
 api_server_url, query_engine_url = get_mcp_urls()
-logger.info(f"📡 API Server: {api_server_url}")
-logger.info(f"🔐 Query Engine: {query_engine_url}")
+logger.info(f"API Server: {api_server_url}")
+logger.info(f"Query Engine: {query_engine_url}")
 
 api_server_tools = MCPToolset(
     connection_params=StreamableHTTPConnectionParams(url=api_server_url)
@@ -205,7 +204,7 @@ api_server_tools = MCPToolset(
 query_engine_tools = MCPToolset(
     connection_params=StreamableHTTPConnectionParams(url=query_engine_url)
 )
-logger.info("--- 🤖 Creating Visulate Oracle Database Agent... ---")
+logger.info("--- Creating Visulate Oracle Database Agent... ---")
 
 root_agent = LlmAgent(
     model="gemini-2.5-flash",
@@ -219,8 +218,8 @@ root_agent = LlmAgent(
     ],
 )
 
-logger.info("✅ Oracle Database Agent created successfully!")
-logger.info("🎯 Agent capabilities:")
+logger.info("Oracle Database Agent created successfully!")
+logger.info("Agent capabilities:")
 logger.info("   - Natural language database object search")
 logger.info("   - Secure SQL execution with credential tokens")
 logger.info("   - Database schema analysis and documentation")
