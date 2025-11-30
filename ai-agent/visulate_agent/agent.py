@@ -12,6 +12,11 @@ from google.adk.tools.function_tool import FunctionTool
 from google.api_core import exceptions
 from google.cloud import secretmanager
 
+# Import from common module
+from common.config import get_mcp_urls
+from common.credentials import CredentialManager
+from common.utils import parse_token_from_response, create_token_request
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
 
@@ -57,55 +62,6 @@ You excel at helping users understand Oracle databases, write effective SQL,
 and perform complex data analysis while maintaining the highest security standards.
 """
 
-class CredentialManager:
-    """Manages retrieval of database credentials from GCP Secret Manager or .env."""
-
-    def __init__(self):
-        self.gcp_project = os.getenv("GCP_PROJECT_ID")
-        self.secret_client = None
-        if self.gcp_project:
-            try:
-                self.secret_client = secretmanager.SecretManagerServiceClient()
-                logger.info("GCP Secret Manager client initialized.")
-            except Exception as e:
-                logger.warning(
-                    f"Failed to initialize GCP Secret Manager client: {e}"
-                )
-                self.gcp_project = None
-
-    def get_password(self, db_name: str, schema_name: str) -> str | None:
-        """
-        Retrieves a password, trying GCP Secret Manager first, then .env.
-        """
-        db_name = db_name.lower()
-        schema_name = schema_name.upper()
-
-        if self.secret_client:
-            secret_name = f"db-password-{db_name}-{schema_name}"
-            secret_path = self.secret_client.secret_version_path(
-                self.gcp_project, secret_name, "latest"
-            )
-            try:
-                response = self.secret_client.access_secret_version(
-                    request={"name": secret_path}
-                )
-                password = response.payload.data.decode("UTF-8")
-                logger.info(f"Fetched secret '{secret_name}' from GCP.")
-                return password
-            except exceptions.NotFound:
-                logger.info(f"Secret '{secret_name}' not found in GCP, checking .env.")
-            except Exception as e:
-                logger.warning(f"Error fetching secret '{secret_name}' from GCP: {e}")
-
-        # Fallback to environment variables
-        env_var_name = f"DB_PASSWORD_{db_name.upper()}_{schema_name.upper()}"
-        password = os.getenv(env_var_name)
-        if password:
-            logger.info(f"Fetched password from env var '{env_var_name}'.")
-        else:
-            logger.warning(f"Password not found in GCP or for env var '{env_var_name}'.")
-        return password
-
 def create_connection_token_tool(query_engine_tools: MCPToolset) -> FunctionTool:
     """Factory to create the connection token tool."""
     cred_manager = CredentialManager()
@@ -123,74 +79,16 @@ def create_connection_token_tool(query_engine_tools: MCPToolset) -> FunctionTool
         # Get the query engine URL from the environment
         _, query_engine_url = get_mcp_urls()
 
-        # Make HTTP call to the MCP endpoint
-        url = f"{query_engine_url}/call_tool"
-        payload = {
-            "name": "create_credential_token",
-            "arguments": {
-                "database": database_name,
-                "username": schema_name,
-                "password": password,
-                "expiry_minutes": 30
-            }
-        }
+        # Use helper to create token request
+        result = create_token_request(query_engine_url, database_name, schema_name, password)
+        token = parse_token_from_response(result)
 
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-
-            # Handle different response formats
-            token = None
-
-            # Direct format: {"credential_token": "abc123..."}
-            if "credential_token" in result:
-                token = result["credential_token"]
-
-            # MCP format: {"content": [{"text": "...token: abc123...", "type": "text"}]}
-            elif "content" in result and isinstance(result["content"], list):
-                for content_item in result["content"]:
-                    if content_item.get("type") == "text":
-                        text = content_item.get("text", "")
-                        # Extract token from text like "Use this token for execute_sql calls: abc123..."
-                        if "Use this token for execute_sql calls:" in text:
-                            token = text.split("Use this token for execute_sql calls:")[-1].strip()
-                            break
-                        # Also handle format like "Token: abc123..."
-                        elif "Token:" in text:
-                            token = text.split("Token:")[-1].strip()
-                            break
-
-            if token:
-                return f"Credential token created successfully: {token}"
-            else:
-                return f"Error: Failed to create credential token. Response: {result}"
-
-        except Exception as e:
-            return f"Error: Failed to create credential token: {str(e)}"
+        if token:
+            return f"Credential token created successfully: {token}"
+        else:
+            return f"Error: Failed to create credential token. Response: {result}"
 
     return FunctionTool(_create_token)
-
-def get_mcp_urls():
-    """Get MCP endpoint URLs based on environment configuration"""
-    visulate_base = os.getenv("VISULATE_BASE", "http://localhost")
-    visulate_base = visulate_base.rstrip('/')
-
-    # Handle both reverse proxy and direct access scenarios
-    if "localhost" in visulate_base and ":" not in visulate_base:
-        # Local development without reverse proxy
-        api_server_url = f"{visulate_base}:3000/mcp"
-        query_engine_url = f"{visulate_base}:5000/mcp-sql"
-    elif "localhost" in visulate_base:
-        # Local development with specific port
-        api_server_url = f"{visulate_base}/mcp"
-        query_engine_url = f"{visulate_base.replace(':3000', ':5000')}/mcp-sql"
-    else:
-        # Production with reverse proxy - both endpoints on same base URL
-        api_server_url = f"{visulate_base}/mcp"
-        query_engine_url = f"{visulate_base}/mcp-sql"
-
-    return api_server_url, query_engine_url
 
 logger.info("--- Loading MCP tools from Visulate servers... ---")
 

@@ -46,6 +46,18 @@
         {{/each}}
       {{/ifEquals}}
     {{/each}}
+    ],
+    "childTables": [
+    {{#each results.objectDetails}}
+      {{#ifEquals title "Foreign Keys to this Table"}}
+        {{#each rows}}
+          {
+            "table": "{{Table}}",
+            "owner": "{{Owner}}"
+          }{{#unless @last}},{{/unless}}
+        {{/each}}
+      {{/ifEquals}}
+    {{/each}}
     ]
   },
   "related": [
