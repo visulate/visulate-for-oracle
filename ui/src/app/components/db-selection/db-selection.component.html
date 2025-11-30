@@ -2,26 +2,36 @@
   <app-filter-objects></app-filter-objects>
   <mat-form-field>
     <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder" (selectionChange)="setEndpoint($event.value)">
-      <mat-option *ngFor="let database of endpoints.databases" [value]="database">
-        {{database.endpoint}}
-      </mat-option>
+      @for (database of endpoints.databases; track database) {
+        <mat-option [value]="database">
+          {{database.endpoint}}
+        </mat-option>
+      }
     </mat-select>
   </mat-form-field>
 
-  <mat-form-field *ngIf="currentEndpoint">
-    <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
-      <mat-option *ngFor="let schema of currentEndpoint.schemas" [value]="schema">
-        {{schema.owner}}
-      </mat-option>
-    </mat-select>
-  </mat-form-field>
+  @if (currentEndpoint) {
+    <mat-form-field>
+      <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
+        @for (schema of currentEndpoint.schemas; track schema) {
+          <mat-option [value]="schema">
+            {{schema.owner}}
+          </mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
 
-  <mat-form-field *ngIf="currentSchema">
-    <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
-      (selectionChange)="setObjectType($event.value)">
-      <mat-option *ngFor="let objectType of currentSchema.objectTypes" [value]="objectType">
-        {{objectType.type}} ({{objectType.count}})
-      </mat-option>
-    </mat-select>
-  </mat-form-field>
+  @if (currentSchema) {
+    <mat-form-field>
+      <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
+        (selectionChange)="setObjectType($event.value)">
+        @for (objectType of currentSchema.objectTypes; track objectType) {
+          <mat-option [value]="objectType">
+            {{objectType.type}} ({{objectType.count}})
+          </mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
 </div>

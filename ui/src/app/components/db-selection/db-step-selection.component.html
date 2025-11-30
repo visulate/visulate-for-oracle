@@ -1,59 +1,78 @@
 <mat-card appearance="outlined">
-    <mat-card-title>Database Object Selection</mat-card-title>
-    <mat-card-subtitle>Select a database, schema and object type</mat-card-subtitle>
-    <app-filter-objects [currentEndpoint]=currentEndpoint></app-filter-objects>
-    <div *ngIf="endpoints.errorMessage"><p class="warning">{{endpoints.errorMessage}}</p></div>
-    <mat-card-content>
-        <mat-form-field>
-            <mat-label>Database</mat-label>
-            <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
-                (selectionChange)="setEndpoint($event.value)">
-                <mat-option *ngFor="let database of endpoints.databases" [value]="database">
-                    {{database.endpoint}}
-                </mat-option>
-            </mat-select>
-        </mat-form-field>
+  <mat-card-title>Database Object Selection</mat-card-title>
+  <mat-card-subtitle>Select a database, schema and object type</mat-card-subtitle>
+  <app-filter-objects [currentEndpoint]=currentEndpoint></app-filter-objects>
+  @if (endpoints.errorMessage) {
+    <div><p class="warning">{{endpoints.errorMessage}}</p></div>
+  }
+  <mat-card-content>
+    <mat-form-field>
+      <mat-label>Database</mat-label>
+      <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
+        (selectionChange)="setEndpoint($event.value)">
+        @for (database of endpoints.databases; track database) {
+          <mat-option [value]="database">
+            {{database.endpoint}}
+          </mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
 
-        <mat-form-field *ngIf="currentEndpoint">
-            <mat-label>Schema</mat-label>
+    @if (currentEndpoint) {
+      <mat-form-field>
+        <mat-label>Schema</mat-label>
+        <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
+          <mat-checkbox (change)="setShowInternal($event.checked)" [checked]="currentContext.showInternal"  >Show Internal</mat-checkbox>
+          @for (schema of currentEndpoint.schemas | hideInternal:currentContext.showInternal; track schema) {
+            <mat-option [value]="schema">
+              {{schema.owner}}
+            </mat-option>
+          }
+          <mat-option disabled></mat-option>
+        </mat-select>
+      </mat-form-field>
+    }
 
-            <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
-                <mat-checkbox (change)="setShowInternal($event.checked)" [checked]="currentContext.showInternal"  >Show Internal</mat-checkbox>
-                <mat-option *ngFor="let schema of currentEndpoint.schemas | hideInternal:currentContext.showInternal" [value]="schema">
-                  {{schema.owner}}
-                </mat-option>
-                <mat-option disabled></mat-option>
-            </mat-select>
-        </mat-form-field>
+    @if (currentSchema) {
+      <mat-form-field>
+        <mat-label>Object Type</mat-label>
+        <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
+          (selectionChange)="setObjectType($event.value)">
+          @for (objectType of currentSchema.objectTypes; track objectType) {
+            <mat-option [value]="objectType">
+              {{objectType.type}} ({{objectType.count}})
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
 
-        <mat-form-field *ngIf="currentSchema">
-            <mat-label>Object Type</mat-label>
-            <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
-                (selectionChange)="setObjectType($event.value)">
-                <mat-option *ngFor="let objectType of currentSchema.objectTypes" [value]="objectType">
-                    {{objectType.type}} ({{objectType.count}})
-                </mat-option>
-            </mat-select>
-        </mat-form-field>
-
-        <mat-form-field *ngIf="ddlLink" >
-            <mat-label>Download</mat-label>
-            <mat-select [(ngModel)]="selectedOption" (selectionChange)="download()">
-              <mat-option [value]="ddlLink">Oracle DDL</mat-option>
-              <mat-option *ngFor="let option of downloadOptions" [value]="option.url">
-                {{ option.name }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+    @if (ddlLink) {
+      <mat-form-field >
+        <mat-label>Download</mat-label>
+        <mat-select [(ngModel)]="selectedOption" (selectionChange)="download()">
+          <mat-option [value]="ddlLink">Oracle DDL</mat-option>
+          @for (option of downloadOptions; track option) {
+            <mat-option [value]="option.url">
+              {{ option.name }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
 
 
-        <p *ngIf="currentEndpoint">{{currentEndpoint.description}} </p>
-    </mat-card-content>
+    @if (currentEndpoint) {
+      <p>{{currentEndpoint.description}} </p>
+    }
+  </mat-card-content>
 </mat-card>
 
-<mat-card appearance="outlined" *ngIf="currentObjectType">
+@if (currentObjectType) {
+  <mat-card appearance="outlined">
     <mat-card-subtitle>Object Type: {{currentObjectType.type}} ({{currentObjectType.count}})</mat-card-subtitle>
     <mat-card-content>
-        <app-db-object-list></app-db-object-list>
+      <app-db-object-list></app-db-object-list>
     </mat-card-content>
-</mat-card>
+  </mat-card>
+}

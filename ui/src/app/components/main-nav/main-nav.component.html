@@ -4,21 +4,23 @@
       (click)="snav.toggle()"> <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
     </button>
     <a routerLink="/">Visulate for Oracle</a>
-      <button mat-icon-button aria-hidden="false" aria-label="search icon"
-              (click)=toggleSearchForm()> <mat-icon>search</mat-icon> </button>
-  </mat-toolbar>
+    <button mat-icon-button aria-hidden="false" aria-label="search icon"
+      (click)=toggleSearchForm()> <mat-icon>search</mat-icon> </button>
+    </mat-toolbar>
 
-  <mat-sidenav-container class="app-sidenav-container" >
-    <mat-sidenav #snav [mode]="mobileQuery.matches ? 'over' : 'side'" class="app-sidebar"
-                [fixedInViewport]="mobileQuery.matches" [opened]="opened">
-      <app-db-selection></app-db-selection>
-      <app-db-object-list></app-db-object-list>
+    <mat-sidenav-container class="app-sidenav-container" >
+      <mat-sidenav #snav [mode]="mobileQuery.matches ? 'over' : 'side'" class="app-sidebar"
+        [fixedInViewport]="mobileQuery.matches" [opened]="opened">
+        <app-db-selection></app-db-selection>
+        <app-db-object-list></app-db-object-list>
 
 
-    </mat-sidenav>
-    <mat-sidenav-content>
-      <app-find-object *ngIf="displaySearchForm" (cancelSearchForm)="hideSearchForm()"></app-find-object >
-      <app-db-content></app-db-content>
-    </mat-sidenav-content>
-  </mat-sidenav-container>
-</div>
+      </mat-sidenav>
+      <mat-sidenav-content>
+        @if (displaySearchForm) {
+          <app-find-object (cancelSearchForm)="hideSearchForm()"></app-find-object >
+        }
+        <app-db-content></app-db-content>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
+  </div>

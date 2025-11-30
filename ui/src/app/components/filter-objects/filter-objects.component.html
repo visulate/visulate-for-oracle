@@ -1,16 +1,19 @@
 <form class="filter-form" >
-  <mat-form-field class="filter-full-width" *ngIf="currentEndpoint && currentEndpoint.ebsInstance">
-    <input matInput placeholder="EBS Product Lookup" aria-label="EBS Product Prefix"
-          [matAutocomplete]="auto" [formControl]="ebsSelectCtrl" >
-    <mat-autocomplete #auto="matAutocomplete"  (optionSelected)='setEbsFilter($event.option.value)'>
-      <mat-option *ngFor="let prefix of filteredPrefixes$ | async" [value]="prefix.name">
-        <mat-select-trigger>
-          <span>{{prefix.name}}</span>
-        </mat-select-trigger>
-
-      </mat-option>
-    </mat-autocomplete>
-  </mat-form-field>
+  @if (currentEndpoint && currentEndpoint.ebsInstance) {
+    <mat-form-field class="filter-full-width">
+      <input matInput placeholder="EBS Product Lookup" aria-label="EBS Product Prefix"
+        [matAutocomplete]="auto" [formControl]="ebsSelectCtrl" >
+      <mat-autocomplete #auto="matAutocomplete"  (optionSelected)='setEbsFilter($event.option.value)'>
+        @for (prefix of filteredPrefixes$ | async; track prefix) {
+          <mat-option [value]="prefix.name">
+            <mat-select-trigger>
+              <span>{{prefix.name}}</span>
+            </mat-select-trigger>
+          </mat-option>
+        }
+      </mat-autocomplete>
+    </mat-form-field>
+  }
   <mat-form-field class="filter-full-width" >
     <input matInput placeholder="Object Filter (e.g. dba_*)" [formControl]="objectFilter" >
   </mat-form-field>
