@@ -1,7 +1,23 @@
 import os
 
 def get_mcp_urls():
-    """Get MCP endpoint URLs based on environment configuration"""
+    """
+    Get MCP endpoint URLs based on environment configuration.
+    Returns:
+        tuple: (api_server_url, query_engine_url)
+            - api_server_url: URL for the MCP API server endpoint.
+            - query_engine_url: URL for the MCP SQL query engine endpoint.
+    The returned URLs depend on the environment:
+        - Local development without reverse proxy (e.g., "http://localhost"):
+            api_server_url: "http://localhost:3000/mcp"
+            query_engine_url: "http://localhost:5000/mcp-sql"
+        - Local development with specific port (e.g., "http://localhost:3000"):
+            api_server_url: "http://localhost:3000/mcp"
+            query_engine_url: "http://localhost:5000/mcp-sql"
+        - Production with reverse proxy (e.g., "https://visulate.example.com"):
+            api_server_url: "https://visulate.example.com/mcp"
+            query_engine_url: "https://visulate.example.com/mcp-sql"
+    """
     visulate_base = os.getenv("VISULATE_BASE", "http://localhost")
     visulate_base = visulate_base.rstrip('/')
 

@@ -1,7 +1,4 @@
 import logging
-import os
-from typing import Optional
-
 from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
