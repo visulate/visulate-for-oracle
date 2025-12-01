@@ -66,7 +66,7 @@
 
   @if (objectDetails) {
     <mat-accordion multi="true">
-      @for (property of objectDetails; track property) {
+      @for (property of objectDetails.objectProperties; track property) {
         @if (property.rows?.length > 0) {
           <mat-expansion-panel expanded="true">
             <mat-expansion-panel-header>
@@ -82,11 +82,7 @@
                 @if (property.rows[0]['Line']) {
                   <mat-slide-toggle (change)="showLineNumbers = !showLineNumbers" [checked]="showLineNumbers" class="toggle">Show Line Numbers</mat-slide-toggle>
                 }
-                <code highlightChildren="span" >
-                  @for (source of property.rows; track source) {
-                    <a [hidden]="!showLineNumbers" class="line">{{source.Line}}</a><span [highlight]="source.Text"></span>
-                  }
-                </code></pre>
+                <code highlightChildren="span">@for (source of property.rows; track source) {<a [hidden]="!showLineNumbers" class="line">{{source.Line}}</a><span [highlight]="source.Text"></span>}</code></pre>
               }
               @if (property.title ==='SQL Statements') {
                 <table mat-table [dataSource]="property.rows">

@@ -19,7 +19,9 @@ import { Deserializable } from './deserializable.model';
 export class DatabaseObjectModel implements Deserializable {
   public objectProperties: ObjectPropertyModel[];
   deserialize(input: any): this {
-    this.objectProperties = input.endpoints.map (
+    // Handle both array response (from object details API) and object response (from other APIs)
+    const propertiesArray = Array.isArray(input) ? input : (input.endpoints || []);
+    this.objectProperties = propertiesArray.map(
       property => new ObjectPropertyModel().deserialize(property)
     );
     return this;
@@ -28,7 +30,9 @@ export class DatabaseObjectModel implements Deserializable {
 
 export class ObjectPropertyModel implements Deserializable {
   public title: string;
+  public description: string;
   public display: string[];
+  public link: string;
   public rows: any[];
 
   deserialize(input: any): this {

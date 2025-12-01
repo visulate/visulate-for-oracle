@@ -91,7 +91,11 @@ handlebars.registerHelper('formatLinks', function(objects, options) {
   });
 
   // Return the formatted links as a string, separated by commas, and properly formatted for JSON
-  return new handlebars.SafeString('"' + links.join('",\n"') + '"');
+  // Handle empty array case to avoid invalid JSON
+  if (links.length === 0) {
+    return new handlebars.SafeString('');
+  }
+  return new handlebars.SafeString('"' + links.join('",\n    "') + '"');
 });
 
 
