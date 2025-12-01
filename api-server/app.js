@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+const util = require('util');
+if (!util.isDate) {
+  util.isDate = function (d) {
+    return d instanceof Date;
+  };
+}
+
 const httpServer = require('./services/http-server.js');
 const database = require('./services/database.js');
 const dbConfig = require('./config/database.js');

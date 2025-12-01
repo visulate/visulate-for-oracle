@@ -14,29 +14,48 @@
 
 FROM node:lts-alpine AS builder
 
-# Copy the source code
-COPY . ./visulate-client
+# 1. Set the working directory
 WORKDIR /visulate-client
 
-# Install latest npm
+# 2. Copy only the dependency files first.
+# This ensures that the 'npm ci' step only rebuilds if package.json or
+# package-lock.json changes, which makes dependency installation faster and
+# ensures the correct lock file is always used for 'npm ci'.
+COPY package.json package-lock.json ./
+
+# 3. Install latest npm globally (Good practice, but often unnecessary with lts-alpine)
 RUN npm install -g npm@latest
 
-# Install all dependencies (both production and development)
+# 4. Install all dependencies (production and development)
+# This step relies on the package.json and package-lock.json copied above.
 RUN npm ci
 
-# Build the application
+# 5. Copy the rest of the application source code
+# This step is much faster since the heavy dependency installation is already cached.
+COPY . .
+
+# 6. Build the application for production
 RUN npx ng build --configuration production
 
-# Remove node_modules to clean up unnecessary dependencies
+# 7. Remove node_modules to reduce final image size
 RUN rm -rf node_modules
 
-# Install only production dependencies
+# 8. Re-install ONLY production dependencies for the final stage
+# This is often skipped if you use a lightweight HTTP server like NGINX in Stage 2,
+# but included here if your app requires Node.js runtime prod dependencies.
+# Since you use NGINX in Stage 2, this step is arguably redundant but harmless.
 RUN npm ci --omit=dev
 
+# STAGE 2: Production Server
 FROM nginx:alpine
 
 # Copy the nginx configuration file
+# NOTE: The path '/visulate-client/dist/client/browser/assets/nginx.conf'
+# assumes your Angular config places assets directly under 'browser/assets'.
 COPY --from=builder /visulate-client/dist/client/browser/assets/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the built application
+# NOTE: The path '/visulate-client/dist/client/browser/' is standard for Angular builds.
 COPY --from=builder /visulate-client/dist/client/browser/ /usr/share/nginx/html
+
+EXPOSE 80

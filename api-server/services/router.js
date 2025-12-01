@@ -28,7 +28,7 @@ const util = require('util');
 const YAML = require('yamljs');
 const path = require("path");
 const swaggerUi = require('swagger-ui-express');
-const swaggerDoc = YAML.load(path.resolve(__dirname,'../openapi.yaml'));
+const swaggerDoc = YAML.load(path.resolve(__dirname, '../openapi.yaml'));
 
 const collectionSchema = {
   type: 'array',
@@ -66,7 +66,8 @@ const aiSchema = {
   required: ['message', 'context'],
   properties: {
     message: { type: 'string' },
-    context: { type: ['object', 'array'],
+    context: {
+      type: ['object', 'array'],
       items: {
         type: 'object'
       }
@@ -100,7 +101,26 @@ const mcpSearchSchema = {
 };
 
 const transformSchema = {
-  type: 'array'
+  oneOf: [
+    {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    {
+      type: 'object',
+      required: ['objectProperties'],
+      properties: {
+        objectProperties: {
+          type: 'array',
+          items: {
+            type: 'object'
+          }
+        }
+      }
+    }
+  ]
 }
 
 router.route('/')
@@ -150,7 +170,7 @@ router.route('/api/collection/:db')
 
 router.route('/ai')
   .get(aiService.aiEnabled)
-  .post(validate({body: aiSchema}), aiService.generativeAI);
+  .post(validate({ body: aiSchema }), aiService.generativeAI);
 
 router.route('/mcp')
   .get(aiService.handleMcpRequest)
@@ -158,10 +178,10 @@ router.route('/mcp')
   .delete(aiService.handleMcpRequest);
 
 router.route('/mcp/context/:db')
-  .post(validate({body: mcpContextSchema}), aiService.getContext);
+  .post(validate({ body: mcpContextSchema }), aiService.getContext);
 
 router.route('/mcp/search-objects/:db')
-  .post(validate({body: mcpSearchSchema}), aiService.searchObjects);
+  .post(validate({ body: mcpSearchSchema }), aiService.searchObjects);
 
 
 // Error handler JSON Schema errors

@@ -54,12 +54,16 @@ export class RestService {
   ): Observable<DatabaseObjectModel> {
 
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}/${endpoint}`);
+    (`${environment.apiBase}/${endpoint}`).pipe(
+      map(data => new DatabaseObjectModel().deserialize(data))
+    );
   }
 
   /**
-   * Get database summary
+   * Get schema summary
    * @param endpoint - the database endpoint
+   * @param owner - the schema owner
+   * @param filter - the object filter
    */
   public getSchemaProperties$(
     endpoint: string,
@@ -68,7 +72,9 @@ export class RestService {
   ): Observable<DatabaseObjectModel> {
     const filterParam: any = {filter};
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}/${endpoint}/${owner}`, {params: filterParam});
+    (`${environment.apiBase}/${endpoint}/${owner}`, {params: filterParam}).pipe(
+      map(data => new DatabaseObjectModel().deserialize(data))
+    );
   }
 
 
@@ -114,7 +120,9 @@ export class RestService {
     objectType: string,
     objectName: string ): Observable<DatabaseObjectModel> {
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`);
+    (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`).pipe(
+      map(data => new DatabaseObjectModel().deserialize(data))
+    );
   }
 
   /**

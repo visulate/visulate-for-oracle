@@ -1,8 +1,12 @@
-<div *ngIf="currentContext.objectType">
-<mat-nav-list *ngFor="let objectName of objectList">
-  <a mat-list-item 
-    routerLink="/database/{{currentContext.endpoint}}/{{currentContext.owner}}/{{currentContext.objectType}}/{{objectName}}"
-    [queryParams]="{filter: currentContext.filter}"
-    [class.active]="objectName==currentContext.objectName" >{{objectName}}</a>
-</mat-nav-list>
-</div>
+@if (currentContext.objectType) {
+  <div>
+    @for (objectName of objectList; track objectName) {
+      <mat-nav-list>
+        <a mat-list-item
+          routerLink="/database/{{currentContext.endpoint}}/{{currentContext.owner}}/{{currentContext.objectType}}/{{objectName}}"
+          [queryParams]="{filter: currentContext.filter}"
+        [class.active]="objectName==currentContext.objectName" >{{objectName}}</a>
+      </mat-nav-list>
+    }
+  </div>
+}

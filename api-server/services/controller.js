@@ -638,7 +638,10 @@ module.exports.showObject = showObject;
  */
 
 async function transformObject(req, res, next) {
-  const objectDetails = req.body
+  let objectDetails = req.body;
+  if (!Array.isArray(objectDetails) && objectDetails.objectProperties && Array.isArray(objectDetails.objectProperties)) {
+    objectDetails = objectDetails.objectProperties;
+  }
   if (req.query.template) {
     try {
       const result = await templateEngine.applyTemplate('object', objectDetails, req);
