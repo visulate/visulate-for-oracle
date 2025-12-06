@@ -88,19 +88,49 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   throw lastError;
 }
 
+const axios = require('axios');
+
+/**
+ * Proxy request to an agent service
+ * @param {string} agent - The agent name ('visulate_agent' or 'comment_generator')
+ * @param {object} payload - The request body
+ */
+async function proxyToAgent(agent, payload) {
+  let agentUrl;
+  if (agent === 'visulate_agent') {
+    agentUrl = process.env.VISULATE_AGENT_URL || 'http://vissql:10000/agent/generate';
+  } else if (agent === 'comment_generator') {
+    agentUrl = process.env.COMMENT_GENERATOR_URL || 'http://vissql:10001/agent/generate';
+  } else {
+    throw new Error(`Unknown agent: ${agent}`);
+  }
+
+  try {
+    const response = await axios.post(agentUrl, payload);
+    return response.data;
+  } catch (error) {
+    logger.log('error', `Error calling agent ${agent}: ${error.message}`);
+    throw error;
+  }
+}
+
 /**
  * Core function to call Google AI to generate text.
  * This is the business logic, independent of Express.js.
  * @param {object} args - The arguments from the MCP request
  */
 async function generativeAIInternal(args) {
+  if (args.agent) {
+    return await proxyToAgent(args.agent, args);
+  }
+
   if (!httpConfig.googleAiKey) {
     throw new Error("Google AI key is not set");
   }
 
   const genAI = new GoogleGenerativeAI(httpConfig.googleAiKey);
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     systemInstruction: `You are a database architect called Visulate. You responsible for the design of an oracle database.
      You have access to a tool that generates json documents describing database objects and
      their related objects. The json documents follow a predictable structure for each database object.
@@ -659,7 +689,7 @@ function createMcpServer() {
               query: { template: 'ai-context.hbs' },
               headers: { host: 'localhost' },
               protocol: 'http',
-              get: function(name) {
+              get: function (name) {
                 if (name === 'host') return this.headers.host;
                 return '';
               }

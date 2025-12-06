@@ -9,8 +9,8 @@ services:
     depends_on:
       - reverseproxy
     build: ./api-server
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     volumes:
       - ./api-server/config:/visulate-server/config
     environment:
@@ -32,3 +32,7 @@ services:
       - "5000"
     volumes:
       - ./query-engine/sql2csv/config:/query-engine/sql2csv/config
+      - ./ai-agent:/query-engine/ai-agent
+    ports:
+      - "10000:10000"
+      - "10001:10001"

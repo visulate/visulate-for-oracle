@@ -1,29 +1,65 @@
 @if (currentContext && currentContext.objectName) {
-  <div>
-    <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}} [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>
-    @if (ddlLink) {
-      <mat-form-field >
-        <mat-label>Download</mat-label>
-        <mat-select [(ngModel)]="selectedOption" (selectionChange)="download()">
-          <mat-option [value]="ddlLink">Oracle DDL</mat-option>
-          @for (option of downloadOptions; track option) {
-            <mat-option [value]="option.url">
-              {{ option.name }}
-            </mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-    }
-    <ng-container *ngTemplateOutlet="queryResults"></ng-container>
-  </div>
-} @else {
-  @if (currentContext && !currentContext.owner) {
-    <div class="homepage-banner">
-      <h1>Oracle Database Catalog</h1>
-    </div>
+<div>
+  <h1 class="currentContext"> {{currentContext.objectType}} - {{currentContext.objectName}}
+    [{{currentContext.endpoint}}.{{currentContext.owner}}]</h1>
+  @if (ddlLink) {
+  <mat-form-field>
+    <mat-label>Download</mat-label>
+    <mat-select [(ngModel)]="selectedOption" (selectionChange)="download()">
+      <mat-option [value]="ddlLink">Oracle DDL</mat-option>
+      @for (option of downloadOptions; track option) {
+      <mat-option [value]="option.url">
+        {{ option.name }}
+      </mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
   }
-  <app-db-step-selection></app-db-step-selection>
   <ng-container *ngTemplateOutlet="queryResults"></ng-container>
+</div>
+} @else {
+@if (currentContext && !currentContext.owner) {
+@if (!aiEnabled) {
+<div class="homepage-banner">
+  <h1>Oracle Database Catalog</h1>
+</div>
+}
+@if (aiEnabled) {
+<mat-accordion>
+  <mat-expansion-panel expanded=true>
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        Generative AI
+      </mat-panel-title>
+      <mat-panel-description>
+        Database Analysis
+      </mat-panel-description>
+    </mat-expansion-panel-header>
+    <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
+  </mat-expansion-panel>
+</mat-accordion>
+}
+}
+
+@if (currentContext && currentContext.owner && !currentContext.objectName) {
+@if (aiEnabled) {
+<mat-accordion>
+  <mat-expansion-panel expanded=false>
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        Generative AI
+      </mat-panel-title>
+      <mat-panel-description>
+        Schema Analysis & Comment Generation
+      </mat-panel-description>
+    </mat-expansion-panel-header>
+    <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="comment_generator"></app-chat>
+  </mat-expansion-panel>
+</mat-accordion>
+}
+}
+<app-db-step-selection></app-db-step-selection>
+<ng-container *ngTemplateOutlet="queryResults"></ng-container>
 }
 
 
@@ -31,101 +67,101 @@
 
 <ng-template #queryResults>
 
-  @if (aiEnabled && currentContext && currentContext.objectName  && objectDetails) {
-    <mat-accordion>
-      <mat-expansion-panel expanded=false>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            Generative AI
-          </mat-panel-title>
-          <mat-panel-description>
-            Code Generation and Analysis
-          </mat-panel-description>
-        </mat-expansion-panel-header>
-        <app-chat [currentContext]="currentContext" [currentObject]="objectDetails"></app-chat>
-      </mat-expansion-panel>
-    </mat-accordion>
+  @if (aiEnabled && currentContext && currentContext.objectName && objectDetails) {
+  <mat-accordion>
+    <mat-expansion-panel expanded=false>
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          Generative AI
+        </mat-panel-title>
+        <mat-panel-description>
+          Code Generation and Analysis
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <app-chat [currentContext]="currentContext" [currentObject]="objectDetails"></app-chat>
+    </mat-expansion-panel>
+  </mat-accordion>
   }
 
 
   @if (sqlEnabled && currentContext && currentContext.endpoint) {
-    <mat-accordion>
-      <mat-expansion-panel [(expanded)]=queryPanelExpanded>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            Query Editor
-          </mat-panel-title>
-          <mat-panel-description>
-            Generate CSV from SQL
-          </mat-panel-description>
-        </mat-expansion-panel-header>
-        <app-sql></app-sql>
-      </mat-expansion-panel>
-    </mat-accordion>
+  <mat-accordion>
+    <mat-expansion-panel [(expanded)]=queryPanelExpanded>
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          Query Editor
+        </mat-panel-title>
+        <mat-panel-description>
+          Generate CSV from SQL
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <app-sql></app-sql>
+    </mat-expansion-panel>
+  </mat-accordion>
   }
 
   @if (objectDetails) {
-    <mat-accordion multi="true">
-      @for (property of objectDetails.objectProperties; track property) {
-        @if (property.rows?.length > 0) {
-          <mat-expansion-panel expanded="true">
-            <mat-expansion-panel-header>
-              <mat-panel-title>
-                {{property.title}}
-              </mat-panel-title>
-              <mat-panel-description>
-                {{property.description}}
-              </mat-panel-description>
-            </mat-expansion-panel-header>
-            @if (property.title === 'Source') {
-              <pre id="source-code">
+  <mat-accordion multi="true">
+    @for (property of objectDetails.objectProperties; track property) {
+    @if (property.rows?.length > 0) {
+    <mat-expansion-panel expanded="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          {{property.title}}
+        </mat-panel-title>
+        <mat-panel-description>
+          {{property.description}}
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      @if (property.title === 'Source') {
+      <pre id="source-code">
                 @if (property.rows[0]['Line']) {
                   <mat-slide-toggle (change)="showLineNumbers = !showLineNumbers" [checked]="showLineNumbers" class="toggle">Show Line Numbers</mat-slide-toggle>
                 }
                 <code highlightChildren="span">@for (source of property.rows; track source) {<a [hidden]="!showLineNumbers" class="line">{{source.Line}}</a><span [highlight]="source.Text"></span>}</code></pre>
-              }
-              @if (property.title ==='SQL Statements') {
-                <table mat-table [dataSource]="property.rows">
-                  <ng-container matColumnDef="Line">
-                    <th mat-header-cell *matHeaderCellDef>Line</th>
-                    <td mat-cell *matCellDef="let element">
-                      <ng-container >{{element.Line}}</ng-container>
-                    </td>
-                  </ng-container>
-                  <ng-container matColumnDef="Statement">
-                    <th mat-header-cell *matHeaderCellDef>Statement</th>
-                    <td mat-cell *matCellDef="let element">
-                      <ng-container >
-                        <pre><code [highlight]="element.Statement"></code></pre>
-                      </ng-container>
-                    </td>
-                  </ng-container>
-                  <tr mat-header-row *matHeaderRowDef="property.display"></tr>
-                  <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
-                </table>
-              }
-              @if (property.title !== 'Source'&& property.title !=='SQL Statements') {
-                <table mat-table [dataSource]="property.rows">
-                  @for (dColumn of property.display; track dColumn) {
-                    <ng-container matColumnDef="{{dColumn}}">
-                      <th mat-header-cell *matHeaderCellDef> {{dColumn}}</th>
-                      <td mat-cell *matCellDef="let element">
-                        @if (property.link == dColumn) {
-                          <a routerLink="/database/{{currentContext.endpoint}}/{{element['LINK']}}">{{element[dColumn]}}</a>
-                        }
-                        @if (property.link != dColumn) {
-                          {{element[dColumn]}}
-                        }
-                      </td>
-                    </ng-container>
-                  }
-                  <tr mat-header-row *matHeaderRowDef="property.display"></tr>
-                  <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
-                </table>
-              }
-            </mat-expansion-panel>
-          }
+      }
+      @if (property.title ==='SQL Statements') {
+      <table mat-table [dataSource]="property.rows">
+        <ng-container matColumnDef="Line">
+          <th mat-header-cell *matHeaderCellDef>Line</th>
+          <td mat-cell *matCellDef="let element">
+            <ng-container>{{element.Line}}</ng-container>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="Statement">
+          <th mat-header-cell *matHeaderCellDef>Statement</th>
+          <td mat-cell *matCellDef="let element">
+            <ng-container>
+              <pre><code [highlight]="element.Statement"></code></pre>
+            </ng-container>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="property.display"></tr>
+        <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
+      </table>
+      }
+      @if (property.title !== 'Source'&& property.title !=='SQL Statements') {
+      <table mat-table [dataSource]="property.rows">
+        @for (dColumn of property.display; track dColumn) {
+        <ng-container matColumnDef="{{dColumn}}">
+          <th mat-header-cell *matHeaderCellDef> {{dColumn}}</th>
+          <td mat-cell *matCellDef="let element">
+            @if (property.link == dColumn) {
+            <a routerLink="/database/{{currentContext.endpoint}}/{{element['LINK']}}">{{element[dColumn]}}</a>
+            }
+            @if (property.link != dColumn) {
+            {{element[dColumn]}}
+            }
+          </td>
+        </ng-container>
         }
-      </mat-accordion>
+        <tr mat-header-row *matHeaderRowDef="property.display"></tr>
+        <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
+      </table>
+      }
+    </mat-expansion-panel>
     }
-  </ng-template>
+    }
+  </mat-accordion>
+  }
+</ng-template>

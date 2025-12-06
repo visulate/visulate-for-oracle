@@ -121,3 +121,72 @@ logger.info("Agent capabilities:")
 logger.info("   - Natural language database object search")
 logger.info("   - Secure SQL execution with credential tokens")
 logger.info("   - Database schema analysis and documentation")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import uuid
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    from google.adk.runners import Runner
+    from google.adk.sessions.in_memory_session_service import InMemorySessionService
+    from google.genai import types
+
+    # Initialize Runner
+    session_service = InMemorySessionService()
+    runner = Runner(
+        app_name="visulate_agent",
+        agent=root_agent,
+        session_service=session_service
+    )
+
+    app = FastAPI()
+
+    @app.post("/agent/generate")
+    async def generate(request: Request):
+        try:
+            data = await request.json()
+            message = data.get("message", "")
+            context = data.get("context", {})
+
+            # Construct prompt with context if available
+            prompt_text = message
+            logger.info(f"Received message: {message}")
+
+            if context:
+                 import json
+                 context_str = json.dumps(context) if isinstance(context, dict) else str(context)
+                 prompt_text = f"{message}\n\nContext:\n{context_str}"
+                 logger.info(f"Full prompt length: {len(prompt_text)}")
+
+            # Create Content object, explicitly setting role="user"
+            content = types.Content(role="user", parts=[types.Part(text=prompt_text)])
+
+            response_text = ""
+            session_id = str(uuid.uuid4())
+
+            # Create Session
+            await session_service.create_session(
+                app_name="visulate_agent",
+                user_id="visulate_user",
+                session_id=session_id
+            )
+
+            # Execute agent
+            async for event in runner.run_async(user_id="visulate_user", session_id=session_id, new_message=content):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            response_text += part.text
+
+            # Cleanup session (optional, but good for memory)
+            # await session_service.delete_session(session_id)
+
+            return JSONResponse(content=response_text)
+
+        except Exception as e:
+            logger.error(f"Error processing request: {e}", exc_info=True)
+            return JSONResponse(content={"error": str(e)}, status_code=500)
+
+    logger.info("Starting Visulate Agent on port 10000...")
+    uvicorn.run(app, host="0.0.0.0", port=10000)
