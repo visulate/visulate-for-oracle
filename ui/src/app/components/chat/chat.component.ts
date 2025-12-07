@@ -1,18 +1,19 @@
-import { Component, OnInit, Input,  ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Component({
-    selector: 'app-chat',
-    templateUrl: './chat.component.html',
-    styleUrls: ['./chat.component.css'],
-    standalone: false
+  selector: 'app-chat',
+  templateUrl: './chat.component.html',
+  styleUrls: ['./chat.component.css'],
+  standalone: false
 })
 export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
   @Input() currentContext: any;
   @Input() currentObject: any;
+  @Input() agent: string; // 'visulate_agent' | 'comment_generator' | null (default)
   @ViewChild('messageContainer') private messageContainer: ElementRef;
   chatForm: FormGroup;
   messages: { user: string, text: string }[] = [];
@@ -43,11 +44,11 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes.currentContext &&
-        changes.currentContext.currentValue !== changes.currentContext.previousValue) {
+      changes.currentContext.currentValue !== changes.currentContext.previousValue) {
       this.currentContext = changes.currentContext.currentValue;
     }
     if (changes.currentObject &&
-        changes.currentObject.currentValue !== changes.currentObject.previousValue) {
+      changes.currentObject.currentValue !== changes.currentObject.previousValue) {
       this.collectionData.objectDetails = changes.currentObject.currentValue;
       this.fetchData();
     }
@@ -84,12 +85,22 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
     this.startCounter();
     const payload = {
       context: this.collectionData,
-      message: message
+      message: message,
+      agent: this.agent
     };
     return this.http.post<string>(apiUrl, payload);
   }
 
   private fetchData(): void {
+    if (!this.currentContext.objectName) {
+      // Database or Schema level - no specific object details to fetch initially
+      // We still set isLoading = false to allow chat to start if agent is present
+      if (this.agent) {
+        this.isLoading = false;
+      }
+      return;
+    }
+
     const endpoint = `${this.currentContext.endpoint}/${this.currentContext.owner}/${this.currentContext.objectType}/${this.currentContext.objectName}`;
     //e.g. 'vis24/RNTMGR2/TABLE/RNT_ACCOUNTS_PAYABLE';
     const apiUrl = `${environment.apiBase}/${endpoint}?template=extract_links.hbs`;

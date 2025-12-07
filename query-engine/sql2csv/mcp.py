@@ -20,7 +20,7 @@ except ImportError:
 from . import sql2csv
 from .secure_credentials import credential_manager
 
-bp = Blueprint('mcp', __name__, url_prefix='/mcp')
+bp = Blueprint('mcp', __name__, url_prefix='/mcp-sql')
 
 logger = logging.getLogger(__name__)
 

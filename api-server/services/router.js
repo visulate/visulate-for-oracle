@@ -66,6 +66,7 @@ const aiSchema = {
   required: ['message', 'context'],
   properties: {
     message: { type: 'string' },
+    agent: { type: 'string' },
     context: {
       type: ['object', 'array'],
       items: {

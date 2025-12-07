@@ -52,5 +52,10 @@ RUN rm -rf /usr/lib/python3.9/site-packages/pip* && \
     pip3 install --upgrade setuptools
 
 # Set the command to run the application
+# Copy startup script
+COPY --chown=queryeng:queryeng start.sh /query-engine/start.sh
+RUN chmod +x /query-engine/start.sh
+
+# Set the command to run the application
 USER queryeng
-CMD gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --bind 0.0.0.0:5000 "sql2csv:create_app()"
+CMD ["/query-engine/start.sh"]

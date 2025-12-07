@@ -79,3 +79,55 @@ root_agent = LlmAgent(
 )
 
 logger.info("Comment Generator Agent created successfully!")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import uuid
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    from google.adk.runners import Runner
+    from google.adk.sessions.in_memory_session_service import InMemorySessionService
+    from google.genai import types
+
+    session_service = InMemorySessionService()
+    runner = Runner(
+        app_name="comment_generator",
+        agent=root_agent,
+        session_service=session_service
+    )
+
+    app = FastAPI()
+
+    @app.post("/agent/generate")
+    async def generate(request: Request):
+        try:
+            data = await request.json()
+            message = data.get("message", "")
+
+            content = types.Content(role="user", parts=[types.Part(text=message)])
+
+            response_text = ""
+            session_id = str(uuid.uuid4())
+
+            # Create Session
+            await session_service.create_session(
+                app_name="comment_generator",
+                user_id="comment_gen_user",
+                session_id=session_id
+            )
+
+            async for event in runner.run_async(user_id="comment_gen_user", session_id=session_id, new_message=content):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            response_text += part.text
+
+            return JSONResponse(content=response_text)
+
+        except Exception as e:
+            logger.error(f"Error processing request: {e}", exc_info=True)
+            return JSONResponse(content={"error": str(e)}, status_code=500)
+
+    logger.info("Starting Comment Generator Agent on port 10001...")
+    uvicorn.run(app, host="0.0.0.0", port=10001)
