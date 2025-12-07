@@ -16,6 +16,8 @@ services:
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
+      - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
+      - COMMENT_GENERATOR_URL=http://ai-agent:10001/agent/generate
   visui:
     hostname: visui
     depends_on:
@@ -32,7 +34,17 @@ services:
       - "5000"
     volumes:
       - ./query-engine/sql2csv/config:/query-engine/sql2csv/config
-      - ./ai-agent:/query-engine/ai-agent
+  ai-agent:
+    hostname: ai-agent
+    build: ./ai-agent
+    depends_on:
+      - reverseproxy
+      - vissql
+      - visapi
     ports:
       - "10000:10000"
       - "10001:10001"
+    environment:
+      - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_AI_KEY}
+      - VISULATE_BASE=http://reverseproxy
