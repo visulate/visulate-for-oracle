@@ -1,0 +1,113 @@
+@use '@angular/material' as mat;
+@import 'highlight.js/styles/github.css';
+
+// Define Palettes manually since variables are unavailable
+$indigo-palette: (
+  50: #e8eaf6,
+  100: #c5cae9,
+  200: #9fa8da,
+  300: #7986cb,
+  400: #5c6bc0,
+  500: #3f51b5,
+  600: #3949ab,
+  700: #303f9f,
+  800: #283593,
+  900: #1a237e,
+  A100: #8c9eff,
+  A200: #536dfe,
+  A400: #3d5afe,
+  A700: #304ffe,
+  contrast: (50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: white,
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: white,
+    A400: white,
+    A700: white,
+  )
+);
+
+$cyan-palette: (
+  50: #e0f7fa,
+  100: #b2ebf2,
+  200: #80deea,
+  300: #4dd0e1,
+  400: #26c6da,
+  500: #00bcd4,
+  600: #00acc1,
+  700: #0097a7,
+  800: #00838f,
+  900: #006064,
+  A100: #84ffff,
+  A200: #18ffff,
+  A400: #00e5ff,
+  A700: #00b8d4,
+  contrast: (50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: rgba(black, 0.87),
+  )
+);
+
+// Define Theme using M2 API structure (v18+ compatibility)
+$visulate-primary: mat.m2-define-palette($indigo-palette);
+$visulate-accent: mat.m2-define-palette($cyan-palette);
+
+$visulate-theme: mat.m2-define-light-theme((color: (primary: $visulate-primary,
+        accent: $visulate-accent,
+      ),
+      typography: mat.m2-define-typography-config($font-family: '"Inter", "Roboto", "Helvetica Neue", sans-serif',
+      ),
+    ));
+
+// Include Theme
+@include mat.core();
+@include mat.all-component-themes($visulate-theme);
+
+// Global Styles
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", "Roboto", "Helvetica Neue", sans-serif;
+  background-color: #f8fafc; // Light gray background
+  color: #0f172a; // Dark text
+}
+
+// Global visual improvements
+.mat-card {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+.mat-stroked-button,
+.mat-flat-button,
+.mat-raised-button {
+  border-radius: 20px !important;
+  /* Pill shape */
+}
+
+/* Sidenav container */
+.app-sidenav-container {
+  background-color: transparent !important;
+}

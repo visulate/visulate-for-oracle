@@ -1,20 +1,20 @@
-<form class="filter-form" >
+<form class="filter-form">
   @if (currentEndpoint && currentEndpoint.ebsInstance) {
-    <mat-form-field class="filter-full-width">
-      <input matInput placeholder="EBS Product Lookup" aria-label="EBS Product Prefix"
-        [matAutocomplete]="auto" [formControl]="ebsSelectCtrl" >
-      <mat-autocomplete #auto="matAutocomplete"  (optionSelected)='setEbsFilter($event.option.value)'>
-        @for (prefix of filteredPrefixes$ | async; track prefix) {
-          <mat-option [value]="prefix.name">
-            <mat-select-trigger>
-              <span>{{prefix.name}}</span>
-            </mat-select-trigger>
-          </mat-option>
-        }
-      </mat-autocomplete>
-    </mat-form-field>
+  <mat-form-field class="filter-full-width">
+    <input matInput placeholder="EBS Product Lookup" aria-label="EBS Product Prefix" [matAutocomplete]="auto"
+      [formControl]="ebsSelectCtrl">
+    <mat-autocomplete #auto="matAutocomplete" (optionSelected)='setEbsFilter($event.option.value)'>
+      @for (prefix of filteredPrefixes$ | async; track prefix) {
+      <mat-option [value]="prefix.name">
+        <mat-select-trigger>
+          <span>{{prefix.name}}</span>
+        </mat-select-trigger>
+      </mat-option>
+      }
+    </mat-autocomplete>
+  </mat-form-field>
   }
-  <mat-form-field class="filter-full-width" >
-    <input matInput placeholder="Object Filter (e.g. dba_*)" [formControl]="objectFilter" >
+  <mat-form-field class="filter-full-width">
+    <input matInput placeholder="Filter Objects" [formControl]="objectFilter">
   </mat-form-field>
 </form>

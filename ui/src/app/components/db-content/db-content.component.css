@@ -1,31 +1,74 @@
-table {
-    width: 100%;
-  }
-  .hljs {
-    padding: 0;
-  }
+:host {
+  display: block;
+  padding: 24px;
+}
 
-#source-code { padding-left: 40px; position: relative; }
-#source-code .line { position: absolute; left: 0; width: 30px; text-align: right; }
-#source-code .toggle { position: absolute; left: 0; text-align: right; }
+table {
+  width: 100%;
+}
+
+.hljs {
+  padding: 0;
+}
+
+#source-code {
+  padding-left: 40px;
+  position: relative;
+}
+
+#source-code .line {
+  position: absolute;
+  left: 0;
+  width: 30px;
+  text-align: right;
+  color: #94a3b8;
+}
+
+#source-code .toggle {
+  position: absolute;
+  left: 0;
+  text-align: right;
+}
 
 .homepage-banner {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0.5)), url(../../../assets/datamodel.jpg);
-    /* Set a specific height */
-    height: 180px;
-
-    /* Position and center the image to scale nicely on all screens */
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    position: relative;
+  background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url(../../../assets/datamodel.jpg);
+  height: 240px;
+  /* Taller banner */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+  border-radius: 16px;
+  /* Rounded corners */
+  margin-bottom: 24px;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 
 .homepage-banner h1 {
   text-align: center;
   position: absolute;
-  top: 40%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
+  font-weight: 300;
+  font-size: 3rem;
+  letter-spacing: -0.025em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+h1.currentContext {
+  font-weight: 300;
+  color: #334155;
+  /* Slate 700 */
+  margin: 24px 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+/* Add spacing between expansion panels */
+mat-expansion-panel {
+  margin-bottom: 12px;
+  border-radius: 8px !important;
+  /* Slight rounding for panels */
 }

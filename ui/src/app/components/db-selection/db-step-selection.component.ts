@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { Component} from '@angular/core';
+import { Component } from '@angular/core';
 import { DbSelectionComponent } from './db-selection.component';
 
 @Component({
     selector: 'app-db-step-selection',
     templateUrl: './db-step-selection.component.html',
-    styleUrls: ['./db-selection.component.css'],
+    styleUrls: ['./db-step-selection.component.css'],
     standalone: false
 })
 /**
