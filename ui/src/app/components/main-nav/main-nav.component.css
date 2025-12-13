@@ -11,6 +11,13 @@
 .app-is-mobile .app-toolbar {
   position: fixed;
   z-index: 2;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.app-container.app-is-mobile {
+  padding-top: 56px;
 }
 
 .app-sidenav-container {
