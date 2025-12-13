@@ -145,3 +145,21 @@
   overflow-x: auto;
   border: 1px solid var(--app-border-color);
 }
+
+/* Welcome Message */
+.welcome-message {
+  text-align: left;
+  padding: 32px;
+  color: var(--app-text-color);
+  opacity: 0.8;
+}
+
+.welcome-message h2 {
+  color: var(--app-heading-color);
+  margin-bottom: 16px;
+}
+
+.welcome-message p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}

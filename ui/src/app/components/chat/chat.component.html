@@ -7,6 +7,23 @@
   }
 
   <div class="messages" #messageContainer>
+    @if (messages.length === 0 && !isLoading) {
+    <div class="welcome-message">
+      <h2>Welcome to Visulate</h2>
+      <p>
+        Visulate for Oracle is a tool to browse and visualize Oracle database objects and their dependencies.
+        Use it to explore tables, views, packages, and more. Select a database and schema from the menu to view object
+        details
+      </p>
+      <p>
+        Visulate uses Generative AI to provide insights and analysis about your database objects. It can also be
+        configured to generate SQL based on natural language queries (NL2SQL), execute SQL queries, and to generate
+        table and column comments for database objects. The list of available features varies based on the configuration
+        of your Visulate instance.</p>
+      <p> Start by asking <b><em>"What can you do?"</em></b> to get an overview of the available features.
+      </p>
+    </div>
+    }
     @for (msg of messages; track msg) {
     <div class="message-row" [class.user-row]="msg.user === 'You'" [class.agent-row]="msg.user === 'Visulate'">
       @if (msg.user === 'Visulate') {
