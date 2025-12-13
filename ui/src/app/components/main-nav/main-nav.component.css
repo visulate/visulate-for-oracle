@@ -25,21 +25,22 @@ h1.app-app-name {
 /* Sidebar Styles */
 .app-sidebar {
   width: 300px;
-  background-color: #fff;
-  /* Clean white background */
-  border-right: 1px solid rgba(0, 0, 0, 0.08);
-  /* Subtle border instead of heavy shadow */
+  background-color: var(--app-sidebar-bg);
+  color: var(--app-text-color);
+  border-right: 1px solid var(--app-border-color);
 }
 
 /* Toolbar Styles */
 .app-toolbar {
-  background-color: #fff !important;
-  /* White toolbar */
-  color: #0f172a !important;
-  /* Dark text */
+  background-color: var(--app-toolbar-bg) !important;
+  color: var(--app-toolbar-text) !important;
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   /* Subtle shadow */
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.spacer {
+  flex: 1 1 auto;
 }
 
 /* Make search icon distinct */

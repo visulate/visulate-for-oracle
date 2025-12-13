@@ -64,6 +64,7 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
     this.startCounter();
 
     this.updateContext('You', userMessage);
+    this.scrollToBottom();
 
     this.callLLM(userMessage).subscribe(
       response => {
@@ -71,13 +72,27 @@ export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
         this.isLoading = false;
         this.stopCounter();
         this.updateContext('Visulate', response);
+        this.scrollToBottom();
       },
       error => {
         console.error('Error calling LLM:', error);
         this.isLoading = false;
         this.stopCounter();
+        this.scrollToBottom();
       }
     );
+  }
+
+  private scrollToBottom(): void {
+    setTimeout(() => {
+      try {
+        if (this.messageContainer) {
+          this.messageContainer.nativeElement.scrollTop = this.messageContainer.nativeElement.scrollHeight;
+        }
+      } catch (err) {
+        console.error('Scroll to bottom failed:', err);
+      }
+    }, 100);
   }
 
   callLLM(message: string): Observable<string> {

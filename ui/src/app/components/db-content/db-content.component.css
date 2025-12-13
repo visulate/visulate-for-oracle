@@ -59,16 +59,32 @@ table {
 
 h1.currentContext {
   font-weight: 300;
-  color: #334155;
-  /* Slate 700 */
+  color: var(--app-heading-color);
   margin: 24px 0;
   font-size: 1.5rem;
   letter-spacing: -0.01em;
 }
 
 /* Add spacing between expansion panels */
-mat-expansion-panel {
+mat-accordion {
+  display: block;
   margin-bottom: 12px;
+}
+
+mat-expansion-panel {
+  margin-bottom: 0 !important;
+  /* Let accordion handle internal spacing or use gap */
+}
+
+/* Ensure expanded panels in the SAME accordion have spacing if needed,
+   but standard Material behavior is usually fine.
+   If we want gaps between panels in the same accordion (multi=true): */
+mat-expansion-panel:not(:last-child) {
+  margin-bottom: 16px !important;
+}
+
+mat-expansion-panel {
   border-radius: 8px !important;
-  /* Slight rounding for panels */
+  overflow: hidden !important;
+  /* Fix potential overlap/containment */
 }

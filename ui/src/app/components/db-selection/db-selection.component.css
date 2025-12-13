@@ -15,7 +15,7 @@ mat-form-field {
 }
 
 mat-expansion-panel {
-  border-radius: 8px !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
   /* Flat in sidebar */
   border: 1px solid rgba(0, 0, 0, 0.08);

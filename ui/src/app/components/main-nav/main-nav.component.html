@@ -4,8 +4,13 @@
         aria-label="Side nav toggle icon">menu</mat-icon>
     </button>
     <a routerLink="/">Visulate for Oracle</a>
+    <span class="spacer"></span>
     <button mat-icon-button aria-hidden="false" aria-label="search icon" (click)=toggleSearchForm()>
-      <mat-icon>search</mat-icon> </button>
+      <mat-icon>search</mat-icon>
+    </button>
+    <button mat-icon-button type="button" aria-label="Toggle dark mode" (click)="toggleTheme()">
+      <mat-icon>{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    </button>
   </mat-toolbar>
   @if (!snav.opened) {
   <app-db-step-selection></app-db-step-selection>

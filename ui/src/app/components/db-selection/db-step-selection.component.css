@@ -1,8 +1,9 @@
 /* Integrated secondary toolbar look */
 .step-selection-container {
-  background-color: #fff;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  /* Subtle separator */
+  background-color: var(--app-toolbar-bg);
+  /* Use toolbar bg to match header or separate bg */
+  color: var(--app-text-color);
+  border-bottom: 1px solid var(--app-border-color);
   padding: 8px 16px 0 16px;
   display: flex;
   flex-direction: column;
@@ -40,7 +41,8 @@ app-filter-objects {
 
 .endpoint-desc {
   margin: 0;
-  color: #64748b;
+  color: var(--app-text-color);
+  opacity: 0.7;
   font-size: 0.875rem;
   align-self: center;
 }
