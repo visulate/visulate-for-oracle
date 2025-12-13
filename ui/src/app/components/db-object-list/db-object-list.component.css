@@ -1,5 +1,5 @@
 .active {
-    color: #212121;
+    color: var(--app-active-text) !important;
     font-weight: 500;
-    background-color: aliceblue;
+    background-color: var(--app-active-bg) !important;
 }

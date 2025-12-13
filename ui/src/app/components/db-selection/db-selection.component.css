@@ -1,7 +1,23 @@
-mat-toolbar.mat-toolbar mat-form-field.mat-mdc-form-field {
-  font-size: 12px;
+#dbSelectMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-#dbSelectMenu mat-form-field {
+
+/* Modernize Select Fields */
+mat-form-field {
   width: 100%;
 }
-.warning { color: red }
+
+.mat-mdc-form-field-subscript-wrapper {
+  display: none;
+  /* Hide helper text space for cleaner look */
+}
+
+mat-expansion-panel {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  /* Flat in sidebar */
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  /* Subtle border */
+}

@@ -1,37 +1,48 @@
-<div id="dbSelectMenu">
-  <app-filter-objects></app-filter-objects>
-  <mat-form-field>
-    <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder" (selectionChange)="setEndpoint($event.value)">
-      @for (database of endpoints.databases; track database) {
-        <mat-option [value]="database">
-          {{database.endpoint}}
-        </mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
+<mat-accordion multi="true">
+  <mat-expansion-panel [expanded]="true">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        Explorer
+      </mat-panel-title>
+    </mat-expansion-panel-header>
 
-  @if (currentEndpoint) {
-    <mat-form-field>
-      <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
-        @for (schema of currentEndpoint.schemas; track schema) {
+    <div id="dbSelectMenu">
+      <app-filter-objects></app-filter-objects>
+      <mat-form-field>
+        <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
+          (selectionChange)="setEndpoint($event.value)">
+          @for (database of endpoints.databases; track database) {
+          <mat-option [value]="database">
+            {{database.endpoint}}
+          </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      @if (currentEndpoint) {
+      <mat-form-field>
+        <mat-select [(ngModel)]="currentSchema" placeholder="Schema" (selectionChange)="setSchema($event.value)">
+          @for (schema of currentEndpoint.schemas; track schema) {
           <mat-option [value]="schema">
             {{schema.owner}}
           </mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-  }
+          }
+        </mat-select>
+      </mat-form-field>
+      }
 
-  @if (currentSchema) {
-    <mat-form-field>
-      <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
-        (selectionChange)="setObjectType($event.value)">
-        @for (objectType of currentSchema.objectTypes; track objectType) {
+      @if (currentSchema) {
+      <mat-form-field>
+        <mat-select [(ngModel)]="currentObjectType" placeholder="Object Type"
+          (selectionChange)="setObjectType($event.value)">
+          @for (objectType of currentSchema.objectTypes; track objectType) {
           <mat-option [value]="objectType">
             {{objectType.type}} ({{objectType.count}})
           </mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-  }
-</div>
+          }
+        </mat-select>
+      </mat-form-field>
+      }
+    </div>
+  </mat-expansion-panel>
+</mat-accordion>

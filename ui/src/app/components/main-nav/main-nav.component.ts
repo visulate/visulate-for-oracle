@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { MediaMatcher} from '@angular/cdk/layout';
+import { MediaMatcher } from '@angular/cdk/layout';
 import { Subject, combineLatest } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute } from '@angular/router';
@@ -23,10 +23,10 @@ import { CurrentContextModel } from 'src/app/models/current-context.model';
 
 
 @Component({
-    selector: 'app-main-nav',
-    templateUrl: './main-nav.component.html',
-    styleUrls: ['./main-nav.component.css'],
-    standalone: false
+  selector: 'app-main-nav',
+  templateUrl: './main-nav.component.html',
+  styleUrls: ['./main-nav.component.css'],
+  standalone: false
 })
 /**
  * Navigation component
@@ -46,8 +46,7 @@ export class MainNavComponent implements OnInit, OnDestroy {
   constructor(
     media: MediaMatcher,
     private route: ActivatedRoute,
-    private state: StateService )
-  {
+    private state: StateService) {
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
   }
 
@@ -67,8 +66,8 @@ export class MainNavComponent implements OnInit, OnDestroy {
       .subscribe(([params, queryParams]) => {
         const context = this.state.getCurrentContext();
         const priorContext = new CurrentContextModel
-        (context.endpoint, context.owner, context.objectType,
-          context.objectName, context.filter, context.showInternal, context.objectList);
+          (context.endpoint, context.owner, context.objectType,
+            context.objectName, context.filter, context.showInternal, context.objectList);
 
         const db = params.get('db');
         const schema = params.get('schema');
@@ -83,13 +82,12 @@ export class MainNavComponent implements OnInit, OnDestroy {
           context.setObjectName(object.toUpperCase());
           this.opened = this.mobileQuery.matches ? null : 'opened';
         }
-        if (filter != null) {context.setFilter(filter); }
+        if (filter != null) { context.setFilter(filter); }
 
         // Preserve the current object list if context has not changed
         // (e.g when navigating from one object to the next)
         const changeSummary = this.state.getContextDiff(context, priorContext);
-        if ((!changeSummary.objectTypeDiff) && (!changeSummary.filterDiff))
-        {context.setObjectList(priorContext.objectList); }
+        if ((!changeSummary.objectTypeDiff) && (!changeSummary.filterDiff)) { context.setObjectList(priorContext.objectList); }
 
         this.state.setCurrentContext(context);
       });
@@ -99,12 +97,33 @@ export class MainNavComponent implements OnInit, OnDestroy {
     this.displaySearchForm = !this.displaySearchForm;
   }
 
-  hideSearchForm(){
+  hideSearchForm() {
     this.displaySearchForm = false;
   }
 
+  isDarkMode = false;
+
   ngOnInit(): void {
     this.setContext();
+
+    // Check for saved theme preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      this.isDarkMode = true;
+      document.body.classList.add('dark-theme');
+    }
+  }
+
+  toggleTheme(): void {
+    this.isDarkMode = !this.isDarkMode;
+
+    if (this.isDarkMode) {
+      document.body.classList.add('dark-theme');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-theme');
+      localStorage.setItem('theme', 'light');
+    }
   }
 
   ngOnDestroy(): void {

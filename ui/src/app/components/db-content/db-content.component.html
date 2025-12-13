@@ -20,9 +20,26 @@
 } @else {
 @if (currentContext && !currentContext.owner) {
 @if (!aiEnabled) {
-<div class="homepage-banner">
-  <h1>Oracle Database Catalog</h1>
-</div>
+<mat-accordion>
+  <mat-expansion-panel expanded="true">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        Oracle Database Catalog
+      </mat-panel-title>
+      <mat-panel-description>
+        Browse Database Objects
+      </mat-panel-description>
+    </mat-expansion-panel-header>
+    <h2>Welcome to Visulate</h2>
+    <p>
+      Visulate for Oracle is a tool to browse and visualize Oracle database objects and their dependencies. Use it to
+      explore tables, views, packages, and more.
+    </p>
+    <p>
+      Select a database and schema from the menu to view object details.
+    </p>
+  </mat-expansion-panel>
+</mat-accordion>
 }
 @if (aiEnabled) {
 <mat-accordion>
@@ -58,7 +75,7 @@
 </mat-accordion>
 }
 }
-<app-db-step-selection></app-db-step-selection>
+<!-- <app-db-step-selection></app-db-step-selection> -->
 <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 }
 

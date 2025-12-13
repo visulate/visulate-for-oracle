@@ -1,0 +1,87 @@
+// Solarized Colors
+$solarized-base03: #002b36;
+$solarized-base02: #073642;
+$solarized-base01: #586e75;
+$solarized-base00: #657b83;
+$solarized-base0: #839496;
+$solarized-base1: #93a1a1;
+$solarized-base2: #eee8d5;
+$solarized-base3: #fdf6e3;
+
+$solarized-yellow: #b58900;
+$solarized-orange: #cb4b16;
+$solarized-red: #dc322f;
+$solarized-magenta: #d33682;
+$solarized-violet: #6c71c4;
+$solarized-blue: #268bd2;
+$solarized-cyan: #2aa198;
+$solarized-green: #859900;
+
+// Custom Material Palette based on Solarized Blue
+$solarized-primary-palette: (
+  50: #e4f3fa,
+  // lightened blue
+  100: #bce1f3,
+  200: #90cdea,
+  300: #64b9e1,
+  400: #42aad9,
+  500: $solarized-blue,
+  // #268bd2
+  600: #2283cd,
+  700: #1c78c7,
+  800: #176ec1,
+  900: #0d5bb6,
+  A100: #daecff,
+  A200: #a7d3ff,
+  A400: #74baff,
+  A700: #5aacff,
+  contrast: (50: $solarized-base03,
+    100: $solarized-base03,
+    200: $solarized-base03,
+    300: $solarized-base03,
+    400: $solarized-base3,
+    500: $solarized-base3,
+    600: $solarized-base3,
+    700: $solarized-base3,
+    800: $solarized-base3,
+    900: $solarized-base3,
+    A100: $solarized-base03,
+    A200: $solarized-base03,
+    A400: $solarized-base03,
+    A700: $solarized-base03,
+  )
+);
+
+// Custom Material Palette based on Solarized Magenta
+$solarized-accent-palette: (
+  50: #fae7f0,
+  100: #f2c3d9,
+  200: #e99cc0,
+  300: #e074a6,
+  400: #d95692,
+  500: $solarized-magenta,
+  // #d33682
+  600: #cf307a,
+  700: #ca296f,
+  800: #c52265,
+  900: #bc1652,
+  A100: #ffe8ee,
+  A200: #ffb5c6,
+  A400: #ff829e,
+  A700: #ff698a,
+  contrast: (50: $solarized-base03,
+    100: $solarized-base03,
+    200: $solarized-base03,
+    300: $solarized-base03,
+    400: $solarized-base3,
+    500: $solarized-base3,
+    600: $solarized-base3,
+    700: $solarized-base3,
+    800: $solarized-base3,
+    900: $solarized-base3,
+    A100: $solarized-base03,
+    A200: $solarized-base03,
+    A400: $solarized-base03,
+    A700: $solarized-base03,
+  )
+);

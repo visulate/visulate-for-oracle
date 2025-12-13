@@ -1,0 +1,67 @@
+/* Integrated secondary toolbar look */
+.step-selection-container {
+  background-color: var(--app-toolbar-bg);
+  /* Use toolbar bg to match header or separate bg */
+  color: var(--app-text-color);
+  border-bottom: 1px solid var(--app-border-color);
+  padding: 8px 16px 0 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-selection-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  /* Align filter to right */
+  margin-bottom: 8px;
+}
+
+.header-spacer {
+  flex: 1 1 auto;
+}
+
+/* Reduced filter width */
+app-filter-objects {
+  min-width: 200px;
+  /* Allow it to shrink if needed, or keep compact */
+}
+
+.warning {
+  color: red;
+  margin: 0 0 8px 0;
+}
+
+.step-selection-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.endpoint-desc {
+  margin: 0;
+  color: var(--app-text-color);
+  opacity: 0.7;
+  font-size: 0.875rem;
+  align-self: center;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+/* Desktop: Single line (row) */
+@media (min-width: 960px) {
+  .step-selection-content {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  mat-form-field {
+    width: auto;
+    flex: 1;
+    max-width: 300px;
+  }
+}

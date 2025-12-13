@@ -1,23 +1,63 @@
 <div class="chat-container">
   @if (isLoading) {
-    <div>
-      <p>Working... {{ counter }} seconds</p>
-      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-    </div>
-  }
-  <div class="messages" #messageContainer>
-
-    @for (msg of messages; track msg) {
-      <div class="message">
-        <strong>{{ msg.user }}:</strong>
-        <div markdown>{{ msg.text }}</div>
-      </div>
-    }
-
+  <div class="loading-indicator">
+    <p>Working... {{ counter }} seconds</p>
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
   </div>
-  <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="chat-form">
-    <input formControlName="message" placeholder="Type your message" class="large-text"/>
-    <button type="submit" class="large-text">Send</button>
+  }
+
+  <div class="messages" #messageContainer>
+    @if (messages.length === 0 && !isLoading) {
+    <div class="welcome-message">
+      <h2>Welcome to Visulate</h2>
+      <p>
+        Visulate for Oracle is a tool to browse and visualize Oracle database objects and their dependencies.
+        Use it to explore tables, views, packages, and more. Select a database and schema from the menu to view object
+        details
+      </p>
+      <p>
+        Visulate uses Generative AI to provide insights and analysis about your database objects. It can also be
+        configured to generate SQL based on natural language queries (NL2SQL), execute SQL queries, and to generate
+        table and column comments for database objects. The list of available features varies based on the configuration
+        of your Visulate instance.</p>
+      <p> Start by asking <b><em>"What can you do?"</em></b> to get an overview of the available features.
+      </p>
+    </div>
+    }
+    @for (msg of messages; track msg) {
+    <div class="message-row" [class.user-row]="msg.user === 'You'" [class.agent-row]="msg.user === 'Visulate'">
+      @if (msg.user === 'Visulate') {
+      <div class="avatar-container">
+        <img src="favicon.ico" class="avatar-image" alt="Visulate">
+      </div>
+      }
+
+      <div class="message-bubble" [class.user-bubble]="msg.user === 'You'"
+        [class.agent-bubble]="msg.user === 'Visulate'">
+        <div class="message-content" markdown>{{ msg.text }}</div>
+      </div>
+
+      @if (msg.user === 'You') {
+      <div class="avatar-container">
+        <mat-icon class="avatar">person</mat-icon>
+      </div>
+      }
+    </div>
+    }
+  </div>
+
+  <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="chat-input-area">
+    <mat-form-field appearance="outline" class="chat-field">
+      <mat-label>Ask Visulate...</mat-label>
+      <!-- Note: MatButton module and MatIcon module required -->
+      <input matInput formControlName="message" placeholder="Type your message">
+      <button mat-icon-button matSuffix type="submit" [disabled]="!chatForm.valid || isLoading">
+        <mat-icon>send</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <button mat-icon-button type="button" (click)="downloadMessages()" matTooltip="Download Chat History">
+      <mat-icon>download</mat-icon>
+    </button>
   </form>
-  <button (click)="downloadMessages()" class="large-text">Download Messages</button>
 </div>
