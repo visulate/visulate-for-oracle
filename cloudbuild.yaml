@@ -77,10 +77,21 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION']
 
+# AI Agent
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build',
+         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION',
+         '.']
+  dir: 'ai-agent'
+  waitFor: ['-']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION']
+
 timeout: 1200s
 substitutions:
     _APP_NAME: visulate-for-oracle
-    _VERSION: 2.0.0
+    _VERSION: 2.5.0
 images: [
   'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION',
@@ -88,5 +99,6 @@ images: [
   'gcr.io/$PROJECT_ID/$_APP_NAME/proxy:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION',
   'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION'
+  'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION',
+  'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION'
 ]
