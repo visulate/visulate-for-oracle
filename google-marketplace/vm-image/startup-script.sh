@@ -1,12 +1,17 @@
 #!/bin/bash
 # Start Docker service
 systemctl start docker
+
+# Image repository
+IMAGE_REPO="gcr.io/visulate-llc-public"
+
 # Pull the Docker container images
 docker pull docker/compose:latest
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle:2.1
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.1
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.1
+docker pull ${IMAGE_REPO}/visulate-for-oracle:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ui:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/sql:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/proxy:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ai-agent:2.5
 
 # Create visulate directory if it doesn't exist
 if [ ! -d /home/visulate ]; then
@@ -18,21 +23,22 @@ if [ ! -d /home/visulate/config ]; then
   mkdir /home/visulate/config
 
   # copy the API server config files from the container to the host
-  api_container=$(docker create --rm gcr.io/visulate-llc-public/visulate-for-oracle:2.1)
-  docker cp "$api_container:/visulate-server/config" /home/visulate
+  api_container=$(docker create --rm ${IMAGE_REPO}/visulate-for-oracle:2.5)
+  docker cp "$api_container:/visulate-server/config/." /home/visulate/config/
   docker rm "$api_container"
 
   # copy the query engine config files from the container to the host
-  docker run --rm gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
+  docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:2.5 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
+  docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:2.5 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
 fi
 
 # Create docker-compose.yml if not already present
 if [ ! -f /home/visulate/docker-compose.yaml ]; then
-cat << 'EOF' > /home/visulate/docker-compose.yaml
+cat << EOF > /home/visulate/docker-compose.yaml
 version: "3.8"
 services:
   reverseproxy:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.1
+    image: ${IMAGE_REPO}/visulate-for-oracle/proxy:2.5
     container_name: reverseproxy
     ports:
       - 80:80
@@ -40,12 +46,20 @@ services:
       - visulate_network
 
   visapi:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle:2.1
+    image: ${IMAGE_REPO}/visulate-for-oracle:2.5
     container_name: visapi
+    hostname: visapi
+    depends_on:
+      - reverseproxy
     expose:
       - "3000"
     volumes:
       - /home/visulate/config:/visulate-server/config
+    environment:
+      - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
+      - CORS_ORIGIN_WHITELIST=\${CORS_ORIGIN_WHITELIST}
+      - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
+      - COMMENT_GENERATOR_URL=http://ai-agent:10001/agent/generate
     networks:
       - visulate_network
     healthcheck:
@@ -55,8 +69,11 @@ services:
       retries: 3
 
   visui:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.1
+    image: ${IMAGE_REPO}/visulate-for-oracle/ui:2.5
     container_name: visui
+    hostname: visui
+    depends_on:
+      - reverseproxy
     expose:
       - "80"
     networks:
@@ -68,8 +85,11 @@ services:
       retries: 3
 
   vissql:
-    image: gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1
+    image: ${IMAGE_REPO}/visulate-for-oracle/sql:2.5
     container_name: vissql
+    hostname: vissql
+    depends_on:
+      - reverseproxy
     expose:
       - "5000"
     volumes:
@@ -78,6 +98,29 @@ services:
       - visulate_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-agent:
+    image: ${IMAGE_REPO}/visulate-for-oracle/ai-agent:2.5
+    container_name: ai-agent
+    hostname: ai-agent
+    depends_on:
+      - reverseproxy
+      - vissql
+      - visapi
+    expose:
+      - "10000"
+      - "10001"
+    environment:
+      - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
+      - GOOGLE_API_KEY=\${GOOGLE_AI_KEY}
+      - VISULATE_BASE=http://reverseproxy
+    networks:
+      - visulate_network
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import requests; requests.get('http://localhost:10000/openapi.json').raise_for_status()\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -95,6 +138,8 @@ docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD:$PWD" \
   -w="$PWD" \
+  -e GOOGLE_AI_KEY \
+  -e GOOGLE_API_KEY \
   docker/compose:latest "$@"
 SCRIPT
   chmod +x /home/visulate/docker-compose.sh
@@ -102,13 +147,14 @@ fi
 
 # Create the update-visulate.sh script
 if [ ! -f /home/visulate/update-visulate.sh ]; then
-  cat << 'SCRIPT' > /home/visulate/update-visulate.sh
+  cat << SCRIPT > /home/visulate/update-visulate.sh
 #!/bin/bash
 docker pull docker/compose:latest
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle:2.1
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/ui:2.1
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/sql:2.1
-docker pull gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.1
+docker pull ${IMAGE_REPO}/visulate-for-oracle:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ui:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/sql:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/proxy:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ai-agent:2.5
 SCRIPT
   chmod +x /home/visulate/update-visulate.sh
 fi
