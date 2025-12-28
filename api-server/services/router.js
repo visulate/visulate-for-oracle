@@ -188,6 +188,9 @@ router.route('/mcp/context/:db')
 router.route('/mcp/search-objects/:db')
   .post(validate({ body: mcpSearchSchema }), aiService.searchObjects);
 
+router.route('/mcp/schema-summary/:db')
+  .post(aiService.getSchemaSummary);
+
 router.route('/download/:sessionId/:filename')
   .get(downloadService.serveFile);
 

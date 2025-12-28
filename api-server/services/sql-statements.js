@@ -55,7 +55,8 @@ collection['DATABASE'] = {
 
 collection['SCHEMA'] = {
   ownerNameQueries: [
-    statement['SCHEMA-USER']
+    statement['SCHEMA-USER'],
+    statement['SCHEMA-SUMMARY']
   ]
 };
 
@@ -95,7 +96,7 @@ collection['VIEW'] = {
 };
 
 collection['PACKAGE'] = {
-  objectNameQueries:  [],
+  objectNameQueries: [],
   objectIdQueries: [
     statement['PROCEDURE-ARGS']
   ],

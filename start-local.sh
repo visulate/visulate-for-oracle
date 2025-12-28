@@ -68,7 +68,7 @@ AGENTS_PID=$!
 echo "Services started."
 echo "API Server: http://localhost:3000"
 echo "Query Engine: http://localhost:5000"
-echo "Agents: ports 10000-10003"
+echo "Agents: ports 10000-10004"
 echo "Press Ctrl+C to stop all services."
 
 wait

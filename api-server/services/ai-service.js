@@ -20,6 +20,8 @@ const dbService = require('./database.js');
 const { getObjectDetails } = require('./controller.js');
 const templateEngine = require('./template-engine');
 const axios = require('axios');
+const oracledb = require('oracledb');
+const { statement } = require('./sql-statements');
 
 /**
  * Gets a list of endpoints
@@ -410,12 +412,56 @@ async function getContextInternal(args) {
 }
 
 /**
- * Express wrapper for getContextInternal
- * Implements POST /mcp/context/:db endpoint
+ * Core function to get schema summary.
+ * @param {string} db - The database name
+ * @param {string} owner - The schema owner
+ */
+async function getSchemaSummaryInternal(db, owner) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const query = statement['SCHEMA-SUMMARY'];
+  const params = {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+  };
+
+  const result = await dbService.simpleExecute(poolAlias, query.sql, params);
+  return result.map(row => ({
+    name: row.Name,
+    type: row.Type,
+    comments: row.Comments
+  }));
+}
+
+/**
+ * Express wrapper for getSchemaSummaryInternal
+ * Implements POST /mcp/schema-summary/:db endpoint
  * @param {*} req - request
  * @param {*} res - response
  * @param {*} next - next matching route
  */
+async function getSchemaSummary(req, res, next) {
+  try {
+    const result = await getSchemaSummaryInternal(req.params.db, req.body.owner);
+    res.status(200).json(result);
+  } catch (err) {
+    logger.log('error', `getSchemaSummary failed for ${req.params.db}/${req.body.owner}`);
+    logger.log('error', err);
+    res.status(err.message === 'Requested database was not found' ? 404 : 503).send(err.message);
+    next(err);
+  }
+}
+module.exports.getSchemaSummary = getSchemaSummary;
+
+/**
+ * Express wrapper for getContextInternal
+   * Implements POST /mcp/context/:db endpoint
+   * @param {*} req - request
+   * @param {*} res - response
+   * @param {*} next - next matching route
+   */
 async function getContext(req, res, next) {
   try {
     const result = await getContextInternal({ ...req.params, ...req.body });
@@ -784,6 +830,32 @@ function createMcpServer() {
         return {
           content: [
             { type: 'text', text: JSON.stringify({ error: error.message, type: 'getContextError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'getSchemaSummary',
+    'Get a high-level summary of all tables and views in a schema, including their comments.',
+    {
+      db: z.string().describe("The database where the schema resides."),
+      owner: z.string().describe("The name of the schema to summarize."),
+    },
+    async ({ db, owner }) => {
+      try {
+        const result = await getSchemaSummaryInternal(db, owner);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getSchemaSummary tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaSummaryError' }, null, 2) }
           ]
         };
       }
