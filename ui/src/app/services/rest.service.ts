@@ -38,9 +38,9 @@ export class RestService {
   /**
    * Gets a list of database endpoints + object type summary
    */
-  public getEndpoints$( filter: string = '*'): Observable<EndpointListModel> {
-    const filterParam: any = {filter};
-    return this.http.get<EndpointListModel>(`${environment.apiBase}/`, {params: filterParam}).pipe(
+  public getEndpoints$(filter: string = '*'): Observable<EndpointListModel> {
+    const filterParam: any = { filter };
+    return this.http.get<EndpointListModel>(`${environment.apiBase}/`, { params: filterParam }).pipe(
       map(data => new EndpointListModel().deserialize(data))
     );
   }
@@ -54,9 +54,9 @@ export class RestService {
   ): Observable<DatabaseObjectModel> {
 
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}/${endpoint}`).pipe(
-      map(data => new DatabaseObjectModel().deserialize(data))
-    );
+      (`${environment.apiBase}/${endpoint}`).pipe(
+        map(data => new DatabaseObjectModel().deserialize(data))
+      );
   }
 
   /**
@@ -70,11 +70,11 @@ export class RestService {
     owner: string,
     filter: string = '*'
   ): Observable<DatabaseObjectModel> {
-    const filterParam: any = {filter};
+    const filterParam: any = { filter };
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}/${endpoint}/${owner}`, {params: filterParam}).pipe(
-      map(data => new DatabaseObjectModel().deserialize(data))
-    );
+      (`${environment.apiBase}/${endpoint}/${owner}`, { params: filterParam }).pipe(
+        map(data => new DatabaseObjectModel().deserialize(data))
+      );
   }
 
 
@@ -104,7 +104,7 @@ export class RestService {
       throw new Error('Object type is required');
     }
     return this.http.get<string[]>
-    (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
+      (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
   }
 
   /**
@@ -118,11 +118,11 @@ export class RestService {
     endpoint: string,
     owner: string,
     objectType: string,
-    objectName: string ): Observable<DatabaseObjectModel> {
+    objectName: string): Observable<DatabaseObjectModel> {
     return this.http.get<DatabaseObjectModel>
-    (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`).pipe(
-      map(data => new DatabaseObjectModel().deserialize(data))
-    );
+      (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`).pipe(
+        map(data => new DatabaseObjectModel().deserialize(data))
+      );
   }
 
   /**
@@ -133,7 +133,7 @@ export class RestService {
     endpoint: string
   ): Observable<string> {
     return this.http.get
-    (`${environment.queryBase}/${endpoint}`, {responseType: 'text'} );
+      (`${environment.queryBase}/${endpoint}`, { responseType: 'text' });
   }
 
   /**
@@ -153,7 +153,7 @@ export class RestService {
 
     const httpOptions: Object = {
       headers: new HttpHeaders({
-        'Content-Type':  'application/json',
+        'Content-Type': 'application/json',
         'X-DB-Credentials': `${dbCredentials}`,
         Accept: 'application/json',
         observe: 'response'
@@ -166,8 +166,67 @@ export class RestService {
       options
     };
 
-    return this.http.post(`${url}`, JSON.stringify(bodycontent), httpOptions );
+    return this.http.post(`${url}`, JSON.stringify(bodycontent), httpOptions);
 
+  }
+
+  public async chatStream(
+    message: string,
+    context: any,
+    agent: string,
+    onChunk: (chunk: string) => void,
+    onComplete: () => void,
+    onError: (error: any) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const apiUrl = `${environment.aiBase}/`;
+    const payload = {
+      message,
+      context,
+      agent
+    };
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/plain'
+        },
+        body: JSON.stringify(payload),
+        signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        const chunk = decoder.decode(value, { stream: true });
+        onChunk(chunk);
+      }
+      onComplete();
+
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        // Cancellation handled by caller
+        onComplete(); // Or specific handling
+      } else {
+        onError(e);
+      }
+    }
+  }
+
+  generateToken(database: string, username: string, password: string): Observable<any> {
+    const apiUrl = `${environment.apiBase}/token`;
+    return this.http.post<any>(apiUrl, { database, username, password });
   }
 
 }

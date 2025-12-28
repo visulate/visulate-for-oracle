@@ -15,11 +15,11 @@
  */
 const httpConfig = require('../config/http-server.js');
 const logger = require('./logger.js');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 const dbConfig = require('../config/database.js');
 const dbService = require('./database.js');
 const { getObjectDetails } = require('./controller.js');
 const templateEngine = require('./template-engine');
+const axios = require('axios');
 
 /**
  * Gets a list of endpoints
@@ -37,14 +37,37 @@ const endpointList = getEndpointList(dbConfig.endpoints);
 
 /**
  * Implements GET /ai endpoint.
- * Returns true if httpConfig.googleAiKey is set and false otherwise
+ * Returns true if ai-agent service is reachable
  * @param {*} req - request
  * @param {*} res - response
  */
-function aiEnabled(req, res) {
-  if (httpConfig.googleAiKey) {
+async function aiEnabled(req, res) {
+  try {
+    // Use configured URL or default to docker service name if not set
+    const agentBaseUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate'; // Default for generation
+    // Construct health URL based on base URL.
+    // If base is .../agent/generate, we need .../agent/health
+    // Simple replacement or URL parsing
+    let healthUrl;
+    try {
+      const url = new URL(agentBaseUrl);
+      // Assuming standard structure /agent/generate -> /agent/health
+      // Or if base is just root? The env var in start-local is full path to generate.
+      // Let's assume we replace 'generate' with 'health' or append if generic.
+      if (url.pathname.endsWith('/generate')) {
+        healthUrl = agentBaseUrl.replace('/generate', '/health');
+      } else {
+        healthUrl = new URL('/agent/health', agentBaseUrl).toString();
+      }
+
+    } catch (e) {
+      healthUrl = 'http://ai-agent:10000/agent/health';
+    }
+
+    await axios.get(healthUrl, { timeout: 2000 });
     res.status(200).json({ enabled: true });
-  } else {
+  } catch (error) {
+    logger.log('warn', `AI Agent health check failed: ${error.message}`);
     res.status(200).json({ enabled: false });
   }
 }
@@ -88,120 +111,149 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   throw lastError;
 }
 
-const axios = require('axios');
-
 /**
- * Proxy request to an agent service
- * @param {string} agent - The agent name ('visulate_agent' or 'comment_generator')
- * @param {object} payload - The request body
+ * Core function to call AI Agent.
+ * Proxies request to the AI Agent service.
+ * @param {object} args - The arguments from the MCP request
+ * @param {object} res - The express response object (needed for streaming)
  */
-async function proxyToAgent(agent, payload) {
+async function generativeAIInternal(args, res) {
   let agentUrl;
+  const agent = args.agent || 'visulate_agent';
+
   if (agent === 'visulate_agent') {
-    agentUrl = process.env.VISULATE_AGENT_URL || 'http://vissql:10000/agent/generate';
+    agentUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate';
   } else if (agent === 'comment_generator') {
-    agentUrl = process.env.COMMENT_GENERATOR_URL || 'http://vissql:10001/agent/generate';
+    agentUrl = process.env.COMMENT_GENERATOR_URL || 'http://ai-agent:10001/agent/generate';
   } else {
     throw new Error(`Unknown agent: ${agent}`);
   }
 
   try {
-    const response = await axios.post(agentUrl, payload);
-    return response.data;
+    const cancelToken = axios.CancelToken;
+    const source = cancelToken.source();
+
+    const response = await axios({
+      method: 'post',
+      url: agentUrl,
+      data: args,
+      responseType: 'stream',
+      cancelToken: source.token
+    });
+
+    // Disable buffering for real-time status updates (thoughts)
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Propagate client disconnection to the agent
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        logger.log('info', `Client disconnected from ${agent}. Aborting request to agent.`);
+        source.cancel('Client disconnected');
+        response.data.destroy();
+      }
+    });
+
+    // Pipe the stream from agent to the client response with explicit handling
+    response.data.on('data', (chunk) => {
+      const text = chunk.toString();
+      logger.log('info', `Received chunk from agent (${text.length} chars): ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`);
+      res.write(chunk);
+      if (typeof res.flush === 'function') {
+        res.flush();
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      response.data.on('end', () => {
+        logger.log('info', `Agent ${agent} stream ended.`);
+        if (!res.writableEnded) {
+          res.end();
+        }
+        resolve();
+      });
+      response.data.on('error', (e) => {
+        logger.log('error', `Stream error from agent ${agent}: ${e.message}`);
+        reject(e);
+      });
+    });
+
   } catch (error) {
-    logger.log('error', `Error calling agent ${agent}: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
- * Core function to call Google AI to generate text.
- * This is the business logic, independent of Express.js.
- * @param {object} args - The arguments from the MCP request
- */
-async function generativeAIInternal(args) {
-  if (args.agent) {
-    return await proxyToAgent(args.agent, args);
-  }
-
-  if (!httpConfig.googleAiKey) {
-    throw new Error("Google AI key is not set");
-  }
-
-  const genAI = new GoogleGenerativeAI(httpConfig.googleAiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction: `You are a database architect called Visulate. You responsible for the design of an oracle database.
-     You have access to a tool that generates json documents describing database objects and
-     their related objects. The json documents follow a predictable structure for each database object.
-     Each object comprises an array of properties. These properties vary by object type. but follow a
-     consistent pattern. Title, description and display elements are followed by a list of rows. The display
-     property lists items from the rows that should be displayed in a user interface.
-
-     The context object for this exercise will include 2 objects. The first one will be called "objectDetails"
-     and will contain the details of a database object that the user would like to ask questions about.
-     The second object will be called "relatedObjects". It will contain a list of objects that are related to the
-     objectDetails object. An additional object called "chatHistory" will contain the conversation history.
-
-     Do not mention the JSON document in your response.
-
-     Assume any questions the user asks are be about the objectDetails object unless the question states otherwise.
-     Use the relatedObjects objects to provide context for the answers. Try to be expansive in your answers where
-     appropriate. For example, if the user asks for a SQL statement for a table include the table's columns and
-     join conditions to related tables in the response.`,
-    // Add generation config to control timeouts and behavior
-    generationConfig: {
-      temperature: 0.1,
-      topK: 40,
-      topP: 0.95
+    if (axios.isCancel(error)) {
+      logger.log('info', `Agent request for ${agent} was cancelled.`);
+      return;
     }
-  });
-
-  let contextText;
-  if (typeof args.context === 'object') {
-    contextText = JSON.stringify(args.context);
-  } else {
-    contextText = args.context;
+    logger.log('error', `Error calling agent ${agent}: ${error.message}`);
+    if (!res.headersSent) {
+      throw error;
+    }
   }
-
-  const prompt = `${args.message} \n\n ${contextText}`;
-
-  // Use retry mechanism for API calls
-  const result = await retryWithBackoff(async () => {
-    logger.log('debug', 'Making Gemini API call...');
-    const response = await model.generateContent(prompt);
-    logger.log('debug', 'Gemini API call successful');
-    return response;
-  }, 3, 2000); // 3 retries, starting with 2 second delay
-
-  return result.response.text();
 }
 
 /**
  * Express wrapper for generativeAIInternal
- * Implements POST /ai/ endpoint.  Calls Google AI to generate text
+ * Implements POST /ai/ endpoint.
  * @param {*} req - request
  * @param {*} res - response
  * @param {*} next - next matching route
  */
 async function generativeAI(req, res, next) {
   try {
-    const result = await generativeAIInternal(req.body);
-    res.status(200).json(result);
+    await generativeAIInternal(req.body, res);
+    // Response handled by piping in internal function
   } catch (err) {
     logger.log('error', 'Generative AI request failed');
     logger.log('error', err);
-    res.status(503).send(err.message);
+    if (!res.headersSent) {
+      res.status(503).send(err.message);
+    }
     next(err);
   }
 }
 module.exports.generativeAI = generativeAI;
 
+
 /**
- * Core function to search for objects.
- * @param {string} db - The database to search in
- * @param {object} args - The arguments from the MCP request
+ * Implements POST /api/token endpoint.
+ * Proxies request to the Query Engine to create a credential token.
+ * @param {*} req - request
+ * @param {*} res - response
+ * @param {*} next - next matching route
  */
+async function generateToken(req, res, next) {
+  try {
+    const { database, username, password } = req.body;
+    if (!database || !username || !password) {
+      res.status(400).send('Missing required fields: database, username, password');
+      return;
+    }
+
+    const queryEngineUrl = process.env.QUERY_ENGINE_URL || 'http://vissql:5000/mcp-sql/call_tool';
+
+    const payload = {
+      name: "create_credential_token",
+      arguments: {
+        database: database,
+        username: username,
+        password: password,
+        expiry_minutes: 60
+      }
+    };
+
+    const response = await axios.post(queryEngineUrl, payload);
+    res.status(200).json(response.data);
+
+  } catch (err) {
+    logger.log('error', 'Token generation failed');
+    logger.log('error', err.response?.data || err.message);
+    res.status(503).send(err.response?.data?.error || err.message);
+    next(err);
+  }
+}
+module.exports.generateToken = generateToken;
 async function searchObjectsInternal(db, args) {
   const { search_terms, object_types } = args;
   const poolAlias = endpointList[db];
@@ -233,7 +285,7 @@ async function searchObjectsInternal(db, args) {
       o.object_name as name,
       o.object_type as type,
       tc.comments as table_comments,
-      LISTAGG(cc.column_name || ': ' || cc.comments, '; ') WITHIN GROUP (ORDER BY cc.column_name) as column_comments,
+      LISTAGG(cc.column_name || ': ' || cc.comments, '; ' ON OVERFLOW TRUNCATE) WITHIN GROUP (ORDER BY cc.column_name) as column_comments,
       SUM(${rankingLogic}) as relevance_score
     FROM
       dba_objects o

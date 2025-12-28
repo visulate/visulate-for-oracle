@@ -1,5 +1,23 @@
 import requests
+import json
 from typing import Dict, Any, Optional
+
+def mask_sensitive_data(d, sensitive_keys=['password', 'credential_token', 'token']):
+    """Mask sensitive values in a dictionary or string representation of a dictionary."""
+    if isinstance(d, str):
+        try:
+            # Try to parse if it's a JSON string
+            data = json.loads(d)
+            if isinstance(data, dict):
+                masked = {k: ('********' if k.lower() in sensitive_keys else v) for k, v in data.items()}
+                return json.dumps(masked)
+        except:
+            pass
+        return d
+
+    if not isinstance(d, dict):
+        return d
+    return {k: ('********' if k.lower() in sensitive_keys else v) for k, v in d.items()}
 
 def parse_token_from_response(result: Dict[str, Any]) -> Optional[str]:
     """

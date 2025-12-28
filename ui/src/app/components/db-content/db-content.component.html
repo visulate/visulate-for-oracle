@@ -70,7 +70,7 @@
         Schema Analysis & Comment Generation
       </mat-panel-description>
     </mat-expansion-panel-header>
-    <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="comment_generator"></app-chat>
+    <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
   </mat-expansion-panel>
 </mat-accordion>
 }
@@ -95,7 +95,7 @@
           Code Generation and Analysis
         </mat-panel-description>
       </mat-expansion-panel-header>
-      <app-chat [currentContext]="currentContext" [currentObject]="objectDetails"></app-chat>
+      <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
     </mat-expansion-panel>
   </mat-accordion>
   }

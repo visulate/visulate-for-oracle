@@ -25,7 +25,8 @@ from google.genai import types
 # Import from common module
 from common.config import get_mcp_urls
 from common.credentials import CredentialManager
-from common.utils import parse_token_from_response, create_token_request
+from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data
+from common.context import progress_callback_var, auth_token_var, cancelled_var
 
 # Configure logging
 logging.basicConfig(
@@ -73,8 +74,9 @@ class MCPClient:
         self.session = requests.Session()
         self.credential_token: Optional[str] = None
 
-    def call_api_server_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def call_api_server_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool on the API server MCP endpoint"""
+        import asyncio
         url = f"{self.config.api_server_url}"
         payload = {
             "method": "tools/call",
@@ -83,28 +85,37 @@ class MCPClient:
                 "arguments": arguments
             }
         }
-        try:
-            response = self.session.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error calling API server tool {tool_name}: {e}")
-            return {"error": str(e)}
 
-    def call_query_engine_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        def do_request():
+            try:
+                response = self.session.post(url, json=payload, timeout=30)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                logger.error(f"Error calling API server tool {tool_name}: {e}")
+                return {"error": str(e)}
+
+        return await asyncio.to_thread(do_request)
+
+    async def call_query_engine_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool on the Query Engine MCP endpoint"""
+        import asyncio
         url = f"{self.config.query_engine_url}/call_tool"
         payload = {
             "name": tool_name,
             "arguments": arguments
         }
-        try:
-            response = self.session.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error calling Query Engine tool {tool_name}: {e}")
-            return {"error": str(e)}
+
+        def do_request():
+            try:
+                response = self.session.post(url, json=payload, timeout=30)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                logger.error(f"Error calling Query Engine tool {tool_name}: {e}")
+                return {"error": str(e)}
+
+        return await asyncio.to_thread(do_request)
 
     def create_credential_token(self, database: str, username: str, password: str) -> bool:
         """Create a secure credential token for database access"""
@@ -115,15 +126,15 @@ class MCPClient:
             self.credential_token = token
             return True
         else:
-            logger.error(f"Failed to create credential token: {result}")
+            logger.error(f"Failed to create credential token: {mask_sensitive_data(result)}")
             return False
 
-    def execute_sql(self, database: str, sql: str) -> Dict[str, Any]:
+    async def execute_sql(self, database: str, sql: str) -> Dict[str, Any]:
         """Execute SQL using the secure credential token"""
         if not self.credential_token:
             return {"error": "No credential token available."}
 
-        result = self.call_query_engine_tool("execute_sql", {
+        result = await self.call_query_engine_tool("execute_sql", {
             "database": database,
             "credential_token": self.credential_token,
             "sql": sql
@@ -134,6 +145,7 @@ class MCPClient:
              for content_item in result["content"]:
                 if content_item.get("type") == "text":
                     text = content_item.get("text", "")
+                    logger.info(f"Raw SQL response text: {text}")
                     if "Query executed successfully" in text:
                         try:
                             # Extract JSON results
@@ -141,37 +153,55 @@ class MCPClient:
                             results_match = re.search(r'Results:\s*(\[.*?\])', text, re.DOTALL)
                             if results_match:
                                 return {"success": True, "data": json.loads(results_match.group(1))}
+                            else:
+                                logger.warning("Regex match failed for Results array.")
                         except Exception as e:
+                            logger.error(f"JSON parse error: {e}")
                             return {"success": False, "error": f"Parse error: {e}"}
                     elif "Query failed" in text:
                          return {"success": False, "error": text}
 
         return result
 
-    def get_context(self, database: str, owner: str, name: str, type_: str) -> Dict[str, Any]:
+    async def get_context(self, database: str, owner: str, name: str, type_: str) -> Dict[str, Any]:
         """Get full context for a database object"""
-        url = f"{self.config.api_server_url}/context/{database}"
-        payload = {
+        return await self.call_api_server_tool("getContext", {
+            "db": database,
             "owner": owner,
             "name": name,
-            "type": type_
-        }
-        try:
-            response = self.session.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error getting context for {owner}.{name}: {e}")
-            return {"error": str(e)}
+            "type": type_,
+            "relationship_types": "FK"
+        })
 
 class CommentGenerator:
-    def __init__(self, mcp_client: MCPClient, database: str, schema: str):
+    def __init__(self, mcp_client: MCPClient, database: str, schema: str, credential_token: Optional[str] = None, session_id: str = "default"):
         self.client = mcp_client
         self.database = database
         self.schema = schema.upper()
         self.genai_client = genai.Client(api_key=mcp_client.config.google_api_key)
+        self.credential_token = credential_token
+        self.session_id = session_id
 
-    def find_missing_comments(self, wildcard: str = "%") -> Dict[str, Dict[str, Any]]:
+    def report_progress(self, message: str):
+        """Send progress update to the context-local callback if available"""
+        # Check for cancellation before reporting progress
+        from common.context import cancelled_var, cancelled_sessions
+        if cancelled_var.get() or self.session_id in cancelled_sessions:
+             logger.info(f"Cancellation detected for session {self.session_id} in report_progress for: {message}. Raising Exception.")
+             raise Exception("Task cancelled by user")
+
+        callback = progress_callback_var.get()
+        if callback:
+            logger.info(f"CALLBACK_FOUND: Reporting progress: {message}")
+            try:
+                callback(message)
+            except Exception as e:
+                logger.debug(f"Error calling progress callback: {e}")
+        else:
+            logger.info(f"CALLBACK_NOT_FOUND: No progress callback registered for: {message}")
+        logger.info(message)
+
+    async def find_missing_comments(self, wildcard: str = "%") -> Dict[str, Dict[str, Any]]:
         """
         Find tables and views that need comments.
         Returns a dictionary keyed by table name, containing 'type' and 'missing_columns' list.
@@ -189,15 +219,21 @@ class CommentGenerator:
             AND comments IS NULL
             AND table_type IN ('TABLE', 'VIEW')
         """
-        result_tables = self.client.execute_sql(self.database, sql_tables)
-        if result_tables.get("success"):
-            for row in result_tables.get("data", []):
-                table_name = row['TABLE_NAME']
-                objects_to_process[table_name] = {
-                    'type': row['TABLE_TYPE'],
-                    'missing_table_comment': True,
-                    'missing_columns': []
-                }
+        result_tables = await self.client.execute_sql(self.database, sql_tables)
+        logger.info(f"Result tables: {result_tables}")
+        if not result_tables.get("success"):
+            error_msg = result_tables.get("error", "Unknown error")
+            self.report_progress(f"▌ERROR: Failed to find tables: {error_msg}. Check database logs or credentials.")
+            logger.error(f"Error finding tables: {error_msg}")
+            return {}
+
+        for row in result_tables.get("data", []):
+            table_name = row['TABLE_NAME']
+            objects_to_process[table_name] = {
+                'type': row['TABLE_TYPE'],
+                'missing_table_comment': True,
+                'missing_columns': []
+            }
 
         # 2. Find columns with missing comments
         sql_columns = f"""
@@ -207,7 +243,7 @@ class CommentGenerator:
             AND table_name LIKE '{wildcard}'
             AND comments IS NULL
         """
-        result_columns = self.client.execute_sql(self.database, sql_columns)
+        result_columns = await self.client.execute_sql(self.database, sql_columns)
         if result_columns.get("success"):
             for row in result_columns.get("data", []):
                 table_name = row['TABLE_NAME']
@@ -228,15 +264,15 @@ class CommentGenerator:
 
         return objects_to_process
 
-    def get_sample_rows(self, table_name: str) -> List[Dict[str, Any]]:
+    async def get_sample_rows(self, table_name: str) -> List[Dict[str, Any]]:
         """Get sample rows for a table/view"""
         sql = f"SELECT * FROM {self.schema}.{table_name} WHERE ROWNUM <= 3"
-        result = self.client.execute_sql(self.database, sql)
+        result = await self.client.execute_sql(self.database, sql)
         if result.get("success"):
             return result.get("data", [])
         return []
 
-    def generate_comments_batch(self, object_name: str, object_type: str, context: Dict[str, Any], sample_data: List[Dict[str, Any]], missing_table_comment: bool, missing_columns: List[str]) -> Dict[str, str]:
+    async def generate_comments_batch(self, object_name: str, object_type: str, context: Dict[str, Any], sample_data: List[Dict[str, Any]], missing_table_comment: bool, missing_columns: List[str]) -> Dict[str, str]:
         """Generate comments for a table and its columns in a single request"""
 
         # Build the prompt for all comments needed
@@ -288,10 +324,14 @@ class CommentGenerator:
         """
 
         try:
-            response = self.genai_client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
+            import asyncio
+            def do_generate():
+                return self.genai_client.models.generate_content(
+                    model="gemini-flash-latest",
+                    contents=prompt
+                )
+
+            response = await asyncio.to_thread(do_generate)
 
             # Parse the JSON response
             response_text = response.text.strip()
@@ -311,46 +351,73 @@ class CommentGenerator:
                 result[f'{column_name}_comment'] = f"Auto-generated comment for column {column_name}"
             return result
 
-    def run(self, wildcard: str, output_file: str):
-        """Main execution flow"""
-        # 1. Find objects
-        objects_map = self.find_missing_comments(wildcard)
-        logger.info(f"Found {len(objects_map)} tables/views with missing comments (table or columns).")
+    async def run(self, wildcard: str, output_file: str) -> int:
+        """Main execution flow. Returns the number of comments generated."""
+        from common.context import cancelled_var, cancelled_sessions
+
+        # 1. Setup Client
+        if self.credential_token:
+            self.client.credential_token = self.credential_token
+            self.report_progress("Using provided credential token.")
+        else:
+            # Get password and set up MCP credential token
+            cred_manager = CredentialManager()
+            password = cred_manager.get_password(self.database, self.schema)
+            if not password:
+                self.report_progress(f"Error: Password not found for {self.database}.{self.schema}")
+                return 0
+            if not self.client.create_credential_token(self.database, self.schema, password):
+                self.report_progress("Error: Failed to create credential token.")
+                return 0
+
+        # 2. Find objects
+        objects_map = await self.find_missing_comments(wildcard)
+        self.report_progress(f"Found {len(objects_map)} tables/views with missing comments (table or columns).")
 
         if not objects_map:
-            return
+            self.report_progress("No objects missing comments found.")
+            return 0
+
+        self.report_progress(f"Found {len(objects_map)} objects missing comments. Starting generation...")
 
         sql_statements = []
 
         for table_name, info in objects_map.items():
+            # Check for cancellation
+            if cancelled_var.get() or self.session_id in cancelled_sessions:
+                self.report_progress("Cancellation detected. Stopping...")
+                break
+
             table_type = info['type']
             missing_table_comment = info['missing_table_comment']
             missing_columns = info['missing_columns']
 
-            logger.info(f"Processing {table_type} {table_name}...")
+            self.report_progress(f"Processing {table_type} {table_name}...")
 
-            # 2. Get Context (once per table)
-            context = self.client.get_context(self.database, self.schema, table_name, table_type)
+            # 3. Get Context (once per table)
+            context = await self.client.get_context(self.database, self.schema, table_name, table_type)
 
-            # 3. Get Sample Data (once per table)
-            sample_data = self.get_sample_rows(table_name)
+            # 4. Get Sample Data (once per table)
+            sample_data = await self.get_sample_rows(table_name)
 
-            # 4. Generate all comments in a single request
-            comments_dict = self.generate_comments_batch(table_name, table_type, context, sample_data, missing_table_comment, missing_columns)
+            # 5. Generate all comments in a single request
+            comments_dict = await self.generate_comments_batch(table_name, table_type, context, sample_data, missing_table_comment, missing_columns)
 
-            # 5. Process table comment
+            # 6. Process table comment
             if missing_table_comment and 'table_comment' in comments_dict:
                 comment = comments_dict['table_comment']
+                self.report_progress(f"Generated table comment for {table_name}")
                 safe_comment = comment.replace("'", "''")
                 stmt = f"COMMENT ON TABLE {self.schema}.{table_name} IS '{safe_comment}';"
                 sql_statements.append(stmt)
                 logger.info(f"Generated table comment: {comment}")
 
-            # 6. Process column comments
+            # 7. Process column comments
             for col_name in missing_columns:
                 comment_key = f'{col_name}_comment'
                 if comment_key in comments_dict:
                     comment = comments_dict[comment_key]
+                    self.report_progress(f"Generated column comment for {table_name}.{col_name}")
                     safe_comment = comment.replace("'", "''")
                     stmt = f"COMMENT ON COLUMN {self.schema}.{table_name}.{col_name} IS '{safe_comment}';"
                     sql_statements.append(stmt)
@@ -364,6 +431,8 @@ class CommentGenerator:
                 f.write(stmt + "\n")
 
         logger.info(f"Successfully wrote {len(sql_statements)} comments to {output_file}")
+        self.report_progress(f"▌SUCCESS: SQL script generated with {len(sql_statements)} comments: {output_file}")
+        return len(sql_statements)
 
 def main():
     parser = argparse.ArgumentParser(description="Oracle Comment Generator Agent")

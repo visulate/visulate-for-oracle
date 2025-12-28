@@ -1,13 +1,12 @@
 <div class="chat-container">
-  @if (isLoading) {
-  <div class="loading-indicator">
-    <p>Working... {{ counter }} seconds</p>
-    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-  </div>
-  }
+  <!-- <div class="chat-header">
+    <h3>AI Assistant <span *ngIf="agent">({{agent}})</span></h3>
+
+  </div> -->
+
 
   <div class="messages" #messageContainer>
-    @if (messages.length === 0 && !isLoading) {
+    @if ((messages$ | async)?.length === 0 && !isLoading) {
     <div class="welcome-message">
       <h2>Welcome to Visulate</h2>
       <p>
@@ -24,7 +23,7 @@
       </p>
     </div>
     }
-    @for (msg of messages; track msg) {
+    @for (msg of (messages$ | async); track msg) {
     <div class="message-row" [class.user-row]="msg.user === 'You'" [class.agent-row]="msg.user === 'Visulate'">
       @if (msg.user === 'Visulate') {
       <div class="avatar-container">
@@ -33,7 +32,7 @@
       }
 
       <div class="message-bubble" [class.user-bubble]="msg.user === 'You'"
-        [class.agent-bubble]="msg.user === 'Visulate'">
+        [class.agent-bubble]="msg.user === 'Visulate'" (click)="handleLinkClick($event)">
         <div class="message-content" markdown>{{ msg.text }}</div>
       </div>
 
@@ -46,6 +45,17 @@
     }
   </div>
 
+  @if (isLoading) {
+  <div class="loading-indicator">
+    <p>
+      <span *ngIf="!currentStatus">Working...</span>
+      <span *ngIf="currentStatus">{{currentStatus}}</span>
+      <button mat-button color="warn" (click)="cancelGeneration()">Stop</button>
+    </p>
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
+  }
+
   <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="chat-input-area">
     <mat-form-field appearance="outline" class="chat-field">
       <mat-label>Ask Visulate...</mat-label>
@@ -55,9 +65,12 @@
         <mat-icon>send</mat-icon>
       </button>
     </mat-form-field>
-
+    <button mat-icon-button (click)="openCredentialsDialog()" title="Connect to Database">
+      <mat-icon>vpn_key</mat-icon>
+    </button>
     <button mat-icon-button type="button" (click)="downloadMessages()" matTooltip="Download Chat History">
       <mat-icon>download</mat-icon>
     </button>
   </form>
+
 </div>

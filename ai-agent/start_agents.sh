@@ -1,14 +1,18 @@
 #!/bin/bash
 
-# Start Visulate Agent
-python -m visulate_agent.agent &
-PID1=$!
+# Start specialized agents in background
+python -m nl2sql_agent.main &
+python -m object_analysis_agent.main &
+python -m comment_generator.app &
 
-# Start Comment Generator Agent
-python -m comment_generator.agent &
-PID2=$!
+# Start Root Agent
+python -m root_agent.main &
 
-echo "Agents started on ports 10000 and 10001"
+echo "Agents started:"
+echo "- Root Agent: http://localhost:10000"
+echo "- NL2SQL Agent: http://localhost:10001"
+echo "- Object Analysis Agent: http://localhost:10002"
+echo "- Comment Generator: http://localhost:10003"
 
-# Wait for process to exit
-wait $PID1 $PID2
+# Wait for all background processes
+wait

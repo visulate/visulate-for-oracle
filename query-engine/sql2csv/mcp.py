@@ -22,7 +22,15 @@ from .secure_credentials import credential_manager
 
 bp = Blueprint('mcp', __name__, url_prefix='/mcp-sql')
 
+
 logger = logging.getLogger(__name__)
+
+
+def mask_sensitive_data(d, sensitive_keys=['password', 'credential_token']):
+    """Mask sensitive values in a dictionary."""
+    if not isinstance(d, dict):
+        return d
+    return {k: ('********' if k.lower() in sensitive_keys else v) for k, v in d.items()}
 
 
 def format_sql_response(database, username, sql_query, result):
@@ -422,7 +430,7 @@ def call_tool():
         if not tool_name:
             raise BadRequest("Missing tool name")
 
-        logger.info(f"Calling MCP tool: {tool_name} with arguments: {arguments}")
+        logger.info(f"Calling MCP tool: {tool_name} with arguments: {mask_sensitive_data(arguments)}")
 
         # Route to appropriate tool handler
         if tool_name == "create_credential_token":

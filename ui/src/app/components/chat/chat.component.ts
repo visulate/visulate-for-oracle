@@ -1,8 +1,11 @@
-import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { Observable, Subscription } from 'rxjs';
+import { StateService } from '../../services/state.service';
+import { RestService } from '../../services/rest.service';
+import { MatDialog } from '@angular/material/dialog';
+import { CredentialDialogComponent } from '../../components/credential-dialog/credential-dialog.component';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-chat',
@@ -10,200 +13,224 @@ import { environment } from '../../../environments/environment';
   styleUrls: ['./chat.component.css'],
   standalone: false
 })
-export class ChatComponent implements OnInit, OnChanges { //, AfterViewChecked {
+export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() currentContext: any;
   @Input() currentObject: any;
-  @Input() agent: string; // 'visulate_agent' | 'comment_generator' | null (default)
+  @Input() agent: string;
   @ViewChild('messageContainer') private messageContainer: ElementRef;
-  chatForm: FormGroup;
-  messages: { user: string, text: string }[] = [];
-  collectionData: {
-    objectDetails: any;
-    relatedObjects: any;
-    chatHistory: { user: string, text: string }[]
-  };
-  isLoading: boolean = false;
-  counter: number = 0;
-  intervalId: any;
-  previousPayload: any = null;
 
-  constructor(private fb: FormBuilder, private http: HttpClient) {
+  chatForm: FormGroup;
+  messages$ = this.stateService.chatHistory$;
+  isLoading: boolean = false;
+  currentStatus: string | null = null;
+  private chunkBuffer: string = '';
+
+  private abortController: AbortController | null = null;
+
+  constructor(
+    private fb: FormBuilder,
+    private restService: RestService,
+    private stateService: StateService,
+    private dialog: MatDialog,
+    private router: Router,
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
+  ) {
     this.chatForm = this.fb.group({
       message: ['']
     });
-    this.collectionData = {
-      objectDetails: this.currentObject,
-      relatedObjects: [],
-      chatHistory: []
-    };
+  }
+
+  openCredentialsDialog(): void {
+    const dialogRef = this.dialog.open(CredentialDialogComponent, {
+      width: '400px',
+      data: { database: this.currentContext?.endpoint || '' }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.token) {
+        this.stateService.addMessage({ user: 'System', text: `Authentication successful for ${result.database}. Token received and stored.` });
+        this.stateService.setAuthToken(result.database, result.token);
+      }
+    });
+  }
+
+  handleLinkClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'A') {
+      const href = target.getAttribute('href');
+      if (href) {
+        if (href.startsWith('/database') || href.startsWith('database')) {
+          event.preventDefault();
+          // Ensure path starts with /
+          const path = href.startsWith('/') ? href : '/' + href;
+          this.router.navigateByUrl(path);
+        } else if (href.startsWith('/download') || href.startsWith('http')) {
+          // Open download links and external links in a new tab
+          event.preventDefault();
+          window.open(href, '_blank');
+        }
+      }
+    }
   }
 
   ngOnInit(): void {
-    this.fetchData();
+    // No initial fetch needed, agent fetches its own context
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes.currentContext &&
-      changes.currentContext.currentValue !== changes.currentContext.previousValue) {
+    if (changes.currentContext) {
       this.currentContext = changes.currentContext.currentValue;
     }
-    if (changes.currentObject &&
-      changes.currentObject.currentValue !== changes.currentObject.previousValue) {
-      this.collectionData.objectDetails = changes.currentObject.currentValue;
-      this.fetchData();
-    }
+    // We don't necessarily need to clear chat on object change if we want global history,
+    // but typically users might want context separation.
+    // For now, per requirements, we maintain state.
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup if needed
+  }
+
+  ngAfterViewChecked(): void {
+    this.scrollToBottom();
   }
 
   sendMessage(): void {
-    const userMessage = this.chatForm.get('message').value;
-    this.messages.push({ user: 'You', text: userMessage });
+    const userMessage = this.chatForm.get('message')?.value;
+    if (!userMessage || !userMessage.trim()) return;
+
+    // Add user message to state
+    this.stateService.addMessage({ user: 'You', text: userMessage });
     this.chatForm.reset();
 
     this.isLoading = true;
-    this.counter = 0;
-    this.startCounter();
+    this.abortController = new AbortController();
 
-    this.updateContext('You', userMessage);
-    this.scrollToBottom();
+    // Create initial agent message placeholder
+    this.stateService.addMessage({ user: 'Visulate', text: '' });
 
-    this.callLLM(userMessage).subscribe(
-      response => {
-        this.messages.push({ user: 'Visulate', text: response });
-        this.isLoading = false;
-        this.stopCounter();
-        this.updateContext('Visulate', response);
-        this.scrollToBottom();
+    // Prepare lightweight context
+    const context = {
+      endpoint: this.currentContext?.endpoint,
+      owner: this.currentContext?.owner,
+      objectType: this.currentContext?.objectType,
+      objectName: this.currentContext?.objectName,
+      authToken: this.stateService.getAuthToken(this.currentContext?.endpoint), // Get current token
+      dbCredentials: sessionStorage.getItem('visulate-credentials'), // Get ALL raw credentials for dynamic token creation
+      // Chat history is maintained by state, but agent might need it.
+      // Ideally agent manages session, but for now we can send history if needed.
+      // Or we assume the session ID in backend handles history?
+      // The backend agent uses InMemorySessionService, so it has history within a session.
+      // But we create a NEW session on each request in the current agent.py?
+      // Wait, agent.py creates a new session every time: session_id = str(uuid.uuid4())
+      // We need to fix that or send history.
+      // Let's send history for now to be safe, or coordinate session ID.
+      // Sending history in context is safer for stateless backend.
+      chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1) // Exclude current empty response
+    };
+
+    // Need to send lightweight context, Agent will use tools to get details.
+
+    this.restService.chatStream(
+      userMessage,
+      context,
+      this.agent,
+      (chunk) => {
+        this.zone.run(() => {
+          this.chunkBuffer += chunk;
+
+          // Process full lines from the buffer
+          if (this.chunkBuffer.includes('\n')) {
+            const lines = this.chunkBuffer.split('\n');
+            // Keep the last partial line in the buffer
+            this.chunkBuffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (line.includes('▌STATUS: ')) {
+                this.currentStatus = line.replace('▌STATUS: ', '').trim();
+              } else if (line.includes('▌ERROR: ')) {
+                const errorMsg = line.replace('▌ERROR: ', '').trim();
+                this.stateService.updateLastMessage("Error: " + errorMsg);
+                this.isLoading = false;
+              } else if (line.trim()) {
+                const currentHistory = this.stateService.getChatHistory();
+                const lastMsg = currentHistory[currentHistory.length - 1];
+                this.stateService.updateLastMessage(lastMsg.text + line + '\n');
+              }
+            }
+          } else if (!this.chunkBuffer.includes('▌')) {
+            // If no marker is potentially present, we can flush part of the buffer if it's getting long
+            // but usually chunks are small, so appending to lastMsg is fine.
+            // For safety, let's only append to lastMsg if we are sure it's not a status line in progress.
+            // If the buffer doesn't start with the marker prefix, it's probably regular text.
+            if (this.chunkBuffer.length > 50 && !this.chunkBuffer.startsWith('▌')) {
+              const currentHistory = this.stateService.getChatHistory();
+              const lastMsg = currentHistory[currentHistory.length - 1];
+              this.stateService.updateLastMessage(lastMsg.text + this.chunkBuffer);
+              this.chunkBuffer = '';
+            }
+          }
+          this.cdr.detectChanges();
+        });
       },
-      error => {
-        console.error('Error calling LLM:', error);
-        this.isLoading = false;
-        this.stopCounter();
-        this.scrollToBottom();
-      }
+      () => {
+        this.zone.run(() => {
+          // Flush remaining buffer
+          if (this.chunkBuffer && !this.chunkBuffer.includes('▌STATUS: ')) {
+            const currentHistory = this.stateService.getChatHistory();
+            const lastMsg = currentHistory[currentHistory.length - 1];
+            this.stateService.updateLastMessage(lastMsg.text + this.chunkBuffer);
+          }
+          this.isLoading = false;
+          this.currentStatus = null;
+          this.chunkBuffer = '';
+          this.abortController = null;
+          this.cdr.detectChanges();
+        });
+      },
+      (error) => {
+        this.zone.run(() => {
+          if (error.name !== 'AbortError') {
+            console.error('Error calling LLM:', error);
+            this.stateService.updateLastMessage("Error: " + (error.message || "Failed to generate response"));
+          }
+          this.isLoading = false;
+          this.abortController = null;
+          this.cdr.detectChanges();
+        });
+      },
+      this.abortController.signal
     );
+  }
+
+  cancelGeneration(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.isLoading = false;
+    this.stateService.addMessage({ user: 'System', text: 'Generation cancelled by user.' });
+    this.cdr.detectChanges();
   }
 
   private scrollToBottom(): void {
-    setTimeout(() => {
-      try {
-        if (this.messageContainer) {
-          this.messageContainer.nativeElement.scrollTop = this.messageContainer.nativeElement.scrollHeight;
-        }
-      } catch (err) {
-        console.error('Scroll to bottom failed:', err);
+    try {
+      if (this.messageContainer) {
+        this.messageContainer.nativeElement.scrollTop = this.messageContainer.nativeElement.scrollHeight;
       }
-    }, 100);
-  }
-
-  callLLM(message: string): Observable<string> {
-    const apiUrl = `${environment.aiBase}/`;
-    this.startCounter();
-    const payload = {
-      context: this.collectionData,
-      message: message,
-      agent: this.agent
-    };
-    return this.http.post<string>(apiUrl, payload);
-  }
-
-  private fetchData(): void {
-    if (!this.currentContext.objectName) {
-      // Database or Schema level - no specific object details to fetch initially
-      // We still set isLoading = false to allow chat to start if agent is present
-      if (this.agent) {
-        this.isLoading = false;
-      }
-      return;
+    } catch (err) {
+      console.error('Scroll to bottom failed:', err);
     }
-
-    const endpoint = `${this.currentContext.endpoint}/${this.currentContext.owner}/${this.currentContext.objectType}/${this.currentContext.objectName}`;
-    //e.g. 'vis24/RNTMGR2/TABLE/RNT_ACCOUNTS_PAYABLE';
-    const apiUrl = `${environment.apiBase}/${endpoint}?template=extract_links.hbs`;
-
-    this.collectionData.objectDetails = this.currentObject;
-    this.isLoading = true;
-    this.counter = 0;
-    this.startCounter();
-
-    this.http.post(apiUrl, this.currentObject).subscribe(
-      (response: any) => {
-        //console.log('Data fetched successfully:', response);
-
-        // Ensure the response is in the expected format
-        if (response && response.object && response.baseUrl && response.relatedObjects) {
-          const payload = response;
-
-          if (!this.isPayloadEqual(payload, this.previousPayload)) {
-            this.previousPayload = payload;
-
-            this.http.post(`${environment.apiBase}/collection`, payload).subscribe(
-              postResponse => {
-                //console.log('Data posted successfully:', postResponse);
-                this.collectionData.relatedObjects = postResponse; // Store the response for later use
-                this.stopCounter();
-              },
-              postError => {
-                console.error('Error posting data:', postError);
-                this.stopCounter();
-              }
-            );
-          } else {
-            //console.log('Payload has not changed, skipping post request.');
-            this.stopCounter();
-          }
-        } else {
-          console.error('Unexpected response format:', response);
-          this.stopCounter();
-        }
-      },
-      error => {
-        if (error.status === 200) {
-          if (error.error && error.error.error) {
-            // Handle custom error from the server
-            console.error('Server error:', error.error.error);
-          } else {
-            console.error('Unexpected error:', error);
-          }
-        } else {
-          // Handle other HTTP error codes
-          console.error('HTTP error:', error);
-          this.stopCounter();
-        }
-      }
-    );
-  }
-
-  private startCounter() {
-    this.intervalId = setInterval(() => {
-      this.counter++;
-    }, 1000);
-  }
-
-  private stopCounter() {
-    this.isLoading = false;
-    clearInterval(this.intervalId);
-  }
-
-
-  private updateContext(actor: string, message: string): void {
-    // Update the context with the new user message
-    if (!this.collectionData.chatHistory) {
-      this.collectionData.chatHistory = [];
-    }
-    this.collectionData.chatHistory.push({ user: actor, text: message });
-  }
-
-  private isPayloadEqual(payload1: any, payload2: any): boolean {
-    return JSON.stringify(payload1) === JSON.stringify(payload2);
   }
 
   downloadMessages(): void {
+    const history = this.stateService.getChatHistory();
+    const text = history.map(m => `${m.user}: ${m.text}`).join('\n\n');
     const element = document.createElement('a');
-    const fileContents = this.messageContainer.nativeElement.innerText;
-    const blob = new Blob([fileContents], { type: 'text/plain' });
+    const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     element.href = url;
-    element.download = `${this.currentContext.objectName}.txt`;
+    element.download = `chat_history.txt`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
