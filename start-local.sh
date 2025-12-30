@@ -20,6 +20,8 @@ export VISULATE_AGENT_URL=http://localhost:10000/agent/generate
 export COMMENT_GENERATOR_URL=http://localhost:10003/agent/generate
 export QUERY_ENGINE_URL=http://localhost:5000/mcp-sql/call_tool
 export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200"
+export VISULATE_DOWNLOADS=$(pwd)/downloads
+mkdir -p downloads/metadata
 
 # Trap to kill all background processes on exit
 trap 'kill $(jobs -p) 2>/dev/null' EXIT
@@ -68,7 +70,7 @@ AGENTS_PID=$!
 echo "Services started."
 echo "API Server: http://localhost:3000"
 echo "Query Engine: http://localhost:5000"
-echo "Agents: ports 10000-10004"
+echo "Agents: ports 10000-10005"
 echo "Press Ctrl+C to stop all services."
 
 wait

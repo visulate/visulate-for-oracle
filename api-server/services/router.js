@@ -191,6 +191,12 @@ router.route('/mcp/search-objects/:db')
 router.route('/mcp/schema-summary/:db')
   .post(aiService.getSchemaSummary);
 
+router.route('/mcp/schema-relationships/:db')
+  .post(aiService.getSchemaRelationships);
+
+router.route('/mcp/schema-columns/:db')
+  .post(aiService.getSchemaColumns);
+
 router.route('/download/:sessionId/:filename')
   .get(downloadService.serveFile);
 

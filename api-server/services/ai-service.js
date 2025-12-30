@@ -22,6 +22,11 @@ const templateEngine = require('./template-engine');
 const axios = require('axios');
 const oracledb = require('oracledb');
 const { statement } = require('./sql-statements');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const mcpSessionStore = new AsyncLocalStorage();
 
 /**
  * Gets a list of endpoints
@@ -436,6 +441,132 @@ async function getSchemaSummaryInternal(db, owner) {
 }
 
 /**
+ * Core function to get schema columns.
+ * @param {string} db - The database name
+ * @param {string} owner - The schema owner
+ */
+async function getSchemaColumnsInternal(db, owner, options = {}) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const { sessionId: providedSessionId, tableNames } = options;
+  const sessionId = providedSessionId || mcpSessionStore.getStore();
+  const query = statement['SCHEMA-COLUMNS'];
+  const params = {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+  };
+
+  const result = await dbService.simpleExecute(poolAlias, query.sql, params);
+
+  const mappedResult = result.map(row => ({
+    tableName: row['Table Name'],
+    columnName: row['Column Name'],
+    dataType: row['Data Type'],
+    length: row['Length'],
+    nullable: row['Nullable']
+  }));
+
+  // Save results to metadata cache for ERD agent
+  try {
+    const downloadsBase = process.env.VISULATE_DOWNLOADS || path.join(process.cwd(), 'downloads');
+    const cacheDir = path.join(downloadsBase, 'metadata');
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    const filename = `${db.toLowerCase()}_${owner.toLowerCase()}_columns.json`;
+    const filePath = path.join(cacheDir, filename);
+    fs.writeFileSync(filePath, JSON.stringify(mappedResult));
+
+    logger.log('info', `Cached ${mappedResult.length} columns to: ${filePath}`);
+
+    // Return a summary for large datasets
+    if (mappedResult.length > 50) {
+      return {
+        count: mappedResult.length,
+        owner: owner,
+        cacheFile: filename,
+        message: `Retrieved ${mappedResult.length} columns. Metadata cached for efficient processing.`
+      };
+    }
+  } catch (fsError) {
+    logger.log('error', `Failed to cache schema columns: ${fsError.message}`);
+  }
+
+  return mappedResult;
+}
+
+async function getSchemaColumns(req, res, next) {
+  try {
+    const result = await getSchemaColumnsInternal(req.params.db, req.body.owner);
+    res.status(200).json(result);
+  } catch (err) {
+    logger.log('error', `getSchemaColumns failed for ${req.params.db}/${req.body.owner}`);
+    logger.log('error', err);
+    res.status(err.message === 'Requested database was not found' ? 404 : 503).send(err.message);
+    next(err);
+  }
+}
+module.exports.getSchemaColumns = getSchemaColumns;
+
+/**
+ * Core function to get schema relationships.
+ * @param {string} db - The database name
+ * @param {string} owner - The schema owner
+ */
+async function getSchemaRelationshipsInternal(db, owner, options = {}) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const { sessionId: providedSessionId, tableNames } = options;
+  const sessionId = providedSessionId || mcpSessionStore.getStore();
+  const query = statement['SCHEMA-RELATIONSHIPS'];
+  const params = {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+  };
+
+  const result = await dbService.simpleExecute(poolAlias, query.sql, params);
+
+  const mappedResult = result.map(row => ({
+    tableName: row['Table Name'],
+    constraintName: row['Constraint Name'],
+    referencedTable: row['Referenced Table'],
+    referencedOwner: row['Referenced Owner']
+  }));
+
+  // Save results to metadata cache for ERD agent
+  try {
+    const downloadsBase = process.env.VISULATE_DOWNLOADS || path.join(process.cwd(), 'downloads');
+    const cacheDir = path.join(downloadsBase, 'metadata');
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    const filename = `${db.toLowerCase()}_${owner.toLowerCase()}_relationships.json`;
+    const filePath = path.join(cacheDir, filename);
+    fs.writeFileSync(filePath, JSON.stringify(mappedResult));
+
+    logger.log('info', `Cached ${mappedResult.length} relationships to: ${filePath}`);
+
+    // Return a summary for large datasets
+    if (mappedResult.length > 30) {
+      return {
+        count: mappedResult.length,
+        owner: owner,
+        cacheFile: filename,
+        message: `Retrieved ${mappedResult.length} relationships. Metadata cached.`
+      };
+    }
+  } catch (fsError) {
+    logger.log('error', `Failed to cache schema relationships: ${fsError.message}`);
+  }
+
+  return mappedResult;
+}
+
+/**
  * Express wrapper for getSchemaSummaryInternal
  * Implements POST /mcp/schema-summary/:db endpoint
  * @param {*} req - request
@@ -454,6 +585,19 @@ async function getSchemaSummary(req, res, next) {
   }
 }
 module.exports.getSchemaSummary = getSchemaSummary;
+
+async function getSchemaRelationships(req, res, next) {
+  try {
+    const result = await getSchemaRelationshipsInternal(req.params.db, req.body.owner);
+    res.status(200).json(result);
+  } catch (err) {
+    logger.log('error', `getSchemaRelationships failed for ${req.params.db}/${req.body.owner}`);
+    logger.log('error', err);
+    res.status(err.message === 'Requested database was not found' ? 404 : 503).send(err.message);
+    next(err);
+  }
+}
+module.exports.getSchemaRelationships = getSchemaRelationships;
 
 /**
  * Express wrapper for getContextInternal
@@ -863,6 +1007,60 @@ function createMcpServer() {
   );
 
   server.tool(
+    'getSchemaRelationships',
+    'Get all foreign key relationships in a schema.',
+    {
+      db: z.string().describe("The database where the schema resides."),
+      owner: z.string().describe("The name of the schema to analyze."),
+      session_id: z.string().optional().describe("The current session ID for metadata storage.")
+    },
+    async ({ db, owner, session_id }) => {
+      try {
+        const result = await getSchemaRelationshipsInternal(db, owner, { sessionId: session_id });
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getSchemaRelationships tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaRelationshipsError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'getSchemaColumns',
+    'Get all column definitions for all tables in a schema.',
+    {
+      db: z.string().describe("The database where the schema resides."),
+      owner: z.string().describe("The name of the schema to analyze."),
+      session_id: z.string().optional().describe("The current session ID for metadata storage.")
+    },
+    async ({ db, owner, session_id }) => {
+      try {
+        const result = await getSchemaColumnsInternal(db, owner, { sessionId: session_id });
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getSchemaColumns tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaColumnsError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
     'generativeAI',
     'Use Google Gemini AI to answer questions about Oracle database objects. This tool should be used when you have a large context object that needs to be processed by AI, especially when the context exceeds token limits for direct processing.',
     {
@@ -959,7 +1157,7 @@ async function handleMcpRequest(req, res, next) {
       }
 
       try {
-        await transport.handleRequest(req, res);
+        await mcpSessionStore.run(sessionIdHeader, () => transport.handleRequest(req, res));
       } catch (transportError) {
         logger.log('error', `Transport handleRequest failed for ${req.method} ${sessionIdHeader}: ${transportError.message}`);
         logger.log('error', transportError.stack);

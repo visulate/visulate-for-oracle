@@ -490,14 +490,50 @@ statement['OBJECT-DETAILS'] = {
 statement['SCHEMA-SUMMARY'] = {
   'title': 'Schema Summary',
   'description': 'High level summary of tables and views in the schema',
+  'link': 'Name',
   'display': ["Name", "Type", "Comments"],
   'sql': `select table_name as "Name"
           ,      table_type as "Type"
           ,      comments as "Comments"
+          ,      owner||'/'||table_type||'/'||table_name as link
           from dba_tab_comments
           where owner = :owner
           and table_type in ('TABLE', 'VIEW')
           order by table_type, table_name`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
+  }
+};
+statement['SCHEMA-RELATIONSHIPS'] = {
+  'title': 'Schema Relationships',
+  'description': 'Foreign key relationships in the schema',
+  'display': ["Table Name", "Constraint Name", "Referenced Table", "Referenced Owner"],
+  'sql': `select cons.table_name as "Table Name"
+          ,      cons.constraint_name as "Constraint Name"
+          ,      rcons.table_name as "Referenced Table"
+          ,      rcons.owner as "Referenced Owner"
+          from dba_constraints cons
+          join dba_constraints rcons on cons.r_constraint_name = rcons.constraint_name
+                                   and cons.r_owner = rcons.owner
+          where cons.owner = :owner
+          and cons.constraint_type = 'R'
+          order by cons.table_name, cons.constraint_name`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
+  }
+};
+statement['SCHEMA-COLUMNS'] = {
+  'title': 'Schema Columns',
+  'description': 'Column definitions in the schema',
+  'display': ["Table Name", "Column Name", "Data Type", "Length", "Nullable"],
+  'sql': `select table_name as "Table Name"
+          ,      column_name as "Column Name"
+          ,      data_type as "Data Type"
+          ,      data_length as "Length"
+          ,      nullable as "Nullable"
+          from dba_tab_columns
+          where owner = :owner
+          order by table_name, column_id`,
   'params': {
     owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
   }
