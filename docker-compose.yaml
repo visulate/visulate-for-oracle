@@ -13,6 +13,7 @@ services:
       - "3000:3000"
     volumes:
       - ./api-server/config:/visulate-server/config
+      - visulate-downloads:/visulate-server/downloads
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
@@ -44,7 +45,12 @@ services:
     ports:
       - "10000:10000"
       - "10001:10001"
+    volumes:
+      - visulate-downloads:/app/downloads
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - GOOGLE_API_KEY=${GOOGLE_AI_KEY}
       - VISULATE_BASE=http://reverseproxy
+
+volumes:
+  visulate-downloads:

@@ -25,10 +25,10 @@ import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 @Component({
-    selector: 'app-db-selection',
-    templateUrl: './db-selection.component.html',
-    styleUrls: ['./db-selection.component.css'],
-    standalone: false
+  selector: 'app-db-selection',
+  templateUrl: './db-selection.component.html',
+  styleUrls: ['./db-selection.component.css'],
+  standalone: false
 })
 
 
@@ -64,7 +64,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     }
   }
 
-  setDdlLink(){
+  setDdlLink() {
     if (this.currentContext && this.currentSchema && !(environment.internalSchemas.includes(this.currentSchema.owner))) {
       const filter = (this.currentContext.filter === '') ? '*' : this.currentContext.filter;
       if (this.currentObjectType && this.currentObjectType.count > 0) {
@@ -72,8 +72,10 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
           `${environment.ddlGenBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}/${filter}/*` : '';
 
         this.downloadOptions = [
-          { name: 'cURL command script',
-            url: `${environment.apiBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}?template=curl_from_list.hbs` },
+          {
+            name: 'cURL command script',
+            url: `${environment.apiBase}/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${this.currentObjectType.type}?template=curl_from_list.hbs`
+          },
         ];
       }
     }
@@ -81,17 +83,17 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
   setObjectType(objectType: ObjectTypeListItem) {
     this.currentObjectType = objectType;
-    if (this.currentContext.filter !== ''){
+    if (this.currentContext.filter !== '') {
       this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
-        {queryParams: {filter: this.currentContext.filter}});
+        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`],
+          { queryParams: { filter: this.currentContext.filter } });
     } else {
       this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
+        ([`/database/${this.currentEndpoint.endpoint}/${this.currentSchema.owner}/${objectType.type}`]);
     }
   }
 
-  setShowInternal(value: boolean){
+  setShowInternal(value: boolean) {
     this.currentContext.setShowInternal(value);
     this.state.setCurrentContext(this.currentContext);
   }
@@ -100,11 +102,11 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     this.currentSchema = schema;
     if (this.currentContext.filter !== '') {
       this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`],
-        {queryParams: {filter: this.currentContext.filter}});
+        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`],
+          { queryParams: { filter: this.currentContext.filter } });
     } else {
       this.router.navigate
-      ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
+        ([`/database/${this.currentEndpoint.endpoint}/${schema.owner}`]);
     }
   }
 
@@ -112,7 +114,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     this.currentEndpoint = endpoint;
     if (this.currentContext.filter !== '') {
       this.router.navigate([`/database/${endpoint.endpoint}`],
-        {queryParams: {filter: this.currentContext.filter}});
+        { queryParams: { filter: this.currentContext.filter } });
     } else {
       this.router.navigate([`/database/${endpoint.endpoint}`]);
     }
@@ -124,7 +126,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * @param endpoint - current endpoint name
    * @param connectString - current connect string
    */
-  setSqlEnabled(endpoint: string, connectString: string){
+  setSqlEnabled(endpoint: string, connectString: string) {
     this.restService.getConnectString$(endpoint)
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(qeConnectString => {
@@ -141,7 +143,11 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
 
     if (this.endpoints.databases && this.endpoints.databases.length > 0) {
       this.dbPlaceholder = 'Database';
+    } else if (this.endpoints.errorMessage) {
+      this.dbPlaceholder = 'Error loading databases';
     } else {
+      // If it's the initial empty state, show 'Loading ...'
+      // If the API returned an empty list but no error, maybe show 'No Databases'
       this.dbPlaceholder = 'Loading ...';
     }
 
@@ -162,7 +168,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
    * Update the object type selection form when the current context changes
    * @param context - Current context (db, schema, object type and name) subscription
    */
-  processContextChange( subjectContext: ContextBehaviorSubjectModel ) {
+  processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     this.currentContext = subjectContext.currentContext;
 
     if (this.endpoints.databases) {

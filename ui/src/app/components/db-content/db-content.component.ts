@@ -27,10 +27,10 @@ import { hbsTemplates } from '../../../environments/hbs-templates';
 
 
 @Component({
-    selector: 'app-db-content',
-    templateUrl: './db-content.component.html',
-    styleUrls: ['./db-content.component.css'],
-    standalone: false
+  selector: 'app-db-content',
+  templateUrl: './db-content.component.html',
+  styleUrls: ['./db-content.component.css'],
+  standalone: false
 })
 
 /**
@@ -110,7 +110,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
       this.restService.getEndpoints$(context.filter)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(endpoints => {
-          if (endpoints.databases.length > 0){
+          if (endpoints.databases.length > 0) {
             endpoints.setErrorMessage(null);
             this.state.saveEndpoints(endpoints);
           } else {
@@ -118,6 +118,10 @@ export class DbContentComponent implements OnInit, OnDestroy {
             this.state.saveEndpoints(endpoints);
           }
 
+        }, error => {
+          const endpoints = new EndpointListModel();
+          endpoints.setErrorMessage('Failed to connect to API server: ' + error.message);
+          this.state.saveEndpoints(endpoints);
         });
     }
 
@@ -164,44 +168,44 @@ export class DbContentComponent implements OnInit, OnDestroy {
       //}
 
       this.restService.getObjectDetails$
-      (context.endpoint, context.owner, context.objectType, context.objectName)
+        (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
     }
   }
 
-    ngOnInit() {
-      this.currentContext = this.state.getCurrentContext();
-      this.state.endpoints$
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(endpoints => { this.endpointList = endpoints; });
-      this.state.currentContext$
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(context => { this.processContextChange(context); });
-      this.state.sqlEnabled$
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(sqlEnabled => {this.sqlEnabled = sqlEnabled; });
-      this.state.aiEnabled$
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(aiEnabled => { this.aiEnabled = aiEnabled; });
+  ngOnInit() {
+    this.currentContext = this.state.getCurrentContext();
+    this.state.endpoints$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(endpoints => { this.endpointList = endpoints; });
+    this.state.currentContext$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(context => { this.processContextChange(context); });
+    this.state.sqlEnabled$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(sqlEnabled => { this.sqlEnabled = sqlEnabled; });
+    this.state.aiEnabled$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(aiEnabled => { this.aiEnabled = aiEnabled; });
 
-      this.checkAiEnabled();
-    }
-
-    ngOnDestroy() {
-      this.unsubscribe$.next();
-      this.unsubscribe$.complete();
-    }
-
-    private checkAiEnabled(): void {
-      this.restService.getAiEnabled$().pipe(takeUntil(this.unsubscribe$)).subscribe(
-        (data: { enabled: boolean }) => {
-          this.state.saveAiEnabled(data.enabled);
-        },
-        error => {
-          this.errorMessage = error.message;
-        }
-      );
-    }
-
+    this.checkAiEnabled();
   }
+
+  ngOnDestroy() {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
+
+  private checkAiEnabled(): void {
+    this.restService.getAiEnabled$().pipe(takeUntil(this.unsubscribe$)).subscribe(
+      (data: { enabled: boolean }) => {
+        this.state.saveAiEnabled(data.enabled);
+      },
+      error => {
+        this.errorMessage = error.message;
+      }
+    );
+  }
+
+}

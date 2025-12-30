@@ -28,10 +28,16 @@ dependencies = [
     "requests>=2.31.0",
     "uvicorn>=0.20.0",
     "fastapi>=0.100.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.20.0",
+    "httpx>=0.24.0",
 ]
 
 [project.scripts]
-visulate-agent = "visulate_ai_agent.agent:main"
+visulate-agent = "root_agent.main:main"
+
+[tool.setuptools]
+packages = ["common", "downloads", "root_agent", "nl2sql_agent", "comment_generator", "object_analysis_agent"]
 
 [project.urls]
 Homepage = "https://visulate.net"

@@ -71,3 +71,16 @@ docs/_site/
 __pycache__/
 *.pyc
 uv.lock
+
+# Downloads
+downloads/
+**/downloads/
+
+# Python build artifacts
+*.egg-info/
+
+# Temporary inspection/generated files
+inspect_agent.py
+inspect_llm_agent_impl.py
+query-engine/generated_comments.sql
+crane/

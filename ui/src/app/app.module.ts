@@ -18,7 +18,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { FormsModule,  ReactiveFormsModule} from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
 import { CdkTableModule } from '@angular/cdk/table';
 
@@ -37,8 +37,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatGridListModule } from '@angular/material/grid-list';
-// import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -56,59 +58,74 @@ import { SqlComponent, TrimPipe } from './components/sql/sql.component';
 import { SqlValidatorDirective } from './components/sql/sql.directive';
 import { MarkdownModule } from 'ngx-markdown';
 import { ChatComponent } from './components/chat/chat.component';
+import { CredentialDialogComponent } from './components/credential-dialog/credential-dialog.component';
+import { StateService } from './services/state.service';
+import { RestService } from './services/rest.service';
 
-@NgModule({ declarations: [
-  AppComponent,
-  DbSelectionComponent,
-  DbStepSelectionComponent,
-  MainNavComponent,
-  DbObjectListComponent,
-  DbContentComponent,
-  FindObjectComponent,
-  FilterObjectsComponent,
-  HideInternalPipe,
-  SqlComponent,
-  TrimPipe,
-  SqlValidatorDirective,
-  ChatComponent
-],
-bootstrap: [AppComponent], imports: [BrowserModule,
-  CommonModule,
-  AppRoutingModule,
-  BrowserAnimationsModule,
-  CdkTableModule,
-  FormsModule,
-  ReactiveFormsModule,
-  MatCardModule,
-  MatToolbarModule,
-  MatSelectModule,
-  MatSidenavModule,
-  MatTableModule,
-  LayoutModule,
-  MatButtonModule,
-  MatIconModule,
-  MatListModule,
-  MatExpansionModule,
-  MatSlideToggleModule,
-  MatFormFieldModule,
-  MatInputModule,
-  MatAutocompleteModule,
-  MatCheckboxModule,
-  MatGridListModule,
-  // MatProgressSpinnerModule,
-  MatProgressBarModule,
-  MarkdownModule.forRoot(),
-  HighlightModule], providers: [
-  {
-    provide: HIGHLIGHT_OPTIONS,
-    useValue: {
-      coreLibraryLoader: () => import('highlight.js/lib/core'),
-      languages: {
-        pgsql: () => import('highlight.js/lib/languages/pgsql'),
-        sql: () => import('highlight.js/lib/languages/sql')
+@NgModule({
+  declarations: [
+    AppComponent,
+    DbSelectionComponent,
+    DbStepSelectionComponent,
+    MainNavComponent,
+    DbObjectListComponent,
+    DbContentComponent,
+    FindObjectComponent,
+    HideInternalPipe,
+    FilterObjectsComponent,
+    SqlComponent,
+    TrimPipe,
+    SqlValidatorDirective,
+    ChatComponent,
+    CredentialDialogComponent
+  ],
+  imports: [
+    BrowserModule,
+    CommonModule,
+    AppRoutingModule,
+    BrowserAnimationsModule,
+    CdkTableModule,
+    FormsModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatToolbarModule,
+    MatSelectModule,
+    MatSidenavModule,
+    MatTableModule,
+    LayoutModule,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    MatExpansionModule,
+    MatSlideToggleModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatAutocompleteModule,
+    MatCheckboxModule,
+    MatGridListModule,
+    // MatProgressSpinnerModule,
+    MatProgressBarModule,
+    MatDialogModule,
+    MatSnackBarModule,
+    MarkdownModule.forRoot(),
+    HighlightModule
+  ],
+  providers: [
+    {
+      provide: HIGHLIGHT_OPTIONS,
+      useValue: {
+        coreLibraryLoader: () => import('highlight.js/lib/core'),
+        languages: {
+          pgsql: () => import('highlight.js/lib/languages/pgsql'),
+          sql: () => import('highlight.js/lib/languages/sql')
+        }
       }
-    }
-  },
-  provideHttpClient(withInterceptorsFromDi())
-] })
+    },
+    StateService,
+    RestService,
+    provideAnimationsAsync(),
+    provideHttpClient(withInterceptorsFromDi())
+  ],
+  bootstrap: [AppComponent]
+})
 export class AppModule { }

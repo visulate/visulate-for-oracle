@@ -40,50 +40,50 @@ statement['COUNT_DBA_OBJECTS'] = {
   'title': 'Object Count',
   'description': '',
   'display': [],
-  'sql' : `select owner, object_type, count(*) as object_count
+  'sql': `select owner, object_type, count(*) as object_count
            from dba_objects o
            where object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
            group by owner, object_type
            order by owner, object_type`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['COUNT_DBA_OBJECTS_FILTER'] = {
   'title': 'Object Count',
   'description': '',
   'display': [],
-  'sql' : `select owner, object_type, count(*) as object_count
+  'sql': `select owner, object_type, count(*) as object_count
            from dba_objects o
            where object_name like :object_name ESCAPE :esc
            and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
            group by owner, object_type
            order by owner, object_type`,
-   'params': {
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-   }
+  'params': {
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
 };
 
 statement['DB-VERSION'] = {
   'title': 'Database Version',
   'description': '',
   'display': ["Version"],
-  'sql' : `select banner as "Version" from v$version`,
-   'params': {
-   }
+  'sql': `select banner as "Version" from v$version`,
+  'params': {
+  }
 };
 
 statement['ADB-YN'] = {
   'title': 'Oracle Cloud Autonomous Database Instance',
   'display': ["Autonomous Database"],
-  'sql' : `select decode( count(*), 0, 'No',
+  'sql': `select decode( count(*), 0, 'No',
                                        'Yes') as "Autonomous Database"
            from dba_objects
            where object_name = 'DBMS_CLOUD'`,
-  'params' : { }
+  'params': {}
 }
 
 statement['EBS-SCHEMA'] = {
@@ -122,8 +122,8 @@ statement['DB-FEATURES'] = {
   'sql': `select comp_name as "Feature"
           from dba_registry
           where status = 'VALID'`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['DB-FEATURE-USAGE'] = {
@@ -140,8 +140,8 @@ statement['DB-FEATURE-USAGE'] = {
           where f.detected_usages > 0
           and d.dbid = f.dbid
           order by f.name`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['DB-OS-STAT'] = {
@@ -152,29 +152,29 @@ statement['DB-OS-STAT'] = {
           ,      value
           ,      to_char(value, 'FM999,999,999,999') as "Value"
           from v$osstat`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['DB-SGA-SIZE'] = {
   'title': 'SGA Size',
   'description': '',
   'display': ["Total Size (GB)"],
-  'sql' : `select round(sum(value/1024/1024/1024), 2)as  "Total Size (GB)"
+  'sql': `select round(sum(value/1024/1024/1024), 2)as  "Total Size (GB)"
            from V$sga`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['DB-SGA-FREE'] = {
   'title': 'SGA Free',
   'description': '',
   'display': ["Free Memory (MB)"],
-  'sql' : `select round(sum(bytes/1024/1024)) as "Free Memory (MB)"
+  'sql': `select round(sum(bytes/1024/1024)) as "Free Memory (MB)"
            from v$sgastat
            where name like '%free memory%'`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['DB-SIZE'] = {
@@ -205,7 +205,7 @@ statement['PATCHES'] = {
   'title': 'Patch History',
   'description': '',
   'display': ["Time", "Action", "Namespace", "Version", "ID", "Comments"],
-  'sql' : `select to_char(action_time, 'Mon dd, yyyy hh24:mi') as "Time"
+  'sql': `select to_char(action_time, 'Mon dd, yyyy hh24:mi') as "Time"
            ,      action as "Action"
            ,      namespace as "Namespace"
            ,      version as "Version"
@@ -213,36 +213,36 @@ statement['PATCHES'] = {
            ,      comments as "Comments"
            from  DBA_REGISTRY_HISTORY
            order by action_time`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['DB-LINKS'] = {
   'title': 'Database Links',
   'description': '',
   'display': ["Schema", "Database Link", "Username", "Connect String"],
-  'sql' : `select owner as "Schema",
+  'sql': `select owner as "Schema",
            db_link as "Database Link",
            username as "Username",
            host as "Connect String"
            from dba_db_links
            order by 1, 2`,
-   'params': {
-   }
+  'params': {
+  }
 };
 
 statement['SCHEMA-USER'] = {
   'title': 'Schema Status',
   'description': '',
   'display': ["Status", "Default Tablespace", "Temporary Tablespace"],
-  'sql' : `select account_status as "Status"
+  'sql': `select account_status as "Status"
            ,      default_tablespace as "Default Tablespace"
            ,      temporary_tablespace as "Temporary Tablespace"
            from dba_users
            where username = :owner`,
-   'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
-   }
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
+  }
 };
 
 statement['SCHEMA-INDEXES'] = {
@@ -250,7 +250,7 @@ statement['SCHEMA-INDEXES'] = {
   'description': 'Indexes that are not of type NORMAL or LOB',
   'display': ["Index", "Type"],
   'link': "Index",
-  'sql' : `select index_type as "Type"
+  'sql': `select index_type as "Type"
            ,      index_name as "Index"
            ,      owner||'/INDEX/'||index_name as link
            from dba_indexes
@@ -258,11 +258,11 @@ statement['SCHEMA-INDEXES'] = {
            and index_name like :object_name ESCAPE :esc
            and index_type not in ('NORMAL', 'LOB')
            order by index_name, index_type`,
-   'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-   }
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
 };
 
 statement['SCHEMA-INVALID-OBJECTS'] = {
@@ -280,9 +280,9 @@ statement['SCHEMA-INVALID-OBJECTS'] = {
           and name like :object_name ESCAPE :esc
           order by type, name, line`,
   'params': {
-   owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-   object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
-   esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
   }
 };
 
@@ -290,18 +290,18 @@ statement['SCHEMA-DATATYPES'] = {
   'title': 'Data Types',
   'description': 'Column data type usage in tables and views',
   'display': ["Data Type", "Count"],
-  'sql' : `select data_type as "Data Type"
+  'sql': `select data_type as "Data Type"
            ,      count(*) as "Count"
            from dba_tab_columns
            where owner = :owner
            and table_name like :object_name ESCAPE :esc
            group by data_type
            order by data_type`,
-   'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-   }
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
 };
 
 statement['SCHEMA-DBMS-USAGE'] = {
@@ -309,7 +309,7 @@ statement['SCHEMA-DBMS-USAGE'] = {
   'description': 'Stored procedures using DBMS_ and UTL_ packages',
   'display': ["Name", "Type", "Count"],
   'link': "Name",
-  'sql' : `select name as "Name"
+  'sql': `select name as "Name"
            ,      type as "Type"
            ,      owner||'/'||type||'/'||name as link
            ,      count(*) as "Count"
@@ -319,11 +319,11 @@ statement['SCHEMA-DBMS-USAGE'] = {
            and (TEXT LIKE '%UTL%' OR TEXT LIKE '%DBMS%')
            group by name, type, owner||'/'||type||'/'||name
            order by name, type`,
-   'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-   }
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
 };
 
 statement['SCHEMA-SPATIAL-USAGE'] = {
@@ -331,7 +331,7 @@ statement['SCHEMA-SPATIAL-USAGE'] = {
   'description': 'Tables and views with spatial columns',
   'display': ["Object Name", "Type", "Column"],
   'link': "Object Name",
-  'sql' : `select c.table_name as "Object Name"
+  'sql': `select c.table_name as "Object Name"
            ,      o.object_type as "Type"
            ,      c.column_name as "Column"
            ,      c.owner||'/'||o.object_type||'/'||c.table_name as link
@@ -343,11 +343,11 @@ statement['SCHEMA-SPATIAL-USAGE'] = {
            and o.object_name = c.table_name
            and o.object_name like :object_name ESCAPE :esc
            order by c.table_name, o.object_type, c.column_name`,
-   'params': {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-   }
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
 };
 
 statement['VALIDATE-OWNER-AND-TYPE'] = {
@@ -358,9 +358,9 @@ statement['VALIDATE-OWNER-AND-TYPE'] = {
           from dba_objects
           where owner like :owner
           and object_type like :object_type`,
-  'params' : {
-    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_type : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_type: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
   }
 };
 statement['LIST_DBA_OBJECTS'] = {
@@ -378,11 +378,11 @@ statement['LIST_DBA_OBJECTS'] = {
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
           order by owner, object_type, object_name`,
   'params': {
-    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-    status: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" }
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_type: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+    status: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" }
   }
 };
 
@@ -435,11 +435,11 @@ statement['DDL-GEN'] = {
             )
           order by owner, object_type, object_name`,
   'params': {
-    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    esc: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "\\" },
-    status: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "%" }
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_type: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+    status: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" }
   }
 }
 
@@ -456,7 +456,7 @@ statement['FIND-DBA-OBJECTS'] = {
           where object_name = :object_name
           order by owner, object_name, object_type`,
   'params': {
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
   }
 };
 
@@ -482,9 +482,60 @@ statement['OBJECT-DETAILS'] = {
           and   object_type = :object_type
           and   owner       = :owner`,
   'params': {
-    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
-    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_type: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
+  }
+};
+statement['SCHEMA-SUMMARY'] = {
+  'title': 'Schema Summary',
+  'description': 'High level summary of tables and views in the schema',
+  'link': 'Name',
+  'display': ["Name", "Type", "Comments"],
+  'sql': `select table_name as "Name"
+          ,      table_type as "Type"
+          ,      comments as "Comments"
+          ,      owner||'/'||table_type||'/'||table_name as link
+          from dba_tab_comments
+          where owner = :owner
+          and table_type in ('TABLE', 'VIEW')
+          order by table_type, table_name`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
+  }
+};
+statement['SCHEMA-RELATIONSHIPS'] = {
+  'title': 'Schema Relationships',
+  'description': 'Foreign key relationships in the schema',
+  'display': ["Table Name", "Constraint Name", "Referenced Table", "Referenced Owner"],
+  'sql': `select cons.table_name as "Table Name"
+          ,      cons.constraint_name as "Constraint Name"
+          ,      rcons.table_name as "Referenced Table"
+          ,      rcons.owner as "Referenced Owner"
+          from dba_constraints cons
+          join dba_constraints rcons on cons.r_constraint_name = rcons.constraint_name
+                                   and cons.r_owner = rcons.owner
+          where cons.owner = :owner
+          and cons.constraint_type = 'R'
+          order by cons.table_name, cons.constraint_name`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
+  }
+};
+statement['SCHEMA-COLUMNS'] = {
+  'title': 'Schema Columns',
+  'description': 'Column definitions in the schema',
+  'display': ["Table Name", "Column Name", "Data Type", "Length", "Nullable"],
+  'sql': `select table_name as "Table Name"
+          ,      column_name as "Column Name"
+          ,      data_type as "Data Type"
+          ,      data_length as "Length"
+          ,      nullable as "Nullable"
+          from dba_tab_columns
+          where owner = :owner
+          order by table_name, column_id`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
   }
 };
 

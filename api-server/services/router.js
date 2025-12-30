@@ -18,6 +18,7 @@ const express = require('express');
 const router = new express.Router();
 const controller = require('./controller.js');
 const aiService = require('./ai-service.js');
+const downloadService = require('./download-service.js');
 router.use(express.json());
 
 const { Validator, ValidationError } = require('express-json-validator-middleware');
@@ -178,11 +179,26 @@ router.route('/mcp')
   .post(aiService.handleMcpRequest)
   .delete(aiService.handleMcpRequest);
 
+router.route('/api/token')
+  .post(aiService.generateToken);
+
 router.route('/mcp/context/:db')
   .post(validate({ body: mcpContextSchema }), aiService.getContext);
 
 router.route('/mcp/search-objects/:db')
   .post(validate({ body: mcpSearchSchema }), aiService.searchObjects);
+
+router.route('/mcp/schema-summary/:db')
+  .post(aiService.getSchemaSummary);
+
+router.route('/mcp/schema-relationships/:db')
+  .post(aiService.getSchemaRelationships);
+
+router.route('/mcp/schema-columns/:db')
+  .post(aiService.getSchemaColumns);
+
+router.route('/download/:sessionId/:filename')
+  .get(downloadService.serveFile);
 
 
 // Error handler JSON Schema errors

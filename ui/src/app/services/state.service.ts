@@ -45,9 +45,9 @@ export class StateService {
 
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
   private subjectContext =
-    new BehaviorSubject<ContextBehaviorSubjectModel> (new ContextBehaviorSubjectModel(
-      new  CurrentContextModel('', '', '', '', '', false, []),
-      new  CurrentContextModel('', '', '', '', '', false, []),
+    new BehaviorSubject<ContextBehaviorSubjectModel>(new ContextBehaviorSubjectModel(
+      new CurrentContextModel('', '', '', '', '', false, []),
+      new CurrentContextModel('', '', '', '', '', false, []),
       []));
   private sqlEnabled = new BehaviorSubject<boolean>(false);
   private aiEnabledSubject = new BehaviorSubject<boolean>(false);
@@ -61,7 +61,7 @@ export class StateService {
     return this.getStoredContext();
   }
 
-  getContextDiff(c1: CurrentContextModel, c2: CurrentContextModel){
+  getContextDiff(c1: CurrentContextModel, c2: CurrentContextModel) {
     const returnValue = {
       endpointDiff: (c1.endpoint !== c2.endpoint),
       ownerDiff: (c1.owner !== c2.owner),
@@ -73,7 +73,7 @@ export class StateService {
     return returnValue;
   }
 
-  getSqlEnabled(){
+  getSqlEnabled() {
     return this._sqlEnabled;
   }
 
@@ -86,12 +86,12 @@ export class StateService {
     this._showInternal = context.showInternal;
     this._objectList = context.objectList;
 
-    if (context.objectName){
+    if (context.objectName) {
       this.saveContextInLocalStorage(context);
     }
   }
 
-  getStoredContext(){
+  getStoredContext() {
     return new CurrentContextModel(this._endpoint, this._owner, this._objectType,
       this._objectName, this._filter, this._showInternal, this._objectList);
   }
@@ -118,7 +118,8 @@ export class StateService {
 
   saveContextInLocalStorage(context: CurrentContextModel) {
     const maxHistoryLength = 5;
-    const contextObject = { endpoint: context.endpoint,
+    const contextObject = {
+      endpoint: context.endpoint,
       owner: context.owner,
       objectType: context.objectType,
       objectName: context.objectName,
@@ -126,10 +127,10 @@ export class StateService {
     };
 
     let history = JSON.parse(localStorage.getItem('objectHistory') || '[]');
-    const contextObjectPosn = history.findIndex( obj => obj.objectName === contextObject.objectName &&
-                                                      obj.objectType === contextObject.objectType &&
-                                                      obj.owner === contextObject.owner &&
-                                                      obj.endpoint === contextObject.endpoint );
+    const contextObjectPosn = history.findIndex(obj => obj.objectName === contextObject.objectName &&
+      obj.objectType === contextObject.objectType &&
+      obj.owner === contextObject.owner &&
+      obj.endpoint === contextObject.endpoint);
 
     if (contextObjectPosn > -1) {
       history.splice(contextObjectPosn, 1);
@@ -139,6 +140,41 @@ export class StateService {
     }
     history.push(contextObject);
     localStorage.setItem('objectHistory', JSON.stringify(history));
+  }
+
+  private chatHistory = new BehaviorSubject<{ user: string, text: string, type?: string }[]>([]);
+  chatHistory$ = this.chatHistory.asObservable();
+
+  getChatHistory() {
+    return this.chatHistory.getValue();
+  }
+
+  addMessage(message: { user: string, text: string, type?: string }) {
+    const current = this.chatHistory.getValue();
+    this.chatHistory.next([...current, message]);
+  }
+
+  updateLastMessage(text: string) {
+    const current = this.chatHistory.getValue();
+    if (current.length > 0) {
+      const newHistory = [...current];
+      const lastIndex = newHistory.length - 1;
+      // Create new object reference for the modified message
+      newHistory[lastIndex] = { ...newHistory[lastIndex], text: text };
+      this.chatHistory.next(newHistory);
+    }
+  }
+
+  clearChatHistory() {
+    this.chatHistory.next([]);
+  }
+
+  private authTokens: { [database: string]: string } = {};
+  setAuthToken(database: string, token: string) {
+    this.authTokens[database] = token;
+  }
+  getAuthToken(database: string): string | null {
+    return this.authTokens[database] || null;
   }
 
 
