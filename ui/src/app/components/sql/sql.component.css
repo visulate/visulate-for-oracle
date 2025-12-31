@@ -1,4 +1,13 @@
- .sql  {
+ .sql-container {
+  padding-top: 16px;
+}
+
+mat-form-field {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.sql  {
     width: 98%;
     }
 

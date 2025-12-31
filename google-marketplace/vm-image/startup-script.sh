@@ -29,7 +29,12 @@ if [ ! -d /home/visulate/config ]; then
 
   # copy the query engine config files from the container to the host
   docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:2.5 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
-  docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:2.5 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
+fi
+
+# Create visulate-downloads directory if it doesn't exist
+if [ ! -d /home/visulate/downloads ]; then
+  mkdir /home/visulate/downloads
+  chmod 777 /home/visulate/downloads
 fi
 
 # Create docker-compose.yml if not already present
@@ -55,11 +60,12 @@ services:
       - "3000"
     volumes:
       - /home/visulate/config:/visulate-server/config
+      - visulate-downloads:/visulate-server/downloads
     environment:
       - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=\${CORS_ORIGIN_WHITELIST}
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
-      - COMMENT_GENERATOR_URL=http://ai-agent:10001/agent/generate
+      - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
     networks:
       - visulate_network
     healthcheck:
@@ -111,12 +117,14 @@ services:
       - vissql
       - visapi
     expose:
-      - "10000"
-      - "10001"
+      - "10000-10005"
+    volumes:
+      - visulate-downloads:/app/downloads
     environment:
       - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
       - GOOGLE_API_KEY=\${GOOGLE_AI_KEY}
       - VISULATE_BASE=http://reverseproxy
+      - VISULATE_DOWNLOADS=/app/downloads
     networks:
       - visulate_network
     healthcheck:
@@ -124,6 +132,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+volumes:
+  visulate-downloads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/visulate/downloads
 
 networks:
   visulate_network:

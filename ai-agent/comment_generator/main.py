@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 
 # Import from common module
 from common.config import get_mcp_urls
@@ -39,94 +40,86 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-@dataclass
-class MCPConfig:
-    """Configuration for MCP client"""
-    google_api_key: str
-    visulate_base: str
-    api_server_url: str
-    query_engine_url: str
-
-def get_config() -> MCPConfig:
-    """Load configuration from environment variables"""
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    visulate_base = os.getenv("VISULATE_BASE", "http://localhost")
-
-    if not google_api_key:
-        logger.error("GOOGLE_API_KEY not found in environment")
-        sys.exit(1)
-
-    # Use common config for URLs
-    api_server_url, query_engine_url = get_mcp_urls()
-
-    return MCPConfig(
-        google_api_key=google_api_key,
-        visulate_base=visulate_base,
-        api_server_url=api_server_url,
-        query_engine_url=query_engine_url
-    )
-
 class MCPClient:
-    """Client for interacting with Visulate MCP endpoints"""
+    """Client for communicating with Visulate MCP servers."""
 
-    def __init__(self, config: MCPConfig):
-        self.config = config
-        self.session = requests.Session()
-        self.credential_token: Optional[str] = None
+    def __init__(self, api_server_tools: McpToolset, query_engine_tools: McpToolset, session_id: Optional[str] = None):
+        self.api_server_tools = api_server_tools
+        self.query_engine_tools = query_engine_tools
+        self.session_id = session_id
+        self.credential_token = None
+
+    async def _unwrap_result(self, result: Any) -> Any:
+        """Unwrap JSON from MCP ToolResponse if present"""
+        if hasattr(result, 'model_dump'):
+            data = result.model_dump()
+            is_error = data.get("isError", False)
+
+            if "content" in data and isinstance(data["content"], list):
+                for item in data["content"]:
+                    if item.get("type") == "text":
+                        text = item.get("text", "")
+                        try:
+                            # Try to parse as JSON
+                            parsed = json.loads(text)
+                            if isinstance(parsed, dict) and is_error and "error" not in parsed:
+                                parsed["success"] = False
+                                parsed["error"] = text
+                            return parsed
+                        except json.JSONDecodeError:
+                            # If not JSON, but has results marker (specific to execute_sql)
+                            if "Results:" in text:
+                                return data
+                            # Return as error dict if it's a plain string
+                            return {"success": not is_error, "error": text if is_error else None, "data": text if not is_error else None, "content": data.get("content")}
+            return data
+        return result
+
+    async def _call_mcp_tool(self, toolset: McpToolset, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Helper to call an MCP tool using the internal session manager"""
+        # Get session from session manager
+        session = await toolset._mcp_session_manager.create_session()
+        # Call the tool
+        return await session.call_tool(tool_name, arguments=arguments)
 
     async def call_api_server_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool on the API server MCP endpoint"""
-        import asyncio
-        url = f"{self.config.api_server_url}"
-        payload = {
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments
-            }
-        }
+        try:
+            # Pass session_id if it's an ERD-related tool that uses it
+            if tool_name in ["getSchemaRelationships", "getSchemaColumns"] and self.session_id:
+                arguments["session_id"] = self.session_id
 
-        def do_request():
-            try:
-                response = self.session.post(url, json=payload, timeout=30)
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
-                logger.error(f"Error calling API server tool {tool_name}: {e}")
-                return {"error": str(e)}
-
-        return await asyncio.to_thread(do_request)
+            result = await self._call_mcp_tool(self.api_server_tools, tool_name, arguments)
+            return await self._unwrap_result(result)
+        except Exception as e:
+            logger.error(f"Error calling API server tool {tool_name}: {e}")
+            return {"error": str(e)}
 
     async def call_query_engine_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool on the Query Engine MCP endpoint"""
-        import asyncio
-        url = f"{self.config.query_engine_url}/call_tool"
-        payload = {
-            "name": tool_name,
-            "arguments": arguments
-        }
+        try:
+            result = await self._call_mcp_tool(self.query_engine_tools, tool_name, arguments)
+            return await self._unwrap_result(result)
+        except Exception as e:
+            logger.error(f"Error calling Query Engine tool {tool_name}: {e}")
+            return {"error": str(e)}
 
-        def do_request():
-            try:
-                response = self.session.post(url, json=payload, timeout=30)
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
-                logger.error(f"Error calling Query Engine tool {tool_name}: {e}")
-                return {"error": str(e)}
-
-        return await asyncio.to_thread(do_request)
-
-    def create_credential_token(self, database: str, username: str, password: str) -> bool:
+    async def create_credential_token(self, database: str, username: str, password: str) -> bool:
         """Create a secure credential token for database access"""
-        result = create_token_request(self.config.query_engine_url, database, username, password)
-        token = parse_token_from_response(result)
-
-        if token:
-            self.credential_token = token
-            return True
-        else:
-            logger.error(f"Failed to create credential token: {mask_sensitive_data(result)}")
+        try:
+            result = await self.call_query_engine_tool("create_credential_token", {
+                "database": database,
+                "username": username,
+                "password": password,
+                "expiry_minutes": 60
+            })
+            token = parse_token_from_response(result)
+            if token:
+                self.credential_token = token
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to create credential token: {e}")
             return False
 
     async def execute_sql(self, database: str, sql: str) -> Dict[str, Any]:
@@ -140,12 +133,11 @@ class MCPClient:
             "sql": sql
         })
 
-        # Parse MCP response
-        if "content" in result and isinstance(result["content"], list):
+        # The rest of the script expects a dict with 'success' and 'data'
+        if isinstance(result, dict) and "content" in result and isinstance(result["content"], list):
              for content_item in result["content"]:
                 if content_item.get("type") == "text":
                     text = content_item.get("text", "")
-                    logger.info(f"Raw SQL response text: {text}")
                     if "Query executed successfully" in text:
                         try:
                             # Extract JSON results
@@ -153,10 +145,8 @@ class MCPClient:
                             results_match = re.search(r'Results:\s*(\[.*?\])', text, re.DOTALL)
                             if results_match:
                                 return {"success": True, "data": json.loads(results_match.group(1))}
-                            else:
-                                logger.warning("Regex match failed for Results array.")
                         except Exception as e:
-                            logger.error(f"JSON parse error: {e}")
+                            logger.error(f"JSON parse error in execute_sql: {e}")
                             return {"success": False, "error": f"Parse error: {e}"}
                     elif "Query failed" in text:
                          return {"success": False, "error": text}
@@ -178,7 +168,7 @@ class CommentGenerator:
         self.client = mcp_client
         self.database = database
         self.schema = schema.upper()
-        self.genai_client = genai.Client(api_key=mcp_client.config.google_api_key)
+        self.genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.credential_token = credential_token
         self.session_id = session_id
 
@@ -203,64 +193,66 @@ class CommentGenerator:
 
     async def find_missing_comments(self, wildcard: str = "%") -> Dict[str, Dict[str, Any]]:
         """
-        Find tables and views that need comments.
+        Find tables and views that need comments using the API server discovery tool.
         Returns a dictionary keyed by table name, containing 'type' and 'missing_columns' list.
         """
-        logger.info(f"Finding objects missing comments in {self.schema} matching '{wildcard}'...")
+        logger.info(f"Finding objects missing comments in {self.schema} matching '{wildcard}' via API server...")
 
         objects_to_process = {}
 
-        # 1. Find tables/views with missing comments
-        sql_tables = f"""
-            SELECT owner, table_name, table_type
-            FROM all_tab_comments
-            WHERE owner = '{self.schema}'
-            AND table_name LIKE '{wildcard}'
-            AND comments IS NULL
-            AND table_type IN ('TABLE', 'VIEW')
-        """
-        result_tables = await self.client.execute_sql(self.database, sql_tables)
-        logger.info(f"Result tables: {result_tables}")
-        if not result_tables.get("success"):
-            error_msg = result_tables.get("error", "Unknown error")
-            self.report_progress(f"▌ERROR: Failed to find tables: {error_msg}. Check database logs or credentials.")
-            logger.error(f"Error finding tables: {error_msg}")
+        # Call the API server tool for documentation discovery
+        result = await self.client.call_api_server_tool("getObjectsMissingComments", {
+            "db": self.database,
+            "owner": self.schema,
+            "wildcard": wildcard
+        })
+
+        if "error" in result:
+             error_msg = result.get("error", "Unknown error")
+             self.report_progress(f"▌ERROR: Failed to find missing comments: {error_msg}")
+             logger.error(f"Error finding missing comments: {error_msg}")
+             return {}
+
+        # The API server returns nested results: result -> content -> text (JSON string)
+        # However, call_api_server_tool in MCPClient currently returns the raw JSON from the server.
+        # Let's check how it handles the response.
+
+        data = {}
+        try:
+            # MCP tools return { "content": [ { "type": "text", "text": "..." } ] }
+            if "content" in result and isinstance(result["content"], list):
+                for item in result["content"]:
+                    if item.get("type") == "text":
+                        data = json.loads(item.get("text", "{}"))
+                        break
+            else:
+                data = result # Fallback if not standard MCP format
+        except Exception as e:
+            logger.error(f"Failed to parse getObjectsMissingComments response: {e}")
             return {}
 
-        for row in result_tables.get("data", []):
-            table_name = row['TABLE_NAME']
+        # Process tables
+        for row in data.get("tables", []):
+            table_name = row['name']
             objects_to_process[table_name] = {
-                'type': row['TABLE_TYPE'],
+                'type': row['type'],
                 'missing_table_comment': True,
                 'missing_columns': []
             }
 
-        # 2. Find columns with missing comments
-        sql_columns = f"""
-            SELECT owner, table_name, column_name
-            FROM all_col_comments
-            WHERE owner = '{self.schema}'
-            AND table_name LIKE '{wildcard}'
-            AND comments IS NULL
-        """
-        result_columns = await self.client.execute_sql(self.database, sql_columns)
-        if result_columns.get("success"):
-            for row in result_columns.get("data", []):
-                table_name = row['TABLE_NAME']
-                column_name = row['COLUMN_NAME']
+        # Process columns
+        for row in data.get("columns", []):
+            table_name = row['tableName']
+            column_name = row['columnName']
 
-                if table_name not in objects_to_process:
-                    # We need to look up the table type if we haven't seen it yet
-                    # This is a bit inefficient, so let's try to get it from context later or query it now.
-                    # For simplicity, let's assume it's a TABLE if not found, or query all_objects.
-                    # Better: just add it and resolve type later or assume TABLE/VIEW from context.
-                    objects_to_process[table_name] = {
-                        'type': 'UNKNOWN', # Will resolve if needed, or just use 'TABLE' as default for context lookup
-                        'missing_table_comment': False,
-                        'missing_columns': []
-                    }
+            if table_name not in objects_to_process:
+                objects_to_process[table_name] = {
+                    'type': 'TABLE', # Default type, get_context will resolve if it's a VIEW
+                    'missing_table_comment': False,
+                    'missing_columns': []
+                }
 
-                objects_to_process[table_name]['missing_columns'].append(column_name)
+            objects_to_process[table_name]['missing_columns'].append(column_name)
 
         return objects_to_process
 
@@ -358,17 +350,27 @@ class CommentGenerator:
         # 1. Setup Client
         if self.credential_token:
             self.client.credential_token = self.credential_token
-            self.report_progress("Using provided credential token.")
-        else:
+            self.report_progress("Verifying credential token...")
+            # Test the token
+            test_result = await self.client.execute_sql(self.database, "SELECT 1 FROM DUAL")
+            if not test_result.get("success"):
+                logger.warning(f"Provided token failed validation: {test_result.get('error')}. Attempting fallback to password...")
+                self.credential_token = None
+            else:
+                self.report_progress("Credential token verified.")
+
+        if not self.credential_token:
             # Get password and set up MCP credential token
             cred_manager = CredentialManager()
             password = cred_manager.get_password(self.database, self.schema)
-            if not password:
-                self.report_progress(f"Error: Password not found for {self.database}.{self.schema}")
-                return 0
-            if not self.client.create_credential_token(self.database, self.schema, password):
-                self.report_progress("Error: Failed to create credential token.")
-                return 0
+            if password:
+                self.report_progress(f"Creating new credential token for {self.schema}...")
+                if await self.client.create_credential_token(self.database, self.schema, password):
+                    self.report_progress("New credential token created.")
+                else:
+                    self.report_progress("▌WARNING: Failed to create credential token. Proceeding without data sampling.")
+            else:
+                self.report_progress(f"▌WARNING: Credentials not found for {self.schema}. Proceeding without data sampling.")
 
         # 2. Find objects
         objects_map = await self.find_missing_comments(wildcard)
@@ -455,15 +457,24 @@ def main():
              logger.error(f"Password not found for {args.database}.{args.schema}")
              sys.exit(1)
 
-    config = get_config()
-    client = MCPClient(config)
+    api_url, qe_url = get_mcp_urls()
+    api_server_tools = McpToolset(connection_params=StreamableHTTPConnectionParams(url=api_url))
+    query_engine_tools = McpToolset(connection_params=StreamableHTTPConnectionParams(url=qe_url))
+    client = MCPClient(api_server_tools, query_engine_tools)
 
     logger.info("Creating credential token...")
-    if not client.create_credential_token(args.database, args.schema, password):
+    import asyncio
+    async def get_token():
+        return await client.create_credential_token(args.database, args.schema, password)
+
+    if not asyncio.run(get_token()):
         sys.exit(1)
 
-    generator = CommentGenerator(client, args.database, args.schema)
-    generator.run(args.wildcard, args.output)
+    async def run_gen():
+        generator = CommentGenerator(client, args.database, args.schema)
+        await generator.run(args.wildcard, args.output)
+
+    asyncio.run(run_gen())
 
 if __name__ == "__main__":
     main()

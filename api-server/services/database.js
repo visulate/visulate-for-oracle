@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
- const oracledb = require('oracledb');
- const dbConfig = require('../config/database');
- const dbConstants = require('../config/db-constants');
- const logger = require('./logger.js');
- const schemaSql = require('./sql/schema-queries');
- const util = require('./util');
+const oracledb = require('oracledb');
+const dbConfig = require('../config/database');
+const dbConstants = require('../config/db-constants');
+const logger = require('./logger.js');
+const schemaSql = require('./sql/schema-queries');
+const util = require('./util');
 
 /**
  * Creates a connection pool for each endpoint
@@ -42,7 +42,7 @@ module.exports.closePool = closePool;
  * Close connection pools
  */
 async function close() {
-  for (const endpoint of dbConfig.endpoints){
+  for (const endpoint of dbConfig.endpoints) {
     try {
       await closePool(endpoint.connect.poolAlias);
     } catch (err) {
@@ -94,7 +94,9 @@ module.exports.simpleExecute = simpleExecute;
  * @param {*} poolAlias - Connection pool alias
  * @returns connection - a database connection
  */
-function getConnection(poolAlias){
+const poolCreationMutex = new Map();
+
+function getConnection(poolAlias) {
   return new Promise(async (resolve, reject) => {
     try {
       const pool = oracledb.getPool(poolAlias);
@@ -103,9 +105,37 @@ function getConnection(poolAlias){
     } catch (err) {
       // Pool does not exist. Create it.
       if (err.message.startsWith('NJS-047')) {
+        // Use a per-alias mutex to avoid multiple simultaneous createPool calls
+        if (poolCreationMutex.has(poolAlias)) {
+          // Wait for the existing creation promise to finish
+          try {
+            await poolCreationMutex.get(poolAlias);
+            const pool = oracledb.getPool(poolAlias);
+            const connection = await pool.getConnection();
+            resolve(connection);
+            return;
+          } catch (waitErr) {
+            reject(waitErr);
+            return;
+          }
+        }
+
+        const createPromise = (async () => {
+          try {
+            const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
+            if (!endpoint) {
+              throw new Error(`Endpoint configuration for poolAlias ${poolAlias} not found.`);
+            }
+            await oracledb.createPool(endpoint.connect);
+          } finally {
+            poolCreationMutex.delete(poolAlias);
+          }
+        })();
+
+        poolCreationMutex.set(poolAlias, createPromise);
+
         try {
-          const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
-          await oracledb.createPool(endpoint.connect);
+          await createPromise;
           const pool = oracledb.getPool(poolAlias);
           const connection = await pool.getConnection();
           resolve(connection);
@@ -131,7 +161,7 @@ module.exports.getConnection = getConnection;
  * @param {*} poolAlias - Connection pool alias name
  */
 
-function pingConnection(poolAlias){
+function pingConnection(poolAlias) {
   return new Promise(async (resolve, reject) => {
     let connection;
     try {
@@ -160,7 +190,7 @@ module.exports.pingConnection = pingConnection;
  * Release a connection back to the connection pool
  * @param {*} connection - The connection to release
  */
-function closeConnection(connection){
+function closeConnection(connection) {
   return new Promise(async (resolve, reject) => {
     try {
       await connection.close();
@@ -181,11 +211,11 @@ module.exports.closeConnection = closeConnection;
  * @param {*} binds - bind variables
  * @param {*} opts - options
  */
-function query(connection, statement, binds = [], opts = {}){
+function query(connection, statement, binds = [], opts = {}) {
   return new Promise(async (resolve, reject) => {
     opts.outFormat = oracledb.OUT_FORMAT_OBJECT;
     opts.resultSet = true;
-    oracledb.fetchAsString = [ oracledb.CLOB ];
+    oracledb.fetchAsString = [oracledb.CLOB];
     let rs;
 
     try {

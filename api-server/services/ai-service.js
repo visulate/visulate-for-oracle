@@ -441,6 +441,43 @@ async function getSchemaSummaryInternal(db, owner) {
 }
 
 /**
+ * Core function to get objects missing comments in a schema.
+ * @param {string} db - The database name
+ * @param {string} owner - The schema owner
+ * @param {string} wildcard - Optional pattern to filter object names
+ */
+async function getObjectsMissingCommentsInternal(db, owner, wildcard = '%') {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const tableQuery = statement['SCHEMA-MISSING-TABLE-COMMENTS'];
+  const colQuery = statement['SCHEMA-MISSING-COL-COMMENTS'];
+  const params = {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: wildcard.toUpperCase() },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" }
+  };
+
+  const [tables, columns] = await Promise.all([
+    dbService.simpleExecute(poolAlias, tableQuery.sql, params),
+    dbService.simpleExecute(poolAlias, colQuery.sql, params)
+  ]);
+
+  return {
+    tables: tables.map(row => ({
+      name: row.Name,
+      type: row.Type
+    })),
+    columns: columns.map(row => ({
+      tableName: row['Table Name'],
+      columnName: row['Column Name']
+    }))
+  };
+}
+
+/**
  * Core function to get schema columns.
  * @param {string} db - The database name
  * @param {string} owner - The schema owner
@@ -1059,6 +1096,32 @@ function createMcpServer() {
       }
     },
   );
+  server.tool(
+    'getObjectsMissingComments',
+    'Get tables, views and columns that are missing comments in a schema.',
+    {
+      db: z.string().describe("The database where the schema resides."),
+      owner: z.string().describe("The name of the schema to analyze."),
+      wildcard: z.string().optional().describe("Optional pattern to filter object names (default: '%').")
+    },
+    async ({ db, owner, wildcard }) => {
+      try {
+        const result = await getObjectsMissingCommentsInternal(db, owner, wildcard);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getObjectsMissingComments tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getObjectsMissingCommentsError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
 
   server.tool(
     'generativeAI',
@@ -1119,7 +1182,7 @@ function createMcpServer() {
 
 async function handleMcpRequest(req, res, next) {
   try {
-    const sessionIdHeader = req.headers['mcp-session-id'];
+    const sessionIdHeader = req.headers['mcp-session-id'] || req.query.sessionId;
     let sessionEntry = null;
 
     // Log the request details for debugging
@@ -1179,11 +1242,12 @@ async function handleMcpRequest(req, res, next) {
       sessionEntry.lastActivity = new Date();
 
       // Case 2: Initialization request → create new transport + server
-    } else if (!sessionIdHeader && req.body && req.body.method === 'initialize') {
+      // We allow initialization if the session doesn't exist yet, even if a session ID was provided
+    } else if (req.body && req.body.method === 'initialize') {
       // Enforce connection limits before creating new session
       enforceConnectionLimits();
 
-      const newSessionId = randomUUID();
+      const newSessionId = sessionIdHeader || randomUUID();
 
       // Create a new transport for this session
       const transport = new StreamableHTTPServerTransport({

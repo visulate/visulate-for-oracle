@@ -1,70 +1,72 @@
 ---
 steps:
-# API Server
+# 1. Versioning Helper (Calculate major.minor)
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'calculate-tags'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "$_VERSION" | cut -d. -f1,2 > .short_version
+    echo "Short version: $(cat .short_version)"
+
+# 2. Build Images in Parallel
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION',
-         '.']
+  id: 'build-api'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION', '.']
   dir: 'api-server'
   waitFor: ['-']
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION' ]
-
-# UI
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION',
-         '.']
+  id: 'build-ui'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION', '.']
   dir: 'ui'
   waitFor: ['-']
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION' ]
-
-# Query Engine
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION',
-         '.' ]
+  id: 'build-sql'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION', '.']
   dir: 'query-engine'
   waitFor: ['-']
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION']
-
-# Proxy Server
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/proxy:$_VERSION',
-         '.']
+  id: 'build-proxy'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/proxy:$_VERSION', '.']
   dir: 'proxy-config'
   waitFor: ['-']
 
-# Util image
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION',
-         '.']
+  id: 'build-util'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION', '.']
   dir: 'google-marketplace/util-image'
   waitFor: ['-']
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION' ]
-
-#tester
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
-         '.']
+  id: 'build-tester'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION', '.']
   dir: 'google-marketplace/apptest/tester'
   waitFor: ['-']
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION' ]
+  id: 'build-ai-agent'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION', '.']
+  dir: 'ai-agent'
+  waitFor: ['-']
 
-# Deployer
+# 3. Handle UBBAgent & Pull/Tag
 - name: 'gcr.io/cloud-builders/docker'
+  id: 'tag-ubbagent'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    docker pull gcr.io/cloud-marketplace-tools/metering/ubbagent:latest
+    docker tag gcr.io/cloud-marketplace-tools/metering/ubbagent:latest gcr.io/$PROJECT_ID/$_APP_NAME/ubbagent:$_VERSION
+  waitFor: ['-']
+
+# 4. Deployer (Depends on other builds being ready to pull for chart bundling)
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-deployer'
   args: ['build',
          '--build-arg', 'REGISTRY=gcr.io/$PROJECT_ID',
          '--build-arg', 'TAG=$_VERSION',
@@ -74,31 +76,90 @@ steps:
   dir: 'google-marketplace'
   waitFor: ['-']
 
+# 5. Push Images (Required for Crane mutations)
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION']
+  id: 'push-all'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    for img in "" "/ui" "/sql" "/proxy" "/util" "/tester" "/deployer" "/ai-agent" "/ubbagent"; do
+      docker push gcr.io/$PROJECT_ID/$_APP_NAME$${img}:$_VERSION
+    done
+  waitFor: ['build-api', 'build-ui', 'build-sql', 'build-proxy', 'build-util', 'build-tester', 'build-deployer', 'build-ai-agent', 'tag-ubbagent']
 
-# AI Agent
+# 6. Apply Secondary Tags (major.minor)
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION',
-         '.']
-  dir: 'ai-agent'
-  waitFor: ['-']
+  id: 'apply-short-tags'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    SHORT_VER=$(cat .short_version)
+    for img in "" "/ui" "/sql" "/proxy" "/util" "/tester" "/deployer" "/ai-agent" "/ubbagent"; do
+      docker tag gcr.io/$PROJECT_ID/$_APP_NAME$${img}:$_VERSION gcr.io/$PROJECT_ID/$_APP_NAME$${img}:$${SHORT_VER}
+      docker push gcr.io/$PROJECT_ID/$_APP_NAME$${img}:$${SHORT_VER}
+    done
+  waitFor: ['push-all', 'calculate-tags']
 
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION']
+# 7. Apply Marketplace Annotations using Crane
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-base'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
 
-timeout: 1200s
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-ui'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-sql'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-proxy'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/proxy:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-util'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-tester'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-deployer'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-ai-agent'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-ubbagent'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME/ubbagent:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-all']
+
+images:
+- 'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/proxy:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION'
+- 'gcr.io/$PROJECT_ID/$_APP_NAME/ubbagent:$_VERSION'
+
+timeout: 1800s
 substitutions:
     _APP_NAME: visulate-for-oracle
     _VERSION: 2.5.0
-images: [
-  'gcr.io/$PROJECT_ID/$_APP_NAME:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/ui:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/sql:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/proxy:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/util:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/tester:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/deployer:$_VERSION',
-  'gcr.io/$PROJECT_ID/$_APP_NAME/ai-agent:$_VERSION'
-]

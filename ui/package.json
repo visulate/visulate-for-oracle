@@ -14,8 +14,10 @@
   },
   "private": true,
   "dependencies": {
-    "-": "^0.0.1",
     "@angular/animations": "^21.0.2",
+    "chevrotain": "^11.0.3",
+    "cytoscape": "^3.33.1",
+    "d3-selection": "^3.0.0",
     "@angular/cdk": "^21.0.2",
     "@angular/common": "^21.0.2",
     "@angular/compiler": "^21.0.2",
@@ -29,7 +31,6 @@
     "ngx-highlightjs": "^9.0.0",
     "ngx-markdown": "^21.0.0",
     "rxjs": "~6.5.5",
-    "save-dev": "^0.0.1-security",
     "tslib": "^2.6.3",
     "uuid": "^10.0.0",
     "zone.js": "~0.15.1"

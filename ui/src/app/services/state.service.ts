@@ -51,11 +51,13 @@ export class StateService {
       []));
   private sqlEnabled = new BehaviorSubject<boolean>(false);
   private aiEnabledSubject = new BehaviorSubject<boolean>(false);
+  private credentialsChanged = new BehaviorSubject<void>(undefined);
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
   sqlEnabled$ = this.sqlEnabled.asObservable();
   aiEnabled$ = this.aiEnabledSubject.asObservable();
+  credentialsChanged$ = this.credentialsChanged.asObservable();
 
   getCurrentContext() {
     return this.getStoredContext();
@@ -175,6 +177,10 @@ export class StateService {
   }
   getAuthToken(database: string): string | null {
     return this.authTokens[database] || null;
+  }
+
+  notifyCredentialsChanged() {
+    this.credentialsChanged.next();
   }
 
 

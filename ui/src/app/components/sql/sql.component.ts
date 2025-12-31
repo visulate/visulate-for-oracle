@@ -18,6 +18,8 @@ import { Component, OnInit, OnDestroy, Pipe, PipeTransform } from '@angular/core
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
+import { MatDialog } from '@angular/material/dialog';
+import { CredentialDialogComponent } from '../../components/credential-dialog/credential-dialog.component';
 import { environment } from '../../../environments/environment';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -25,10 +27,10 @@ import { SqlModel } from '../../models/sql.model';
 
 
 @Component({
-    selector: 'app-sql',
-    templateUrl: './sql.component.html',
-    styleUrls: ['./sql.component.css'],
-    standalone: false
+  selector: 'app-sql',
+  templateUrl: './sql.component.html',
+  styleUrls: ['./sql.component.css'],
+  standalone: false
 })
 export class SqlComponent implements OnInit, OnDestroy {
 
@@ -49,7 +51,9 @@ export class SqlComponent implements OnInit, OnDestroy {
 
   constructor(
     private state: StateService,
-    private restService: RestService) { }
+    private restService: RestService,
+    private dialog: MatDialog
+  ) { }
 
   /**
    * Update query form to reflect the current context
@@ -69,9 +73,10 @@ export class SqlComponent implements OnInit, OnDestroy {
       this.queryOptions = '{"download_lobs": "N", "csv_header": "N"}';
       this.resultSet = new SqlModel();
     }
+    this.loadSavedCredentials();
   }
 
-  setSql(sql){
+  setSql(sql) {
     this.sqlStatement = sql;
     // escape $ in sql with \$ in curl request
     this.curlSql = sql.split('$').join('\\$');
@@ -87,6 +92,33 @@ export class SqlComponent implements OnInit, OnDestroy {
     this.dbCredentials = btoa(`${this.dbUser}/${password}@${this.currentContext.endpoint}`);
   }
 
+  /**
+   * Load credentials from session storage if available
+   */
+  private loadSavedCredentials() {
+    if (!this.currentContext || !this.currentContext.endpoint) return;
+    const database = this.currentContext.endpoint;
+    const saved = sessionStorage.getItem('visulate-credentials');
+    if (saved) {
+      try {
+        const credentials = JSON.parse(saved);
+        const dbCreds = credentials[database];
+        if (dbCreds && dbCreds.username && dbCreds.password) {
+          this.dbUser = dbCreds.username;
+          this.password = dbCreds.password;
+          this.dbCredentials = btoa(`${this.dbUser}/${this.password}@${database}`);
+          return;
+        }
+      } catch (e) {
+        console.error("Error parsing saved credentials", e);
+      }
+    }
+    // Default/Reset state if no credentials found
+    this.dbUser = this.currentContext.owner ? this.currentContext.owner : 'VISULATE';
+    this.password = '';
+    this.dbCredentials = '';
+  }
+
 
   /**
    * Call the query engine API
@@ -94,7 +126,7 @@ export class SqlComponent implements OnInit, OnDestroy {
   public executeSql() {
     this.resultSet = new SqlModel();
     this.errorMessage = '';
-    try{
+    try {
       const bindVars = this.bindVariables ? JSON.parse(this.bindVariables) : JSON.parse('[]');
       const options = this.queryOptions ? JSON.parse(this.queryOptions) : JSON.parse('{}');
       this.restService.sql2csv$(this.queryUrl, this.dbCredentials, this.sqlStatement, bindVars, options)
@@ -123,6 +155,22 @@ export class SqlComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(context => { this.processContextChange(context); });
 
+    this.state.credentialsChanged$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(() => { this.loadSavedCredentials(); });
+  }
+
+  public openCredentialsDialog(): void {
+    const dialogRef = this.dialog.open(CredentialDialogComponent, {
+      width: '400px',
+      data: { database: this.currentContext?.endpoint || '' }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.token) {
+        this.state.setAuthToken(result.database, result.token);
+      }
+    });
   }
 
   ngOnDestroy() {
@@ -133,8 +181,8 @@ export class SqlComponent implements OnInit, OnDestroy {
 }
 
 @Pipe({
-    name: 'trim',
-    standalone: false
+  name: 'trim',
+  standalone: false
 })
 export class TrimPipe implements PipeTransform {
   transform(value: string): string {

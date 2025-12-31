@@ -2,20 +2,17 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml .
-
-# Install dependencies including the project itself in editable mode if feasible,
-# or just requirements. For pyproject.toml we can use pip.
-# Note: --no-cache-dir reduces image size
-RUN pip install --no-cache-dir .
-
 # Copy agent code
 COPY . .
 
+# Ensure downloads directory exists
+RUN mkdir -p /app/downloads
+
+# Install dependencies and the package
+RUN pip install --no-cache-dir .
+
 # Expose agent ports
-EXPOSE 10000
-EXPOSE 10001
+EXPOSE 10000 10001 10002 10003 10004 10005
 
 # Make startup script executable
 RUN chmod +x start_agents.sh
