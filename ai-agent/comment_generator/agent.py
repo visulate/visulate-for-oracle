@@ -4,10 +4,12 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 # Import from local modules
-from comment_generator.main import CommentGenerator, MCPClient, get_config
+from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
-from common.context import session_id_var, progress_callback_var, auth_token_var, cancelled_var
+from common.context import session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var
 import asyncio
+from pathlib import Path
+from google.adk.tools.mcp_tool import McpToolset
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,9 @@ If not found in the context or message, ask the user for them.
 You can optionally accept a wildcard pattern to filter object names.
 """
 
-def create_generate_comments_tool() -> FunctionTool:
+from common.tools import get_mcp_toolsets, create_connection_token_tool
+
+def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_tools: McpToolset) -> FunctionTool:
     """Factory to create the generate_comments tool."""
 
     async def generate_comments(database: str, schema: str, wildcard: str = "%") -> str:
@@ -46,11 +50,10 @@ def create_generate_comments_tool() -> FunctionTool:
             session_id = session_id_var.get()
 
             # Define output directory and file
-            # Use relative path for local development compatibility
             downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
             output_dir = os.path.join(downloads_base, session_id)
             filename = f"comments_{schema}_{database}.sql"
-            output_file = f"{output_dir}/{filename}"
+            output_file = Path(output_dir) / filename
 
             # Ensure directory exists
             os.makedirs(output_dir, exist_ok=True)
@@ -58,22 +61,19 @@ def create_generate_comments_tool() -> FunctionTool:
             # 1. Get auth token from context
             auth_token = auth_token_var.get()
 
-            # 2. Setup Client
-            config = get_config()
-            client = MCPClient(config)
+            # 2. Setup Client using provided toolsets
+            client = MCPClient(api_server_tools, query_engine_tools, session_id=session_id)
 
             # 3. Run Generator
             generator = CommentGenerator(client, database, schema, credential_token=auth_token, session_id=session_id)
-            stmt_count = await generator.run(wildcard, output_file)
+            stmt_count = await generator.run(wildcard, str(output_file))
 
             if stmt_count == 0:
                 return f"No Oracle objects (tables or views) in {schema} were found that are missing comments."
 
-            # Return a download link (or path that the UI can interpret)
-            # The API server will proxy /download/{session_id}/{filename}
+            # Return a download link
             download_link = f"/download/{session_id}/{filename}"
 
-            # Use progress_callback to ensure it reaches the UI immediately
             from common.context import progress_callback_var
             callback = progress_callback_var.get()
             final_msg = f"Successfully generated comments for {schema} in {database}. \nDownload the SQL script here: [Download SQL]({download_link})"
@@ -90,6 +90,7 @@ def create_generate_comments_tool() -> FunctionTool:
 
 def create_comment_generator_agent() -> LlmAgent:
     logger.info("--- Creating Comment Generator Agent... ---")
+    api_server_tools, query_engine_tools = get_mcp_toolsets()
 
     return LlmAgent(
         model="gemini-flash-latest",
@@ -97,7 +98,10 @@ def create_comment_generator_agent() -> LlmAgent:
         description="An agent that generates comments for Oracle database objects.",
         instruction=SYSTEM_INSTRUCTION,
         tools=[
-            create_generate_comments_tool()
+            api_server_tools,
+            query_engine_tools,
+            create_connection_token_tool(query_engine_tools),
+            create_generate_comments_tool(api_server_tools, query_engine_tools)
         ],
     )
 
@@ -132,8 +136,22 @@ if __name__ == "__main__":
             message = data.get("message", "")
             context_data = data.get("context", {})
             auth_token = context_data.get("authToken")
+            db_credentials = context_data.get("dbCredentials")
 
-            content = types.Content(role="user", parts=[types.Part(text=message)])
+            if context_data and isinstance(context_data, dict):
+                preamble = "Current UI Context:\n"
+                if context_data.get("endpoint"):
+                    preamble += f"- Database (Endpoint): {context_data['endpoint']}\n"
+                if context_data.get("owner"):
+                    preamble += f"- Schema (Owner): {context_data['owner']}\n"
+                if context_data.get("objectType") and context_data.get("objectName"):
+                    preamble += f"- Selected Object: {context_data['objectType']} {context_data['objectName']}\n"
+
+                full_message = f"{preamble}\nUser Request: {message}"
+            else:
+                full_message = message
+
+            content = types.Content(role="user", parts=[types.Part(text=full_message)])
             session_id = str(uuid.uuid4())
 
             async def stream_generator():
@@ -142,6 +160,12 @@ if __name__ == "__main__":
                 auth_token_token = None
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
+
+                db_credentials_token = None
+                if db_credentials:
+                    db_credentials_token = db_credentials_var.set(db_credentials)
+
+                ui_context_token = ui_context_var.set(context_data if isinstance(context_data, dict) else {})
 
                 loop = asyncio.get_running_loop()
                 def progress_callback(msg):
@@ -216,6 +240,9 @@ if __name__ == "__main__":
                     session_id_var.reset(session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
+                    if db_credentials_token:
+                        db_credentials_var.reset(db_credentials_token)
+                    ui_context_var.reset(ui_context_token)
                     progress_callback_var.reset(progress_callback_token)
                     logger.info(f"Cleanup completed for session {session_id}")
 

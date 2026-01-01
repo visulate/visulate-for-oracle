@@ -18,7 +18,7 @@ from google.adk.agents.run_config import StreamingMode
 
 # Import from common module
 from common.config import get_mcp_urls
-from common.context import session_id_var, auth_token_var, progress_callback_var, cancelled_var
+from common.context import session_id_var, auth_token_var, progress_callback_var, cancelled_var, ui_context_var, db_credentials_var
 # Import Root Agent factory from local agent.py
 from root_agent.agent import create_root_agent
 
@@ -60,15 +60,23 @@ def create_app() -> FastAPI:
                     logger.warning(f"Failed to parse context string: {e}")
 
             auth_token = None
+            db_credentials = None
             if isinstance(context, dict):
-                # Prioritize dbCredentials (JSON containing all authorized databases) over a single authToken
-                auth_token = context.get("dbCredentials") or context.get("authToken")
+                auth_token = context.get("authToken")
+                db_credentials = context.get("dbCredentials")
 
             # Construct prompt with context if available
             prompt_text = message
-            if context:
-                 context_str = json.dumps(context) if isinstance(context, dict) else str(context)
-                 prompt_text = f"{message}\n\nContext:\n{context_str}"
+            if context and isinstance(context, dict):
+                preamble = "Current UI Context:\n"
+                if context.get("endpoint"):
+                    preamble += f"- Database (Endpoint): {context['endpoint']}\n"
+                if context.get("owner"):
+                    preamble += f"- Schema (Owner): {context['owner']}\n"
+                if context.get("objectType") and context.get("objectName"):
+                    preamble += f"- Selected Object: {context['objectType']} {context['objectName']}\n"
+
+                prompt_text = f"{preamble}\nUser Request: {message}"
 
             content = types.Content(role="user", parts=[types.Part(text=prompt_text)])
             # Determine session ID: use data.get("session_id"), or context.get("session_id"), or generate new
@@ -97,6 +105,12 @@ def create_app() -> FastAPI:
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
 
+                db_credentials_token = None
+                if db_credentials:
+                    db_credentials_token = db_credentials_var.set(db_credentials)
+
+                ui_context_token = ui_context_var.set(context if isinstance(context, dict) else {})
+
                 def progress_callback(msg):
                     try:
                         loop.call_soon_threadsafe(queue.put_nowait, f"▌STATUS: {msg}\n")
@@ -107,25 +121,43 @@ def create_app() -> FastAPI:
 
                 async def run_agent():
                     try:
+                        last_tool_name = None
+                        last_tool_result = None
+                        text_parts_seen = 0
+
                         async for event in runner.run_async(
                             user_id="visulate_user",
                             session_id=session_id,
                             new_message=content
                         ):
-                            logger.info(f"Root Agent Event: {type(event)}")
+                            logger.debug(f"Root Agent Event: {type(event)}")
                             if event.content and event.content.parts:
                                 for part in event.content.parts:
                                     if part.text:
+                                        text_parts_seen += 1
                                         logger.info(f"Root Agent Part Text: {len(part.text)} chars")
                                         await queue.put(part.text)
                                     elif part.function_call:
-                                        logger.info(f"Root Agent Part Function Call: {part.function_call.name}")
+                                        last_tool_name = part.function_call.name
+                                        logger.info(f"Root Agent Part Function Call: {last_tool_name}")
                                     elif part.function_response:
+                                        # Capture the tool result in case the next turn is empty
+                                        last_tool_result = part.function_response.response
                                         logger.info(f"Root Agent Part Function Response: {part.function_response.name}")
                                     else:
                                         logger.info(f"Root Agent Part Other: {part}")
                             else:
                                 logger.info("Root Agent Event Content Empty")
+                        
+                        # Fallback: If the model called a tool but returned no text, 
+                        # and it wasn't a follow-up turn that already produced text,
+                        # we yield the specialist's result directly to ensure the user isn't left with silence.
+                        if text_parts_seen == 0 and last_tool_result:
+                            logger.warning(f"Root Agent produced NO TEXT after tool {last_tool_name} returned results. Yielding fallback.")
+                            # Prepend a header to clarify where the text came from
+                            header = f"### Result from {last_tool_name.replace('delegate_to_', '').replace('_', ' ').title()}\n"
+                            await queue.put(header)
+                            await queue.put(str(last_tool_result))
                     except Exception as e:
                         logger.error(f"Error during agent execution: {e}", exc_info=True)
                         await queue.put(f"▌ERROR: {str(e)}\n")
@@ -161,6 +193,9 @@ def create_app() -> FastAPI:
                     session_id_var.reset(session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
+                    if db_credentials_token:
+                        db_credentials_var.reset(db_credentials_token)
+                    ui_context_var.reset(ui_context_token)
                     progress_callback_var.reset(progress_callback_token)
 
             return StreamingResponse(response_generator(), media_type="text/plain")

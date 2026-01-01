@@ -37,7 +37,7 @@ dependencies = [
 visulate-agent = "root_agent.main:main"
 
 [tool.setuptools]
-packages = ["common", "downloads", "root_agent", "nl2sql_agent", "comment_generator", "object_analysis_agent"]
+packages = ["common", "root_agent", "nl2sql_agent", "comment_generator", "object_analysis_agent", "erd_agent", "schema_analysis_agent"]
 
 [project.urls]
 Homepage = "https://visulate.net"

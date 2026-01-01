@@ -18,7 +18,7 @@ services:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
-      - COMMENT_GENERATOR_URL=http://ai-agent:10001/agent/generate
+      - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
   visui:
     hostname: visui
     depends_on:
@@ -43,8 +43,7 @@ services:
       - vissql
       - visapi
     ports:
-      - "10000:10000"
-      - "10001:10001"
+      - "10000-10005:10000-10005"
     volumes:
       - visulate-downloads:/app/downloads
     environment:

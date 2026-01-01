@@ -9,7 +9,7 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
 from google.genai import types
-from common.context import progress_callback_var, session_id_var, auth_token_var, cancelled_var, cancelled_sessions
+from common.context import progress_callback_var, session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var
 
 logger = logging.getLogger(__name__)
 def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> FastAPI:
@@ -29,6 +29,7 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
         message = data.get("message", "")
         context_data = data.get("context", {})
         auth_token = context_data.get("authToken")
+        db_credentials = context_data.get("dbCredentials")
         session_id = data.get("session_id", "default")
 
         async def response_generator():
@@ -39,6 +40,12 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
             auth_token_token = None
             if auth_token:
                 auth_token_token = auth_token_var.set(auth_token)
+
+            db_credentials_token = None
+            if db_credentials:
+                db_credentials_token = db_credentials_var.set(db_credentials)
+
+            ui_context_token = ui_context_var.set(context_data if isinstance(context_data, dict) else {})
 
             def progress_callback(msg):
                 try:
@@ -60,7 +67,20 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                             session_id=session_id
                         )
 
-                    content = types.Content(role="user", parts=[types.Part(text=message)])
+                    if context_data and isinstance(context_data, dict):
+                        preamble = "Current UI Context:\n"
+                        if context_data.get("endpoint"):
+                            preamble += f"- Database (Endpoint): {context_data['endpoint']}\n"
+                        if context_data.get("owner"):
+                            preamble += f"- Schema (Owner): {context_data['owner']}\n"
+                        if context_data.get("objectType") and context_data.get("objectName"):
+                            preamble += f"- Selected Object: {context_data['objectType']} {context_data['objectName']}\n"
+
+                        full_message = f"{preamble}\nUser Request: {message}"
+                    else:
+                        full_message = message
+
+                    content = types.Content(role="user", parts=[types.Part(text=full_message)])
                     async for event in runner.run_async(
                         user_id="visulate_user",
                         session_id=session_id,
@@ -130,6 +150,7 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                 session_id_var.reset(session_token)
                 if auth_token_token:
                     auth_token_var.reset(auth_token_token)
+                ui_context_var.reset(ui_context_token)
                 progress_callback_var.reset(progress_callback_token)
 
         return StreamingResponse(response_generator(), media_type="text/plain")

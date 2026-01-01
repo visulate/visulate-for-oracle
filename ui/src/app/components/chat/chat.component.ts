@@ -51,6 +51,14 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       if (result && result.token) {
         this.stateService.addMessage({ user: 'System', text: `Authentication successful for ${result.database}. Token received and stored.` });
         this.stateService.setAuthToken(result.database, result.token);
+
+        // Automatically retry the last user message
+        const history = this.stateService.getChatHistory();
+        // Clone and reverse to find the last user message
+        const lastUserMsg = [...history].reverse().find(m => m.user === 'You');
+        if (lastUserMsg) {
+          this.sendMessage(lastUserMsg.text);
+        }
       }
     });
   }
@@ -95,13 +103,15 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     this.scrollToBottom();
   }
 
-  sendMessage(): void {
-    const userMessage = this.chatForm.get('message')?.value;
+  sendMessage(specificMessage?: string): void {
+    const userMessage = specificMessage || this.chatForm.get('message')?.value;
     if (!userMessage || !userMessage.trim()) return;
 
     // Add user message to state
     this.stateService.addMessage({ user: 'You', text: userMessage });
-    this.chatForm.reset();
+    if (!specificMessage) {
+      this.chatForm.reset();
+    }
 
     this.isLoading = true;
     this.abortController = new AbortController();

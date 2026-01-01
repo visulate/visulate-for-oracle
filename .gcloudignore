@@ -1,0 +1,17 @@
+.git
+node_modules/
+**/node_modules/
+.venv/
+**/ .venv/
+venv/
+**/venv/
+downloads/
+**/downloads/
+__pycache__/
+**/*.pyc
+.pytest_cache/
+*.egg-info/
+.DS_Store
+*.log
+.env
+.ipynb_checkpoints/

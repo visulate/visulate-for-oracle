@@ -539,4 +539,37 @@ statement['SCHEMA-COLUMNS'] = {
   }
 };
 
+statement['SCHEMA-MISSING-TABLE-COMMENTS'] = {
+  'title': 'Tables and Views Missing Comments',
+  'description': '',
+  'display': ["Owner", "Name", "Type"],
+  'sql': `SELECT owner, table_name as "Name", table_type as "Type"
+          FROM dba_tab_comments
+          WHERE owner = :owner
+          AND table_name LIKE :object_name ESCAPE :esc
+          AND comments IS NULL
+          AND table_type IN ('TABLE', 'VIEW')`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
+};
+
+statement['SCHEMA-MISSING-COL-COMMENTS'] = {
+  'title': 'Columns Missing Comments',
+  'description': '',
+  'display': ["Owner", "Table Name", "Column Name"],
+  'sql': `SELECT owner, table_name as "Table Name", column_name as "Column Name"
+          FROM dba_col_comments
+          WHERE owner = :owner
+          AND table_name LIKE :object_name ESCAPE :esc
+          AND comments IS NULL`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
+};
+
 module.exports.statement = statement;

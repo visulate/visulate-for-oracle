@@ -4,7 +4,7 @@ import json
 import asyncio
 from typing import Dict, Any
 from google.adk.tools.function_tool import FunctionTool
-from common.context import progress_callback_var, session_id_var, auth_token_var
+from common.context import progress_callback_var, session_id_var, auth_token_var, ui_context_var, db_credentials_var
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,19 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
         # Get session ID and auth token from context
         session_id = session_id_var.get() or "default"
         auth_token = auth_token_var.get()
+        db_credentials = db_credentials_var.get()
+        ui_context = ui_context_var.get() or {}
+
+        # Ensure context has the latest auth info
+        if auth_token:
+            ui_context["authToken"] = auth_token
+        if db_credentials:
+            ui_context["dbCredentials"] = db_credentials
+
         logger.info(f"Delegating to {agent_name} at {endpoint_url} (Session: {session_id})")
+        # Mask sensitive context data for logging
+        masked_context = {k: (v if v is None or k not in ['authToken', 'dbCredentials'] else '***') for k, v in ui_context.items()}
+        logger.info(f"Context passed to sub-agent: {masked_context}")
 
         full_response = []
         progress_callback = progress_callback_var.get()
@@ -29,7 +41,7 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                     json={
                         "message": message,
                         "session_id": session_id,
-                        "context": {"authToken": auth_token} if auth_token else {}
+                        "context": ui_context
                     }
                 ) as response:
                     async for chunk in response.aiter_bytes():

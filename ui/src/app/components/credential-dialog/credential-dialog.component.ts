@@ -2,6 +2,9 @@ import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RestService } from '../../services/rest.service';
+import { StateService } from '../../services/state.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 export interface DialogData {
   database: string;
@@ -19,12 +22,14 @@ export class CredentialDialogComponent {
   isLoading = false;
   error: string | null = null;
   databases: string[] = [];
+  private unsubscribe$ = new Subject<void>();
 
   constructor(
     public dialogRef: MatDialogRef<CredentialDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DialogData,
     private fb: FormBuilder,
-    private restService: RestService
+    private restService: RestService,
+    private state: StateService
   ) {
     this.form = this.fb.group({
       database: [data.database || '', Validators.required],
@@ -37,16 +42,21 @@ export class CredentialDialogComponent {
   }
 
   private loadDatabases(): void {
-    this.restService.getEndpoints$().subscribe(
-      (data) => {
-        this.databases = data.databases.map(db => db.endpoint);
-        if (this.databases.length > 0 && !this.form.get('database').value) {
-          this.form.patchValue({ database: this.databases[0] });
-          this.loadCredentials(this.databases[0]);
-        }
-      },
-      (err) => console.error("Error loading databases", err)
-    );
+    this.state.endpoints$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(
+        (data) => {
+          if (data && data.databases) {
+            this.databases = data.databases.map(db => db.endpoint);
+            if (this.databases.length > 0 && !this.form.get('database').value) {
+              const selectedDb = this.data.database || this.databases[0];
+              this.form.patchValue({ database: selectedDb });
+              this.loadCredentials(selectedDb);
+            }
+          }
+        },
+        (err) => console.error("Error loading databases", err)
+      );
   }
 
   onDatabaseChange(database: string): void {
@@ -76,6 +86,20 @@ export class CredentialDialogComponent {
     });
   }
 
+  onLogout(): void {
+    sessionStorage.removeItem('visulate-credentials');
+    this.state.notifyCredentialsChanged();
+    this.form.patchValue({
+      username: '',
+      password: ''
+    });
+  }
+
+  ngOnDestroy() {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
+
   onCancel(): void {
     this.dialogRef.close();
   }
@@ -103,6 +127,7 @@ export class CredentialDialogComponent {
 
     credentials[database] = { username, password };
     sessionStorage.setItem('visulate-credentials', JSON.stringify(credentials));
+    this.state.notifyCredentialsChanged();
 
     this.restService.generateToken(database, username, password).subscribe(
       (response: any) => {
