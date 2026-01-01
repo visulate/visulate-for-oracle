@@ -1,0 +1,51 @@
+---
+steps:
+# 1. Versioning Helper (Calculate major.minor)
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'calculate-tags'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "$_VERSION" | cut -d. -f1,2 > .short_version
+    echo "Short version: $(cat .short_version)"
+
+# 2. Build Image
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-component'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$_VERSION', '.']
+  dir: '$_DIR'
+
+# 3. Push Image
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'push-image'
+  args: ['push', 'gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$_VERSION']
+  waitFor: ['build-component']
+
+# 4. Apply Secondary Tags (major.minor)
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'apply-short-tags'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    SHORT_VER=$(cat .short_version)
+    docker tag gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$_VERSION gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$${SHORT_VER}
+    docker push gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$${SHORT_VER}
+  waitFor: ['push-image', 'calculate-tags']
+
+# 5. Apply Marketplace Annotations using Crane
+- name: 'gcr.io/go-containerregistry/crane'
+  id: 'annotate-image'
+  args: ['mutate', 'gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$_VERSION', '--annotation', 'com.googleapis.cloudmarketplace.product.service.name=services/visulate-for-oracle.mp-visulate-llc-public.appspot.com']
+  waitFor: ['push-image']
+
+images:
+- 'gcr.io/$PROJECT_ID/$_APP_NAME$_IMAGE_SUFFIX:$_VERSION'
+
+timeout: 1800s
+substitutions:
+    _APP_NAME: visulate-for-oracle
+    _VERSION: 2.5.0
+    _IMAGE_SUFFIX: ''
+    _DIR: '.'

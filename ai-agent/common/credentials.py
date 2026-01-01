@@ -23,26 +23,50 @@ class CredentialManager:
 
     def get_password(self, db_name: str, schema_name: str) -> str | None:
         """
-        Retrieves a password, trying auth_token_var (provided by UI) first,
+        Retrieves a password, trying db_credentials_var first, then auth_token_var,
         then GCP Secret Manager, then .env.
         """
-        from common.context import auth_token_var
+        from common.context import auth_token_var, db_credentials_var
         import json
 
         db_name = db_name.lower()
         schema_name = schema_name.upper()
 
-        # 1. Try auth_token_var (UI credentials)
+        # 1. Try db_credentials_var (Explicit DB credentials from UI)
+        db_creds = db_credentials_var.get()
+        if db_creds:
+            try:
+                # Could be a JSON string or already a dict
+                creds = json.loads(db_creds) if isinstance(db_creds, str) else db_creds
+
+                # Check for database-specific credentials
+                if db_name in creds and isinstance(creds[db_name], dict):
+                    match_creds = creds[db_name]
+                    if match_creds.get("username", "").upper() == schema_name:
+                        password = match_creds.get("password")
+                        if password:
+                            logger.info(f"Fetched password for {db_name}.{schema_name} from db_credentials.")
+                            return password
+
+                # Check top-level if match
+                if creds.get("username", "").upper() == schema_name:
+                    password = creds.get("password")
+                    if password:
+                         logger.info(f"Fetched password for {schema_name} from top-level db_credentials.")
+                         return password
+            except Exception as e:
+                logger.warning(f"Failed to parse db_credentials: {e}")
+
+        # 2. Try auth_token_var (Fallback for nested/legacy cases)
         auth_token = auth_token_var.get()
         if auth_token:
             try:
-                # The auth_token is expected to be a JSON string of credentials
+                # The auth_token might contain JSON credentials in some cases
                 creds = json.loads(auth_token)
-                # Check for database-specific credentials
                 if db_name in creds and isinstance(creds[db_name], dict):
-                    db_creds = creds[db_name]
-                    if db_creds.get("username", "").upper() == schema_name:
-                        password = db_creds.get("password")
+                    match_creds = creds[db_name]
+                    if match_creds.get("username", "").upper() == schema_name:
+                        password = match_creds.get("password")
                         if password:
                             logger.info(f"Fetched password for {db_name}.{schema_name} from auth_token.")
                             return password
@@ -53,9 +77,8 @@ class CredentialManager:
                     if password:
                          logger.info(f"Fetched password for {schema_name} from top-level auth_token.")
                          return password
-
-            except Exception as e:
-                logger.warning(f"Failed to parse auth_token JSON: {e}")
+            except:
+                pass # auth_token is likely a JWT, skip
 
         # 2. Try GCP Secret Manager
 

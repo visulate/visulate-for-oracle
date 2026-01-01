@@ -6,7 +6,7 @@ from google.adk.tools.function_tool import FunctionTool
 # Import from local modules
 from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
-from common.context import session_id_var, progress_callback_var, auth_token_var, cancelled_var
+from common.context import session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var
 import asyncio
 from pathlib import Path
 from google.adk.tools.mcp_tool import McpToolset
@@ -136,8 +136,22 @@ if __name__ == "__main__":
             message = data.get("message", "")
             context_data = data.get("context", {})
             auth_token = context_data.get("authToken")
+            db_credentials = context_data.get("dbCredentials")
 
-            content = types.Content(role="user", parts=[types.Part(text=message)])
+            if context_data and isinstance(context_data, dict):
+                preamble = "Current UI Context:\n"
+                if context_data.get("endpoint"):
+                    preamble += f"- Database (Endpoint): {context_data['endpoint']}\n"
+                if context_data.get("owner"):
+                    preamble += f"- Schema (Owner): {context_data['owner']}\n"
+                if context_data.get("objectType") and context_data.get("objectName"):
+                    preamble += f"- Selected Object: {context_data['objectType']} {context_data['objectName']}\n"
+
+                full_message = f"{preamble}\nUser Request: {message}"
+            else:
+                full_message = message
+
+            content = types.Content(role="user", parts=[types.Part(text=full_message)])
             session_id = str(uuid.uuid4())
 
             async def stream_generator():
@@ -146,6 +160,12 @@ if __name__ == "__main__":
                 auth_token_token = None
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
+
+                db_credentials_token = None
+                if db_credentials:
+                    db_credentials_token = db_credentials_var.set(db_credentials)
+
+                ui_context_token = ui_context_var.set(context_data if isinstance(context_data, dict) else {})
 
                 loop = asyncio.get_running_loop()
                 def progress_callback(msg):
@@ -220,6 +240,9 @@ if __name__ == "__main__":
                     session_id_var.reset(session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
+                    if db_credentials_token:
+                        db_credentials_var.reset(db_credentials_token)
+                    ui_context_var.reset(ui_context_token)
                     progress_callback_var.reset(progress_callback_token)
                     logger.info(f"Cleanup completed for session {session_id}")
 

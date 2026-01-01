@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Skip deployment if AI key is missing
+if [ -z "$GOOGLE_API_KEY" ] && [ -z "$GOOGLE_AI_KEY" ]; then
+    echo "AI key not found. Skipping AI agent deployment."
+    exit 0
+fi
+
 # Start specialized agents in background
 python -m nl2sql_agent.main &
 python -m object_analysis_agent.main &

@@ -31,6 +31,7 @@ To fulfill a request, ALWAYS follow these steps:
 5. **Final Report**: provide a comprehensive summary of the findings and the query results. Your FINAL response MUST be a detailed string containing the data or a clear explanation of the results. This allows the Root Agent to present your work to the user.
 
 ## Guidelines
+- **Continuity**: If the user asks to "run it", "execute the query", or "continue" after you previously generated a query (even if execution failed due to auth), DO NOT start the workflow from scratch. Look at the session history, find the last SQL query you generated, and skip directly to step 4 (Execution).
 - **Thinking and Progress**: ALWAYS provide real-time updates using the `report_progress` tool at EACH step of your workflow (Searching, Getting Context, Executing SQL). This keeps the user informed and ensures the Root Agent can relay your "thinking" progress.
 - Be precise with column names and join conditions.
 - If a query fails, analyze the error and attempt to fix it.
