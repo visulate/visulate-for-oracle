@@ -155,6 +155,12 @@ async function generativeAIInternal(args, res) {
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
+    // Forward the X-Session-ID header from the agent response to the client
+    const sessionId = response.headers['x-session-id'];
+    if (sessionId) {
+      res.setHeader('X-Session-ID', sessionId);
+    }
+
     // Propagate client disconnection to the agent
     res.on('close', () => {
       if (!res.writableEnded) {

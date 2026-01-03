@@ -136,7 +136,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       // We need to fix that or send history.
       // Let's send history for now to be safe, or coordinate session ID.
       // Sending history in context is safer for stateless backend.
-      chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1) // Exclude current empty response
+      // Sending history in context is safer for stateless backend.
+      chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1), // Exclude current empty response
+      session_id: this.stateService.getSessionId() // Include session_id from state
     };
 
     // Need to send lightweight context, Agent will use tools to get details.
@@ -209,8 +211,18 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
           this.cdr.detectChanges();
         });
       },
+      (sessionId) => {
+        this.stateService.setSessionId(sessionId);
+      },
       this.abortController.signal
     );
+  }
+
+  newChat(): void {
+    if (this.isLoading) {
+      this.cancelGeneration();
+    }
+    this.stateService.clearChatHistory();
   }
 
   cancelGeneration(): void {
