@@ -64,7 +64,6 @@ class DiagramGenerator:
         # 3. Position and Render Tables
         table_cells = {}
         table_coords = {}
-        port_usage = {} # table_name -> { side: [used_indices] }
         current_y = Y_START
 
         for lvl in sorted(tables_by_lvl.keys()):
@@ -82,7 +81,6 @@ class DiagramGenerator:
                 max_h_in_lvl = max(max_h_in_lvl, table_height)
 
                 table_coords[table['name']] = (current_x, current_y, TABLE_WIDTH, table_height)
-                port_usage[table['name']] = {'N': [], 'S': [], 'E': [], 'W': []}
 
                 # Create Table Cell (Swimlane)
                 cell = ET.SubElement(root, "mxCell", id=t_id, value=table['name'], style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=1;collapsible=1;marginBottom=0;align=center;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;", parent="1", vertex="1")
@@ -105,51 +103,8 @@ class DiagramGenerator:
             # Advance Y by the tallest table in this level plus minimum gap
             current_y += max_h_in_lvl + Y_GAP
 
-        # 4. Helper for Port Assignment
-        def get_port_params(s_name, t_name):
-            if s_name not in table_coords or t_name not in table_coords:
-                return None
 
-            sx, sy, sw, sh = table_coords[s_name]
-            tx, ty, tw, th = table_coords[t_name]
-
-            # Relative position
-            dx = tx - sx
-            dy = ty - sy
-
-            # Determine sides
-            if abs(dx) > abs(dy):
-                s_side = 'E' if dx > 0 else 'W'
-                t_side = 'W' if dx > 0 else 'E'
-            else:
-                s_side = 'S' if dy > 0 else 'N'
-                t_side = 'N' if dy > 0 else 'S'
-
-            def assign_port(name, side):
-                used = port_usage[name][side]
-                # 3 ports per side: 0.25, 0.5, 0.75
-                # Map side to coordinates
-                coords = {
-                    'N': [(0.25, 0), (0.5, 0), (0.75, 0)],
-                    'S': [(0.25, 1), (0.5, 1), (0.75, 1)],
-                    'E': [(1, 0.25), (1, 0.5), (1, 0.75)],
-                    'W': [(0, 0.25), (0, 0.5), (0, 0.75)]
-                }
-                for i in range(3):
-                    if i not in used:
-                        used.append(i)
-                        return coords[side][i]
-                return (0.5, 0.5) # Fallback
-
-            sp = assign_port(s_name, s_side)
-            tp = assign_port(t_name, t_side)
-
-            return {
-                'exitX': str(sp[0]), 'exitY': str(sp[1]),
-                'entryX': str(tp[0]), 'entryY': str(tp[1])
-            }
-
-        # 5. Add relationships
+        # 4. Add relationships
         # Filter: only render if both tables are on this page
         for rel in relationships:
             source = rel['tableName']
@@ -157,23 +112,11 @@ class DiagramGenerator:
 
             if source in table_cells and target in table_cells:
                 r_id = self._create_id()
-                port_params = get_port_params(source, target)
-
-                style_parts = [
-                    "edgeStyle=orthogonalEdgeStyle", "rounded=0", "orthogonalLoop=1",
-                    "jettySize=auto", "html=1", "endArrow=ERone", "startArrow=ERmany"
-                ]
-                if port_params:
-                    style_parts.append(f"exitX={port_params['exitX']}")
-                    style_parts.append(f"exitY={port_params['exitY']}")
-                    style_parts.append(f"entryX={port_params['entryX']}")
-                    style_parts.append(f"entryY={port_params['entryY']}")
-                    style_parts.append("exitDx=0")
-                    style_parts.append("exitDy=0")
-                    style_parts.append("entryDx=0")
-                    style_parts.append("entryDy=0")
-
-                style = ";".join(style_parts) + ";"
+                # Using edgeStyle=orthogonalEdgeStyle with floating connectors for automatic re-routing and obstacle avoidance.
+                style = (
+                    "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;"
+                    "html=1;endArrow=ERone;startArrow=ERmany;"
+                )
                 edge = ET.SubElement(root, "mxCell", id=r_id, value="", style=style, parent="1", source=table_cells[source], target=table_cells[target], edge="1")
                 ET.SubElement(edge, "mxGeometry", {"relative": "1", "as": "geometry"})
 

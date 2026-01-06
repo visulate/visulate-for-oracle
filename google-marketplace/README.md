@@ -75,7 +75,7 @@ gcloud compute instances create vm-visulate4oracle \
   --machine-type=e2-medium \
   --image-family=cos-stable \
   --image-project=cos-cloud \
-  --boot-disk-size=20GB \
+  --boot-disk-size=100GB \
   --boot-disk-type=pd-ssd \
   --network=projects/visulate-docker/global/networks/visulate-docker-vpc  \
   --subnet=projects/visulate-docker/regions/us-east1/subnetworks/us-east1-01  \

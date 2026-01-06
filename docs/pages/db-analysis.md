@@ -218,20 +218,37 @@ and index_type not in ('NORMAL', 'LOB')
 order by index_name, index_type
 ```
 
-DBMS and UTL Usage
+## PL/SQL Analysis
+Visulate for Oracle generates documentation for every object in an Oracle database including all PL/SQL packages, procedures and package bodies.
 
-List and link to stored procedures that reference Oracle's UTL and DBMS packages. These will need to be re-written if you are planning to migrate from Oracle to Postgres or MySQL.
+### Review the structure of a PL/SQL object
+Selecting an object opens a report showing its source code, extracted SQL statements, and dependencies. Each dependency includes a reference to the line number in the source code where the dependency appears.
 
-```
-select name as "Name"
-,      type as "Type"
-,      owner||'/'||type||'/'||name as link
-,      count(*) as "Count"
-from dba_source
-where owner = :owner
-and name like :object_name ESCAPE :esc
-group by name, type, owner||'/'||type||'/'||name
-order by name, type
+![SQL Statements](/images/sql-statements.png){: class="screenshot" tabindex="0" }
+
+### Analyzing PL/SQL with AI
+You can use the AI chatbot to explain business logic, generate test cases, or translate PL/SQL into other languages like Python.
+
+- **Explain Logic**: Ask *"Summarize the logic in this package."*
+- **Code Conversion**: Ask *"Convert this procedure into a Python function using cx_Oracle."*
+
+## Dependency Analysis
+Every Oracle database maintains a record of the dependencies between its objects in the `SYS.DEPENDENCY$` table. Visulate for Oracle identifies these dependencies to help you understand the impact of changes or plan partial migrations.
+
+### Using the UI
+Dependency reports are included at the bottom of each database object report.
+![Dependencies](/images/dependencies.png){: class="screenshot" tabindex="0" }
+
+### AI Powered Dependency Analysis
+Ask the AI agent to identify complex relationships: *"Analyze the downstream dependencies of the 'ORDERS' table"* or *"Show me all objects that would be invalidated if I modified this view."*
+
+### Object Collection API
+The object collection API is used to identify a collection of objects along with the dependent objects that are needed to create them. It is designed to support partial schema migrations.
+
+```shell
+curl -L 'https://my-domain.com/api/collection/my-db' \
+-H 'Content-Type: application/json' \
+-d '[{"owner": "HR", "type": "PACKAGE", "name": "EMP_MGMT_PKG", "status": "*"}]'
 ```
 
 ## API Access

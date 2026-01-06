@@ -177,13 +177,15 @@ export class RestService {
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     onError: (error: any) => void,
+    onSessionId?: (id: string) => void,
     signal?: AbortSignal
   ): Promise<void> {
     const apiUrl = `${environment.aiBase}/`;
     const payload = {
       message,
       context,
-      agent
+      agent,
+      session_id: context.session_id // Include session_id in payload
     };
 
     try {
@@ -199,6 +201,12 @@ export class RestService {
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Capture session ID from header
+      const sessionId = response.headers.get('X-Session-ID');
+      if (sessionId && onSessionId) {
+        onSessionId(sessionId);
       }
 
       const reader = response.body.getReader();

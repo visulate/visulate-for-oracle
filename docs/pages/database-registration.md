@@ -45,163 +45,45 @@ module.exports.endpoints = endpoints;
 
 Parameter values are described in the [Oracle node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#connpooling) documentation. The Visulate for Oracle sets the [UV_THREADPOOL_SIZE environment variable](http://docs.libuv.org/en/v1.x/threadpool.html) to the sum of the poolMax values + 4 before starting the Express server.
 
-## VM Registration
+## Registration on VM
 
-In a VM deployment the *database.js* file is located in the **/home/visulate/config** directory and can be edited directly. ssh into the VM to change its values and then restart the service using docker-compose:
+In a VM deployment, the *database.js* file is the source of truth for all registered connections. It is located in the **/home/visulate/config** directory and can be edited directly.
 
-```
-cd /home/visulate
-sudo vi config/database.js
-docker-compose down
-docker-compose up -d
-```
+### Steps to Register a Database:
 
-## Kubernetes Registration
+1. **SSH into the VM**: Connect to your Visulate instance.
+2. **Edit the Config**:
+   ```bash
+   cd /home/visulate
+   sudo vi config/database.js
+   ```
+3. **Add Connection Details**: Follow the structure in the [database integration file](#database-registration-file) section.
+4. **Restart Services**: Apply the changes by restarting the Docker containers.
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
 
-The initial deployment from GCP Marketplace provisions an API Server with no registered databases. You must create and apply a database registration file. A Kubernetes Secret is used to deliver a database registration file to the cluster. After the secret has been applied the API Server deployment is updated to use it.
+### SQL Query Engine Registration
+If you want to use the SQL-to-CSV features with a registered database, you must also add an entry to `config/endpoints.json`.
 
-![Update Database Connections](/images/update-database-connections.png)
+1. **Edit the Endpoints**:
+   ```bash
+   sudo vi config/endpoints.json
+   ```
+2. **Add Mapping**: Add a key-value pair where the key is the `namespace` from `database.js` and the value is the `connectString`.
+   ```json
+   {"prod_db": "prod-scan.internal:1521/PROD"}
+   ```
 
-### Create a database registration file
+## Testing Connections
+After restarting, call the `endpoints` API to list registered database connections:
 
-Create a registration file to identify your database connections. Cut and paste the secret below into a text editor or [download from GitHub](https://raw.githubusercontent.com/visulate/visulate-for-oracle/master/api-server/database-setup/sample-db-registration.js). Edit connections in the endpoints array to identify the databases you want to register. Add or remove connection objects as needed.
-```
-const endpoints = [
-{ namespace: 'oracle18XE',
-  description: '18c XE pluggable database instance running in a docker container',
-  connect: { poolAlias: 'oracle18XE',
-            user: 'visulate',
-            password: 'HtuUDK%?4JY#]L3:',
-            connectString: 'db20.visulate.net:41521/XEPDB1',
-            poolMin: 4,
-            poolMax: 4,
-            poolIncrement: 0,
-            poolPingInterval: 0
-          }
-},
-{ namespace: 'oracle11XE',
-  description: '11.2 XE database',
-  connect: { poolAlias: 'oracle11XE',
-            user: 'visulate',
-            password: '7>rC4P?!~U42tS^^',
-            connectString: 'db20.visulate.net:49161/XE',
-            poolMin: 4,
-            poolMax: 4,
-            poolIncrement: 0,
-            poolPingInterval: 0
-          }
-}
-];
-module.exports.endpoints = endpoints;
-```
-**Tip:** keep a copy of the database registration file for future use. For example, when [updating to a new version](/pages/upgrade-guide.html)
-of Visulate or to create a new secret after changing the database passwords.
-
-### Validate the file for JavaScript syntax errors
-
-Use a JavaScript code editor or lint tool to check the registration file for syntax errors before continuing.
-For example, a missing comma in the endpoints object would look like this in in Visual Studio Code:
-
-![JavaScript syntax error](/images/js-syntax-error.png)
-
-or this in `jshint`:
-
-```shell
-# install jshint (do this once)
-sudo npm install -g jshint
-
-# create a configuration file (do this once)
-echo '{ "esversion": 6 }' > /tmp/jshint.conf
-
-# test the file
-jshint --config /tmp/jshint.conf db-registration.js
-
-sample-db-registration.js: line 13, col 1, Expected ']' to match '[' from line 1 and instead saw '{'.
-sample-db-registration.js: line 13, col 2, Missing semicolon.
-sample-db-registration.js: line 13, col 14, Label 'namespace' on oracle11XE statement.
-sample-db-registration.js: line 14, col 3, Expected an assignment or function call and instead saw an expression.
-sample-db-registration.js: line 14, col 14, Missing semicolon.
-sample-db-registration.js: line 14, col 3, Unrecoverable syntax error. (53% scanned).
-
-6 errors
+```bash
+curl http://localhost/endpoints/
 ```
 
-### Apply the registration file as a new Kubernetes secret
+The registered connections should also appear in the Database dropdown in the Visulate UI. If connections are missing, follow the [troubleshooting guide](/pages/troubleshooting.html).
 
-Create a Kubernetes secret called `oracle-database-connections` with `database.js` as a key the registration file contents as its value:
-
-```shell
-kubectl create secret generic oracle-database-connections --from-file=database.js=./db-registration.js --namespace=test-ns
-```
-
-**Note:** the secret name is not important but **the secret's key must be `database.js`**
-
-The secret details should now appear in the Kubernetes UI.
-
-![Kubernetes Secret](/images/db-secret.png){: class="screenshot" tabindex="0" }
-
-### Update the API Server deployment
-
-Find the API Server deployment name:
-```
-$ kubectl get deploy --namespace=test-ns
-NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
-test-deployment-visulate-for-oracle-api   1/1     1            1           43h
-test-deployment-visulate-for-oracle-ui    1/1     1            1           43h
-```
-
-Download the API Server deployment manifest
-```
-kubectl get deploy test-deployment-visulate-for-oracle-api --namespace=test-ns -oyaml > deployment.yaml
-```
-
-Edit the downloaded deployment manifest. Update the secretName with the value from the previous step (use `kubectl get secret` if you forgot to make a note of the value).
-```
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  annotations:
-    deployment.kubernetes.io/revision: "1"
-
-...
-
-      volumes:
-      - secret:
-          defaultMode: 420
-          secretName: oracle-database-connections
-        name: config-database-volume
-      - emptyDir: {}
-        name: logfiles
-status: {}
-```
-**Tip:** the API server deployment manifest is quite long, look for a volume's secret called "config-database-volume". It should have a default secretName in the form {{ Release.Name }}-empty-database-array
-
-Validate the edited manifest:
-```
-$ kubectl apply --dry-run=client --validate --namespace=test-ns -f deployment.yaml
-```
-
-Apply the deployment manifest:
-
-```
-$ kubectl apply --namespace=test-ns -f deployment.yaml
-```
-
-Note: the API server deployment can also be updated using the GKE UI as shown in the [quickstart guide](/pages/quickstart.html#register-your-database-connection)
-
-### Test the connections
-Wait for the updated deployment to apply then test the connections.  Call the "endpoints" endpoint to list registered database connections:
-
-```
-$ curl https://visulate.mycorp.com/endpoints/
-{"mptest":"35.232.143.223:51521/XEPDB1"}
-```
-
-The registered connections should also appear in the database dropdown in the UI.
-
-Follow the steps in the  [troubleshooting guide](/pages/troubleshooting.html) if some or all of your database connections are missing
-
-## Deregister connections
-Database connections that are no longer required should be deregistered to avoid unnecessary charges.
-
-Deregistration follows the same process as registration. A new secret is applied with the connection removed and the API Server deployment is updated.
+## Deregistering Connections
+To deregister a connection, simply remove its entry from `database.js` (and `endpoints.json` if applicable) and restart the services using the steps above.

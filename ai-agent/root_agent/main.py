@@ -148,8 +148,8 @@ def create_app() -> FastAPI:
                                         logger.info(f"Root Agent Part Other: {part}")
                             else:
                                 logger.info("Root Agent Event Content Empty")
-                        
-                        # Fallback: If the model called a tool but returned no text, 
+
+                        # Fallback: If the model called a tool but returned no text,
                         # and it wasn't a follow-up turn that already produced text,
                         # we yield the specialist's result directly to ensure the user isn't left with silence.
                         if text_parts_seen == 0 and last_tool_result:
@@ -198,7 +198,11 @@ def create_app() -> FastAPI:
                     ui_context_var.reset(ui_context_token)
                     progress_callback_var.reset(progress_callback_token)
 
-            return StreamingResponse(response_generator(), media_type="text/plain")
+            return StreamingResponse(
+                response_generator(),
+                media_type="text/plain",
+                headers={"X-Session-ID": session_id}
+            )
 
         except Exception as e:
             logger.error(f"Error processing request: {e}", exc_info=True)

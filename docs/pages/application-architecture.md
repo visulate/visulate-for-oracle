@@ -60,24 +60,21 @@ The endpoints.json file populates a Python dictionary of endpoint:connect string
 
 ## Deployment
 
-Visulate for Oracle provides 2 deployment options. A *Compute Engine* deployment configures all of the application components on a single Google Compute Engine (GCE) virtual machine. A *Kubernetes* deployment configures a Google Kubernetes Engine (GKE) application with separate services and deployments for the API, UI and Query Engine components.
+Visulate for Oracle is deployed as a series of Docker containers on a Google Compute Engine (GCE) virtual machine using Docker Compose. This deployment model provides a balance of performance, ease of management, and scalability for most database documentation and analysis tasks.
 
-Compute Engine deployments are easier to setup and manage. Kubernetes deployments provide more control over individual resources. We recommend most users start with a Compute Engine deployment.
-
-### Compute Engine Architecture
+### Architecture
 
 ![Google Compute Engine (GCE) Architecture](/images/gce.png)
 
-Web users connect to the application via an Nginx reverse proxy container listening on port 80. The connection can be via a load balancer or direct if the VM has been configured with a public IP address. Configuring a load balancer is the recommended approach. The Visulate VM is provisioned with a private IP address and no public IP address. The private IP is added to a Network Endpoint Group (NEG) for inclusion in a load balancer backend configuration. The load balanced backend service uses Identity Aware Proxy (IAP) to control access to the application.
+Web users connect to the application via an Nginx reverse proxy container listening on port 80. The connection can be via a load balancer or direct if the VM has been configured with a public IP address. Configuring a load balancer is the recommended approach.
 
-Database registration is performed by editing files in an OS directory that has been volume mounted to the API and SQL Query containers.
+The application components include:
+*   **API Server**: A Node.js instance that parses Oracle metadata and orchestrates AI interactions.
+*   **UI**: An Angular application served by Nginx.
+*   **SQL Query Engine**: A Flask-based service for running ad-hoc queries and generating CSVs.
+*   **AI Agents**: A suite of specialized agents (NL2SQL, Schema Analysis, Object Analysis, etc.) running in a Python environment.
+*   **Nginx Proxy**: Routes external traffic to the internal UI, API, and SQL services.
 
-### Kubernetes Architecture
+The Visulate VM is often provisioned with a private IP address and configured behind an Identity Aware Proxy (IAP) to control access.
 
-![Google Kubernetes Engine (GKE) Architecture](/images/k8s.png)
-
-Web users connect to the application via a ClusterIP resource. This exposes an nginx deployment which proxies requests to the UI, API or SQL Service as required. The proxy service exposes an Network Endpoint Group (NEG) for inclusion in a load balancer backend configuration. The load balanced backend service uses Identity Aware Proxy (IAP) to control access to the application.
-
-Database registration is performed using a Secret.  The Secret manifest delivers the database.js configuration file that the Express server reads during initialization as part of the API Server deployment. A similar mechanism is used to deliver the SQL Query Engine's endpoints.json file.
-
-The UI and API Server deployment manifests include sidecar containers to support Google Cloud Platform (GCP) integration. The UI and API Server manifests use sidecar containers to make log file contents available to Cloud Logging. The API Server manifest creates 2 additional sidecars to support GCP Marketplace. The SQL Query Engine sends its logs to stderr and stdout instead of writing to a file. This avoids the need for a sidecar to populate Cloud Logging
+Database registration is performed by editing configuration files in an OS directory volume-mounted to the containers.

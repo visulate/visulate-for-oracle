@@ -42,6 +42,7 @@ export class StateService {
   private _showInternal = false;
   private _objectList: string[];
   private _sqlEnabled: boolean;
+  private _sessionId: string | null = null;
 
   private endpointList = new BehaviorSubject<EndpointListModel>(new EndpointListModel());
   private subjectContext =
@@ -169,6 +170,24 @@ export class StateService {
 
   clearChatHistory() {
     this.chatHistory.next([]);
+    this.clearSessionId();
+  }
+
+  getSessionId(): string | null {
+    if (!this._sessionId) {
+      this._sessionId = sessionStorage.getItem('ai-session-id');
+    }
+    return this._sessionId;
+  }
+
+  setSessionId(id: string) {
+    this._sessionId = id;
+    sessionStorage.setItem('ai-session-id', id);
+  }
+
+  clearSessionId() {
+    this._sessionId = null;
+    sessionStorage.removeItem('ai-session-id');
   }
 
   private authTokens: { [database: string]: string } = {};

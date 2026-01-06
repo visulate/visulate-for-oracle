@@ -33,6 +33,8 @@ x-google-marketplace:
       v2.1.0 MCP server implementation.
       v2.5.0 Agentic AI integration, 2026 UI updates,
       v2.5.1 AI agents for NL2SQL, schema analysis, object analysis, ERD generation, and code comments
+      v2.5.2 Modify comment generator to use an MCP server tool
+      v2.5.3 Maintain AI session state in UI
   images:
     '':
       properties:

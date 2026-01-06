@@ -2,16 +2,19 @@
 # Start Docker service
 systemctl start docker
 
-# Image repository
+# Image repository and version
 IMAGE_REPO="gcr.io/visulate-llc-public"
+VERSION="2.5"
 
 # Pull the Docker container images
-docker pull docker/compose:latest
-docker pull ${IMAGE_REPO}/visulate-for-oracle:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/ui:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/sql:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/proxy:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/ai-agent:2.5
+# These may fail if the VM has no public IP, but the script will continue
+# if the images were pre-installed in the VM image.
+docker pull docker/compose:latest || echo "Warning: Failed to pull docker/compose"
+docker pull ${IMAGE_REPO}/visulate-for-oracle:${VERSION} || echo "Warning: Failed to pull visapi"
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ui:${VERSION} || echo "Warning: Failed to pull visui"
+docker pull ${IMAGE_REPO}/visulate-for-oracle/sql:${VERSION} || echo "Warning: Failed to pull vissql"
+docker pull ${IMAGE_REPO}/visulate-for-oracle/proxy:${VERSION} || echo "Warning: Failed to pull proxy"
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ai-agent:${VERSION} || echo "Warning: Failed to pull ai-agent"
 
 # Create visulate directory if it doesn't exist
 if [ ! -d /home/visulate ]; then
@@ -23,12 +26,12 @@ if [ ! -d /home/visulate/config ]; then
   mkdir /home/visulate/config
 
   # copy the API server config files from the container to the host
-  api_container=$(docker create --rm ${IMAGE_REPO}/visulate-for-oracle:2.5)
+  api_container=$(docker create --rm ${IMAGE_REPO}/visulate-for-oracle:${VERSION})
   docker cp "$api_container:/visulate-server/config/." /home/visulate/config/
   docker rm "$api_container"
 
   # copy the query engine config files from the container to the host
-  docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:2.5 cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
+  docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:${VERSION} cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
 fi
 
 # Create visulate-downloads directory if it doesn't exist
@@ -43,7 +46,7 @@ cat << EOF > /home/visulate/docker-compose.yaml
 version: "3.8"
 services:
   reverseproxy:
-    image: ${IMAGE_REPO}/visulate-for-oracle/proxy:2.5
+    image: ${IMAGE_REPO}/visulate-for-oracle/proxy:${VERSION}
     container_name: reverseproxy
     ports:
       - 80:80
@@ -51,7 +54,7 @@ services:
       - visulate_network
 
   visapi:
-    image: ${IMAGE_REPO}/visulate-for-oracle:2.5
+    image: ${IMAGE_REPO}/visulate-for-oracle:${VERSION}
     container_name: visapi
     hostname: visapi
     depends_on:
@@ -75,7 +78,7 @@ services:
       retries: 3
 
   visui:
-    image: ${IMAGE_REPO}/visulate-for-oracle/ui:2.5
+    image: ${IMAGE_REPO}/visulate-for-oracle/ui:${VERSION}
     container_name: visui
     hostname: visui
     depends_on:
@@ -91,7 +94,7 @@ services:
       retries: 3
 
   vissql:
-    image: ${IMAGE_REPO}/visulate-for-oracle/sql:2.5
+    image: ${IMAGE_REPO}/visulate-for-oracle/sql:${VERSION}
     container_name: vissql
     hostname: vissql
     depends_on:
@@ -109,7 +112,7 @@ services:
       retries: 3
 
   ai-agent:
-    image: ${IMAGE_REPO}/visulate-for-oracle/ai-agent:2.5
+    image: ${IMAGE_REPO}/visulate-for-oracle/ai-agent:${VERSION}
     container_name: ai-agent
     hostname: ai-agent
     depends_on:
@@ -166,11 +169,11 @@ if [ ! -f /home/visulate/update-visulate.sh ]; then
   cat << SCRIPT > /home/visulate/update-visulate.sh
 #!/bin/bash
 docker pull docker/compose:latest
-docker pull ${IMAGE_REPO}/visulate-for-oracle:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/ui:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/sql:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/proxy:2.5
-docker pull ${IMAGE_REPO}/visulate-for-oracle/ai-agent:2.5
+docker pull ${IMAGE_REPO}/visulate-for-oracle:${VERSION}
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ui:${VERSION}
+docker pull ${IMAGE_REPO}/visulate-for-oracle/sql:${VERSION}
+docker pull ${IMAGE_REPO}/visulate-for-oracle/proxy:${VERSION}
+docker pull ${IMAGE_REPO}/visulate-for-oracle/ai-agent:${VERSION}
 SCRIPT
   chmod +x /home/visulate/update-visulate.sh
 fi

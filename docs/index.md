@@ -3,10 +3,10 @@
 <section id="banner">
   <div class="content">
     <header>
-      <h1>Oracle to Google AI</h1>
-      <p>Connect your Oracle databases to Google's AI</p>
+      <h1>Agentic AI for Oracle</h1>
+      <p>Your Oracle database, now with Gemini intelligence</p>
     </header>
-    <p><b>Visulate for Oracle</b> is a powerful tool designed to streamline the work of database developers by seamlessly integrating <b>Oracle databases</b> with <b>Google Gemini AI</b>. It unlocks new levels of productivity by reading metadata from the Oracle Data Dictionary, understanding object structures, relationships, and dependencies. With this knowledge, Visulate automates the generation of optimized code in <b>any programming language</b>, streamlining complex SQL, PL/SQL, and API interactions, and supporting AI-powered development workflows.</p>
+    <p><b>Visulate for Oracle</b> transforms how you interact with your database. By integrating <b>Google Gemini AI</b> with a deep understanding of the Oracle Data Dictionary, Visulate provides a suite of <b>autonomous AI agents</b> that can analyze schema footprints, generate optimized code, create ERD diagrams, and document complex PL/SQL—all within a secure, conversation-driven interface.</p>
 
     <ul class="actions">
       <li><a href="https://console.cloud.google.com/marketplace/product/visulate-llc-public/visulate-vm">
@@ -16,48 +16,42 @@
 
   </div>
 <span class="video">
-  <iframe width="600" height="338"
-          src="https://www.youtube.com/embed/Z4z2Ee8N7so"
-          title="Visulate for Oracle"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen>
-  </iframe>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/OrhB2ZTiRWs?si=BMOmsmb9v5Uir0iq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </span>
 </section>
 
 <!-- Section -->
   <section>
     <header class="major">
-      <h2>Designed for Developers: Smart Insights, Automated Code</h2>
+      <h2>Agentic AI: Beyond Simple Queries</h2>
     </header>
     <div class="features">
       <article>
-        <span class="icon solid fa-database"></span>
+        <span class="icon solid fa-robot"></span>
         <div class="content">
-          <h3>Deep Oracle Metadata Parsing</h3>
-          <p>Visulate analyzes the relationships between tables, views, and other database objects, giving developers a complete understanding of the database architecture.</p>
+          <h3>Natural Language to SQL (NL2SQL)</h3>
+          <p>Ask questions about your data in plain English. Visulate's agents understand your schema context and generate precise, executable SQL immediately.</p>
         </div>
       </article>
       <article>
-        <span class="icon solid fa-search"></span>
+        <span class="icon solid fa-project-diagram"></span>
         <div class="content">
-          <h3>Complex Query Handling</h3>
-          <p>Generate sophisticated SQL statements with complex joins and logic, eliminating the need for manual query construction.</p>
+          <h3>Automated ERD Generation</h3>
+          <p>Visualize complex relationships instantly. Our agents can generate Entity Relationship Diagrams (ERDs) on-the-fly for any subset of your schema.</p>
         </div>
       </article>
       <article>
-        <span class="icon solid fa-sitemap"></span>
+        <span class="icon solid fa-file-code"></span>
         <div class="content">
-          <h3>Multi-Language Code Generation</h3>
-         <p>Automatically generate code in SQL, Python, Java, JavaScript, PL/SQL, and other languages, making it easy to integrate Oracle data into any environment or application.</p>
+          <h3>Intelligent Code Documentation</h3>
+          <p>Breathe life into legacy code. The AI analyzes PL/SQL packages and generates meaningful comments and DDL documentation in bulk.</p>
         </div>
       </article>
       <article>
-        <span class="icon solid fa-wrench"></span>
+        <span class="icon solid fa-lightbulb"></span>
         <div class="content">
-          <h3>API-Aware Coding</h3>
-          <p>Write code to interact with Oracle PL/SQL APIs and external services, speeding up the development process</p>
+          <h3>Schema Insight & Analysis</h3>
+          <p>Get a comprehensive summary of any schema. Identify bottlenecks, missing indexes, and architectural patterns with expert AI recommendations.</p>
         </div>
       </article>
     </div>
@@ -65,27 +59,26 @@
 </div>
 <div>
   <header class="major">
-    <h2>Secure, Multi-Cloud Integration</h2>
+    <h2>Secure, Agentic, Enterprise-Ready</h2>
   </header>
 </div>
 
-Visulate ensures secure data flows from on-premises Oracle databases, Oracle Cloud Infrastructure (OCI), and Google Cloud Platform (GCP) into Google Gemini AI. This multi-cloud capability ensures developers have access to the data they need, regardless of location, while maintaining enterprise-grade security and compliance.
+Visulate ensures secure data flows from on-premises Oracle databases, Oracle Cloud Infrastructure (OCI), and Google Cloud Platform (GCP) into Google Gemini AI. The application operates as a private proxy, ensuring that your data dictionary remains under your control while leveraging the power of modern LLMs.
 
-### Key Features
+### Key AI Capabilities
 
-- **Automated Code Generation:** Produce code in multiple languages, tailored to work seamlessly with Oracle databases and external services.
-- **AI-Driven Insights:** Leverage Google Gemini AI to build predictive models, automate analytics, and create intelligent systems based on your Oracle data.
-- **Real-Time and Batch Processing:** Use real-time data feeds or batch processing to keep your AI models and applications updated with the latest Oracle data.
-- **Secure Data Handling:** Maintain strict control over data movement, ensuring secure connections across on-prem, cloud, and hybrid environments.
-- **Developer-Centric Design:** Simple, intuitive tools designed to meet the needs of database developers, allowing them to focus on innovation instead of repetitive coding tasks.
+- **Context-Aware Chat:** Maintains session state to handle follow-up questions and iterative refinement of SQL and code.
+- **Sub-Agent Orchestration:** A root agent intelligently routes your requests to specialized sub-agents for SQL, ERDs, or object analysis.
+- **Multi-Cloud Grounding:** Grounded in your actual database metadata, reducing AI hallucinations and ensuring accurate results.
+- **Secure Provisioning:** Deployed via Docker Compose on a hardened VM, often behind Identity Aware Proxy (IAP).
 
 ### Benefits for Developers and Enterprises
 
-- **Speed Up Development:** Automate SQL queries and multi-language code generation, reducing development time and effort.
-- **Enhance AI Capabilities:** Use Google Gemini AI to gain insights and automate processes powered by live Oracle data.
-- **Seamless Multi-Cloud Operation:** Connect to Oracle databases across on-premises and cloud environments, ensuring data accessibility wherever needed.
-- **High Security and Reliability:** Ensure all data exchanges comply with enterprise security policies.
+- **Accelerate Migrations:** Understand source database complexity in minutes instead of weeks using AI-driven schema analysis.
+- **Modernize Legacy Apps:** Automatically translate Oracle logic into modern programming patterns (Python, Java, JavaScript).
+- **Boost Developer Productivity:** Eliminate the repetitive work of writing boilerplate SQL and documenting schemas.
+- **High Security and Reliability:** Enterprise-grade security with no data storage in the cloud—just secure, transient AI processing.
 
-With **Visulate**, database developers no longer need to write code from scratch. Whether it’s building SQL queries, integrating APIs, or feeding Oracle data into AI models, Visulate provides the automation and intelligence needed to accelerate development cycles. Unlock the potential of your data with **multi-language code generation** and **Google Gemini AI integration** — empowering developers to create the future, faster.
+With **Visulate**, you're not just viewing metadata; you're putting it to work. Unlock the potential of your Oracle data with **Agentic AI**—empowering your team to innovate faster than ever before.
 
-**Visulate: From Oracle Data to Intelligent Code—Effortlessly.**
+**Visulate: Where Oracle Metadata Meets Google AI.**
