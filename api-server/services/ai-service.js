@@ -484,6 +484,33 @@ async function getObjectsMissingCommentsInternal(db, owner, wildcard = '%') {
 }
 
 /**
+ * Core function to get invalid objects in a schema.
+ * @param {string} db - The database name
+ * @param {string} owner - The schema owner
+ */
+async function getSchemaInvalidObjectsInternal(db, owner) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const query = statement['SCHEMA-INVALID-OBJECTS'];
+  const params = {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() },
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" }
+  };
+
+  const result = await dbService.simpleExecute(poolAlias, query.sql, params);
+  return result.map(row => ({
+    type: row.Type,
+    name: row.Name,
+    line: row.Line,
+    error: row.Error
+  }));
+}
+
+/**
  * Core function to get schema columns.
  * @param {string} db - The database name
  * @param {string} owner - The schema owner
@@ -1123,6 +1150,32 @@ function createMcpServer() {
         return {
           content: [
             { type: 'text', text: JSON.stringify({ error: error.message, type: 'getObjectsMissingCommentsError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'getSchemaInvalidObjects',
+    'Get a list of all invalid objects in a schema along with their error messages.',
+    {
+      db: z.string().describe("The database where the schema resides."),
+      owner: z.string().describe("The name of the schema to analyze.")
+    },
+    async ({ db, owner }) => {
+      try {
+        const result = await getSchemaInvalidObjectsInternal(db, owner);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getSchemaInvalidObjects tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaInvalidObjectsError' }, null, 2) }
           ]
         };
       }

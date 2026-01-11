@@ -12,6 +12,7 @@ python -m object_analysis_agent.main &
 python -m schema_analysis_agent.main &
 python -m erd_agent.main &
 python -m comment_generator.app &
+python -m invalid_objects.main &
 
 # Start Root Agent
 python -m root_agent.main &
@@ -23,6 +24,7 @@ echo "- Object Analysis Agent: http://localhost:10002"
 echo "- Comment Generator: http://localhost:10003"
 echo "- Schema Analysis Agent: http://localhost:10004"
 echo "- ERD Agent: http://localhost:10005"
+echo "- Invalid Objects Agent: http://localhost:10006"
 
 # Wait for all background processes
 wait
