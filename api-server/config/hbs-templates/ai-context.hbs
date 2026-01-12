@@ -58,7 +58,32 @@
 {{/each}}
 {{/ifEquals}}
 {{/each}}
-]
+],
+"methods": [
+{{#each results.objectDetails}}
+{{#ifEquals title "Arguments"}}
+{
+"name": "{{description}}",
+"parameters": [{{#each rows}}{"name": "{{Parameter}}", "direction": "{{Direction}}", "type": "{{[Data Type]}}"}{{#unless
+@last}},{{/unless}}{{/each}}]
+},
+{{/ifEquals}}
+{{/each}}
+null
+],
+"code": [
+{{#each results.objectDetails}}
+{{#ifAppearsIn title "Source,Source (Body),View Source,Materialized View Details,Trigger Details"}}
+{
+"title": "{{title}}",
+"content": {{#ifEquals title "Trigger Details"}}"{{{rows.[0].Body}}}"{{else}}[{{#each rows}}{{#if
+Text}}"{{{Text}}}"{{else}}"{{{Query}}}"{{/if}}{{#unless @last}},{{/unless}}{{/each}}]{{/ifEquals}}
+},
+{{/ifAppearsIn}}
+{{/each}}
+null
+],
+"lastUpdate": "{{runDate}}"
 },
 "related": [
 {{#each results.relatedObjects}}
@@ -86,6 +111,17 @@
 {{/each}}
 {{/ifEquals}}
 {{/each}}
+],
+"code": [
+{{#each this}}
+{{#ifAppearsIn title "Source,Source (Body),View Source"}}
+{
+"title": "{{title}}",
+"content": [{{#each rows}}"{{{Text}}}"{{#unless @last}},{{/unless}}{{/each}}]
+},
+{{/ifAppearsIn}}
+{{/each}}
+null
 ]
 }{{#unless @last}},{{/unless}}
 {{/each}}
