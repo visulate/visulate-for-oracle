@@ -36,6 +36,7 @@ x-google-marketplace:
       v2.5.2 Modify comment generator to use an MCP server tool
       v2.5.3 Maintain AI session state in UI + ERD layout improvements
       v2.5.4 Invalid object analysis agent
+      v2.5.5 Bug fixes and refinements
   images:
     '':
       properties:
