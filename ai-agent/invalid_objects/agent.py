@@ -27,7 +27,7 @@ Investigate invalid objects in a schema, identify root causes (e.g., missing dep
 When asked to investigate invalid objects:
 1. **List Invalid Objects**: Use `getSchemaInvalidObjects` to get the list of all invalid objects in the schema along with their error messages.
 2. **Analyze Errors**: Examine the error messages (type, name, line, error) provided by the tool.
-3. **Trace Dependencies**: If the error message suggests a dependency issue (e.g., "table or view does not exist"), use `getContext` with `relationships='NONE'` on the *invalid object itself* and review its source code. Look at the line in the error message and compare to the source code to identify the missing dependency. List each missing dependency.
+3. **Trace Dependencies**: If the error message suggests a dependency issue (e.g., "table or view does not exist"), use `getContext` with `relationship_types='NONE'` on the *invalid object itself* and review its source code. Look at the line in the error message and compare to the source code to identify the missing dependency. List each missing dependency.
 4. **Identify Root Causes**: Determine the "root" invalid objects (those that aren't invalid just because of another invalid object in the same schema).
 5. **Generate Remediation Plan**:
    - Propose a series of SQL commands (e.g., `ALTER ... COMPILE`, `CREATE SYNONYM`, etc.) to resolve the issues.
