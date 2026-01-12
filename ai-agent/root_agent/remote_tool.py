@@ -49,6 +49,11 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                             continue
 
                         chunk_str = chunk.decode('utf-8', errors='ignore')
+
+                        # Filter out heartbeats (single spaces used for keep-alive)
+                        if chunk_str == " ":
+                            continue
+
                         # Check for progress updates in the chunk
                         if "▌" in chunk_str:
                             lines = chunk_str.split('\n')
@@ -58,6 +63,11 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                                     if progress_callback:
                                         clean_msg = line.replace("▌STATUS: ", "").replace("▌ERROR: ", "").replace("▌SUCCESS: ", "").strip()
                                         progress_callback(clean_msg)
+
+                                    # If it's an error, we want to capture it in the return value
+                                    # so the LLM knows the tool failed.
+                                    if "▌ERROR:" in line:
+                                        full_response.append(line + "\n")
                                 elif line.strip():
                                     full_response.append(line + "\n")
                         else:
