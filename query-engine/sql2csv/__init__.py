@@ -72,11 +72,11 @@ def create_app(test_config=None):
         app.logger.error(f"Endpoints file not found at: {endpoints_file}")
         # Initialize with empty endpoints to allow app startup, or re-raise if critical
         app.endpoints = {}
-        # raise # Uncomment if this is fatal
+        raise
     except json.JSONDecodeError as e:
         app.logger.error(f"Invalid JSON in endpoints file: {e}")
         app.endpoints = {}
-        # raise
+        raise
 
     @app.after_request
     def after_request(response):
