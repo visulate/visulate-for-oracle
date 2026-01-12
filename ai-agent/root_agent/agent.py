@@ -13,6 +13,7 @@ SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to underst
 2. **delegate_to_object_analysis_agent**: Use this for deep structural or architectural questions about specific database objects (e.g., "how is this table related to others?", "give me a detailed analysis of table X").
 3. **delegate_to_schema_analysis_agent**: Use this for high-level functional analysis of a database schema (e.g., "summarize the HR schema", "explain the core entities in this schema").
 4. **delegate_to_erd_agent**: Use this for generating Entity Relationship Diagrams (ERDs) in Draw.io format (e.g., "generate an ERD for the HR schema").
+5. **delegate_to_invalid_objects_agent**: Use this for investigating and resolving invalid database objects (e.g., "why is package X invalid?", "find and fix invalid objects in the HR schema"). This agent generates a SQL remediation script for download.
 
 ## Specialized Agents
 1. **Comment Generator Agent**: Delegate to this agent when the user explicitly asks to generate database comments or documentation.
@@ -35,6 +36,7 @@ def create_root_agent() -> LlmAgent:
     comment_tool = create_remote_delegate_tool("comment_generator_agent", "http://localhost:10003")
     schema_tool = create_remote_delegate_tool("schema_analysis_agent", "http://localhost:10004")
     erd_tool = create_remote_delegate_tool("erd_agent", "http://localhost:10005")
+    invalid_objects_tool = create_remote_delegate_tool("invalid_objects_agent", "http://localhost:10006")
 
     # 2. Create Root Agent
     root_agent = LlmAgent(
@@ -42,7 +44,7 @@ def create_root_agent() -> LlmAgent:
         name="visulate_root_agent",
         description="Pure orchestrator for Visulate AI microservices",
         instruction=SYSTEM_INSTRUCTION,
-        tools=[nl2sql_tool, analysis_tool, comment_tool, schema_tool, erd_tool]
+        tools=[nl2sql_tool, analysis_tool, comment_tool, schema_tool, erd_tool, invalid_objects_tool]
     )
 
     return root_agent
