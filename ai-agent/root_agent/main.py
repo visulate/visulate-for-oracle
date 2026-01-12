@@ -154,10 +154,22 @@ def create_app() -> FastAPI:
                         # we yield the specialist's result directly to ensure the user isn't left with silence.
                         if text_parts_seen == 0 and last_tool_result:
                             logger.warning(f"Root Agent produced NO TEXT after tool {last_tool_name} returned results. Yielding fallback.")
-                            # Prepend a header to clarify where the text came from
-                            header = f"### Result from {last_tool_name.replace('delegate_to_', '').replace('_', ' ').title()}\n"
-                            await queue.put(header)
-                            await queue.put(str(last_tool_result))
+
+                            # Check if the result is an error message
+                            is_error = "▌ERROR:" in str(last_tool_result)
+
+                            if is_error:
+                                # For errors, we present them clearly
+                                await queue.put(f"### Error from {last_tool_name.replace('delegate_to_', '').replace('_', ' ').title()}\n")
+                                await queue.put(str(last_tool_result).replace("▌ERROR:", "Error:").strip())
+                            else:
+                                # Prepend a header to clarify where the text came from
+                                header = f"### Result from {last_tool_name.replace('delegate_to_', '').replace('_', ' ').title()}\n"
+                                await queue.put(header)
+                                await queue.put(str(last_tool_result))
+                        elif text_parts_seen == 0 and not last_tool_result:
+                            logger.error(f"Root Agent produced NO TEXT and NO TOOL RESULT. Yielding generic error.")
+                            await queue.put("I'm sorry, I encountered an internal error and couldn't generate a response. Please try again.")
                     except Exception as e:
                         logger.error(f"Error during agent execution: {e}", exc_info=True)
                         await queue.put(f"▌ERROR: {str(e)}\n")
