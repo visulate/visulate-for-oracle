@@ -25,7 +25,7 @@ async def test_remote_delegate_tool_success():
 
     async def mock_aiter_bytes():
         # Simulate progress update and then final result
-        yield b"\xe2\x96\x8cSTATUS: Working...\n" # ▌STATUS: Working...
+        yield "▌STATUS: Working...\n".encode('utf-8')
         yield b"Final result text"
 
     mock_response.aiter_bytes = mock_aiter_bytes
@@ -70,7 +70,7 @@ async def test_heartbeat_filtering():
     async def mock_aiter_bytes():
         # Simulate heartbeat (single space), progress update, and final result
         yield b" "  # Heartbeat - should be filtered out
-        yield b"\xe2\x96\x8cSTATUS: Processing...\n"  # ▌STATUS: Processing...
+        yield "▌STATUS: Processing...\n".encode('utf-8')
         yield b" "  # Another heartbeat - should be filtered out
         yield b"Actual result"
         yield b" "  # Final heartbeat - should be filtered out
@@ -106,7 +106,7 @@ async def test_error_message_capture():
 
     async def mock_aiter_bytes():
         # Simulate an error response
-        yield b"\xe2\x96\x8cERROR: Database connection failed\n"  # ▌ERROR: Database connection failed
+        yield "▌ERROR: Database connection failed\n".encode('utf-8')
         yield b"Additional error details"
 
     mock_response.aiter_bytes = mock_aiter_bytes
