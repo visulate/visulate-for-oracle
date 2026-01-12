@@ -15,5 +15,6 @@ setup(
         "License :: OSI Approved :: Apache Software Foundation License",
         "Operating System :: OS Independent",
     ],
+    include_package_data=True,
     python_requires='>=3.11',
 )

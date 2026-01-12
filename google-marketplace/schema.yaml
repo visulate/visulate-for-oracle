@@ -34,7 +34,8 @@ x-google-marketplace:
       v2.5.0 Agentic AI integration, 2026 UI updates,
       v2.5.1 AI agents for NL2SQL, schema analysis, object analysis, ERD generation, and code comments
       v2.5.2 Modify comment generator to use an MCP server tool
-      v2.5.3 Maintain AI session state in UI
+      v2.5.3 Maintain AI session state in UI + ERD layout improvements
+      v2.5.4 Invalid object analysis agent
   images:
     '':
       properties:

@@ -61,8 +61,22 @@ def create_app(test_config=None):
     print(f"CORS enabled with origins: {origin_list}")
 
 
-    with open(endpoints_file, "r") as file:
-       app.endpoints = json.loads(file.read())
+    if os.getenv('ENDPOINTS_FILE'):
+        endpoints_file = os.getenv('ENDPOINTS_FILE')
+
+    app.logger.info(f"Loading endpoints from: {endpoints_file}")
+    try:
+        with open(endpoints_file, "r") as file:
+            app.endpoints = json.loads(file.read())
+    except FileNotFoundError:
+        app.logger.error(f"Endpoints file not found at: {endpoints_file}")
+        # Initialize with empty endpoints to allow app startup, or re-raise if critical
+        app.endpoints = {}
+        raise
+    except json.JSONDecodeError as e:
+        app.logger.error(f"Invalid JSON in endpoints file: {e}")
+        app.endpoints = {}
+        raise
 
     @app.after_request
     def after_request(response):
