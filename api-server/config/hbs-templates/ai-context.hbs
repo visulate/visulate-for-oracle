@@ -64,8 +64,15 @@
 {{#ifEquals title "Arguments"}}
 {
 "name": "{{description}}",
-"parameters": [{{#each rows}}{"name": "{{Parameter}}", "direction": "{{Direction}}", "type": "{{[Data Type]}}"}{{#unless
-@last}},{{/unless}}{{/each}}]
+"parameters": [
+{{#each rows}}
+{
+"name": "{{Parameter}}",
+"direction": "{{Direction}}",
+"type": "{{[Data Type]}}"
+}{{#unless @last}},{{/unless}}
+{{/each}}
+]
 },
 {{/ifEquals}}
 {{/each}}
@@ -76,8 +83,11 @@ null
 {{#ifAppearsIn title "Source,Source (Body),View Source,Materialized View Details,Trigger Details"}}
 {
 "title": "{{title}}",
-"content": {{#ifEquals title "Trigger Details"}}"{{{rows.[0].Body}}}"{{else}}[{{#each rows}}{{#if
-Text}}"{{{Text}}}"{{else}}"{{{Query}}}"{{/if}}{{#unless @last}},{{/unless}}{{/each}}]{{/ifEquals}}
+"content": {{#ifEquals title "Trigger Details"}}"{{{rows.[0].Body}}}"{{else}}[
+{{#each rows}}
+{{#if Text}}"{{{Text}}}"{{else}}"{{{Query}}}"{{/if}}{{#unless @last}},{{/unless}}
+{{/each}}
+]{{/ifEquals}}
 },
 {{/ifAppearsIn}}
 {{/each}}
@@ -117,7 +127,11 @@ null
 {{#ifAppearsIn title "Source,Source (Body),View Source"}}
 {
 "title": "{{title}}",
-"content": [{{#each rows}}"{{{Text}}}"{{#unless @last}},{{/unless}}{{/each}}]
+"content": [
+{{#each rows}}
+"{{{Text}}}"{{#unless @last}},{{/unless}}
+{{/each}}
+]
 },
 {{/ifAppearsIn}}
 {{/each}}
