@@ -69,6 +69,8 @@ services:
       - CORS_ORIGIN_WHITELIST=\${CORS_ORIGIN_WHITELIST}
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
+      - INVALID_OBJECTS_URL=http://ai-agent:10006/agent/generate
+      - APP_DEVELOPER_URL=http://ai-agent:10007/agent/generate
     networks:
       - visulate_network
     healthcheck:
@@ -120,7 +122,7 @@ services:
       - vissql
       - visapi
     expose:
-      - "10000-10005"
+      - "10000-10007"
     volumes:
       - visulate-downloads:/app/downloads
     environment:

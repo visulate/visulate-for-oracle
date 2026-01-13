@@ -131,7 +131,11 @@ async function generativeAIInternal(args, res) {
   if (agent === 'visulate_agent') {
     agentUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate';
   } else if (agent === 'comment_generator') {
-    agentUrl = process.env.COMMENT_GENERATOR_URL || 'http://ai-agent:10001/agent/generate';
+    agentUrl = process.env.COMMENT_GENERATOR_URL || 'http://ai-agent:10003/agent/generate';
+  } else if (agent === 'invalid_objects') {
+    agentUrl = process.env.INVALID_OBJECTS_URL || 'http://ai-agent:10006/agent/generate';
+  } else if (agent === 'app_developer') {
+    agentUrl = process.env.APP_DEVELOPER_URL || 'http://ai-agent:10007/agent/generate';
   } else {
     throw new Error(`Unknown agent: ${agent}`);
   }
@@ -368,6 +372,24 @@ async function getContextInternal(args) {
   const objectDetails = await getObjectDetails(poolAlias, owner, type, name, true);
   if (objectDetails === '404') {
     throw new Error('The specified starting object was not found.');
+  }
+
+  // Fetch package/type body if it exists
+  if (type === 'PACKAGE' || type === 'TYPE') {
+    try {
+      const bodyType = type + ' BODY';
+      const bodyDetails = await getObjectDetails(poolAlias, owner, bodyType, name, false);
+      if (bodyDetails !== '404') {
+        // Tag body sections to distinguish them if needed
+        const taggedBodyDetails = bodyDetails.map(section => ({
+          ...section,
+          title: `${section.title} (Body)`
+        }));
+        objectDetails.push(...taggedBodyDetails);
+      }
+    } catch (e) {
+      logger.log('warn', `Failed to fetch body for ${type} ${owner}.${name}: ${e.message}`);
+    }
   }
 
   let keysToScan = [];
