@@ -77,6 +77,10 @@ export class FindObjectComponent implements OnInit, AfterViewInit, AfterContentI
   }
 
   processApply() {
+    if (this.currentContext && this.currentContext.filter !== this.initialFilter) {
+      this.initialFilter = this.currentContext.filter;
+      this.state.setCurrentContext(this.currentContext);
+    }
     this.cancelSearchForm.emit(false);
   }
 
