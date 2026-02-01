@@ -157,18 +157,16 @@ docker run -d -p 3000:3000 \
 
 **Important:** Always update `google-marketplace/schema.yaml` release notes before building.
 
-**Full Build:**
+**Build Script (Interactive):**
 ```bash
 ./build-and-push.sh <version>
 ```
-Uses `cloudbuild.yaml` to build all 9 images in parallel
-
-**Component Build (faster):**
-```bash
-./build-and-push.sh <version>
-# Select option 2 (Fast Build), then choose component
-```
-Uses `cloudbuild-component.yaml` for single component builds
+The script will prompt you to:
+1. Select GCP project (visulate-for-oracle or visulate-llc-public)
+2. Confirm schema.yaml updates
+3. Choose build type:
+   - Option 1: Full Build - Uses `cloudbuild.yaml` to build all 9 images in parallel
+   - Option 2: Component Build - Uses `cloudbuild-component.yaml` for single component (faster)
 
 Build timeout: 1800s (30 minutes)
 
