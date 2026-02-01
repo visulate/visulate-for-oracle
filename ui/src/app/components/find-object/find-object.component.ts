@@ -37,7 +37,6 @@ export class FindObjectComponent implements OnInit, AfterViewInit, OnDestroy {
   public history: ObjectHistoryModel[] = [];
   private unsubscribe$ = new Subject<void>();
   public searchTerm = '';
-  public breakpoint: number;
   public currentContext: CurrentContextModel;
   private initialFilter: string;
 
@@ -50,7 +49,6 @@ export class FindObjectComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.breakpoint = (window.innerWidth <= 700) ? 1 : 2;
     this.getHistory();
     this.state.currentContext$
       .pipe(takeUntil(this.unsubscribe$))
@@ -97,9 +95,6 @@ export class FindObjectComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => this.searchBox.nativeElement.focus());
   }
 
-  onResize(event) {
-    this.breakpoint = (event.target.innerWidth <= 700) ? 1 : 2;
-  }
 
   ngOnDestroy(): void {
     this.unsubscribe$.next();
