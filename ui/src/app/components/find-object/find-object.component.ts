@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, AfterContentInit, OnDestroy, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
 import { RestService } from 'src/app/services/rest.service';
 import { FindObjectModel, ObjectHistoryModel } from '../../models/find-object.model';
 import { Subject } from 'rxjs';
@@ -32,7 +32,7 @@ import { CurrentContextModel } from '../../models/current-context.model';
  * Quick find feature tied to search icon in toolbar. Finds objects of
  * a given name in each registered database
  */
-export class FindObjectComponent implements OnInit, AfterViewInit, AfterContentInit, OnDestroy {
+export class FindObjectComponent implements OnInit, AfterViewInit, OnDestroy {
   public searchResult: FindObjectModel;
   public history: ObjectHistoryModel[] = [];
   private unsubscribe$ = new Subject<void>();
@@ -93,11 +93,6 @@ export class FindObjectComponent implements OnInit, AfterViewInit, AfterContentI
     setTimeout(() => this.searchBox.nativeElement.focus());
   }
 
-  /**
-   * Set the mat-grid-list cols value to 1 if screen width is less than 700px
-   */
-  ngAfterContentInit(): void {
-  }
   onResize(event) {
     this.breakpoint = (event.target.innerWidth <= 700) ? 1 : 2;
   }
