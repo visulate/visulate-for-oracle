@@ -1,54 +1,75 @@
-
-<mat-grid-list [cols]="breakpoint"  (window:resize)="onResize($event)" rowHeight=420>
-  <mat-grid-tile>
-    <mat-card appearance="outlined">
-      <mat-card-title>Search
-      </mat-card-title>
-      <form (keydown.enter)="processSearchRequest(searchTerm)">
-        <mat-form-field class="search-box" appearance="outline">
-          <input [(ngModel)]="searchTerm" [ngModelOptions]="{standalone: true}" matInput
-            placeholder="Enter a database object name" #searchBox>
-        </mat-form-field>
-      </form>
-      @if (searchResult) {
-        @for (res of searchResult.result; track res) {
+<div class="find-object-container">
+  <div class="find-object-content">
+    <mat-card appearance="outlined" class="find-object-card">
+      <mat-card-header class="card-header">
+        <mat-card-title>Search Across Databases</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form (keydown.enter)="processSearchRequest(searchTerm)">
+          <mat-form-field class="search-box" appearance="outline">
+            <mat-label>Object Name</mat-label>
+            <input [(ngModel)]="searchTerm" [ngModelOptions]="{standalone: true}" matInput
+              placeholder="Enter a database object name" #searchBox>
+          </mat-form-field>
+        </form>
+        @if (searchResult) {
+        <div class="result-list">
+          @for (res of searchResult.result; track res) {
           <mat-nav-list>
+            <div mat-subheader>{{res.database}}</div>
             @for (object of res.objects; track object) {
-              <a mat-list-item
-                routerLink="/database/{{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}"
-                [queryParams]="{filter: object.object_name}">
-                {{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}
-              </a>
+            <a mat-list-item
+              routerLink="/database/{{res.database}}/{{object.owner}}/{{object.object_type}}/{{object.object_name}}"
+              [queryParams]="{filter: object.object_name}">
+              <span matListItemTitle>{{object.owner}}.{{object.object_name}}</span>
+              <span matListItemLine>{{object.object_type}}</span>
+            </a>
             }
             @if (res.objects?.length==0) {
-              <p>Not found in {{res.database}}</p>
+            <mat-list-item disabled>
+              <span matListItemTitle>Not found in {{res.database}}</span>
+            </mat-list-item>
             }
           </mat-nav-list>
+          }
+        </div>
         }
-      }
-
-
+      </mat-card-content>
     </mat-card>
 
-    <button mat-icon-button aria-hidden="false" aria-label="cancel icon" (click)="processCancel()">
+    <mat-card appearance="outlined" class="find-object-card">
+      <mat-card-header class="card-header">
+        <mat-card-title>Filter Current Database</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <app-filter-objects></app-filter-objects>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="find-object-card">
+      <mat-card-header class="card-header">
+        <mat-card-title>Recent History</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-nav-list>
+          @for (item of history; track item) {
+          <a mat-list-item
+            routerLink="/database/{{item.endpoint}}/{{item.owner}}/{{item.objectType}}/{{item.objectName}}">
+            <span matListItemTitle>{{item.owner}}.{{item.objectName}}</span>
+            <span matListItemLine>/{{item.endpoint}}/{{item.objectType}}</span>
+          </a>
+          }
+        </mat-nav-list>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="find-object-actions">
+    <button mat-icon-button color="warn" aria-label="cancel" (click)="processCancel()" matTooltip="Cancel">
       <mat-icon>cancel</mat-icon>
     </button>
-  </mat-grid-tile>
-
-  <mat-grid-tile>
-
-    <mat-card appearance="outlined">
-      <mat-card-title>Recent History
-      </mat-card-title>
-      @for (item of history; track item) {
-        <mat-nav-list>
-          <a mat-list-item routerLink="/database/{{item.endpoint}}/{{item.owner}}/{{item.objectType}}/{{item.objectName}}">
-            <!-- [queryParams]="{filter: item.filter}"> -->
-          /{{item.endpoint}}/{{item.owner}}/{{item.objectType}}/{{item.objectName}}</a>
-        </mat-nav-list>
-      }
-    </mat-card>
-
-
-  </mat-grid-tile>
-</mat-grid-list>
+    <button mat-icon-button color="primary" aria-label="apply" (click)="processApply()" matTooltip="Apply">
+      <mat-icon>check_circle</mat-icon>
+    </button>
+  </div>
+</div>

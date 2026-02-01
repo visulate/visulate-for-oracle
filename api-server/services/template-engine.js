@@ -22,21 +22,26 @@ handlebars.registerHelper('ifEquals', function (arg1, arg2, options) {
   return (arg1 == arg2) ? options.fn(this) : options.inverse(this);
 });
 
+// JSON stringify helper
+handlebars.registerHelper('json', function (context) {
+  return JSON.stringify(context);
+});
+
 // Return true if arg1 != arg2 else false
 handlebars.registerHelper('unlessEquals', function (arg1, arg2, options) {
   return (arg1 != arg2) ? options.fn(this) : options.inverse(this);
 });
 
 // Return true if arg appears in csv
-handlebars.registerHelper('ifAppearsIn', function (arg, csv, options){
+handlebars.registerHelper('ifAppearsIn', function (arg, csv, options) {
   const list = csv.split(',');
   return (list.includes(arg)) ? options.fn(this) : options.inverse(this);
 });
 
 // Return true if arg does not in csv
-handlebars.registerHelper('unlessAppearsIn', function (arg, csv, options){
+handlebars.registerHelper('unlessAppearsIn', function (arg, csv, options) {
   const list = csv.split(',');
-  return (list.includes(arg)) ? options.inverse(this): options.fn(this);
+  return (list.includes(arg)) ? options.inverse(this) : options.fn(this);
 });
 
 // Assign varName = varValue
@@ -71,23 +76,23 @@ handlebars.registerHelper('ifLevelChanged', function (levelName, newLevel, optio
 });
 
 // Trim trailing comma from an array
-handlebars.registerHelper('formatLinks', function(objects, options) {
+handlebars.registerHelper('formatLinks', function (objects, options) {
   let links = [];
 
   // Collect links from ForeignKeys, ForeignKeystothisTable, UsedBy, and Uses
   objects.forEach(result => {
-      if (result.ForeignKeys && result.ForeignKeys.length) {
-          result.ForeignKeys.forEach(fk => links.push(fk.LINK));
-      }
-      if (result.ForeignKeystothisTable && result.ForeignKeystothisTable.length) {
-          result.ForeignKeystothisTable.forEach(fktt => links.push(fktt.LINK));
-      }
-      if (result.UsedBy && result.UsedBy.length) {
-          result.UsedBy.forEach(ub => links.push(ub.LINK));
-      }
-      if (result.Uses && result.Uses.length) {
-          result.Uses.forEach(use => links.push(use.LINK));
-      }
+    if (result.ForeignKeys && result.ForeignKeys.length) {
+      result.ForeignKeys.forEach(fk => links.push(fk.LINK));
+    }
+    if (result.ForeignKeystothisTable && result.ForeignKeystothisTable.length) {
+      result.ForeignKeystothisTable.forEach(fktt => links.push(fktt.LINK));
+    }
+    if (result.UsedBy && result.UsedBy.length) {
+      result.UsedBy.forEach(ub => links.push(ub.LINK));
+    }
+    if (result.Uses && result.Uses.length) {
+      result.Uses.forEach(use => links.push(use.LINK));
+    }
   });
 
   // Return the formatted links as a string, separated by commas, and properly formatted for JSON

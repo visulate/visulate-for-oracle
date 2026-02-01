@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem} from './endpoint.model';
+import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from './endpoint.model';
 
 export class CurrentContextModel {
   /**
@@ -65,11 +65,11 @@ export class CurrentContextModel {
     this.filter = filter;
   }
 
-  public setShowInternal(showInternal: boolean){
+  public setShowInternal(showInternal: boolean) {
     this.showInternal = showInternal;
   }
 
-  public setObjectList(list: string[]){
+  public setObjectList(list: string[]) {
     this.objectList = list;
   }
 
@@ -95,6 +95,5 @@ export class ContextBehaviorSubjectModel {
     public currentContext: CurrentContextModel,
     public priorContext: CurrentContextModel,
     public changeSummary: any
-  ){}
+  ) { }
 }
-

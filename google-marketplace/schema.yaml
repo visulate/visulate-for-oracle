@@ -37,7 +37,9 @@ x-google-marketplace:
       v2.5.3 Maintain AI session state in UI + ERD layout improvements
       v2.5.4 Invalid object analysis agent
       v2.5.5 Bug fixes and refinements
-      v2.5.6 Code generation agent  images:
+      v2.5.6 Code generation agent
+      v2.5.7 Invalid object agent improvements
+  images:
     '':
       properties:
         apiServer.image.repo:

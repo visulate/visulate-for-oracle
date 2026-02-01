@@ -533,6 +533,39 @@ async function getSchemaInvalidObjectsInternal(db, owner) {
 }
 
 /**
+ * Core function to find objects in DBA_OBJECTS.
+ * @param {string} db - The database name
+ * @param {string} objectName - The name of the object to find
+ */
+async function findObjectInternal(db, objectName) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const query = statement['FIND-DBA-OBJECTS'];
+  const params = {
+    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: objectName.toUpperCase() }
+  };
+
+  return await dbService.simpleExecute(poolAlias, query.sql, params);
+}
+
+/**
+ * Core function to get database links.
+ * @param {string} db - The database name
+ */
+async function getDbLinksInternal(db) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const query = statement['DB-LINKS'];
+  return await dbService.simpleExecute(poolAlias, query.sql, query.params);
+}
+
+/**
  * Core function to get schema columns.
  * @param {string} db - The database name
  * @param {string} owner - The schema owner
@@ -1198,6 +1231,57 @@ function createMcpServer() {
         return {
           content: [
             { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaInvalidObjectsError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'findObject',
+    'Search for a specific object by name in the database registry (DBA_OBJECTS).',
+    {
+      db: z.string().describe("The database to search in."),
+      name: z.string().describe("The name of the object to find.")
+    },
+    async ({ db, name }) => {
+      try {
+        const result = await findObjectInternal(db, name);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP findObject tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'findObjectError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'getDbLinks',
+    'Get a list of all database links in the database.',
+    {
+      db: z.string().describe("The database to query.")
+    },
+    async ({ db }) => {
+      try {
+        const result = await getDbLinksInternal(db);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getDbLinks tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getDbLinksError' }, null, 2) }
           ]
         };
       }
