@@ -31,10 +31,10 @@ export interface EbsPrefixes {
 }
 
 @Component({
-    selector: 'app-filter-objects',
-    templateUrl: './filter-objects.component.html',
-    styleUrls: ['./filter-objects.component.css'],
-    standalone: false
+  selector: 'app-filter-objects',
+  templateUrl: './filter-objects.component.html',
+  styleUrls: ['./filter-objects.component.css'],
+  standalone: false
 })
 
 /**
@@ -340,9 +340,9 @@ export class FilterObjectsComponent implements OnInit, OnDestroy {
     { name: 'XML Publisher (XDO)', code: 'XDO' }
   ];
 
-  public setEbsFilter(productSelection){
-    if (productSelection){
-      const productEntry = this.ebsPrefixes.find(entry => entry.name === productSelection );
+  public setEbsFilter(productSelection) {
+    if (productSelection) {
+      const productEntry = this.ebsPrefixes.find(entry => entry.name === productSelection);
       this.objectFilter.setValue(`${productEntry.code}_*`);
     }
   }
@@ -357,7 +357,7 @@ export class FilterObjectsComponent implements OnInit, OnDestroy {
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     const context = subjectContext.currentContext;
     this.currentContext = context;
-    if (context.filter !== this.currentFilter){
+    if (context.filter !== this.currentFilter) {
       this.objectFilter.setValue(context.filter);
       this.currentFilter = context.filter;
     }

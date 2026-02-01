@@ -108,7 +108,7 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                 else:
                                     logger.info(f"Sub-agent Part Other: {part}")
                         else:
-                            logger.info("Sub-agent Event Content Empty")
+                            logger.info(f"Sub-agent Event Content Empty. Event: {event}")
                 except Exception as e:
                     logger.error(f"Error in {agent_name} execution: {e}", exc_info=True)
                     await queue.put(f"▌ERROR: {str(e)}\n")

@@ -13,43 +13,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, AfterContentInit, OnDestroy} from '@angular/core';
+import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
 import { RestService } from 'src/app/services/rest.service';
 import { FindObjectModel, ObjectHistoryModel } from '../../models/find-object.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { StateService } from '../../services/state.service';
+import { CurrentContextModel } from '../../models/current-context.model';
 
 @Component({
-    selector: 'app-find-object',
-    templateUrl: './find-object.component.html',
-    styleUrls: ['./find-object.component.css'],
-    standalone: false
+  selector: 'app-find-object',
+  templateUrl: './find-object.component.html',
+  styleUrls: ['./find-object.component.css'],
+  standalone: false
 })
 
 /**
  * Quick find feature tied to search icon in toolbar. Finds objects of
  * a given name in each registered database
  */
-export class FindObjectComponent implements AfterViewInit, AfterContentInit, OnDestroy {
+export class FindObjectComponent implements OnInit, AfterViewInit, OnDestroy {
   public searchResult: FindObjectModel;
   public history: ObjectHistoryModel[] = [];
   private unsubscribe$ = new Subject<void>();
   public searchTerm = '';
-  public breakpoint: number;
+  public currentContext: CurrentContextModel;
+  private initialFilter: string;
 
   @ViewChild('searchBox') searchBox: ElementRef;
   @Output() cancelSearchForm: EventEmitter<boolean> = new EventEmitter();
 
-  constructor(private restService: RestService) {
+  constructor(
+    private restService: RestService,
+    private state: StateService) {
   }
 
-  processSearchRequest(searchTerm: string): void{
+  ngOnInit(): void {
+    this.getHistory();
+    this.state.currentContext$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(context => {
+        this.currentContext = context.currentContext;
+        if (this.initialFilter === undefined) {
+          this.initialFilter = this.currentContext.filter;
+        }
+      });
+  }
+
+  processSearchRequest(searchTerm: string): void {
     this.restService.getSearchResults$(searchTerm)
       .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(searchResult => {this.searchResult = searchResult; });
+      .subscribe(searchResult => { this.searchResult = searchResult; });
   }
 
   processCancel() {
+    if (this.currentContext && this.currentContext.filter !== this.initialFilter) {
+      this.currentContext.setFilter(this.initialFilter);
+      this.state.setCurrentContext(this.currentContext);
+    }
+    this.cancelSearchForm.emit(false);
+  }
+
+  processApply() {
+    if (this.currentContext && this.currentContext.filter !== this.initialFilter) {
+      this.initialFilter = this.currentContext.filter;
+      this.state.setCurrentContext(this.currentContext);
+    }
     this.cancelSearchForm.emit(false);
   }
 
@@ -57,25 +86,15 @@ export class FindObjectComponent implements AfterViewInit, AfterContentInit, OnD
     const localStorageHistory = JSON.parse(localStorage.getItem('objectHistory') || '[]');
     localStorageHistory.forEach((entry) => {
       this.history.push(new ObjectHistoryModel
-      ( entry.endpoint, entry.owner, entry.objectType, entry.objectName, entry.filter));
+        (entry.endpoint, entry.owner, entry.objectType, entry.objectName, entry.filter));
     });
   }
 
   ngAfterViewInit(): void {
 
     setTimeout(() => this.searchBox.nativeElement.focus());
-    this.getHistory();
   }
 
-  /**
-   * Set the mat-grid-list cols value to 1 if screen width is less than 700px
-   */
-  ngAfterContentInit(): void {
-    this.breakpoint = (window.innerWidth <= 700) ? 1 : 2;
-  }
-  onResize(event) {
-    this.breakpoint = (event.target.innerWidth <= 700) ? 1 : 2;
-  }
 
   ngOnDestroy(): void {
     this.unsubscribe$.next();

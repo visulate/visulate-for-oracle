@@ -2,12 +2,19 @@
 "object": {
 {{#each results.objectDetails}}
 {{#ifEquals title "Object Details"}}
-"owner": "{{rows.[0].Owner}}",
-"name": "{{rows.[0].ObjectName}}",
-"type": "{{rows.[0].Type}}",
+"owner": {{{json rows.[0].Owner}}},
+"name": {{{json rows.[0].ObjectName}}},
+"type": {{{json rows.[0].Type}}},
 {{/ifEquals}}
 {{#ifEquals title "Table Description"}}
-"description": "{{rows.[0].Description}}",
+"description": {{{json rows.[0].Description}}},
+{{/ifEquals}}
+{{#ifEquals title "Synonym for"}}
+"synonymDetails": {
+"tableOwner": {{{json rows.[0].[Table Owner]}}},
+"tableName": {{{json rows.[0].[Table Name]}}},
+"dbLink": {{{json rows.[0].[Database Link]}}}
+},
 {{/ifEquals}}
 {{/each}}
 "columns": [
@@ -15,10 +22,10 @@
 {{#ifEquals title "Columns"}}
 {{#each rows}}
 {
-"name": "{{Name}}",
-"dataType": "{{Type}}",
-"nullable": "{{Nullable}}",
-"description": "{{Comments}}"
+"name": {{{json Name}}},
+"dataType": {{{json Type}}},
+"nullable": {{{json Nullable}}},
+"description": {{{json Comments}}}
 }{{#unless @last}},{{/unless}}
 {{/each}}
 {{/ifEquals}}
@@ -29,7 +36,7 @@
 {{#ifEquals title "Constraints"}}
 {{#each rows}}
 {{#ifEquals ConstraintType "Primary key"}}
-"{{Column}}"
+{{{json Column}}}
 {{/ifEquals}}
 {{/each}}
 {{/ifEquals}}
@@ -40,8 +47,8 @@
 {{#ifEquals title "Foreign Keys"}}
 {{#each rows}}
 {
-"table": "{{Table}}",
-"owner": "{{Owner}}"
+"table": {{{json Table}}},
+"owner": {{{json Owner}}}
 }{{#unless @last}},{{/unless}}
 {{/each}}
 {{/ifEquals}}
@@ -52,8 +59,8 @@
 {{#ifEquals title "Foreign Keys to this Table"}}
 {{#each rows}}
 {
-"table": "{{Table}}",
-"owner": "{{Owner}}"
+"table": {{{json Table}}},
+"owner": {{{json Owner}}}
 }{{#unless @last}},{{/unless}}
 {{/each}}
 {{/ifEquals}}
@@ -63,13 +70,13 @@
 {{#each results.objectDetails}}
 {{#ifEquals title "Arguments"}}
 {
-"name": "{{description}}",
+"name": {{{json description}}},
 "parameters": [
 {{#each rows}}
 {
-"name": "{{Parameter}}",
-"direction": "{{Direction}}",
-"type": "{{[Data Type]}}"
+"name": {{{json Parameter}}},
+"direction": {{{json Direction}}},
+"type": {{#if [Data Type]}}{{{json [Data Type]}}}{{else}}""{{/if}}
 }{{#unless @last}},{{/unless}}
 {{/each}}
 ]
@@ -82,10 +89,10 @@ null
 {{#each results.objectDetails}}
 {{#ifAppearsIn title "Source,Source (Body),View Source,Materialized View Details,Trigger Details"}}
 {
-"title": "{{title}}",
-"content": {{#ifEquals title "Trigger Details"}}"{{{rows.[0].Body}}}"{{else}}[
+"title": {{{json title}}},
+"content": {{#ifEquals title "Trigger Details"}}{{{json rows.[0].Body}}}{{else}}[
 {{#each rows}}
-{{#if Text}}"{{{Text}}}"{{else}}"{{{Query}}}"{{/if}}{{#unless @last}},{{/unless}}
+{{#if Text}}{{{json Text}}}{{else}}{{{json Query}}}{{/if}}{{#unless @last}},{{/unless}}
 {{/each}}
 ]{{/ifEquals}}
 },
@@ -93,19 +100,26 @@ null
 {{/each}}
 null
 ],
-"lastUpdate": "{{runDate}}"
+"lastUpdate": {{{json runDate}}}
 },
 "related": [
 {{#each results.relatedObjects}}
 {
 {{#each this}}
 {{#ifEquals title "Object Details"}}
-"owner": "{{rows.[0].Owner}}",
-"name": "{{rows.[0].ObjectName}}",
-"type": "{{rows.[0].Type}}",
+"owner": {{{json rows.[0].Owner}}},
+"name": {{{json rows.[0].ObjectName}}},
+"type": {{{json rows.[0].Type}}},
 {{/ifEquals}}
 {{#ifEquals title "Table Description"}}
-"description": "{{rows.[0].Description}}",
+"description": {{{json rows.[0].Description}}},
+{{/ifEquals}}
+{{#ifEquals title "Synonym for"}}
+"synonymDetails": {
+"tableOwner": {{{json rows.[0].[Table Owner]}}},
+"tableName": {{{json rows.[0].[Table Name]}}},
+"dbLink": {{{json rows.[0].[Database Link]}}}
+},
 {{/ifEquals}}
 {{/each}}
 "columns": [
@@ -113,10 +127,10 @@ null
 {{#ifEquals title "Columns"}}
 {{#each rows}}
 {
-"name": "{{Name}}",
-"dataType": "{{Type}}",
-"nullable": "{{Nullable}}",
-"description": "{{Comments}}"
+"name": {{{json Name}}},
+"dataType": {{{json Type}}},
+"nullable": {{{json Nullable}}},
+"description": {{{json Comments}}}
 }{{#unless @last}},{{/unless}}
 {{/each}}
 {{/ifEquals}}
@@ -126,10 +140,10 @@ null
 {{#each this}}
 {{#ifAppearsIn title "Source,Source (Body),View Source"}}
 {
-"title": "{{title}}",
+"title": {{{json title}}},
 "content": [
 {{#each rows}}
-"{{{Text}}}"{{#unless @last}},{{/unless}}
+{{{json Text}}}{{#unless @last}},{{/unless}}
 {{/each}}
 ]
 },
