@@ -136,6 +136,8 @@ async function generativeAIInternal(args, res) {
     agentUrl = process.env.INVALID_OBJECTS_URL || 'http://ai-agent:10006/agent/generate';
   } else if (agent === 'app_developer') {
     agentUrl = process.env.APP_DEVELOPER_URL || 'http://ai-agent:10007/agent/generate';
+  } else if (agent === 'test_data_generator') {
+    agentUrl = process.env.TEST_DATA_GENERATOR_URL || 'http://ai-agent:10008/agent/generate';
   } else {
     throw new Error(`Unknown agent: ${agent}`);
   }

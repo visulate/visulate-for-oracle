@@ -75,6 +75,16 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                             preamble += f"- Schema (Owner): {context_data['owner']}\n"
                         if context_data.get("objectType") and context_data.get("objectName"):
                             preamble += f"- Selected Object: {context_data['objectType']} {context_data['objectName']}\n"
+                        if context_data.get("filter"):
+                            preamble += f"- Active Filter: {context_data['filter']}\n"
+                        if context_data.get("objectList") and isinstance(context_data.get("objectList"), list):
+                            obj_list = context_data['objectList']
+                            if len(obj_list) > 20:
+                                preamble += f"- Object List: {', '.join(obj_list[:20])} ... ({len(obj_list)} total)\n"
+                            else:
+                                preamble += f"- Object List: {', '.join(obj_list)}\n"
+                        if context_data.get("currentObject"):
+                            preamble += f"- Selected Object Details: {json.dumps(context_data['currentObject'])}\n"
 
                         full_message = f"{preamble}\nUser Request: {message}"
                     else:
@@ -87,6 +97,9 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                         new_message=content
                     ):
                         logger.info(f"Sub-agent Event: {type(event)}")
+                        if event.finish_reason:
+                             logger.info(f"Sub-agent Finish Reason: {event.finish_reason}")
+
                         if event.content and event.content.parts:
                             for part in event.content.parts:
                                 if part.text is not None:
@@ -108,7 +121,10 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                 else:
                                     logger.info(f"Sub-agent Part Other: {part}")
                         else:
-                            logger.info(f"Sub-agent Event Content Empty. Event: {event}")
+                            # Log more detail for empty content events
+                            logger.info(f"Sub-agent Event (Empty Content): finish_reason={event.finish_reason}, error_code={getattr(event, 'error_code', 'N/A')}")
+                            if event.finish_reason == types.FinishReason.MALFORMED_FUNCTION_CALL:
+                                await queue.put("▌ERROR: The agent's function call was rejected by the LLM backend (MALFORMED_FUNCTION_CALL).\n")
                 except Exception as e:
                     logger.error(f"Error in {agent_name} execution: {e}", exc_info=True)
                     await queue.put(f"▌ERROR: {str(e)}\n")

@@ -20,6 +20,7 @@ export VISULATE_AGENT_URL=http://localhost:10000/agent/generate
 export COMMENT_GENERATOR_URL=http://localhost:10003/agent/generate
 export INVALID_OBJECTS_URL=http://localhost:10006/agent/generate
 export APP_DEVELOPER_URL=http://localhost:10007/agent/generate
+export TEST_DATA_GENERATOR_URL=http://localhost:10008/agent/generate
 export QUERY_ENGINE_URL=http://localhost:5000/mcp-sql/call_tool
 export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200"
 export VISULATE_DOWNLOADS=$(pwd)/downloads
@@ -72,7 +73,7 @@ echo "Services started."
 echo "API Server: http://localhost:3000"
 echo "Query Engine: http://localhost:5000"
 if [ ! -z "$GOOGLE_AI_KEY" ]; then
-    echo "Agents: ports 10000-10007"
+    echo "Agents: ports 10000-10008"
 fi
 echo "Press Ctrl+C to stop all services."
 
