@@ -43,8 +43,55 @@ class TestDataGenerator:
             logger.error(f"Error fetching details for {name} from {url}: {e}")
             return {"error": str(e)}
 
-    async def generate_table_data(self, table_name: str, context: Dict[str, Any]) -> Dict[str, str]:
-        """Ask GenAI to generate the 3 formats for a single table"""
+    async def is_adb(self, db: str) -> bool:
+        """Check if the database is an Autonomous Database (ADB)"""
+        # Strip /mcp suffix from api_server_url if present
+        base_url = self.api_server_url.replace('/mcp', '')
+        url = f"{base_url}/api/{db}"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, timeout=10.0)
+                response.raise_for_status()
+                data = response.json()
+                # The endpoint returns a list of dictionaries, one of which includes the ADB status
+                for item in data:
+                    if item.get("title") == "Oracle Cloud Autonomous Database Instance":
+                        rows = item.get("rows", [])
+                        if rows:
+                            # Use case-insensitive key check
+                            row = rows[0]
+                            adb_val = row.get("Autonomous Database") or row.get("AUTONOMOUS DATABASE")
+                            return adb_val == "Yes"
+                return False
+        except Exception as e:
+            logger.error(f"Error checking ADB status for {db} at {url}: {e}")
+            return False
+
+    async def generate_table_data(self, table_name: str, context: Dict[str, Any], use_adb_syntax: bool = False) -> Dict[str, str]:
+        """Ask GenAI to generate the formats for a single table"""
+
+        directory_name = "TEST_DATA_DIR"
+        external_syntax_req = f"""
+        5. **External Table DDL**: `CREATE TABLE ... ORGANIZATION EXTERNAL` using the Oracle directory `{directory_name}` and lowercase filename `{table_name.lower()}.dat`.
+           Ensure `ORACLE_LOADER` and `POSITION` specs match the .dat file.
+        """
+        if use_adb_syntax:
+            external_syntax_req = f"""
+        5. **External Table DDL (ADB Syntax)**: Use `DBMS_CLOUD.CREATE_EXTERNAL_TABLE`.
+           Example syntax (ensure you use the directory `{directory_name}` and lowercase filename):
+           ```sql
+           BEGIN
+             DBMS_CLOUD.CREATE_EXTERNAL_TABLE (
+               table_name      => '{table_name.upper()}_EXT',
+               file_uri_list   => '{directory_name}:{table_name.lower()}.dat',
+               column_list     => '...', -- match table columns
+               field_list      => '...', -- match fixed-length .dat positions
+               format          => json_object('trimspaces' value 'rtrim')
+             );
+           END;
+           /
+           ```
+        """
 
         prompt = f"""
         You are an Oracle Database expert. Generate test data (10 rows) for the following table.
@@ -58,7 +105,7 @@ class TestDataGenerator:
         2. **CSV Data**: Comma-separated values, optionally enclosed in quotes.
         3. **SQL*Loader CTL**: Control file using `FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'`.
         4. **Fixed-Length Data (.dat)**: Each column padded (with spaces) to its full defined length from the metadata.
-        5. **External Table DDL**: `CREATE TABLE ... ORGANIZATION EXTERNAL` with `ORACLE_LOADER` and `POSITION` specs matching the .dat file.
+        {external_syntax_req}
 
         Return your response as a JSON object with these keys:
         - "inserts": string
@@ -96,6 +143,11 @@ class TestDataGenerator:
         master_inserts = []
         master_external_ddl = []
 
+        self.report_progress(f"Checking if database `{db}` is an Autonomous Database...")
+        use_adb_syntax = await self.is_adb(db)
+        if use_adb_syntax:
+            self.report_progress("ADB detected. Using `DBMS_CLOUD` for external tables.")
+
         for table in tables:
             self.report_progress(f"Analyzing structure for `{table}`...")
             details = await self.get_object_details(db, owner, table)
@@ -106,17 +158,18 @@ class TestDataGenerator:
                 continue
 
             self.report_progress(f"Generating data formats for `{table}`...")
-            data = await self.generate_table_data(table, details)
+            data = await self.generate_table_data(table, details, use_adb_syntax)
             if "error" in data or not isinstance(data, dict):
                 err_msg = f"Generation failed for `{table}`: {data.get('error', 'Invalid response format')}"
                 self.report_progress(f"WARNING: {err_msg}")
                 errors.append(err_msg)
                 continue
 
-            # Save individual files
+            # Save individual files (normalized to lowercase)
+            base_filename = table.lower()
             for ext in ['csv', 'ctl', 'dat']:
                 if ext in data:
-                    filename = f"{table}.{ext}"
+                    filename = f"{base_filename}.{ext}"
                     with open(os.path.join(output_dir, filename), "w") as f:
                         f.write(data[ext])
                     all_files.append(filename)

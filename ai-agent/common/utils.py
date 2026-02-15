@@ -1,5 +1,7 @@
 import requests
 import json
+import zipfile
+import os
 from typing import Dict, Any, Optional
 
 def mask_sensitive_data(d, sensitive_keys=['password', 'credential_token', 'token']):
@@ -78,3 +80,26 @@ def create_token_request(query_engine_url: str, database: str, username: str, pa
             "error": f"Request to {url} failed: {str(e)}",
             "exception_type": type(e).__name__
         }
+
+def create_zip_archive(directory_path: str, archive_name: str) -> str:
+    """
+    Creates a zip archive of all files in the specified directory.
+    Args:
+        directory_path (str): The path to the directory containing files to archive.
+        archive_name (str): The name of the zip file to create (e.g., 'data.zip').
+    Returns:
+        str: The full path to the created zip archive.
+    """
+    zip_path = os.path.join(directory_path, archive_name)
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Loop through all files in the directory
+        for root, dirs, files in os.walk(directory_path):
+            for file in files:
+                # Don't add the zip file itself to the archive
+                if file == archive_name:
+                    continue
+                file_path = os.path.join(root, file)
+                # Add file to zip, using relative path for the arcname
+                arcname = os.path.relpath(file_path, directory_path)
+                zipf.write(file_path, arcname)
+    return zip_path
