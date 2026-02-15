@@ -125,6 +125,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       owner: this.currentContext?.owner,
       objectType: this.currentContext?.objectType,
       objectName: this.currentContext?.objectName,
+      filter: this.currentContext?.filter,
+      objectList: this.currentContext?.objectList,
+      currentObject: this.currentObject,
       authToken: this.stateService.getAuthToken(this.currentContext?.endpoint), // Get current token
       dbCredentials: sessionStorage.getItem('visulate-credentials'), // Get ALL raw credentials for dynamic token creation
       // Chat history is maintained by state, but agent might need it.

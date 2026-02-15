@@ -75,6 +75,16 @@ def create_app() -> FastAPI:
                     preamble += f"- Schema (Owner): {context['owner']}\n"
                 if context.get("objectType") and context.get("objectName"):
                     preamble += f"- Selected Object: {context['objectType']} {context['objectName']}\n"
+                if context.get("filter"):
+                    preamble += f"- Active Filter: {context['filter']}\n"
+                if context.get("objectList") and isinstance(context.get("objectList"), list):
+                    obj_list = context['objectList']
+                    if len(obj_list) > 20:
+                        preamble += f"- Object List: {', '.join(obj_list[:20])} ... ({len(obj_list)} total)\n"
+                    else:
+                        preamble += f"- Object List: {', '.join(obj_list)}\n"
+                if context.get("currentObject"):
+                    preamble += f"- Selected Object Details: {json.dumps(context['currentObject'])}\n"
 
                 prompt_text = f"{preamble}\nUser Request: {message}"
 

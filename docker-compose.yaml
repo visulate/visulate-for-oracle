@@ -21,6 +21,7 @@ services:
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
       - INVALID_OBJECTS_URL=http://ai-agent:10006/agent/generate
       - APP_DEVELOPER_URL=http://ai-agent:10007/agent/generate
+      - TEST_DATA_GENERATOR_URL=http://ai-agent:10008/agent/generate
   visui:
     hostname: visui
     depends_on:
@@ -45,7 +46,7 @@ services:
       - vissql
       - visapi
     ports:
-      - "10000-10007:10000-10007"
+      - "10000-10008:10000-10008"
     volumes:
       - visulate-downloads:/app/downloads
     environment:

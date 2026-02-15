@@ -6,8 +6,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* README.md ./
 
 # Create dummy package directories to allow dependency installation
-RUN mkdir common root_agent nl2sql_agent comment_generator object_analysis_agent erd_agent schema_analysis_agent invalid_objects app_developer && \
-  touch common/__init__.py root_agent/__init__.py nl2sql_agent/__init__.py comment_generator/__init__.py object_analysis_agent/__init__.py erd_agent/__init__.py schema_analysis_agent/__init__.py invalid_objects/__init__.py app_developer/__init__.py
+RUN mkdir common root_agent nl2sql_agent comment_generator object_analysis_agent erd_agent schema_analysis_agent invalid_objects app_developer test_data_generator && \
+  touch common/__init__.py root_agent/__init__.py nl2sql_agent/__init__.py comment_generator/__init__.py object_analysis_agent/__init__.py erd_agent/__init__.py schema_analysis_agent/__init__.py invalid_objects/__init__.py app_developer/__init__.py test_data_generator/__init__.py
 
 # Install dependencies
 RUN pip install --no-cache-dir .
@@ -22,7 +22,7 @@ RUN mkdir -p /app/downloads
 RUN pip install --no-cache-dir .
 
 # Expose agent ports
-EXPOSE 10000 10001 10002 10003 10004 10005 10006 10007
+EXPOSE 10000 10001 10002 10003 10004 10005 10006 10007 10008
 
 # Make startup script executable
 RUN chmod +x start_agents.sh
