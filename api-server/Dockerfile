@@ -19,12 +19,12 @@ ARG oracleUpdate=23
 # Install Oracle Instant Client and Node.js
 RUN microdnf install dnf -y
 RUN  dnf -y install oracle-release-el8 && \
-     dnf config-manager --set-enabled ol8_oracle_instantclient && \
-     dnf -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
-     dnf -y module enable nodejs:20 && \
-     dnf -y install nodejs npm && \
-     npm install -g npm@latest && \
-     rm -rf /var/cache/yum
+    dnf config-manager --set-enabled ol8_oracle_instantclient && \
+    dnf -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
+    dnf -y module enable nodejs:20 && \
+    dnf -y install nodejs npm && \
+    npm install -g npm@latest && \
+    rm -rf /var/cache/yum
 
 # Set working directory and copy project files
 WORKDIR /visulate-server
@@ -34,10 +34,12 @@ COPY database-setup/ /visulate-server/database-setup/
 COPY config/ /visulate-server/config/
 
 # Copy Oracle configuration file
-COPY ./database-setup/sqlnet.ora /usr/lib/oracle/${oracleRelease}.${oracleUpdate}/client64/lib/network/admin
+RUN mkdir -p /opt/oracle/network/admin
+COPY ./database-setup/sqlnet.ora /opt/oracle/network/admin/sqlnet.ora
 
 # Set environment variables
 ENV PATH=$PATH:/usr/lib/oracle/${oracleRelease}.${oracleUpdate}/client64/bin
+ENV TNS_ADMIN=/opt/oracle/network/admin
 
 # Install npm dependencies without development dependencies
 RUN npm install --omit=dev

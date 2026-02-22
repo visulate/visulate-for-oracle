@@ -7,14 +7,15 @@ export const environment = {
   apiBase: window.location.protocol + '//' + window.location.hostname + ':3000/api',
   findObjectBase: window.location.protocol + '//' + window.location.hostname + ':3000/find',
   ddlGenBase: window.location.protocol + '//' + window.location.hostname + ':3000/ddl',
-  queryBase:  window.location.protocol + '//' + window.location.hostname + ':5000/sql',
+  queryBase: window.location.protocol + '//' + window.location.hostname + ':5000/sql',
   aiBase: window.location.protocol + '//' + window.location.hostname + ':3000/ai',
   internalSchemas:
-  ['ANONYMOUS', 'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DBSFWUSER', 'DBSNMP', 'DIP', 'DVF', 'DVSYS',
-    'GGSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'LBACSYS', 'MDSYS', 'OJVMSYS', 'OLAPSYS',
-    'ORACLE_OCM', 'ORDDATA', 'ORDPLUGINS', 'ORDSYS', 'OUTLN', 'PUBLIC', 'REMOTE_SCHEDULER_AGENT',
-    'SI_INFORMTN_SCHEMA', 'SYS$UMF', 'SYS', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSRAC', 'SYSTEM',
-    'WMSYS', 'XDB', 'XS$NULL']
+    ['ANONYMOUS', 'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DBSFWUSER', 'DBSNMP', 'DIP', 'DVF', 'DVSYS',
+      'GGSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'LBACSYS', 'MDSYS', 'OJVMSYS', 'OLAPSYS',
+      'ORACLE_OCM', 'ORDDATA', 'ORDPLUGINS', 'ORDSYS', 'OUTLN', 'PUBLIC', 'REMOTE_SCHEDULER_AGENT',
+      'SI_INFORMTN_SCHEMA', 'SYS$UMF', 'SYS', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSRAC', 'SYSTEM',
+      'WMSYS', 'XDB', 'XS$NULL', 'ADMIN', 'ADBSNMP', 'C##CLOUD$SERVICE', 'OAX_USER', 'RQSYS',
+      'RMAN$CATALOG', 'RMAN$VPC', 'APEX_PUBLIC_USER', 'APEX$_APP_STORE']
 };
 
 /*
