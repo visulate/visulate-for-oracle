@@ -40,12 +40,14 @@ statement['COUNT_DBA_OBJECTS'] = {
   'title': 'Object Count',
   'description': '',
   'display': [],
-  'sql': `select owner, object_type, count(*) as object_count
+  'sql': `select o.owner, o.object_type, count(*) as object_count
+           ,      max(case when u.oracle_maintained = 'Y' then 1 else 0 end) as INTERNAL
            from dba_objects o
-           where object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+           join dba_users u on o.owner = u.username
+           where o.object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
-           group by owner, object_type
-           order by owner, object_type`,
+           group by o.owner, o.object_type
+           order by o.owner, o.object_type`,
   'params': {
   }
 };
@@ -54,13 +56,15 @@ statement['COUNT_DBA_OBJECTS_FILTER'] = {
   'title': 'Object Count',
   'description': '',
   'display': [],
-  'sql': `select owner, object_type, count(*) as object_count
+  'sql': `select o.owner, o.object_type, count(*) as object_count
+           ,      max(case when u.oracle_maintained = 'Y' then 1 else 0 end) as INTERNAL
            from dba_objects o
-           where object_name like :object_name ESCAPE :esc
-           and object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
+           join dba_users u on o.owner = u.username
+           where o.object_name like :object_name ESCAPE :esc
+           and o.object_type not in ('INDEX PARTITION','INDEX SUBPARTITION',
                 'LOB','LOB PARTITION','TABLE PARTITION','TABLE SUBPARTITION')
-           group by owner, object_type
-           order by owner, object_type`,
+           group by o.owner, o.object_type
+           order by o.owner, o.object_type`,
   'params': {
     object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
     esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },

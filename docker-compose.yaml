@@ -14,6 +14,7 @@ services:
     volumes:
       - ./api-server/config:/visulate-server/config
       - visulate-downloads:/visulate-server/downloads
+      - ./wallet:/opt/oracle/network/admin:ro
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
@@ -38,6 +39,7 @@ services:
       - "5000"
     volumes:
       - ./query-engine/sql2csv/config:/query-engine/sql2csv/config
+      - ./wallet:/opt/oracle/network/admin:ro
   ai-agent:
     hostname: ai-agent
     build: ./ai-agent
@@ -49,6 +51,7 @@ services:
       - "10000-10008:10000-10008"
     volumes:
       - visulate-downloads:/app/downloads
+      - ./wallet:/opt/oracle/network/admin:ro
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - GOOGLE_API_KEY=${GOOGLE_AI_KEY}

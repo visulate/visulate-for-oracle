@@ -24,6 +24,8 @@ export TEST_DATA_GENERATOR_URL=http://localhost:10008/agent/generate
 export QUERY_ENGINE_URL=http://localhost:5000/mcp-sql/call_tool
 export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200"
 export VISULATE_DOWNLOADS=$(pwd)/downloads
+export TNS_ADMIN=${TNS_ADMIN:-$(pwd)/wallet}
+mkdir -p "$TNS_ADMIN"
 mkdir -p downloads/metadata
 
 # Trap to kill all background processes on exit

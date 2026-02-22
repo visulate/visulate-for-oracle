@@ -1,4 +1,6 @@
 FROM python:3.12-slim
+ENV TNS_ADMIN=/opt/oracle/network/admin
+RUN mkdir -p /opt/oracle/network/admin
 
 WORKDIR /app
 

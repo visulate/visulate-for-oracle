@@ -27,6 +27,11 @@ RUN adduser queryeng
 USER queryeng
 ENV PATH="/home/queryeng/.local/bin:${PATH}"
 ENV PYTHONPATH=/query-engine
+ENV TNS_ADMIN=/opt/oracle/network/admin
+
+USER root
+RUN mkdir -p /opt/oracle/network/admin && chown queryeng:queryeng /opt/oracle/network/admin
+USER queryeng
 
 # Copy the project files and install dependencies
 COPY --chown=queryeng:queryeng . /query-engine/
