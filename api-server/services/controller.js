@@ -57,30 +57,37 @@ const groupBy = key => array =>
 ////////////////////////////////////////////////////////////////////////////////
 // List all database connection endpoints
 ////////////////////////////////////////////////////////////////////////////////
-function formatEndpoint(endpoint, objectCountRows) {
+function formatEndpoint(endpoint, objectCountRows, version) {
   let epObj = {};
   epObj['endpoint'] = endpoint.namespace;
   epObj['description'] = endpoint.description;
   epObj['connectString'] = endpoint.connect.connectString;
+  epObj['version'] = version;
   const groupByOwner = groupBy('OWNER');
   epObj['schemas'] = groupByOwner(objectCountRows);
   return epObj;
 }
 
 async function endpoints(filter) {
-  let query = sql.statement['COUNT_DBA_OBJECTS'];
-
-  if (filter && filter !== '*') {
-    query = sql.statement['COUNT_DBA_OBJECTS_FILTER'];
-    query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
-  }
-
   const rows = [];
   await async.each(dbConfig.endpoints, async function (ep) {
     try {
+      // Get the database version
+      let versionQuery = sql.statement['DB-VERSION'];
+      const versionResult = await dbService.simpleExecute(ep.connect.poolAlias, versionQuery.sql, versionQuery.params);
+      const versionBanner = versionResult[0].Version;
+      const is11g = versionBanner.includes('Release 11.');
+
+      let query = is11g ? sql.statement['COUNT_DBA_OBJECTS_11G'] : sql.statement['COUNT_DBA_OBJECTS'];
+
+      if (filter && filter !== '*') {
+        query = is11g ? sql.statement['COUNT_DBA_OBJECTS_FILTER_11G'] : sql.statement['COUNT_DBA_OBJECTS_FILTER'];
+        query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+      }
+
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
       if (result.length > 0) {
-        const endpoint = formatEndpoint(ep, result);
+        const endpoint = formatEndpoint(ep, result, versionBanner);
         rows.push(endpoint);
       }
     } catch (err) {
