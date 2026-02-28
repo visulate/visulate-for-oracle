@@ -41,6 +41,7 @@ x-google-marketplace:
       v2.5.7 Invalid object agent improvements
       v2.5.8 Test data generation agent
       v2.5.9 ADB refinements
+      v2.5.10 Schema comparison agent
   images:
     '':
       properties:

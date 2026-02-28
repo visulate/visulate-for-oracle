@@ -18,6 +18,7 @@ const logger = require('./logger.js');
 const dbConfig = require('../config/database.js');
 const dbService = require('./database.js');
 const { getObjectDetails } = require('./controller.js');
+const { compareEntities } = require('./compare-service.js');
 const templateEngine = require('./template-engine');
 const axios = require('axios');
 const oracledb = require('oracledb');
@@ -466,7 +467,32 @@ async function getSchemaSummaryInternal(db, owner) {
   return result.map(row => ({
     name: row.Name,
     type: row.Type,
+    rows: row.Rows,
     comments: row.Comments
+  }));
+}
+
+/**
+ * Core function to get schema grants.
+ * @param {string} db - The database name
+ * @param {string} owner - The schema owner
+ */
+async function getSchemaGrantsInternal(db, owner) {
+  const poolAlias = endpointList[db];
+  if (!poolAlias) {
+    throw new Error("Requested database was not found");
+  }
+
+  const query = statement['SCHEMA-GRANTS'];
+  const params = {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+  };
+
+  const result = await dbService.simpleExecute(poolAlias, query.sql, params);
+  return result.map(row => ({
+    grantee: row.Grantee,
+    privilege: row.Privilege,
+    admin_option: row['Admin Option']
   }));
 }
 
@@ -553,6 +579,8 @@ async function findObjectInternal(db, objectName) {
   return await dbService.simpleExecute(poolAlias, query.sql, params);
 }
 
+
+
 /**
  * Core function to get database links.
  * @param {string} db - The database name
@@ -597,7 +625,7 @@ async function getSchemaColumnsInternal(db, owner, options = {}) {
 
   // Save results to metadata cache for ERD agent
   try {
-    const downloadsBase = process.env.VISULATE_DOWNLOADS || path.join(process.cwd(), 'downloads');
+    const downloadsBase = process.env.VISULATE_DOWNLOADS || path.resolve(__dirname, '../downloads');
     const cacheDir = path.join(downloadsBase, 'metadata');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
@@ -666,7 +694,7 @@ async function getSchemaRelationshipsInternal(db, owner, options = {}) {
 
   // Save results to metadata cache for ERD agent
   try {
-    const downloadsBase = process.env.VISULATE_DOWNLOADS || path.join(process.cwd(), 'downloads');
+    const downloadsBase = process.env.VISULATE_DOWNLOADS || path.resolve(__dirname, '../downloads');
     const cacheDir = path.join(downloadsBase, 'metadata');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
@@ -1127,6 +1155,66 @@ function createMcpServer() {
         return {
           content: [
             { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaSummaryError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'getSchemaGrants',
+    'Get system, role, and object privileges granted to a schema.',
+    {
+      db: z.string().describe("The database where the schema resides."),
+      owner: z.string().describe("The name of the schema to analyze."),
+    },
+    async ({ db, owner }) => {
+      try {
+        const result = await getSchemaGrantsInternal(db, owner);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getSchemaGrants tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'getSchemaGrantsError' }, null, 2) }
+          ]
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'compareEntities',
+    'Universally compares database entities at any level (Database, Schema, Object) and generates a diff report.',
+    {
+      sourceDb: z.string().describe("The source database endpoint (e.g., vis25adb)."),
+      sourceOwner: z.string().optional().describe("For schema/object comparison, the source schema owner."),
+      sourceType: z.string().optional().describe("For object comparison, the source object type."),
+      sourceName: z.string().optional().describe("For object comparison, the source object name."),
+      targetDb: z.string().describe("The target database endpoint (e.g., pdb21)."),
+      targetOwner: z.string().optional().describe("For schema/object comparison, the target schema owner."),
+      targetType: z.string().optional().describe("For object comparison, the target object type."),
+      targetName: z.string().optional().describe("For object comparison, the target object name.")
+    },
+    async ({ sourceDb, sourceOwner, sourceType, sourceName, targetDb, targetOwner, targetType, targetName }) => {
+      try {
+        const sourceReq = { db: sourceDb, owner: sourceOwner, type: sourceType, name: sourceName };
+        const targetReq = { db: targetDb, owner: targetOwner, type: targetType, name: targetName };
+        const result = await compareEntities(sourceReq, targetReq);
+        return {
+          content: [
+            { type: 'text', text: result.reportSummary }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP compareEntities tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, type: 'compareEntitiesError' }, null, 2) }
           ]
         };
       }

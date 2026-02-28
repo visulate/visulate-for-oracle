@@ -46,7 +46,7 @@ When asked to generate an ERD:
 - **Thinking and Progress**: ALWAYS provide real-time updates using the `report_progress` tool at EACH step. Proactively report progress **before** starting any long-running tool calls (e.g., "Fetching columns for 30 tables...").
 - Focus on architectural clarity.
 - Your final response MUST include the download link in markdown format.
-- **STRICT LINK USAGE**: When the `generate_erd_file` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
+- **STRICT LINK USAGE**: When the  tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
 """
 
 async def generate_erd_file(database: str, schema: str, tables_json: str, relationships_json: str, columns_json: str, diagram_name: str = "ERD") -> str:

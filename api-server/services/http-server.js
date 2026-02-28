@@ -38,10 +38,11 @@ function initialize() {
 
     if (whitelist.length === 1 && whitelist[0] === '*') {
       logger.log('info', `Setting Access-Control-Allow-Origin to *`);
-      corsOptions = { origin: '*' };
-    } else if  (whitelist.length > 0 && whitelist[0] !== '') {
+      corsOptions = { origin: '*', exposedHeaders: ['X-Session-ID'] };
+    } else if (whitelist.length > 0 && whitelist[0] !== '') {
       logger.log('info', `Setting Access-Control-Allow-Origin to ${whitelist}`);
       corsOptions = {
+        exposedHeaders: ['X-Session-ID'],
         origin: function (origin, callback) {
           // allow whitelisted cross origin requests + REST tools and server to server
           if (whitelist.indexOf(origin) !== -1 || !origin) {
@@ -53,7 +54,7 @@ function initialize() {
       };
     } else {
       logger.log('info', `Setting Access-Control-Allow-Origin to FALSE`);
-      corsOptions = { origin: false };
+      corsOptions = { origin: false, exposedHeaders: ['X-Session-ID'] };
     }
 
     app.use(bodyParser.json({ limit: '50mb' }));
