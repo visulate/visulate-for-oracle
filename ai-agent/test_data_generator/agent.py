@@ -93,7 +93,9 @@ async def generate_test_data_suite(database: str, schema: str, tables: List[str]
             return f"{fallback_msg}\n\nPlease verify table names and database connectivity."
 
         # Create zip archive of all generated files
-        archive_name = f"test_data_{database}_{schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
+        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
+        archive_name = f"test_data_{safe_database}_{safe_schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
         zip_path = create_zip_archive(output_dir, archive_name)
 
         # Formulate the response with the single zip download link as the primary action
@@ -134,6 +136,7 @@ Your purpose is to generate comprehensive test data suites for Oracle database t
 - **Always use the tools**: Never try to generate the data formats yourself in text.
 - **Table Discovery**: Always resolve wildcards/filters using `list_tables` before calling the generation suite.
 - **Reference Context**: Use the `owner` and `database` names from the UI context preamble.
+- **STRICT LINK USAGE**: When the `generate_test_data_suite` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
 """
 
 def create_test_data_generator_agent() -> LlmAgent:
