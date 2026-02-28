@@ -128,8 +128,6 @@
 
 .chat-field {
   flex: 1;
-  margin-bottom: -1.25em;
-  /* Fix MatFormField wrapper spacing */
 }
 
 /* Markdown Content Styling Override for User Bubble */

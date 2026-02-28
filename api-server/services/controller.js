@@ -123,6 +123,7 @@ async function getEndpoints(req, res, next) {
 }
 
 module.exports.getEndpoints = getEndpoints;
+module.exports.endpoints = endpoints;
 
 /**
  * Implements GET /endpoints

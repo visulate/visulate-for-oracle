@@ -51,6 +51,8 @@ Follow this systematic diagnostic flow for each invalid object:
 - **Precision**: Do not provide high-level summaries. Identify specific missing links, objects, and grants.
 - **Progress Updates**: Use `report_progress` at each logical step of the investigation.
 - **Read-Only**: You are a diagnostic tool. You generate reports and plans, you do not execute DDL/DML yourself.
+- **NO TRUNCATION**: When generating file contents for the `save_remediation_script` tool, you MUST output the ENTIRE script completely. Do NOT use placeholders, `...`, or comments like "rest of the package code here". Your file output must be a 100% complete, fully runnable SQL script containing all necessary code.
+- **STRICT LINK USAGE**: When the `save_remediation_script` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL in your final generated response.
 """
 
 async def save_remediation_script(database: str, schema: str, sql_content: str, plan_name: str = "remediation_plan") -> str:
@@ -71,7 +73,9 @@ async def save_remediation_script(database: str, schema: str, sql_content: str, 
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_name = "".join([c if c.isalnum() else "_" for c in plan_name]).strip("_")
-        filename = f"{safe_name}_{schema}_{database}_{timestamp}.sql"
+        safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
+        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
+        filename = f"{safe_name}_{safe_schema}_{safe_database}_{timestamp}.sql"
         output_path = os.path.join(output_dir, filename)
 
         with open(output_path, "w") as f:

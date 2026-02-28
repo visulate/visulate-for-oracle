@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from google.genai import types
 
 from google.adk.runners import Runner
-from google.adk.sessions.in_memory_session_service import InMemorySessionService
+from google.adk.sessions.database_session_service import DatabaseSessionService
 from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
 
@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
 
     # Initialize Root Agent and Runner
     root_agent = create_root_agent()
-    session_service = InMemorySessionService()
+    session_service = DatabaseSessionService(db_url="sqlite:///sessions.db", connect_args={'check_same_thread': False})
 
     runner = Runner(
         app_name="visulate_agent",
@@ -99,7 +99,7 @@ def create_app() -> FastAPI:
 
             # Ensure Session exists
             try:
-                await session_service.get_session(user_id="visulate_user", session_id=session_id)
+                await session_service.get_session(app_name="visulate_agent", user_id="visulate_user", session_id=session_id)
             except Exception:
                 await session_service.create_session(
                     app_name="visulate_agent",

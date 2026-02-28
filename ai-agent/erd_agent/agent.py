@@ -46,6 +46,7 @@ When asked to generate an ERD:
 - **Thinking and Progress**: ALWAYS provide real-time updates using the `report_progress` tool at EACH step. Proactively report progress **before** starting any long-running tool calls (e.g., "Fetching columns for 30 tables...").
 - Focus on architectural clarity.
 - Your final response MUST include the download link in markdown format.
+- **STRICT LINK USAGE**: When the  tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
 """
 
 async def generate_erd_file(database: str, schema: str, tables_json: str, relationships_json: str, columns_json: str, diagram_name: str = "ERD") -> str:
@@ -187,8 +188,10 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
 
         # Clean and unique filename
         safe_name = "".join([c if c.isalnum() else "_" for c in diagram_name]).strip("_")
+        safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
+        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{safe_name}_{schema}_{database}_{timestamp}.drawio"
+        filename = f"{safe_name}_{safe_schema}_{safe_database}_{timestamp}.drawio"
         output_path = os.path.join(output_dir, filename)
 
         os.makedirs(output_dir, exist_ok=True)
