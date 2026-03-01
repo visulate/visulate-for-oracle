@@ -551,7 +551,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name, incl
                 title: 'SQL Statements',
                 description: `Source lines that include the word: select, insert, update, delete, merge,
                                           create, alter, drop, truncate, lock, grant or revoke`,
-                display: ["Line", "Statement"],
+                display: ["Statement", "Line"],
                 rows: util.extractSqlStatements(cResult)
               });
               break;
