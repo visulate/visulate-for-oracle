@@ -5,6 +5,7 @@ const controller = require('./controller.js');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const Diff = require('diff');
 
 const DOWNLOAD_ROOT = process.env.VISULATE_DOWNLOADS || path.resolve(__dirname, '../downloads');
 
@@ -186,6 +187,21 @@ async function compareEntities(sourceReq, targetReq) {
     }
 
     const displayCols = sBlock.display || [];
+
+    // Special handling for Source code diffs (Stored Procedures, Views, etc.)
+    if (title === 'Source' && displayCols.includes('Text')) {
+      const sText = sRows.map(r => r['Text'] !== undefined && r['Text'] !== null ? String(r['Text']).replace(/\r?\n$/, '') : '').join('\n');
+      const tText = tRows.map(r => r['Text'] !== undefined && r['Text'] !== null ? String(r['Text']).replace(/\r?\n$/, '') : '').join('\n');
+
+      if (sText === tText) {
+        report += `*Exact match.*\n\n`;
+      } else {
+        const patch = Diff.createTwoFilesPatch(sHeader, tHeader, sText, tText, '', '');
+        report += `### Differences\n\n\`\`\`diff\n${patch}\n\`\`\`\n\n`;
+      }
+      continue;
+    }
+
     let numColsForPk = 1;
 
     if (sRows.length <= 1 && tRows.length <= 1) {

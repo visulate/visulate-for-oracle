@@ -28,6 +28,7 @@
     "async": "^3.2.0",
     "axios": "^1.13.5",
     "cors": "^2.8.5",
+    "diff": "^8.0.3",
     "dotenv": "^16.4.5",
     "express": "^4.22.1",
     "express-json-validator-middleware": "^2.1.1",
@@ -43,5 +44,9 @@
     "chai": "^4.2.0",
     "chai-http": "^4.3.0",
     "mocha": "^11.1.0"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.2"
   }
 }
