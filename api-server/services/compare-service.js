@@ -151,6 +151,10 @@ async function compareEntities(sourceReq, targetReq) {
   report += `**Source**: ${sourceReq.db}` + (sourceReq.owner ? `.${sourceReq.owner}` : '') + (sourceReq.type ? `.${sourceReq.type}` : '') + (sourceReq.name ? `.${sourceReq.name}` : '') + `\n`;
   report += `**Target**: ${targetReq.db}` + (targetReq.owner ? `.${targetReq.owner}` : '') + (targetReq.type ? `.${targetReq.type}` : '') + (targetReq.name ? `.${targetReq.name}` : '') + `\n\n`;
 
+  let apiReport = `# Universal Comparison Report\n\n`;
+  apiReport += `**Source**: ${sourceReq.db}` + (sourceReq.owner ? `.${sourceReq.owner}` : '') + (sourceReq.type ? `.${sourceReq.type}` : '') + (sourceReq.name ? `.${sourceReq.name}` : '') + `\n`;
+  apiReport += `**Target**: ${targetReq.db}` + (targetReq.owner ? `.${targetReq.owner}` : '') + (targetReq.type ? `.${targetReq.type}` : '') + (targetReq.name ? `.${targetReq.name}` : '') + `\n\n`;
+
   let sHeader = sourceReq.db + (sourceReq.owner ? `.${sourceReq.owner}` : '');
   let tHeader = targetReq.db + (targetReq.owner ? `.${targetReq.owner}` : '');
 
@@ -172,8 +176,10 @@ async function compareEntities(sourceReq, targetReq) {
 
   for (const [title, sBlock] of sourceMap.entries()) {
     report += `## ${title}\n\n`;
+    apiReport += `## ${title}\n\n`;
     if (!targetMap.has(title)) {
       report += `*Section missing in target.*\n\n`;
+      apiReport += `*Section missing in target.*\n\n`;
       continue;
     }
     const tBlock = targetMap.get(title);
@@ -183,6 +189,7 @@ async function compareEntities(sourceReq, targetReq) {
 
     if (sRows.length === 0 && tRows.length === 0) {
       report += `*No data in either source or target.*\n\n`;
+      apiReport += `*No data in either source or target.*\n\n`;
       continue;
     }
 
@@ -190,14 +197,16 @@ async function compareEntities(sourceReq, targetReq) {
 
     // Special handling for Source code diffs (Stored Procedures, Views, etc.)
     if (title === 'Source' && displayCols.includes('Text')) {
-      const sText = sRows.map(r => r['Text'] !== undefined && r['Text'] !== null ? String(r['Text']).replace(/\r?\n$/, '') : '').join('\n');
-      const tText = tRows.map(r => r['Text'] !== undefined && r['Text'] !== null ? String(r['Text']).replace(/\r?\n$/, '') : '').join('\n');
+      const sText = sRows.map(r => r['Text'] !== undefined && r['Text'] !== null ? String(r['Text']) : '').join('');
+      const tText = tRows.map(r => r['Text'] !== undefined && r['Text'] !== null ? String(r['Text']) : '').join('');
 
       if (sText === tText) {
         report += `*Exact match.*\n\n`;
+        apiReport += `*Exact match.*\n\n`;
       } else {
         const patch = Diff.createTwoFilesPatch(sHeader, tHeader, sText, tText, '', '');
         report += `### Differences\n\n\`\`\`diff\n${patch}\n\`\`\`\n\n`;
+        apiReport += `### Differences\n\n\`\`\`diff\n${patch.substring(0, 1000)}${patch.length > 1000 ? '\n... (patch truncated to save space, download the file to see the full code difference)' : ''}\n\`\`\`\n\n`;
       }
       continue;
     }
@@ -273,33 +282,57 @@ async function compareEntities(sourceReq, targetReq) {
 
     if (missing.length === 0 && extra.length === 0 && diffs.length === 0) {
       report += `*Exact match.*\n\n`;
+      apiReport += `*Exact match.*\n\n`;
     } else {
       if (missing.length > 0) {
         report += `### Missing in ${tHeader}\n`;
+        apiReport += `### Missing in ${tHeader}\n`;
         report += `| ${displayCols.join(' | ')} |\n`;
+        apiReport += `| ${displayCols.join(' | ')} |\n`;
         report += `|${displayCols.map(() => '---').join('|')}|\n`;
+        apiReport += `|${displayCols.map(() => '---').join('|')}|\n`;
         missing.forEach(pk => {
           const mRow = sRowsMap.get(pk);
-          report += `| ${displayCols.map(col => mRow[col] !== undefined && mRow[col] !== null ? String(mRow[col]).replace(/\|/g, '-').replace(/\r?\n|\r/g, '<br>') : '').join(' | ')} |\n`;
+          let rowMarkdown = `| ${displayCols.map(col => mRow[col] !== undefined && mRow[col] !== null ? String(mRow[col]).replace(/\|/g, '-').replace(/\r?\n|\r/g, '<br>') : '').join(' | ')} |\n`;
+          report += rowMarkdown;
+          apiReport += rowMarkdown;
         });
         report += `\n`;
+        apiReport += `\n`;
       }
       if (extra.length > 0) {
         report += `### Extra in ${tHeader}\n`;
+        apiReport += `### Extra in ${tHeader}\n`;
         report += `| ${displayCols.join(' | ')} |\n`;
+        apiReport += `| ${displayCols.join(' | ')} |\n`;
         report += `|${displayCols.map(() => '---').join('|')}|\n`;
+        apiReport += `|${displayCols.map(() => '---').join('|')}|\n`;
         extra.forEach(pk => {
           const mRow = tRowsMap.get(pk);
-          report += `| ${displayCols.map(col => mRow[col] !== undefined && mRow[col] !== null ? String(mRow[col]).replace(/\|/g, '-').replace(/\r?\n|\r/g, '<br>') : '').join(' | ')} |\n`;
+          let rowMarkdown = `| ${displayCols.map(col => mRow[col] !== undefined && mRow[col] !== null ? String(mRow[col]).replace(/\|/g, '-').replace(/\r?\n|\r/g, '<br>') : '').join(' | ')} |\n`;
+          report += rowMarkdown;
+          apiReport += rowMarkdown;
         });
         report += `\n`;
+        apiReport += `\n`;
       }
       if (diffs.length > 0) {
         report += `### Differences\n`;
+        apiReport += `### Differences\n`;
         report += `| Row PK | Column | ${sHeader} | ${tHeader} |\n`;
+        apiReport += `| Row PK | Column | ${sHeader} | ${tHeader} |\n`;
         report += `|---|---|---|---|\n`;
+        apiReport += `|---|---|---|---|\n`;
+
+        // Truncate table diffs in the API response if there are too many (e.g. over 50 differences)
         diffs.forEach(d => report += `${d}\n`);
+        diffs.slice(0, 50).forEach(d => apiReport += `${d}\n`);
+        if (diffs.length > 50) {
+          apiReport += `| ... | ... | (Truncated ${diffs.length - 50} more differences) | |\n`;
+        }
+
         report += `\n`;
+        apiReport += `\n`;
       }
     }
   }
@@ -307,6 +340,7 @@ async function compareEntities(sourceReq, targetReq) {
   for (const [title, tBlock] of targetMap.entries()) {
     if (!sourceMap.has(title)) {
       report += `## ${title}\n\n*Section exists in target but missing in source.*\n\n`;
+      apiReport += `## ${title}\n\n*Section exists in target but missing in source.*\n\n`;
     }
   }
 
@@ -324,9 +358,9 @@ async function compareEntities(sourceReq, targetReq) {
   const downloadUrl = `/download/${sessionId}/${filename}`;
 
   return {
-    reportSummary: `Comparison complete! Download the full Markdown diff report at: ${downloadUrl}\n\nPreview:\n\n${report.substring(0, 1500)}${report.length > 1500 ? '\n\n... (report truncated to save space, download the file to see the full list of differences)' : ''}`,
+    reportSummary: `Comparison complete! Download the full Markdown diff report at: ${downloadUrl}\n\nPreview:\n\n${apiReport.substring(0, 1500)}${apiReport.length > 1500 ? '\n\n... (report truncated to save space, download the file to see the full list of differences)' : ''}`,
     downloadUrl,
-    rawMarkdown: report
+    rawMarkdown: apiReport
   };
 }
 
