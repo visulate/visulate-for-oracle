@@ -18,9 +18,8 @@ function getEndpointList(endpoints) {
 
 const endpointList = getEndpointList(dbConfig.endpoints);
 
-async function getSchemaObjectCounts(db, ownerToFilter = null) {
-  const eps = await controller.endpoints('');
-  const epObj = eps.find(e => e.endpoint === db);
+async function getSchemaObjectCounts(db, endpoints, ownerToFilter = null) {
+  const epObj = endpoints.find(e => e.endpoint === db);
   if (!epObj || !epObj.schemas) return null;
 
   const countsRows = [];
@@ -51,7 +50,7 @@ async function getSchemaObjectCounts(db, ownerToFilter = null) {
   }
 }
 
-async function getDatabaseData(db) {
+async function getDatabaseData(db, endpoints) {
   const poolAlias = endpointList[db];
   if (!poolAlias) throw new Error(`Database ${db} not found`);
 
@@ -66,7 +65,7 @@ async function getDatabaseData(db) {
     }
 
     // Include object counts by schema for Database comparisons
-    const countData = await getSchemaObjectCounts(db);
+    const countData = await getSchemaObjectCounts(db, endpoints);
     if (countData) result.unshift(countData);
 
     return result;
@@ -75,7 +74,7 @@ async function getDatabaseData(db) {
   }
 }
 
-async function getSchemaData(db, owner) {
+async function getSchemaData(db, owner, endpoints) {
   const poolAlias = endpointList[db];
   if (!poolAlias) throw new Error(`Database ${db} not found`);
 
@@ -106,7 +105,7 @@ async function getSchemaData(db, owner) {
     }
 
     // Include object counts for THIS schema for Schema comparisons
-    const countData = await getSchemaObjectCounts(db, owner);
+    const countData = await getSchemaObjectCounts(db, endpoints, owner);
     if (countData) result.unshift(countData);
 
     return result;
@@ -115,7 +114,7 @@ async function getSchemaData(db, owner) {
   }
 }
 
-async function getObjectData(db, owner, type, name) {
+async function getObjectData(db, owner, type, name, endpoints) {
   const poolAlias = endpointList[db];
   if (!poolAlias) throw new Error(`Database ${db} not found`);
   const details = await controller.getObjectDetails(poolAlias, owner, type, name, true);
@@ -124,24 +123,27 @@ async function getObjectData(db, owner, type, name) {
 }
 
 async function compareEntities(sourceReq, targetReq) {
+  // Fetch endpoints once to improve performance
+  const endpoints = await controller.endpoints('');
+
   let sourceData, targetData;
 
   // Fetch Source Data
   if (sourceReq.type && sourceReq.name) {
-    sourceData = await getObjectData(sourceReq.db, sourceReq.owner, sourceReq.type, sourceReq.name);
+    sourceData = await getObjectData(sourceReq.db, sourceReq.owner, sourceReq.type, sourceReq.name, endpoints);
   } else if (sourceReq.owner) {
-    sourceData = await getSchemaData(sourceReq.db, sourceReq.owner);
+    sourceData = await getSchemaData(sourceReq.db, sourceReq.owner, endpoints);
   } else {
-    sourceData = await getDatabaseData(sourceReq.db);
+    sourceData = await getDatabaseData(sourceReq.db, endpoints);
   }
 
   // Fetch Target Data
   if (targetReq.type && targetReq.name) {
-    targetData = await getObjectData(targetReq.db, targetReq.owner, targetReq.type, targetReq.name);
+    targetData = await getObjectData(targetReq.db, targetReq.owner, targetReq.type, targetReq.name, endpoints);
   } else if (targetReq.owner) {
-    targetData = await getSchemaData(targetReq.db, targetReq.owner);
+    targetData = await getSchemaData(targetReq.db, targetReq.owner, endpoints);
   } else {
-    targetData = await getDatabaseData(targetReq.db);
+    targetData = await getDatabaseData(targetReq.db, endpoints);
   }
 
   let report = `# Universal Comparison Report\n\n`;
@@ -294,12 +296,14 @@ async function compareEntities(sourceReq, targetReq) {
 
   const sessionId = crypto.randomUUID();
   const dirPath = path.join(DOWNLOAD_ROOT, sessionId);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  try {
+    await fs.promises.access(dirPath);
+  } catch (err) {
+    await fs.promises.mkdir(dirPath, { recursive: true });
   }
   const filename = 'comparison_report.md';
   const filePath = path.join(dirPath, filename);
-  fs.writeFileSync(filePath, report);
+  await fs.promises.writeFile(filePath, report);
 
   const downloadUrl = `/download/${sessionId}/${filename}`;
 

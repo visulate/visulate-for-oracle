@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { waitForAsync, ComponentFixture, TestBed } from '@angular/core/testing';
 import { FindObjectComponent } from './find-object.component';
+import { FilterObjectsComponent } from '../filter-objects/filter-objects.component';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatInputModule } from '@angular/material/input';
@@ -31,15 +32,16 @@ describe('FindObjectComponent', () => {
   let component: FindObjectComponent;
   let fixture: ComponentFixture<FindObjectComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [FindObjectComponent],
+      declarations: [FindObjectComponent, FilterObjectsComponent],
       imports: [MatCardModule,
         MatListModule,
         MatFormFieldModule,
         MatInputModule,
         MatIconModule,
         FormsModule,
+        ReactiveFormsModule,
         RouterTestingModule,
         BrowserAnimationsModule],
       providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]

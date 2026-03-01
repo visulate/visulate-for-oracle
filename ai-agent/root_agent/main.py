@@ -99,13 +99,15 @@ def create_app() -> FastAPI:
 
             # Ensure Session exists
             try:
-                await session_service.get_session(app_name="visulate_agent", user_id="visulate_user", session_id=session_id)
-            except Exception:
-                await session_service.create_session(
-                    app_name="visulate_agent",
-                    user_id="visulate_user",
-                    session_id=session_id
-                )
+                session = await session_service.get_session(app_name="visulate_agent", user_id="visulate_user", session_id=session_id)
+                if session is None:
+                    await session_service.create_session(
+                        app_name="visulate_agent",
+                        user_id="visulate_user",
+                        session_id=session_id
+                    )
+            except Exception as e:
+                logger.error(f"Error handling session creation: {e}", exc_info=True)
 
             async def response_generator() -> AsyncGenerator[str, None]:
                 queue = asyncio.Queue()

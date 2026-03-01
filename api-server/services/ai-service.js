@@ -1207,7 +1207,7 @@ function createMcpServer() {
         const result = await compareEntities(sourceReq, targetReq);
         return {
           content: [
-            { type: 'text', text: result.reportSummary }
+            { type: 'text', text: JSON.stringify(result, null, 2) }
           ]
         };
       } catch (error) {

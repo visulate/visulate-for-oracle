@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TestBed, getTestBed,  } from '@angular/core/testing';
+import { TestBed, getTestBed, } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { RestService } from './rest.service';
@@ -32,8 +32,8 @@ describe('RestService', () => {
       providers: [RestService, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
     });
     injector = getTestBed();
-    service = injector.get(RestService);
-    httpMock = injector.get(HttpTestingController);
+    service = injector.inject(RestService);
+    httpMock = injector.inject(HttpTestingController);
   });
 
   afterEach(() => {
@@ -41,14 +41,14 @@ describe('RestService', () => {
   });
 
   it('should be created', () => {
-    const service2: RestService = TestBed.get(RestService);
+    const service2: RestService = TestBed.inject(RestService);
     expect(service2).toBeTruthy();
   });
 
   // httpMock code not working as expected
   // describe('#getObjectList', () => {
   //   it('should return an Observable<sting[]>', () => {
-  //     //const service: RestService = TestBed.get(RestService);
+  //     //const service: RestService = TestBed.inject(RestService);
   //     const dummyObjectList: string[] = ['TABLE_ONE', 'TABLE_TWO'];
   //     service.getObjectList('endpoint', 'owner', 'obtype').subscribe(objects => {
   //       expect(objects.length).toBe(2);

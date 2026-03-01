@@ -21,6 +21,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
 import { CdkTableModule } from '@angular/cdk/table';
+import { TextFieldModule } from '@angular/cdk/text-field';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -85,6 +86,7 @@ import { RestService } from './services/rest.service';
     AppRoutingModule,
     BrowserAnimationsModule,
     CdkTableModule,
+    TextFieldModule,
     FormsModule,
     ReactiveFormsModule,
     MatCardModule,

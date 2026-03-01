@@ -29,20 +29,6 @@ manifest:
       - ai-agent/common/service_template.py
       - ai-agent/schema_comparison_agent/agent.py
       - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
-      - ai-agent/schema_comparison_agent/agent.py
-      - ai-agent/schema_comparison_agent/main.py
   issued:
     by: A2AS.org
     at: '2026-02-11T16:54:06Z'
@@ -132,8 +118,13 @@ agents:
         - '- **Progress Updates**: Use `report_progress` at each major step.'
         - '- **No Direct Execution**: You generate code for the user to review and
           deploy; you do not execute DDL or DML yourself.'
-        - '- **NO TRUNCATION**: When generating file contents for the `save_source_files` tool, you MUST output the ENTIRE file completely. Do NOT use placeholders, `...`, or comments like "rest of code here". Your file output must be a 100% complete, runnable script.'
-        - '- **STRICT LINK USAGE**: When the `save_source_files` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL in your final generated response.'
+        - '- **NO TRUNCATION**: When generating file contents for the `save_source_files`
+          tool, you MUST output the ENTIRE file completely. Do NOT use placeholders,
+          `...`, or comments like "rest of code here". Your file output must be a
+          100% complete, runnable script.'
+        - '- **STRICT LINK USAGE**: When the `save_source_files` tool returns a download
+          link to you, you MUST output that EXACT link to the user. Do not fabricate
+          or shorten the link URL in your final generated response.'
       function: create_app_developer_agent
   agent.create_erd_agent:
     type: factory
@@ -198,7 +189,10 @@ agents:
           starting any long-running tool calls (e.g., "Fetching columns for 30 tables...").'
         - '- Focus on architectural clarity.'
         - '- Your final response MUST include the download link in markdown format.'
-        - '- **STRICT LINK USAGE**: When the `generate_erd_file` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.'
+        - '- **STRICT LINK USAGE**: When the `generate_erd_file` tool returns a download
+          link to you, you MUST output that EXACT link to the user. Do not fabricate
+          or shorten the link URL or change the file extension in your final generated
+          response.'
       function: create_erd_agent
   agent.create_invalid_objects_agent:
     type: factory
@@ -266,8 +260,14 @@ agents:
           investigation.'
         - '- **Read-Only**: You are a diagnostic tool. You generate reports and plans,
           you do not execute DDL/DML yourself.'
-        - '- **NO TRUNCATION**: When generating file contents for the `save_remediation_script` tool, you MUST output the ENTIRE script completely. Do NOT use placeholders, `...`, or comments like "rest of the package code here". Your file output must be a 100% complete, fully runnable SQL script containing all necessary code.'
-        - '- **STRICT LINK USAGE**: When the `save_remediation_script` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL in your final generated response.'
+        - '- **NO TRUNCATION**: When generating file contents for the `save_remediation_script`
+          tool, you MUST output the ENTIRE script completely. Do NOT use placeholders,
+          `...`, or comments like "rest of the package code here". Your file output
+          must be a 100% complete, fully runnable SQL script containing all necessary
+          code.'
+        - '- **STRICT LINK USAGE**: When the `save_remediation_script` tool returns
+          a download link to you, you MUST output that EXACT link to the user. Do
+          not fabricate or shorten the link URL in your final generated response.'
       function: create_invalid_objects_agent
   agent.create_nl2sql_agent:
     type: factory
@@ -452,6 +452,7 @@ agents:
       - erd_tool
       - invalid_objects_tool
       - app_developer_tool
+      - comparison_tool
     params:
       name: visulate_root_agent
       description: Pure orchestrator for Visulate AI microservices
@@ -567,6 +568,10 @@ agents:
         - '  - **Metadata & Invalid Objects**: Note any missing comments or invalid
           objects (like missing package bodies or compilation errors) and what they
           might indicate about the environment''s health or deployment status.'
+        - '  - **Database Flags/Settings**: Pay close attention to boolean/Yes-No
+          fields like "Is E-Business Suite Instance?". If the report says "Exact match"
+          AND the value is "No" for both, it means **neither** database contains it.
+          Do not incorrectly state "both databases" have it in this scenario.'
         - '- If the preview is truncated, explicitly mention that the listed observations
           are based on a partial preview, but you should still analyze the available
           preview data extensively.'
@@ -576,7 +581,22 @@ agents:
           via API", "Analyzing discrepancy patterns", "Formatting final output").'
         - '- **Completeness**: Make sure you output the download link provided by
           the `compareEntities` tool! Output a detailed, multi-paragraph markdown
-          analysis based on the preview text.'
+          analysis based on the preview text. Finally, output the EXACT `rawMarkdown`
+          returned by the tool at the very end of your response so the user can see
+          the full formatted differences immediately.'
+        - '## Follow-up Questions'
+        - If the user asks follow-up questions about the generated report (e.g., "list
+          the objects that exist in pdb22 that aren't in pdb21" or "what are those
+          2 extra materialzed views?"), you MUST use the `searchObjects` tool (under
+          `api_server_tools`) to execute a directed API call to retrieve the specific
+          data.
+        - '- The `searchObjects` tool corresponds to the `/api/<db>/<owner>/<type>/<name>/<status>`
+          endpoint.'
+        - '- For example, to find all extra Materialized Views in pdb22''s RNTMGR2
+          schema, use parameters `db="pdb22"`, `owner="RNTMGR2"`, `type="MATERIALIZED
+          VIEW"`, `name="*"`, `status="*"`.'
+        - '- Cross-reference the resulting lists between the source and target to
+          answer the user''s specific question!'
 models:
   gemini-flash-latest:
     type: literal

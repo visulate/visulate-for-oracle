@@ -5,8 +5,10 @@ with open('a2as.yaml', 'r') as f:
 
 # Add to scope
 if 'manifest' in data and 'subject' in data['manifest'] and 'scope' in data['manifest']['subject']:
-    data['manifest']['subject']['scope'].append('ai-agent/schema_comparison_agent/agent.py')
-    data['manifest']['subject']['scope'].append('ai-agent/schema_comparison_agent/main.py')
+    if 'ai-agent/schema_comparison_agent/agent.py' not in data['manifest']['subject']['scope']:
+        data['manifest']['subject']['scope'].append('ai-agent/schema_comparison_agent/agent.py')
+    if 'ai-agent/schema_comparison_agent/main.py' not in data['manifest']['subject']['scope']:
+        data['manifest']['subject']['scope'].append('ai-agent/schema_comparison_agent/main.py')
 
 # Add agent definition
 data['agents']['agent.create_schema_comparison_agent'] = {
@@ -57,12 +59,18 @@ data['tools']['comparison_tool'] = {
 
 # Update progress_tool to include new agent
 if 'progress_tool' in data['tools']:
-    data['tools']['progress_tool']['agents'].append('agent.create_schema_comparison_agent')
+    if 'agent.create_schema_comparison_agent' not in data['tools']['progress_tool']['agents']:
+        data['tools']['progress_tool']['agents'].append('agent.create_schema_comparison_agent')
+
+import copy
 
 # Update models to include new agent
 if 'gemini-2.5-flash' not in data['models']:
-    data['models']['gemini-2.5-flash'] = dict(data['models']['gemini-flash-latest'])
-data['models']['gemini-2.5-flash']['agents'].append('agent.create_schema_comparison_agent')
+    data['models']['gemini-2.5-flash'] = copy.deepcopy(data['models']['gemini-flash-latest'])
+if 'agent.create_schema_comparison_agent' not in data['models']['gemini-2.5-flash']['agents']:
+    data['models']['gemini-2.5-flash']['agents'].append('agent.create_schema_comparison_agent')
+if 'agent.create_schema_comparison_agent' not in data['models']['gemini-flash-latest']['agents']:
+    data['models']['gemini-flash-latest']['agents'].append('agent.create_schema_comparison_agent')
 
 # Add export (imports)
 data['imports']['create_schema_comparison_agent'] = 'schema_comparison_agent.agent.create_schema_comparison_agent'
