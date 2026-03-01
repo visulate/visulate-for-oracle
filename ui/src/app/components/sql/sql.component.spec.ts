@@ -8,6 +8,7 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('SqlComponent', () => {
@@ -16,7 +17,7 @@ describe('SqlComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [SqlComponent, TrimPipe],
-      imports: [FormsModule, TextFieldModule, MatCardModule, MatFormFieldModule, MatInputModule, BrowserAnimationsModule],
+      imports: [FormsModule, TextFieldModule, MatCardModule, MatFormFieldModule, MatInputModule, MatIconModule, BrowserAnimationsModule],
       providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
     })
       .compileComponents();

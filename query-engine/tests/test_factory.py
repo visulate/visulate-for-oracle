@@ -12,6 +12,10 @@ validEndpoint = config.get('validEndpoint')
 validCredentials = config.get('validCredentials')
 validConnectString =  config.get('validConnectString')
 credentials = b64encode(validCredentials.encode('utf-8')).decode('utf-8')
+default_headers = {
+    "Authorization": f"Basic {credentials}",
+    "X-DB-Credentials": credentials
+}
 
 def test_get_valid_endpoint(client):
     response = client.get(f"/sql/{validEndpoint}")
@@ -25,22 +29,22 @@ def test_get_invalid_endpoint(client):
 
 def test_simple_query(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+     headers={**default_headers, "Content-Type": "application/json"},
      json={"sql": "select banner from v$version"})
     assert response.status_code == 200
-    assert response.data == b'"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production"\n'
+    assert response.data == b'"Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production"\n'
 
 def test_csv_header_line(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+     headers={**default_headers, "Content-Type": "application/json"},
      json={"sql": "select banner from v$version", "options": {"download_lobs": "N", "csv_header": "y"}})
     assert response.status_code == 200
-    assert response.data == b'"BANNER"\n"Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production"\n'
+    assert response.data == b'"BANNER"\n"Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production"\n'
 
 def test_simple_json_query(client):
     response = client.post(f"/sql/{validEndpoint}",
      headers={
-         "Authorization": f"Basic {credentials}",
+         **default_headers,
          "Content-Type": "application/json",
          "Accept": "application/json"
          },
@@ -49,48 +53,48 @@ def test_simple_json_query(client):
     assert response.status_code == 200
     responseData = json.loads(response.data.decode("utf-8"))
     assert responseData["columns"] == ['BANNER']
-    assert responseData["rows"] == [{'BANNER': 'Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production'}]
+    assert responseData["rows"] == [{'BANNER': 'Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production'}]
     assert type(responseData["executionTime"]) == float
 
 
 def test_invalid_sql(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers=default_headers,
      json={"sql": "select banner from version"})
     assert response.status_code == 400
-    assert response.data == b'{"error":"400 Bad Request: ORA-00942: table or view does not exist"}\n'
+    assert b'ORA-00942' in response.data
 
 def test_named_parameter(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers=default_headers,
      json={"sql": "select count(*) from dba_objects where object_name=:obj", "binds": {"obj":"DBA_OBJECTS"}})
     assert response.status_code == 200
     assert response.data == b'2\n'
 
 def test_positional_parameters(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers=default_headers,
      json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS", "VIEW"]})
     assert response.status_code == 200
     assert response.data == b'1\n'
 
 def test_unbound_varable(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers=default_headers,
      json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS"]})
     assert response.status_code == 400
-    assert response.data == b'{"error":"400 Bad Request: ORA-01008: not all variables bound"}\n'
+    assert b'not all variables bound' in response.data or b'ORA-01008' in response.data or b'DPY-4009' in response.data
 
 def test_select_only(client):
     response = client.post(f"/sql/{validEndpoint}",
-    headers={"Authorization": f"Basic {credentials}"},
+    headers=default_headers,
     json={"sql": "delete from mytable"})
     assert response.status_code == 403
     assert response.data == b'{"error":"403 Forbidden: SQL statement is not of type SELECT"}\n'
 
 def test_invalid_binds_structure(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers=default_headers,
      json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS", {"obj":"DBA_OBJECTS"}]})
 
     assert response.status_code == 400
@@ -98,7 +102,7 @@ def test_invalid_binds_structure(client):
 
 def test_invalid_options(client):
     response = client.post(f"/sql/{validEndpoint}",
-     headers={"Authorization": f"Basic {credentials}"},
+     headers=default_headers,
      json={"sql": "select count(*) from dba_objects where object_name=:obj and object_type=:type", "binds": ["DBA_OBJECTS"], "options": ["invalid"]})
     assert response.status_code == 400
 

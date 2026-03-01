@@ -47,6 +47,7 @@ async function startup() {
   try {
     logger.log('info', 'Initializing http server module');
     await httpServer.initialize();
+    module.exports.isStarted = true;
     eventEmitter.emit('httpServerStarted');
   } catch (err) {
     logger.log('error', 'HTTP server initialization failed');
