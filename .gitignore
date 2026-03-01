@@ -84,3 +84,4 @@ inspect_agent.py
 inspect_llm_agent_impl.py
 query-engine/generated_comments.sql
 crane/
+ai-agent/sessions.db
