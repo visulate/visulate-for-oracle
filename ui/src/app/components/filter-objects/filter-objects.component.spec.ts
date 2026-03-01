@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { waitForAsync, ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { FormsModule, ReactiveFormsModule} from '@angular/forms';
 import { MatSelectModule} from '@angular/material/select';
@@ -10,7 +10,7 @@ describe('FilterObjectsComponent', () => {
   let component: FilterObjectsComponent;
   let fixture: ComponentFixture<FilterObjectsComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [ MatAutocompleteModule, FormsModule, ReactiveFormsModule, MatSelectModule, MatInputModule, BrowserAnimationsModule ],
       declarations: [ FilterObjectsComponent ]

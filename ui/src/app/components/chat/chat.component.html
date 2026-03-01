@@ -60,7 +60,8 @@
     <mat-form-field appearance="outline" class="chat-field">
       <mat-label>Ask Visulate...</mat-label>
       <!-- Note: MatButton module and MatIcon module required -->
-      <input matInput formControlName="message" placeholder="Type your message">
+      <textarea matInput formControlName="message" placeholder="Type your message" cdkTextareaAutosize
+        cdkAutosizeMinRows="1" cdkAutosizeMaxRows="8" (keydown)="handleKeyDown($event)"></textarea>
       <button mat-icon-button matSuffix type="submit" [disabled]="!chatForm.valid || isLoading">
         <mat-icon>send</mat-icon>
       </button>

@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const logger = require('./logger.js');
 
-const DOWNLOAD_ROOT = process.env.VISULATE_DOWNLOADS || path.resolve('/visulate-server/downloads');
+const DOWNLOAD_ROOT = process.env.VISULATE_DOWNLOADS || path.resolve(__dirname, '../downloads');
 
 /**
  * Validates session ID and filename to prevent path traversal

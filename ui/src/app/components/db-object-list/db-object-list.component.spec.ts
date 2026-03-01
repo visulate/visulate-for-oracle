@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { waitForAsync, ComponentFixture, TestBed } from '@angular/core/testing';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { DbObjectListComponent } from './db-object-list.component';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
@@ -25,7 +25,7 @@ describe('DbObjectListComponent', () => {
   let component: DbObjectListComponent;
   let fixture: ComponentFixture<DbObjectListComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
       declarations: [DbObjectListComponent],

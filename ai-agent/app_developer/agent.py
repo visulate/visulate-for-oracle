@@ -43,6 +43,8 @@ Generate high-quality code and migration scripts based on database metadata. Sup
 - **Context Awareness**: Use the provided UI context (database, schema, object) to resolve references.
 - **Progress Updates**: Use `report_progress` at each major step.
 - **No Direct Execution**: You generate code for the user to review and deploy; you do not execute DDL or DML yourself.
+- **NO TRUNCATION**: When generating file contents for the `save_source_files` tool, you MUST output the ENTIRE file completely. Do NOT use placeholders, `...`, or comments like "rest of code here". Your file output must be a 100% complete, runnable script.
+- **STRICT LINK USAGE**: When the `save_source_files` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL in your final generated response.
 """
 
 async def save_source_files(files: List[Dict[str, str]], description: str = "Generated Code") -> str:

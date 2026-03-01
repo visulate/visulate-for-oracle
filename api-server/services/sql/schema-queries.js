@@ -126,11 +126,11 @@ statement['ADB-YN'] = {
 }
 
 statement['EBS-SCHEMA'] = {
-  'title': 'E-Business Suite Schema Detected',
+  'title': 'Is E-Business Suite Instance?',
   'description': '',
-  'display': ["EBS Schema"],
+  'display': ["Is E-Business Suite Instance?"],
   'sql': `select decode(count(*), 1, 'Yes',
-                                     'No') as "EBS Schema"
+                                     'No') as "Is E-Business Suite Instance?"
           from dba_tables
           where owner='APPLSYS'
           and table_name = 'FND_APPLICATION'`,
@@ -309,15 +309,19 @@ statement['SCHEMA-INVALID-OBJECTS'] = {
   'description': 'Invalid objects in the schema',
   'display': ["Type", "Name", "Line", "Error"],
   'link': 'Name',
-  'sql': `select type as "Type"
-          ,      name as "Name"
-          ,      line as "Line"
-          ,      text as "Error"
-          ,      owner||'/'||type||'/'||name as link
-          from dba_errors
-          where owner = :owner
-          and name like :object_name ESCAPE :esc
-          order by type, name, line`,
+  'sql': `select o.object_type as "Type"
+          ,      o.object_name as "Name"
+          ,      e.line as "Line"
+          ,      e.text as "Error"
+          ,      o.owner||'/'||o.object_type||'/'||o.object_name as link
+          from dba_objects o
+          left join dba_errors e on o.owner = e.owner
+                                and o.object_name = e.name
+                                and o.object_type = e.type
+          where o.owner = :owner
+          and o.status = 'INVALID'
+          and o.object_name like :object_name ESCAPE :esc
+          order by o.object_type, o.object_name, e.line`,
   'params': {
     owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
     object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
@@ -530,15 +534,17 @@ statement['SCHEMA-SUMMARY'] = {
   'title': 'Schema Summary',
   'description': 'High level summary of tables and views in the schema',
   'link': 'Name',
-  'display': ["Name", "Type", "Comments"],
-  'sql': `select table_name as "Name"
-          ,      table_type as "Type"
-          ,      comments as "Comments"
-          ,      owner||'/'||table_type||'/'||table_name as link
-          from dba_tab_comments
-          where owner = :owner
-          and table_type in ('TABLE', 'VIEW')
-          order by table_type, table_name`,
+  'display': ["Name", "Type", "Rows", "Comments"],
+  'sql': `select c.table_name as "Name"
+          ,      c.table_type as "Type"
+          ,      to_char(t.num_rows, 'FM999,999,999,999') as "Rows"
+          ,      c.comments as "Comments"
+          ,      c.owner||'/'||c.table_type||'/'||c.table_name as link
+          from dba_tab_comments c
+          left join dba_tables t on c.owner = t.owner and c.table_name = t.table_name
+          where c.owner = :owner
+          and c.table_type in ('TABLE', 'VIEW')
+          order by c.table_type, c.table_name`,
   'params': {
     owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
   }
@@ -608,6 +614,27 @@ statement['SCHEMA-MISSING-COL-COMMENTS'] = {
     owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" },
     object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
     esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" },
+  }
+};
+
+statement['SCHEMA-GRANTS'] = {
+  'title': 'Grants',
+  'description': 'System, role and object privileges granted to the schema',
+  'display': ["Grantee", "Privilege", "Admin Option"],
+  'sql': `select grantee as "Grantee", privilege as "Privilege", admin_option as "Admin Option"
+          from dba_sys_privs
+          where grantee = :owner
+          union all
+          select grantee as "Grantee", granted_role as "Privilege", admin_option as "Admin Option"
+          from dba_role_privs
+          where grantee = :owner
+          union all
+          select grantee as "Grantee", privilege || ' on ' || owner || '.' || table_name as "Privilege", grantable as "Admin Option"
+          from dba_tab_privs
+          where grantee = :owner
+          order by 1, 2`,
+  'params': {
+    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "" }
   }
 };
 

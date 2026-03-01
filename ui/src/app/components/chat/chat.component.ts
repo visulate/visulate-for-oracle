@@ -103,6 +103,15 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     this.scrollToBottom();
   }
 
+  handleKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault(); // Prevent default newline
+      if (this.chatForm.valid && !this.isLoading) {
+        this.sendMessage();
+      }
+    }
+  }
+
   sendMessage(specificMessage?: string): void {
     const userMessage = specificMessage || this.chatForm.get('message')?.value;
     if (!userMessage || !userMessage.trim()) return;

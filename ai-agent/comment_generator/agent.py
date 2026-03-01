@@ -8,6 +8,7 @@ from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
 from common.context import session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from google.adk.tools.mcp_tool import McpToolset
 
@@ -26,6 +27,8 @@ When asked to generate comments, use the `generate_comments` tool.
 Check the provided input context for database ("endpoint") and schema ("owner") names.
 If not found in the context or message, ask the user for them.
 You can optionally accept a wildcard pattern to filter object names.
+
+**STRICT LINK USAGE**: When the `generate_comments` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
 """
 
 from common.tools import get_mcp_toolsets, create_connection_token_tool
@@ -52,7 +55,10 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             # Define output directory and file
             downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
             output_dir = os.path.join(downloads_base, session_id)
-            filename = f"comments_{schema}_{database}.sql"
+            safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
+            safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"comments_{safe_schema}_{safe_database}_{timestamp}.sql"
             output_file = Path(output_dir) / filename
 
             # Ensure directory exists

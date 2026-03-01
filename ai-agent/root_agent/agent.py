@@ -16,6 +16,7 @@ SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to underst
 5. **delegate_to_invalid_objects_agent**: Use this for investigating and resolving invalid database objects (e.g., "why is package X invalid?", "find and fix invalid objects in the HR schema"). This agent generates a SQL remediation script for download.
 6. **delegate_to_app_developer_agent**: Use this for application development tasks, including generating PL/SQL, SQL, Java, Python, or JavaScript code, creating data migration scripts, and analyzing dependencies for impact assessment.
 7. **delegate_to_test_data_generator_agent**: Use this for generating test data based on table definitions. It can generate SQL inserts and SQL*Loader files (CSV or fixed-length).
+8. **delegate_to_schema_comparison_agent**: Use this for universally comparing metadata between two databases, schemas, or specific objects (e.g. comparing DEV vs UAT databases, HR vs HR schemas, or TABLE_A vs TABLE_A) to identify differences in existence, row counts, and privileges. Do not ask for a schema name if the user just asks to compare databases.
 
 ## Specialized Agents
 1. **Comment Generator Agent**: Delegate to this agent when the user explicitly asks to generate database comments or documentation.
@@ -41,6 +42,7 @@ def create_root_agent() -> LlmAgent:
     invalid_objects_tool = create_remote_delegate_tool("invalid_objects_agent", "http://localhost:10006")
     app_developer_tool = create_remote_delegate_tool("app_developer_agent", "http://localhost:10007")
     test_data_tool = create_remote_delegate_tool("test_data_generator_agent", "http://localhost:10008")
+    comparison_tool = create_remote_delegate_tool("schema_comparison_agent", "http://localhost:10009")
 
     # 2. Create Root Agent
     root_agent = LlmAgent(
@@ -48,7 +50,7 @@ def create_root_agent() -> LlmAgent:
         name="visulate_root_agent",
         description="Pure orchestrator for Visulate AI microservices",
         instruction=SYSTEM_INSTRUCTION,
-        tools=[nl2sql_tool, analysis_tool, comment_tool, schema_tool, erd_tool, invalid_objects_tool, app_developer_tool, test_data_tool]
+        tools=[nl2sql_tool, analysis_tool, comment_tool, schema_tool, erd_tool, invalid_objects_tool, app_developer_tool, test_data_tool, comparison_tool]
     )
 
     return root_agent
