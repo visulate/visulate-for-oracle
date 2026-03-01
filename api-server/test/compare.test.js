@@ -49,6 +49,21 @@ describe('compareEntities Differencing and Truncation', () => {
           }
           return [{ title: 'Columns', display: ['Name', 'Type'], rows }];
         }
+        if (name === 'SQL_MATCH_SOURCE') {
+          return [{ title: 'SQL Statements', display: ['Statement', 'Line'], rows: [{ Statement: 'SELECT * FROM DUAL', Line: 1 }] }];
+        }
+
+        if (name === 'SQL_MATCH_TARGET') {
+          return [{ title: 'SQL Statements', display: ['Statement', 'Line'], rows: [{ Statement: 'SELECT * FROM DUAL', Line: 2 }] }];
+        }
+
+        if (name === 'SQL_DIFF_SOURCE') {
+          return [{ title: 'SQL Statements', display: ['Statement', 'Line'], rows: [{ Statement: 'SELECT * FROM DUAL', Line: 1 }] }];
+        }
+
+        if (name === 'SQL_DIFF_TARGET') {
+          return [{ title: 'SQL Statements', display: ['Statement', 'Line'], rows: [{ Statement: 'SELECT 1 FROM DUAL', Line: 1 }] }];
+        }
       }
       return '404';
     };
@@ -57,6 +72,26 @@ describe('compareEntities Differencing and Truncation', () => {
   after(() => {
     controller.getObjectDetails = originalGetObjectDetails;
     controller.endpoints = originalEndpoints;
+  });
+
+  it('should accurately isolate differing line shifts for identical SQL statements', async () => {
+    const sourceReq = { db: 'pdb21', owner: 'RNTMGR2', type: 'PACKAGE BODY', name: 'SQL_MATCH_SOURCE' };
+    const targetReq = { db: 'pdb21', owner: 'RNTMGR2', type: 'PACKAGE BODY', name: 'SQL_MATCH_TARGET' };
+
+    const result = await compareService.compareEntities(sourceReq, targetReq);
+    expect(result.rawMarkdown).to.include('### Differences');
+    expect(result.rawMarkdown).to.include('| Row PK | Column |');
+    expect(result.rawMarkdown).to.include('| - | Line | 1 | 2 |');
+  });
+
+  it('should accurately isolate differing SQL statements matching the same lines', async () => {
+    const sourceReq = { db: 'pdb21', owner: 'RNTMGR2', type: 'PACKAGE BODY', name: 'SQL_DIFF_SOURCE' };
+    const targetReq = { db: 'pdb21', owner: 'RNTMGR2', type: 'PACKAGE BODY', name: 'SQL_DIFF_TARGET' };
+
+    const result = await compareService.compareEntities(sourceReq, targetReq);
+    expect(result.rawMarkdown).to.include('### Differences');
+    expect(result.rawMarkdown).to.include('| Row PK | Column |');
+    expect(result.rawMarkdown).to.include('| - | Statement | SELECT * FROM DUAL | SELECT 1 FROM DUAL |');
   });
 
   it('should generate a code patch with truncation at 1000 characters for Source text', async () => {
