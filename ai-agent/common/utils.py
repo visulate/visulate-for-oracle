@@ -2,7 +2,16 @@ import requests
 import json
 import zipfile
 import os
+import re
 from typing import Dict, Any, Optional
+
+def format_tool_name(raw_name: str) -> str:
+    """
+    Formats a raw tool or function name into a readable Title Case string,
+    handling both snake_case and camelCase. Strips common prefixes.
+    """
+    name = raw_name.replace('delegate_to_', '')
+    return ' '.join(re.sub(r'([A-Z])', r' \1', name).replace('_', ' ').split()).title()
 
 def mask_sensitive_data(d, sensitive_keys=['password', 'credential_token', 'token']):
     """Mask sensitive values in a dictionary or string representation of a dictionary."""

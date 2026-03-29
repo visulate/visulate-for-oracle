@@ -164,8 +164,6 @@ agents:
           storage, avoiding character generation lag.'
         - '4. **Filtering**:'
         - '- IGNORE database views (only process objects with Type ''TABLE'').'
-        - '- IGNORE isolated tables (tables that are neither a parent nor a child
-          in any foreign key relationship).'
         - '- If a sub-system was specified, further restrict the diagram to the identified
           tables and their immediate neighbors (one hop away in the relationship graph)
           to provide context.'

@@ -10,6 +10,36 @@ from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
 from google.genai import types
 from common.context import progress_callback_var, session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var
+from common.utils import format_tool_name
+
+from google.adk.flows.llm_flows.auto_flow import AutoFlow
+from google.adk.utils.context_utils import Aclosing
+
+_original_autoflow_run_async = AutoFlow.run_async
+
+async def _patched_autoflow_run_async(self, invocation_context):
+    while True:
+        last_event = None
+        has_tool_call = False
+        async with Aclosing(self._run_one_step_async(invocation_context)) as agen:
+            async for event in agen:
+                if event.get_function_calls() or event.get_function_responses():
+                    has_tool_call = True
+                last_event = event
+                yield event
+        
+        # If the stream executed a tool, we MUST NOT break the loop just because 
+        # the trailing ghost chunk from Gemini says STOP. The LLM needs a chance to 
+        # see the tool response and continue!
+        if has_tool_call:
+             continue
+             
+        if not last_event or last_event.is_final_response() or last_event.partial:
+            if last_event and last_event.partial:
+                pass
+            break
+
+AutoFlow.run_async = _patched_autoflow_run_async
 
 logger = logging.getLogger(__name__)
 def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> FastAPI:
@@ -91,10 +121,12 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                         full_message = message
 
                     content = types.Content(role="user", parts=[types.Part(text=full_message)])
+                    run_config = RunConfig(streaming_mode=StreamingMode.SSE)
                     async for event in runner.run_async(
                         user_id="visulate_user",
                         session_id=session_id,
-                        new_message=content
+                        new_message=content,
+                        run_config=run_config
                     ):
                         logger.info(f"Sub-agent Event: {type(event)}")
                         if event.finish_reason:
@@ -116,8 +148,13 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                             logger.info(f"Yielding Progress: ▌STATUS: {msg}")
                                             # Ensure progress is on its own line for easier parsing
                                             await queue.put(f"\n▌STATUS: {msg}\n")
+                                    else:
+                                        readable_name = format_tool_name(part.function_call.name)
+                                        await queue.put(f"▌STATUS: Executing {readable_name}...\n")
                                 elif part.function_response:
                                     logger.info(f"Sub-agent Part Function Response: {part.function_response.name}")
+                                    readable_name = format_tool_name(part.function_response.name)
+                                    await queue.put(f"▌STATUS: {readable_name} completed, generating response...\n")
                                 else:
                                     logger.info(f"Sub-agent Part Other: {part}")
                         else:

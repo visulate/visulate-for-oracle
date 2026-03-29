@@ -4,7 +4,7 @@ import json
 import asyncio
 from typing import Dict, Any
 from google.adk.tools.function_tool import FunctionTool
-from common.context import progress_callback_var, session_id_var, auth_token_var, ui_context_var, db_credentials_var
+from common.context import progress_callback_var, stream_callback_var, session_id_var, auth_token_var, ui_context_var, db_credentials_var
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
 
         full_response = []
         progress_callback = progress_callback_var.get()
+        stream_callback = stream_callback_var.get()
 
         try:
             async with httpx.AsyncClient(timeout=None) as client:
@@ -70,8 +71,12 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                                         full_response.append(line + "\n")
                                 elif line.strip():
                                     full_response.append(line + "\n")
+                                    if stream_callback:
+                                        stream_callback(line + "\n")
                         else:
                             full_response.append(chunk_str)
+                            if stream_callback:
+                                stream_callback(chunk_str)
 
         except Exception as e:
             error_msg = f"Error calling {agent_name}: {str(e)}"

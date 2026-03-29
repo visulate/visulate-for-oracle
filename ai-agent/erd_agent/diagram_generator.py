@@ -72,6 +72,12 @@ class DiagramGenerator:
             max_h_in_lvl = 0
 
             for table in lvl_tables:
+                # Wrap row if it gets too wide (e.g., more than 6-7 tables wide)
+                if current_x > 1800:
+                    current_y += max_h_in_lvl + Y_GAP
+                    current_x = X_START
+                    max_h_in_lvl = 0
+
                 t_id = self._create_id()
                 table_cells[table['name']] = t_id
 

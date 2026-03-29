@@ -157,7 +157,7 @@ def test_normal_result_with_result_header(mock_run, client):
     with client.stream("POST", "/agent/generate", json=payload) as response:
         assert response.status_code == 200
         content = b"".join(response.iter_bytes()).decode('utf-8')
-        # Should contain result header with properly formatted agent name
-        assert "### Result from Erd Agent" in content
-        # Should contain the actual result
-        assert "Here is the ERD diagram data" in content
+        # Since the real-time streaming pipeline was implemented, the root agent
+        # expects the actual content to have been streamed by the remote tool.
+        # It silently finishes with a confirmation message to avoid duplicate printing.
+        assert "*Results analyzed.*" in content
