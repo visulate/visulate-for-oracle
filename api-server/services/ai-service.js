@@ -209,6 +209,12 @@ async function generativeAIInternal(args, res) {
     logger.log('error', `Error calling agent ${agent}: ${error.message}`);
     if (!res.headersSent) {
       throw error;
+    } else {
+      // The headers were sent but the stream died abruptly. Close it gracefully with an error payload so the frontend doesn't hang.
+      res.write(`\n▌ERROR: Connection to AI agent ${agent} failed abruptly: ${error.message}\n`);
+      if (!res.writableEnded) {
+        res.end();
+      }
     }
   }
 }
@@ -805,10 +811,11 @@ const KEEP_ALIVE_TIMEOUT_CHECK_MS = 5000; // Check connection health every 5 sec
 const sseConnections = new Map(); // Track active SSE connections and their keep-alive intervals
 
 // Connection limits and resource management
-const MAX_CONCURRENT_SESSIONS = 50; // Maximum number of concurrent MCP sessions
-const MAX_SSE_CONNECTIONS = 20; // Maximum number of active SSE connections with keep-alive
-const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
-const SSE_CONNECTION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes for SSE connections
+// Connection limits and resource management
+const MAX_CONCURRENT_SESSIONS = 500; // Maximum number of concurrent MCP sessions
+const MAX_SSE_CONNECTIONS = 200; // Maximum number of active SSE connections with keep-alive
+const SESSION_IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours idle timeout for permanent agent sidecars
+const SSE_CONNECTION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours for SSE connections
 
 // Periodic cleanup of stale sessions (run every 2 minutes for better resource management)
 setInterval(() => {

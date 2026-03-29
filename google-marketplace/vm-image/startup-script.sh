@@ -70,7 +70,8 @@ services:
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
       - INVALID_OBJECTS_URL=http://ai-agent:10006/agent/generate
-      - APP_DEVELOPER_URL=http://ai-agent:10007/agent/generate
+      - TEST_DATA_GENERATOR_URL=http://ai-agent:10008/agent/generate
+      - SCHEMA_COMPARISON_URL=http://ai-agent:10009/agent/generate
     networks:
       - visulate_network
     healthcheck:
@@ -122,7 +123,7 @@ services:
       - vissql
       - visapi
     expose:
-      - "10000-10007"
+      - "10000-10009"
     volumes:
       - visulate-downloads:/app/downloads
     environment:
