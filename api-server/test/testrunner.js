@@ -271,9 +271,8 @@ it('GET PDB TABLES + wildcard should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      // res.body.length.should.equal(149);
-      // res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      // res.body[9].should.equal("DR$PR_PROPERTIES_CTX$N");
+      res.body.length.should.be.above(0);
+      res.body.should.include("ACS_PUMS_HOUSING2014");
       done();
     });
 });
@@ -284,9 +283,8 @@ it('GET 11i TABLES should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      // res.body.length.should.equal(149);
-      // res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      // res.body[9].should.equal("DR$PR_PROPERTIES_CTX$N");
+      res.body.length.should.be.above(0);
+      res.body.should.include("ACS_PUMS_HOUSING2014");
       done();
     });
 });
@@ -297,10 +295,8 @@ it('GET 11i TABLES should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      // res.body.length.should.equal(149);
-      // res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      // res.body[9].should.equal("DR$PR_PROPERTIES_CTX$N");
-      //console.log(JSON.stringify(res.body, null, 2));
+      res.body.length.should.be.above(0);
+      res.body.should.include("ACS_PUMS_HOUSING2014");
       done();
     });
 });
