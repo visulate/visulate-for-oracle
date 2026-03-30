@@ -45,6 +45,7 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                         "context": ui_context
                     }
                 ) as response:
+                    response.raise_for_status()
                     async for chunk in response.aiter_bytes():
                         if not chunk:
                             continue
@@ -72,11 +73,17 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                                 elif line.strip():
                                     full_response.append(line + "\n")
                                     if stream_callback:
-                                        stream_callback(line + "\n")
+                                        try:
+                                            stream_callback(line + "\n")
+                                        except Exception as cb_err:
+                                            logger.warning(f"stream_callback error (ignored): {cb_err}")
                         else:
                             full_response.append(chunk_str)
                             if stream_callback:
-                                stream_callback(chunk_str)
+                                try:
+                                    stream_callback(chunk_str)
+                                except Exception as cb_err:
+                                    logger.warning(f"stream_callback error (ignored): {cb_err}")
 
         except Exception as e:
             error_msg = f"Error calling {agent_name}: {str(e)}"
