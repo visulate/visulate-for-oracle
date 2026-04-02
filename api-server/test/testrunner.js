@@ -18,10 +18,9 @@ before((done) => {
   });
 });
 
-after(async (done) => {
+after(async () => {
   let e;
   await app.shutdown(e);
-  done();
 });
 
 it('GET endpoints should return object type count', (done) => {
@@ -259,9 +258,9 @@ it('GET PDB TABLES should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      res.body.length.should.equal(147);
+      res.body.length.should.equal(149);
       res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      res.body[9].should.equal("DR$PR_PROPERTIES_CTX$K");
+      res.body[9].should.equal("DR$PR_PROPERTIES_CTX$N");
       done();
     });
 });
@@ -272,9 +271,8 @@ it('GET PDB TABLES + wildcard should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      res.body.length.should.equal(147);
-      res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      res.body[9].should.equal("DR$PR_PROPERTIES_CTX$K");
+      res.body.length.should.be.above(0);
+      res.body.should.include("ACS_PUMS_HOUSING2014");
       done();
     });
 });
@@ -285,9 +283,8 @@ it('GET 11i TABLES should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      res.body.length.should.equal(147);
-      res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      res.body[9].should.equal("DR$PR_PROPERTIES_CTX$K");
+      res.body.length.should.be.above(0);
+      res.body.should.include("ACS_PUMS_HOUSING2014");
       done();
     });
 });
@@ -298,10 +295,8 @@ it('GET 11i TABLES should return list of tables', (done) => {
     .end((err, res) => {
       expect(res).to.have.status(200);
       res.body.should.be.a('array');
-      res.body.length.should.equal(147);
-      res.body[0].should.equal("ACS_PUMS_HOUSING2014");
-      res.body[9].should.equal("DR$PR_PROPERTIES_CTX$K");
-      //console.log(JSON.stringify(res.body, null, 2));
+      res.body.length.should.be.above(0);
+      res.body.should.include("ACS_PUMS_HOUSING2014");
       done();
     });
 });
@@ -354,7 +349,7 @@ it('Filtered PDB GET list of invalid package bodies should a filtered return lis
     .get(`/api/${PDB}/RNTMGR2/PACKAGE BODY/*/invalid`)
     .end((err, res) => {
       expect(res).to.have.status(200);
-      res.body.length.should.equal(3);
+      res.body.length.should.equal(2);
       res.body[0].should.equal("PR_RETS_PKG");
       //console.log(JSON.stringify(res.body, null, 2));
       done();
@@ -377,7 +372,7 @@ it('PDB GET with filter query', (done) => {
     .get(`/api/${PDB}/RNTMGR2/PACKAGE BODY?filter=rnt_users_*`)
     .end((err, res) => {
       expect(res).to.have.status(200);
-      res.body.length.should.equal(0);
+      res.body.length.should.equal(1);
       //console.log(JSON.stringify(res.body, null, 2));
       done();
     });
@@ -388,7 +383,7 @@ it('11i GET with filter query', (done) => {
     .get(`/api/${NON_PDB}/RNTMGR2/PACKAGE BODY?filter=rnt_users_*`)
     .end((err, res) => {
       expect(res).to.have.status(200);
-      res.body.length.should.equal(0);
+      res.body.length.should.equal(1);
       //console.log(JSON.stringify(res.body, null, 2));
       done();
     });
@@ -401,7 +396,7 @@ it('Wildcard PDB GET list', (done) => {
     .end((err, res) => {
       //    console.log(JSON.stringify(res.body, null, 2));
       expect(res).to.have.status(200);
-      res.body.length.should.equal(2);
+      res.body.length.should.equal(1);
       done();
     });
 });

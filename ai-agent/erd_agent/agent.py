@@ -34,7 +34,6 @@ When asked to generate an ERD:
    - When calling `generate_erd_file`, you MUST pass the results from these tools directly. If a tool returned a `sessionFile` reference (a dictionary with `sessionFile` and `message`), pass that object or its string representation as the argument. The generation tool will then pull the full data from session storage, avoiding character generation lag.
 4. **Filtering**:
    - IGNORE database views (only process objects with Type 'TABLE').
-   - IGNORE isolated tables (tables that are neither a parent nor a child in any foreign key relationship).
    - If a sub-system was specified, further restrict the diagram to the identified tables and their immediate neighbors (one hop away in the relationship graph) to provide context.
 5. **Clustering**: Group the remaining related tables into coherent pages. Each page should focus on one or more "focal entities" (central tables) and their immediate relationships.
 6. **Limit**: Ensure no page exceeds 40 tables. Create multiple pages if necessary.
@@ -131,9 +130,8 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
             if t_name not in col_map: col_map[t_name] = []
             col_map[t_name].append(norm_col)
 
-        # 2. Identify tables with relationships
-        report_progress("Identifying related tables...")
-        related_tables = set()
+        # 2. Normalize relationships
+        report_progress("Normalizing relationship data...")
         norm_relationships = []
         for rel in relationships:
             # Normalize relationship data (Legacy cache support)
@@ -143,24 +141,20 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
                 'constraintName': rel.get('constraintName') or rel.get('Constraint Name'),
                 'referencedOwner': rel.get('referencedOwner') or rel.get('Referenced Owner')
             }
-            t_name = norm_rel['tableName']
-            ref_t_name = norm_rel['referencedTable']
-            if t_name: related_tables.add(t_name)
-            if ref_t_name: related_tables.add(ref_t_name)
             norm_relationships.append(norm_rel)
 
         relationships = norm_relationships
 
-        # 3. Filter tables (Type TABLE only + MUST have relationships)
+        # 3. Filter tables (Type TABLE only)
         report_progress("Filtering schema objects...")
         tables = []
         for t in all_tables:
-            if t['type'] == 'TABLE' and t['name'] in related_tables:
+            if t['type'] == 'TABLE':
                 t['columns'] = col_map.get(t['name'], [])
                 tables.append(t)
 
         if not tables:
-            return f"No tables with foreign key relationships were found in {schema}. ERD generation skipped."
+            return f"No tables were found in {schema}. ERD generation skipped."
 
         report_progress(f"Starting XML generation for {len(tables)} tables...")
 

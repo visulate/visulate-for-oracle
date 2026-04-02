@@ -2,9 +2,10 @@ import logging
 import httpx
 import json
 import asyncio
+import uuid
 from typing import Dict, Any
 from google.adk.tools.function_tool import FunctionTool
-from common.context import progress_callback_var, session_id_var, auth_token_var, ui_context_var, db_credentials_var
+from common.context import progress_callback_var, stream_callback_var, session_id_var, auth_token_var, ui_context_var, db_credentials_var
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +26,18 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
         if db_credentials:
             ui_context["dbCredentials"] = db_credentials
 
-        logger.info(f"Delegating to {agent_name} at {endpoint_url} (Session: {session_id})")
+        # Generate a unique sub-session ID to avoid "stale session" conflicts
+        # with the root agent in the shared database.
+        sub_session_id = f"{session_id}_{agent_name}_{uuid.uuid4().hex[:8]}"
+
+        logger.info(f"Delegating to {agent_name} at {endpoint_url} (Parent Session: {session_id}, Sub-Session: {sub_session_id})")
         # Mask sensitive context data for logging
         masked_context = {k: (v if v is None or k not in ['authToken', 'dbCredentials'] else '***') for k, v in ui_context.items()}
         logger.info(f"Context passed to sub-agent: {masked_context}")
 
         full_response = []
         progress_callback = progress_callback_var.get()
+        stream_callback = stream_callback_var.get()
 
         try:
             async with httpx.AsyncClient(timeout=None) as client:
@@ -40,10 +46,11 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                     f"{endpoint_url}/agent/generate",
                     json={
                         "message": message,
-                        "session_id": session_id,
+                        "session_id": sub_session_id,
                         "context": ui_context
                     }
                 ) as response:
+                    response.raise_for_status()
                     async for chunk in response.aiter_bytes():
                         if not chunk:
                             continue
@@ -70,8 +77,18 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                                         full_response.append(line + "\n")
                                 elif line.strip():
                                     full_response.append(line + "\n")
+                                    if stream_callback:
+                                        try:
+                                            stream_callback(line + "\n")
+                                        except Exception as cb_err:
+                                            logger.warning(f"stream_callback error (ignored): {cb_err}")
                         else:
                             full_response.append(chunk_str)
+                            if stream_callback:
+                                try:
+                                    stream_callback(chunk_str)
+                                except Exception as cb_err:
+                                    logger.warning(f"stream_callback error (ignored): {cb_err}")
 
         except Exception as e:
             error_msg = f"Error calling {agent_name}: {str(e)}"

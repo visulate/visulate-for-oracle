@@ -78,28 +78,32 @@ async function shutdown(e) {
     logger.log('error', e);
     err = err || e;
   }
-  logger.log('info', 'Exiting process');
-  if (err) {
-    process.exit(1); // Non-zero failure code
-  } else {
-    process.exit(0);
+  if (require.main === module) {
+    logger.log('info', 'Exiting process');
+    if (err) {
+      process.exit(1); // Non-zero failure code
+    } else {
+      process.exit(0);
+    }
   }
 }
 module.exports.shutdown = shutdown;
 
-// Trap Ctrl-C and force clean shutdown
-process.on('SIGTERM', () => {
-  logger.log('info', 'Received SIGTERM, shutting down');
-  shutdown();
-});
+if (require.main === module) {
+  // Trap Ctrl-C and force clean shutdown
+  process.on('SIGTERM', () => {
+    logger.log('info', 'Received SIGTERM, shutting down');
+    shutdown();
+  });
 
-process.on('SIGINT', () => {
-  logger.log('info', 'Received SIGINT, shutting down');
-  shutdown();
-});
+  process.on('SIGINT', () => {
+    logger.log('info', 'Received SIGINT, shutting down');
+    shutdown();
+  });
 
-process.on('uncaughtException', err => {
-  logger.log('error', 'Uncaught exception');
-  logger.log('error', err);
-  shutdown(err);
-});
+  process.on('uncaughtException', err => {
+    logger.log('error', 'Uncaught exception');
+    logger.log('error', err);
+    shutdown(err);
+  });
+}

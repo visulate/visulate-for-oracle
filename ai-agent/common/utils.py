@@ -2,7 +2,25 @@ import requests
 import json
 import zipfile
 import os
+import re
 from typing import Dict, Any, Optional
+
+def format_tool_name(raw_name: str) -> str:
+    """
+    Formats a raw tool or function name into a readable Title Case string,
+    handling both snake_case and camelCase. Strips common prefixes.
+    Preserves acronyms (e.g., 'ERD' stays 'ERD', 'JSONFile' -> 'JSON File').
+    """
+    # Strip common prefix
+    name = raw_name.replace('delegate_to_', '')
+    # Normalize snake_case to spaces
+    name = name.replace('_', ' ')
+    # Insert space between acronym and following Capitalized word (e.g., JSONFile -> JSON File)
+    name = re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', name)
+    # Insert space between lowercase/digit and uppercase (e.g., myTool -> my Tool)
+    name = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', name)
+    # Normalize whitespace and title-case
+    return ' '.join(name.split()).title()
 
 def mask_sensitive_data(d, sensitive_keys=['password', 'credential_token', 'token']):
     """Mask sensitive values in a dictionary or string representation of a dictionary."""
@@ -103,3 +121,18 @@ def create_zip_archive(directory_path: str, archive_name: str) -> str:
                 arcname = os.path.relpath(file_path, directory_path)
                 zipf.write(file_path, arcname)
     return zip_path
+
+async def setup_session_db(db_path: str = "sessions.db"):
+    """Ensures the SQLite database is in WAL mode for better concurrency."""
+    import aiosqlite
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        # Check if file exists to avoid creating an empty one if not needed
+        # but ADK will create it anyway, so we just ensure it's WAL.
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute("PRAGMA journal_mode=WAL")
+            await db.commit()
+            logger.info(f"SQLite WAL mode enabled for {db_path}")
+    except Exception as e:
+        logger.warning(f"Failed to set WAL mode on {db_path}: {e}")

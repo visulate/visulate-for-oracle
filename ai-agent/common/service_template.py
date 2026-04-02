@@ -10,14 +10,28 @@ from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
 from google.genai import types
 from common.context import progress_callback_var, session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var
+from common.utils import format_tool_name
+
+from google.adk.flows.llm_flows.auto_flow import AutoFlow
+from google.adk.utils.context_utils import Aclosing
+
+import importlib.metadata
+import os
+
+# No monkeypatch needed. 
 
 logger = logging.getLogger(__name__)
 def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> FastAPI:
     """Creates a FastAPI app for a standalone agent."""
     app = FastAPI()
     agent = agent_factory()
-    session_service = DatabaseSessionService(db_url="sqlite:///sessions.db", connect_args={'check_same_thread': False})
+    session_service = DatabaseSessionService(db_url="sqlite+aiosqlite:///sessions.db")
     runner = Runner(app_name="visulate_agent", agent=agent, session_service=session_service)
+
+    from common.utils import setup_session_db
+    @app.on_event("startup")
+    async def startup_event():
+        await setup_session_db()
 
     @app.get("/agent/health")
     async def health():
@@ -59,13 +73,15 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                 try:
                     # Ensure session exists in this standalone service
                     try:
-                        await session_service.get_session(app_name="visulate_agent", user_id="visulate_user", session_id=session_id)
-                    except Exception:
-                        await session_service.create_session(
-                            app_name="visulate_agent",
-                            user_id="visulate_user",
-                            session_id=session_id
-                        )
+                        session = await session_service.get_session(app_name="visulate_agent", user_id="visulate_user", session_id=session_id)
+                        if session is None:
+                            await session_service.create_session(
+                                app_name="visulate_agent",
+                                user_id="visulate_user",
+                                session_id=session_id
+                            )
+                    except Exception as e:
+                        logger.error(f"Error handling session creation: {e}")
 
                     if context_data and isinstance(context_data, dict):
                         preamble = "Current UI Context:\n"
@@ -90,41 +106,52 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                     else:
                         full_message = message
 
-                    content = types.Content(role="user", parts=[types.Part(text=full_message)])
+                    agent_message = types.Content(role="user", parts=[types.Part(text=full_message)])
+                    run_config = RunConfig(streaming_mode=StreamingMode.SSE)
+
                     async for event in runner.run_async(
                         user_id="visulate_user",
                         session_id=session_id,
-                        new_message=content
+                        new_message=agent_message,
+                        run_config=run_config
                     ):
-                        logger.info(f"Sub-agent Event: {type(event)}")
-                        if event.finish_reason:
-                             logger.info(f"Sub-agent Finish Reason: {event.finish_reason}")
+                         if event.get_function_calls() or event.get_function_responses():
+                             has_tool_call = True
+                         
+                         logger.info(f"Sub-agent Event: {type(event)}")
+                         if event.finish_reason:
+                              logger.info(f"Sub-agent Finish Reason: {event.finish_reason}")
 
-                        if event.content and event.content.parts:
-                            for part in event.content.parts:
-                                if part.text is not None:
-                                    if part.text:
-                                        logger.info(f"Sub-agent Part Text: {len(part.text)} chars")
-                                        await queue.put(part.text)
-                                    else:
-                                         logger.info("Sub-agent Part Text: Empty string")
-                                elif part.function_call:
-                                    logger.info(f"Sub-agent Part Function Call: {part.function_call.name}")
-                                    if part.function_call.name == "report_progress":
-                                        msg = part.function_call.args.get("message", "")
-                                        if msg:
-                                            logger.info(f"Yielding Progress: ▌STATUS: {msg}")
-                                            # Ensure progress is on its own line for easier parsing
-                                            await queue.put(f"\n▌STATUS: {msg}\n")
-                                elif part.function_response:
-                                    logger.info(f"Sub-agent Part Function Response: {part.function_response.name}")
-                                else:
-                                    logger.info(f"Sub-agent Part Other: {part}")
-                        else:
-                            # Log more detail for empty content events
-                            logger.info(f"Sub-agent Event (Empty Content): finish_reason={event.finish_reason}, error_code={getattr(event, 'error_code', 'N/A')}")
-                            if event.finish_reason == types.FinishReason.MALFORMED_FUNCTION_CALL:
-                                await queue.put("▌ERROR: The agent's function call was rejected by the LLM backend (MALFORMED_FUNCTION_CALL).\n")
+                         if event.content and event.content.parts:
+                             for part in event.content.parts:
+                                 if part.text is not None:
+                                     if part.text:
+                                         logger.info(f"Sub-agent Part Text: {len(part.text)} chars")
+                                         await queue.put(part.text)
+                                     else:
+                                          logger.info("Sub-agent Part Text: Empty string")
+                                 elif part.function_call:
+                                     logger.info(f"Sub-agent Part Function Call: {part.function_call.name}")
+                                     if part.function_call.name == "report_progress":
+                                         msg = part.function_call.args.get("message", "")
+                                         if msg:
+                                             logger.info(f"Yielding Progress: ▌STATUS: {msg}")
+                                             # Ensure progress is on its own line for easier parsing
+                                             await queue.put(f"\n▌STATUS: {msg}\n")
+                                     else:
+                                         readable_name = format_tool_name(part.function_call.name)
+                                         await queue.put(f"▌STATUS: Executing {readable_name}...\n")
+                                 elif part.function_response:
+                                     logger.info(f"Sub-agent Part Function Response: {part.function_response.name}")
+                                     readable_name = format_tool_name(part.function_response.name)
+                                     await queue.put(f"▌STATUS: {readable_name} completed, generating response...\n")
+                                 else:
+                                     logger.info(f"Sub-agent Part Other: {part}")
+                         else:
+                             # Log more detail for empty content events
+                             logger.info(f"Sub-agent Event (Empty Content): finish_reason={event.finish_reason}, error_code={getattr(event, 'error_code', 'N/A')}")
+                             if event.finish_reason == types.FinishReason.MALFORMED_FUNCTION_CALL:
+                                 await queue.put("▌ERROR: The agent's function call was rejected by the LLM backend (MALFORMED_FUNCTION_CALL).\n")
                 except Exception as e:
                     logger.error(f"Error in {agent_name} execution: {e}", exc_info=True)
                     await queue.put(f"▌ERROR: {str(e)}\n")

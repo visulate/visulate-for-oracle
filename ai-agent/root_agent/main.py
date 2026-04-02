@@ -18,7 +18,8 @@ from google.adk.agents.run_config import StreamingMode
 
 # Import from common module
 from common.config import get_mcp_urls
-from common.context import session_id_var, auth_token_var, progress_callback_var, cancelled_var, ui_context_var, db_credentials_var
+from common.context import session_id_var, auth_token_var, progress_callback_var, stream_callback_var, cancelled_var, ui_context_var, db_credentials_var
+from common.utils import format_tool_name
 # Import Root Agent factory from local agent.py
 from root_agent.agent import create_root_agent
 
@@ -32,7 +33,7 @@ def create_app() -> FastAPI:
 
     # Initialize Root Agent and Runner
     root_agent = create_root_agent()
-    session_service = DatabaseSessionService(db_url="sqlite:///sessions.db", connect_args={'check_same_thread': False})
+    session_service = DatabaseSessionService(db_url="sqlite+aiosqlite:///sessions.db")
 
     runner = Runner(
         app_name="visulate_agent",
@@ -41,6 +42,11 @@ def create_app() -> FastAPI:
     )
 
     app = FastAPI()
+
+    from common.utils import setup_session_db
+    @app.on_event("startup")
+    async def startup_event():
+        await setup_session_db()
 
     @app.get("/agent/health")
     async def health_check():
@@ -131,17 +137,30 @@ def create_app() -> FastAPI:
 
                 progress_callback_token = progress_callback_var.set(progress_callback)
 
+                def stream_callback(msg):
+                    try:
+                        loop.call_soon_threadsafe(queue.put_nowait, msg)
+                    except Exception as e:
+                        logger.error(f"Error in stream callback: {e}")
+
+                stream_callback_token = stream_callback_var.set(stream_callback)
+
                 async def run_agent():
                     try:
                         last_tool_name = None
                         last_tool_result = None
                         text_parts_seen = 0
 
+                        run_config = RunConfig(streaming_mode=StreamingMode.NONE)
                         async for event in runner.run_async(
                             user_id="visulate_user",
                             session_id=session_id,
-                            new_message=content
+                            new_message=content,
+                            run_config=run_config
                         ):
+                            if event.get_function_calls() or event.get_function_responses():
+                                has_tool_call = True
+                            
                             logger.debug(f"Root Agent Event: {type(event)}")
                             if event.content and event.content.parts:
                                 for part in event.content.parts:
@@ -152,21 +171,24 @@ def create_app() -> FastAPI:
                                     elif part.function_call:
                                         last_tool_name = part.function_call.name
                                         logger.info(f"Root Agent Part Function Call: {last_tool_name}")
+                                        readable_name = format_tool_name(last_tool_name)
+                                        await queue.put(f"▌STATUS: Task delegated to {readable_name}...\n")
                                     elif part.function_response:
                                         # Capture the tool result in case the next turn is empty
                                         last_tool_result = part.function_response.response
                                         logger.info(f"Root Agent Part Function Response: {part.function_response.name}")
+                                        readable_name = format_tool_name(part.function_response.name)
+                                        await queue.put(f"▌STATUS: {readable_name} task complete. Analyzing results...\n")
                                     else:
                                         logger.info(f"Root Agent Part Other: {part}")
                             else:
                                 logger.info("Root Agent Event Content Empty")
 
-                        # Fallback: If the model called a tool but returned no text,
-                        # and it wasn't a follow-up turn that already produced text,
-                        # we yield the specialist's result directly to ensure the user isn't left with silence.
+                        # Fallback logic is disabled for general tools because sub-agent text is now
+                        # streamed in real-time. We only provide a status line upon completion.
                         if text_parts_seen == 0 and last_tool_result:
-                            logger.warning(f"Root Agent produced NO TEXT after tool {last_tool_name} returned results. Yielding fallback.")
-
+                            # We can just silently finish, as the text was already forwarded to the UI
+                            logger.info(f"Root Agent produced NO TEXT after tool {last_tool_name} returned results. (Sub-agent response already streamed).")
                             # Check if the result is an error message
                             is_error = "▌ERROR:" in str(last_tool_result)
 
@@ -175,10 +197,7 @@ def create_app() -> FastAPI:
                                 await queue.put(f"### Error from {last_tool_name.replace('delegate_to_', '').replace('_', ' ').title()}\n")
                                 await queue.put(str(last_tool_result).replace("▌ERROR:", "Error:").strip())
                             else:
-                                # Prepend a header to clarify where the text came from
-                                header = f"### Result from {last_tool_name.replace('delegate_to_', '').replace('_', ' ').title()}\n"
-                                await queue.put(header)
-                                await queue.put(str(last_tool_result))
+                                await queue.put("\n\n*Results analyzed.*")
                         elif text_parts_seen == 0 and not last_tool_result:
                             logger.error(f"Root Agent produced NO TEXT and NO TOOL RESULT. Yielding generic error.")
                             await queue.put("I'm sorry, I encountered an internal error and couldn't generate a response. Please try again.")
@@ -221,6 +240,7 @@ def create_app() -> FastAPI:
                         db_credentials_var.reset(db_credentials_token)
                     ui_context_var.reset(ui_context_token)
                     progress_callback_var.reset(progress_callback_token)
+                    stream_callback_var.reset(stream_callback_token)
 
             return StreamingResponse(
                 response_generator(),

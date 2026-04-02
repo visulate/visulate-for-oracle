@@ -7,6 +7,9 @@ session_id_var = contextvars.ContextVar("session_id", default="default")
 # Context variable to store progress updates (request-scoped)
 progress_callback_var = contextvars.ContextVar("progress_callback", default=None)
 
+# Context variable to stream pure text directly to the UI
+stream_callback_var = contextvars.ContextVar("stream_callback", default=None)
+
 # Context variable to store the authentication token (request-scoped)
 auth_token_var = contextvars.ContextVar("auth_token", default=None)
 

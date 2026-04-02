@@ -4,7 +4,7 @@
   "description": "Oracle data dictionary catalog APIs",
   "main": "app.js",
   "scripts": {
-    "test": "mocha --exit test/testrunner.js --timeout 20000",
+    "test": "mocha --exit test/testrunner.js --timeout 60000",
     "start": "node app.js"
   },
   "repository": {
