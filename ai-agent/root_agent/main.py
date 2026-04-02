@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
 
     # Initialize Root Agent and Runner
     root_agent = create_root_agent()
-    session_service = DatabaseSessionService(db_url="sqlite:///sessions.db", connect_args={'check_same_thread': False})
+    session_service = DatabaseSessionService(db_url="sqlite+aiosqlite:///sessions.db")
 
     runner = Runner(
         app_name="visulate_agent",
@@ -42,6 +42,11 @@ def create_app() -> FastAPI:
     )
 
     app = FastAPI()
+
+    from common.utils import setup_session_db
+    @app.on_event("startup")
+    async def startup_event():
+        await setup_session_db()
 
     @app.get("/agent/health")
     async def health_check():
@@ -153,6 +158,9 @@ def create_app() -> FastAPI:
                             new_message=content,
                             run_config=run_config
                         ):
+                            if event.get_function_calls() or event.get_function_responses():
+                                has_tool_call = True
+                            
                             logger.debug(f"Root Agent Event: {type(event)}")
                             if event.content and event.content.parts:
                                 for part in event.content.parts:

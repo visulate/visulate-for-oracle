@@ -2,6 +2,7 @@ import logging
 import httpx
 import json
 import asyncio
+import uuid
 from typing import Dict, Any
 from google.adk.tools.function_tool import FunctionTool
 from common.context import progress_callback_var, stream_callback_var, session_id_var, auth_token_var, ui_context_var, db_credentials_var
@@ -25,7 +26,11 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
         if db_credentials:
             ui_context["dbCredentials"] = db_credentials
 
-        logger.info(f"Delegating to {agent_name} at {endpoint_url} (Session: {session_id})")
+        # Generate a unique sub-session ID to avoid "stale session" conflicts
+        # with the root agent in the shared database.
+        sub_session_id = f"{session_id}_{agent_name}_{uuid.uuid4().hex[:8]}"
+
+        logger.info(f"Delegating to {agent_name} at {endpoint_url} (Parent Session: {session_id}, Sub-Session: {sub_session_id})")
         # Mask sensitive context data for logging
         masked_context = {k: (v if v is None or k not in ['authToken', 'dbCredentials'] else '***') for k, v in ui_context.items()}
         logger.info(f"Context passed to sub-agent: {masked_context}")
@@ -41,7 +46,7 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                     f"{endpoint_url}/agent/generate",
                     json={
                         "message": message,
-                        "session_id": session_id,
+                        "session_id": sub_session_id,
                         "context": ui_context
                     }
                 ) as response:

@@ -14,6 +14,9 @@ def test_generate_endpoint(mock_run, client):
     # Mock the streaming event response
     mock_event = MagicMock()
     mock_event.content.parts = [MagicMock(text="Hello from agent")]
+    mock_event.get_function_calls.return_value = []
+    mock_event.get_function_responses.return_value = []
+    mock_event.finish_reason = None
 
     async def mock_run_async(*args, **kwargs):
         yield mock_event
@@ -38,6 +41,9 @@ def test_generate_with_context(mock_run, client):
     async def mock_run_async(*args, **kwargs):
         mock_event = MagicMock()
         mock_event.content.parts = [MagicMock(text="test response")]
+        mock_event.get_function_calls.return_value = []
+        mock_event.get_function_responses.return_value = []
+        mock_event.finish_reason = None
         yield mock_event
 
     mock_run.side_effect = mock_run_async
@@ -61,18 +67,21 @@ def test_generate_with_context(mock_run, client):
 @patch("google.adk.runners.Runner.run_async")
 def test_error_message_formatting_with_error_prefix(mock_run, client):
     """Test that error messages with ▌ERROR: prefix are correctly formatted."""
-    # Mock an async generator that returns a function call and response but no text
+    # Mock an async generator that returns a function call and response followed by empty synthesis
     async def mock_run_async(*args, **kwargs):
-        # First event: function call
+        # First turn: tool call
         mock_event1 = MagicMock()
         mock_function_call = MagicMock()
         mock_function_call.name = "delegate_to_test_agent"
         mock_event1.content.parts = [
             MagicMock(text=None, function_call=mock_function_call, function_response=None)
         ]
+        mock_event1.get_function_calls.return_value = [mock_function_call]
+        mock_event1.get_function_responses.return_value = []
+        mock_event1.finish_reason = None
         yield mock_event1
         
-        # Second event: function response with error
+        # Tool response
         mock_event2 = MagicMock()
         mock_response = MagicMock()
         mock_response.name = "delegate_to_test_agent"
@@ -80,7 +89,18 @@ def test_error_message_formatting_with_error_prefix(mock_run, client):
         mock_event2.content.parts = [
             MagicMock(text=None, function_call=None, function_response=mock_response)
         ]
+        mock_event2.get_function_calls.return_value = []
+        mock_event2.get_function_responses.return_value = [mock_response]
+        mock_event2.finish_reason = None
         yield mock_event2
+
+        # Second turn (synthesis)
+        mock_event3 = MagicMock()
+        mock_event3.content.parts = []
+        mock_event3.get_function_calls.return_value = []
+        mock_event3.get_function_responses.return_value = []
+        mock_event3.finish_reason = None
+        yield mock_event3
 
     mock_run.side_effect = mock_run_async
 
@@ -108,6 +128,9 @@ def test_generic_error_when_no_text_and_no_tool_result(mock_run, client):
         # Event with empty content
         mock_event = MagicMock()
         mock_event.content = None
+        mock_event.get_function_calls.return_value = []
+        mock_event.get_function_responses.return_value = []
+        mock_event.finish_reason = None
         yield mock_event
 
     mock_run.side_effect = mock_run_async
@@ -126,18 +149,20 @@ def test_generic_error_when_no_text_and_no_tool_result(mock_run, client):
 @patch("google.adk.runners.Runner.run_async")
 def test_normal_result_with_result_header(mock_run, client):
     """Test that normal results are displayed correctly with the Result header."""
-    # Mock an async generator that returns a function call and response but no text
+    # Mock an async generator that returns a function call and response followed by synthesis text
     async def mock_run_async(*args, **kwargs):
-        # First event: function call
+        # First turn
         mock_event1 = MagicMock()
         mock_function_call = MagicMock()
         mock_function_call.name = "delegate_to_erd_agent"
         mock_event1.content.parts = [
             MagicMock(text=None, function_call=mock_function_call, function_response=None)
         ]
+        mock_event1.get_function_calls.return_value = [mock_function_call]
+        mock_event1.get_function_responses.return_value = []
+        mock_event1.finish_reason = None
         yield mock_event1
         
-        # Second event: function response with success
         mock_event2 = MagicMock()
         mock_response = MagicMock()
         mock_response.name = "delegate_to_erd_agent"
@@ -145,7 +170,18 @@ def test_normal_result_with_result_header(mock_run, client):
         mock_event2.content.parts = [
             MagicMock(text=None, function_call=None, function_response=mock_response)
         ]
+        mock_event2.get_function_calls.return_value = []
+        mock_event2.get_function_responses.return_value = [mock_response]
+        mock_event2.finish_reason = None
         yield mock_event2
+
+        # Second turn
+        mock_event3 = MagicMock()
+        mock_event3.content.parts = [MagicMock(text="Analyzed results")]
+        mock_event3.get_function_calls.return_value = []
+        mock_event3.get_function_responses.return_value = []
+        mock_event3.finish_reason = None
+        yield mock_event3
 
     mock_run.side_effect = mock_run_async
 
@@ -157,7 +193,5 @@ def test_normal_result_with_result_header(mock_run, client):
     with client.stream("POST", "/agent/generate", json=payload) as response:
         assert response.status_code == 200
         content = b"".join(response.iter_bytes()).decode('utf-8')
-        # Since the real-time streaming pipeline was implemented, the root agent
-        # expects the actual content to have been streamed by the remote tool.
-        # It silently finishes with a confirmation message to avoid duplicate printing.
-        assert "*Results analyzed.*" in content
+        # The synthesis turn (mock_event3) yielded "Analyzed results"
+        assert "Analyzed results" in content

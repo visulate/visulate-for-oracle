@@ -9,7 +9,7 @@ const DOWNLOAD_ROOT = process.env.VISULATE_DOWNLOADS || path.resolve(__dirname, 
  */
 function validatePath(sessionId, filename) {
   // Allow alphanumeric, dashes, and underscores for session ID (UUID format)
-  if (!/^[a-zA-Z0-9-]+$/.test(sessionId)) {
+  if (!/^[a-zA-Z0-9-_]+$/.test(sessionId)) {
     throw new Error('Invalid session ID format');
   }
 

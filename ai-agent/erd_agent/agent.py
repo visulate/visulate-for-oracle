@@ -130,9 +130,8 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
             if t_name not in col_map: col_map[t_name] = []
             col_map[t_name].append(norm_col)
 
-        # 2. Identify tables with relationships
-        report_progress("Identifying related tables...")
-        related_tables = set()
+        # 2. Normalize relationships
+        report_progress("Normalizing relationship data...")
         norm_relationships = []
         for rel in relationships:
             # Normalize relationship data (Legacy cache support)
@@ -142,10 +141,6 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
                 'constraintName': rel.get('constraintName') or rel.get('Constraint Name'),
                 'referencedOwner': rel.get('referencedOwner') or rel.get('Referenced Owner')
             }
-            t_name = norm_rel['tableName']
-            ref_t_name = norm_rel['referencedTable']
-            if t_name: related_tables.add(t_name)
-            if ref_t_name: related_tables.add(ref_t_name)
             norm_relationships.append(norm_rel)
 
         relationships = norm_relationships

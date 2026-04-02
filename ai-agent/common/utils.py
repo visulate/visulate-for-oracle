@@ -121,3 +121,18 @@ def create_zip_archive(directory_path: str, archive_name: str) -> str:
                 arcname = os.path.relpath(file_path, directory_path)
                 zipf.write(file_path, arcname)
     return zip_path
+
+async def setup_session_db(db_path: str = "sessions.db"):
+    """Ensures the SQLite database is in WAL mode for better concurrency."""
+    import aiosqlite
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        # Check if file exists to avoid creating an empty one if not needed
+        # but ADK will create it anyway, so we just ensure it's WAL.
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute("PRAGMA journal_mode=WAL")
+            await db.commit()
+            logger.info(f"SQLite WAL mode enabled for {db_path}")
+    except Exception as e:
+        logger.warning(f"Failed to set WAL mode on {db_path}: {e}")

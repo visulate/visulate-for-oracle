@@ -15,7 +15,7 @@ def test_banner_query(client):
     response = client.post(
         f"/sql/{validEndpoint}",
         headers={
-            "Authorization": f"Basic {credentials}",
+            "X-DB-Credentials": f"{credentials}",
             "Content-Type": "application/json"
         },
         json={"sql": "select banner from v$version"}
