@@ -209,10 +209,30 @@
     padding: 0;
   }
 
+  .messages {
+    padding: 16px 0;
+  }
+
+  .message-row {
+    gap: 0;
+  }
+
   .message-bubble {
-    max-width: 85%;
-    font-size: 0.9rem;
-    padding: 10px 12px;
+    max-width: 100%;
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 12px 16px;
+    border-radius: 0; /* Full width edge-to-edge look */
+    box-shadow: none;
+  }
+
+  .agent-bubble {
+    border: none;
+    background-color: var(--app-bg-color); /* Match container bg more closely */
+  }
+
+  .user-bubble {
+    border-radius: 0;
   }
 
   .chat-input-area {

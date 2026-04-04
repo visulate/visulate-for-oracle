@@ -30,8 +30,8 @@
     vertical-align: middle;
   }
 
-  .app-toolbar button[mat-icon-button] {
-    width: 40px;
+  .app-toolbar {
+    padding: 0 4px !important;
   }
 }
 
