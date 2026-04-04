@@ -51,7 +51,9 @@
       <mat-panel-description>
         Database Analysis
       </mat-panel-description>
-      <button mat-icon-button (click)="toggleChatFullScreen($event)" [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
+      <button mat-icon-button (click)="toggleChatFullScreen($event)"
+        [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'"
+        [attr.aria-label]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
         <mat-icon>{{ (isChatFullScreen$ | async) ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
       </button>
     </mat-expansion-panel-header>
@@ -72,7 +74,9 @@
       <mat-panel-description>
         Schema Analysis & Comment Generation
       </mat-panel-description>
-      <button mat-icon-button (click)="toggleChatFullScreen($event)" [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
+      <button mat-icon-button (click)="toggleChatFullScreen($event)"
+        [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'"
+        [attr.aria-label]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
         <mat-icon>{{ (isChatFullScreen$ | async) ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
       </button>
     </mat-expansion-panel-header>
@@ -100,7 +104,9 @@
         <mat-panel-description>
           Code Generation and Analysis
         </mat-panel-description>
-        <button mat-icon-button (click)="toggleChatFullScreen($event)" [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
+        <button mat-icon-button (click)="toggleChatFullScreen($event)"
+          [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'"
+          [attr.aria-label]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
           <mat-icon>{{ (isChatFullScreen$ | async) ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
         </button>
       </mat-expansion-panel-header>

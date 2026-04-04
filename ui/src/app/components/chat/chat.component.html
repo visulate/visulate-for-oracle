@@ -1,6 +1,7 @@
 <div class="chat-container" [class.full-screen]="isFullScreen">
   @if (isFullScreen) {
-  <button mat-icon-button class="exit-fullscreen-button" (click)="toggleFullScreen()" matTooltip="Exit Full Screen">
+  <button mat-icon-button class="exit-fullscreen-button" (click)="toggleFullScreen()"
+    matTooltip="Exit Full Screen" aria-label="Exit Full Screen">
     <mat-icon>fullscreen_exit</mat-icon>
   </button>
   }

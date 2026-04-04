@@ -1,6 +1,6 @@
 import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { Observable, Subscription, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
@@ -102,7 +102,11 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   }
 
   ngOnDestroy(): void {
-    // Cleanup if needed
+    if (this.isFullScreen) {
+      this.stateService.toggleChatFullScreen(); // Reset global state if destroyed while active
+    }
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 
   ngAfterViewChecked(): void {

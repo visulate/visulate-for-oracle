@@ -264,8 +264,16 @@ a:hover {
   background-color: transparent !important;
 }
 
-/* Fullscreen Chat Stack Fix */
+/* Fullscreen Chat overlay*/
+body.chat-fullscreen-active .app-sidebar {
+  z-index: 1 !important;
+}
+
+body.chat-fullscreen-active .app-toolbar {
+  z-index: 1 !important;
+}
+
 body.chat-fullscreen-active mat-sidenav-content {
-  z-index: 2000 !important;
+  z-index: 2 !important;
   position: relative;
 }
