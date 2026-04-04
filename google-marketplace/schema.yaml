@@ -44,6 +44,7 @@ x-google-marketplace:
       v2.5.10 Schema comparison agent
       v2.5.11 Angular update, sqlite session history, schema comparison improvements
       v2.5.12 SSE stream UI content updates + ERD improvements.
+      v2.5.13 Security updates and UI enhancements.
   images:
     '':
       properties:

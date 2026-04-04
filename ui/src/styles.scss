@@ -2,6 +2,7 @@
 @use 'hljs-solarized-light' as solarized-hljs;
 @use 'solarized-palette' as solarized;
 @use 'hljs-atom-one-dark' as atom-hljs;
+@import '@angular/cdk/overlay-prebuilt.css';
 
 // Define Palettes manually since variables are unavailable
 $indigo-palette: (
@@ -265,15 +266,19 @@ a:hover {
 }
 
 /* Fullscreen Chat overlay*/
-body.chat-fullscreen-active .app-sidebar {
-  z-index: 1 !important;
-}
-
-body.chat-fullscreen-active .app-toolbar {
-  z-index: 1 !important;
-}
-
 body.chat-fullscreen-active mat-sidenav-content {
   z-index: 2 !important;
   position: relative;
+}
+
+.chat-fullscreen-overlay {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+}
+
+.cdk-overlay-pane-fullscreen {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
 }

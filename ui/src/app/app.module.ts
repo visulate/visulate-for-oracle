@@ -22,6 +22,8 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LayoutModule } from '@angular/cdk/layout';
 import { CdkTableModule } from '@angular/cdk/table';
 import { TextFieldModule } from '@angular/cdk/text-field';
+import { OverlayModule } from '@angular/cdk/overlay';
+import { PortalModule } from '@angular/cdk/portal';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -113,6 +115,8 @@ import { RestService } from './services/rest.service';
     MatDialogModule,
     MatSnackBarModule,
     MatTooltipModule,
+    OverlayModule,
+    PortalModule,
     MarkdownModule.forRoot(),
     HighlightModule
   ],
