@@ -20,6 +20,21 @@
   padding-top: 56px;
 }
 
+@media (max-width: 600px) {
+  .app-toolbar a[routerLink="/"] {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .app-toolbar button[mat-icon-button] {
+    width: 40px;
+  }
+}
+
 .app-sidenav-container {
   flex: 1;
   min-height: 600px;

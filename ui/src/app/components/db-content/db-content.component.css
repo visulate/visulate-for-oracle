@@ -5,6 +5,20 @@
 
 table {
   width: 100%;
+  table-layout: fixed; /* Essential for ellipsis in table cells */
+}
+
+.mat-mdc-cell, .mat-mdc-header-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px !important;
+}
+
+/* Allow some columns to be narrow if they contain short content */
+.mat-column-Line {
+  width: 60px;
+  flex: none;
 }
 
 .hljs {
@@ -63,6 +77,39 @@ h1.currentContext {
   margin: 24px 0;
   font-size: 1.5rem;
   letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  :host {
+    padding: 16px;
+  }
+
+  h1.currentContext {
+    font-size: 1.2rem;
+    margin: 16px 0;
+  }
+
+  .mat-expansion-panel-header-title,
+  .mat-expansion-panel-header-description {
+    flex-basis: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mat-expansion-panel-header-description {
+    margin-left: 8px;
+    font-size: 12px;
+  }
+  
+  /* Horizontal scroll for code blocks and tables on very small screens */
+  #source-code {
+    padding-left: 32px;
+    font-size: 0.8rem;
+  }
 }
 
 /* Add spacing between expansion panels */

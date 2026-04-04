@@ -38,3 +38,32 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+@media (max-width: 600px) {
+  .breadcrumb-container {
+    margin-left: 8px;
+    font-size: 13px;
+  }
+
+  /* Hide "Databases" root crumb on mobile if there are other crumbs */
+  .breadcrumb-item:first-child:not(:last-child) {
+    display: none;
+  }
+
+  .breadcrumb-link {
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+
+  .breadcrumb-current {
+    max-width: 100px;
+  }
+
+  .breadcrumb-separator {
+    margin: 0 2px;
+  }
+}
