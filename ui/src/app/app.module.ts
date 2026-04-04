@@ -41,6 +41,7 @@ import { MatGridListModule } from '@angular/material/grid-list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -111,6 +112,7 @@ import { RestService } from './services/rest.service';
     MatProgressBarModule,
     MatDialogModule,
     MatSnackBarModule,
+    MatTooltipModule,
     MarkdownModule.forRoot(),
     HighlightModule
   ],

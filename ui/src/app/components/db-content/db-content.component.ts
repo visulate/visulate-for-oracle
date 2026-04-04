@@ -51,6 +51,8 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public queryPanelExpanded = false;
   public aiEnabled: boolean;
   public errorMessage: string;
+  public isChatFullScreen$ = this.state.isChatFullScreen$;
+  public aiPanelExpanded: boolean = true;
 
   selectedOption = ''; // To store the selected option
   private unsubscribe$ = new Subject<void>();
@@ -70,6 +72,12 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   processObject(objectDetails: DatabaseObjectModel) {
     this.objectDetails = objectDetails;
+  }
+
+  toggleChatFullScreen(event: Event) {
+    event.stopPropagation();
+    this.aiPanelExpanded = true;
+    this.state.toggleChatFullScreen();
   }
 
 

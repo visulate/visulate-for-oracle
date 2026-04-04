@@ -53,12 +53,14 @@ export class StateService {
   private sqlEnabled = new BehaviorSubject<boolean>(false);
   private aiEnabledSubject = new BehaviorSubject<boolean>(false);
   private credentialsChanged = new BehaviorSubject<void>(undefined);
+  private isChatFullScreen = new BehaviorSubject<boolean>(false);
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
   sqlEnabled$ = this.sqlEnabled.asObservable();
   aiEnabled$ = this.aiEnabledSubject.asObservable();
   credentialsChanged$ = this.credentialsChanged.asObservable();
+  isChatFullScreen$ = this.isChatFullScreen.asObservable();
 
   getCurrentContext() {
     return this.getStoredContext();
@@ -200,6 +202,10 @@ export class StateService {
 
   notifyCredentialsChanged() {
     this.credentialsChanged.next();
+  }
+
+  toggleChatFullScreen() {
+    this.isChatFullScreen.next(!this.isChatFullScreen.getValue());
   }
 
 

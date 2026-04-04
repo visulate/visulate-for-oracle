@@ -263,3 +263,9 @@ a:hover {
 .app-sidenav-container {
   background-color: transparent !important;
 }
+
+/* Fullscreen Chat Stack Fix */
+body.chat-fullscreen-active mat-sidenav-content {
+  z-index: 2000 !important;
+  position: relative;
+}

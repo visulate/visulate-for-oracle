@@ -1,8 +1,9 @@
-<div class="chat-container">
-  <!-- <div class="chat-header">
-    <h3>AI Assistant <span *ngIf="agent">({{agent}})</span></h3>
-
-  </div> -->
+<div class="chat-container" [class.full-screen]="isFullScreen">
+  @if (isFullScreen) {
+  <button mat-icon-button class="exit-fullscreen-button" (click)="toggleFullScreen()" matTooltip="Exit Full Screen">
+    <mat-icon>fullscreen_exit</mat-icon>
+  </button>
+  }
 
 
   <div class="messages" #messageContainer>
