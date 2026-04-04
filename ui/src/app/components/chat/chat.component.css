@@ -4,6 +4,48 @@
   height: 100%;
   max-width: 1000px;
   margin: 0 auto;
+  transition: all 0.3s ease-in-out;
+}
+
+.chat-container.full-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  z-index: 1100;
+  background-color: var(--app-bg-color);
+  margin: 0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.chat-container.full-screen .messages {
+  max-height: calc(100vh - 120px);
+}
+
+.exit-fullscreen-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background-color: var(--app-card-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--app-border-color);
+  z-index: 1200;
+  border-radius: 50% !important;
+  /* Circle shape */
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exit-fullscreen-button:hover {
+  background-color: var(--app-active-bg);
+  transform: scale(1.1);
+  transition: all 0.2s ease-in-out;
 }
 
 .messages {

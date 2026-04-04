@@ -263,3 +263,17 @@ a:hover {
 .app-sidenav-container {
   background-color: transparent !important;
 }
+
+/* Fullscreen Chat overlay*/
+body.chat-fullscreen-active .app-sidebar {
+  z-index: 1 !important;
+}
+
+body.chat-fullscreen-active .app-toolbar {
+  z-index: 1 !important;
+}
+
+body.chat-fullscreen-active mat-sidenav-content {
+  z-index: 2 !important;
+  position: relative;
+}

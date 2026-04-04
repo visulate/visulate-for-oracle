@@ -1,6 +1,7 @@
 import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { Observable, Subscription } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -22,6 +23,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   chatForm: FormGroup;
   messages$ = this.stateService.chatHistory$;
   isLoading: boolean = false;
+  isFullScreen: boolean = false;
   currentStatus: string | null = null;
   private chunkBuffer: string = '';
 
@@ -75,7 +77,19 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   }
 
   ngOnInit(): void {
-    // No initial fetch needed, agent fetches its own context
+    this.stateService.isChatFullScreen$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe((isFullScreen: boolean) => {
+        this.isFullScreen = isFullScreen;
+        if (this.isFullScreen) {
+          document.body.style.overflow = 'hidden';
+          document.body.classList.add('chat-fullscreen-active');
+        } else {
+          document.body.style.overflow = '';
+          document.body.classList.remove('chat-fullscreen-active');
+        }
+        this.cdr.detectChanges();
+      });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -88,7 +102,11 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   }
 
   ngOnDestroy(): void {
-    // Cleanup if needed
+    if (this.isFullScreen) {
+      this.stateService.toggleChatFullScreen(); // Reset global state if destroyed while active
+    }
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 
   ngAfterViewChecked(): void {
@@ -247,6 +265,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     } catch (err) {
       console.error('Scroll to bottom failed:', err);
     }
+  }
+
+  private unsubscribe$ = new Subject<void>();
+
+  toggleFullScreen(): void {
+    this.stateService.toggleChatFullScreen();
   }
 
   downloadMessages(): void {
