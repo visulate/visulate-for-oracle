@@ -16,8 +16,8 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 import { EndpointListModel } from '../models/endpoint.model';
 import { DatabaseObjectModel } from '../models/database-object.model';
 import { FindObjectModel } from '../models/find-object.model';
@@ -28,6 +28,8 @@ import { environment } from '../../environments/environment';
 })
 
 export class RestService {
+  private cache = new Map<string, any>();
+
   /**
    * Makes requests to API server
    *
@@ -52,11 +54,14 @@ export class RestService {
   public getDatabaseProperties$(
     endpoint: string
   ): Observable<DatabaseObjectModel> {
-
-    return this.http.get<DatabaseObjectModel>
-      (`${environment.apiBase}/${endpoint}`).pipe(
-        map(data => new DatabaseObjectModel().deserialize(data))
-      );
+    const url = `${environment.apiBase}/${endpoint}`;
+    if (this.cache.has(url)) {
+      return of(this.cache.get(url));
+    }
+    return this.http.get<DatabaseObjectModel>(url).pipe(
+      map(data => new DatabaseObjectModel().deserialize(data)),
+      tap(data => this.cache.set(url, data))
+    );
   }
 
   /**
@@ -70,10 +75,15 @@ export class RestService {
     owner: string,
     filter: string = '*'
   ): Observable<DatabaseObjectModel> {
+    const url = `${environment.apiBase}/${endpoint}/${owner}?filter=${filter}`;
+    if (this.cache.has(url)) {
+      return of(this.cache.get(url));
+    }
     const filterParam: any = { filter };
     return this.http.get<DatabaseObjectModel>
       (`${environment.apiBase}/${endpoint}/${owner}`, { params: filterParam }).pipe(
-        map(data => new DatabaseObjectModel().deserialize(data))
+        map(data => new DatabaseObjectModel().deserialize(data)),
+        tap(data => this.cache.set(url, data))
       );
   }
 
@@ -103,8 +113,13 @@ export class RestService {
     if (!objectType) {
       throw new Error('Object type is required');
     }
-    return this.http.get<string[]>
-      (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`);
+    const url = `${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}/${objectStatus}`;
+    if (this.cache.has(url)) {
+      return of(this.cache.get(url));
+    }
+    return this.http.get<string[]>(url).pipe(
+      tap(data => this.cache.set(url, data))
+    );
   }
 
   /**
@@ -119,10 +134,14 @@ export class RestService {
     owner: string,
     objectType: string,
     objectName: string): Observable<DatabaseObjectModel> {
-    return this.http.get<DatabaseObjectModel>
-      (`${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`).pipe(
-        map(data => new DatabaseObjectModel().deserialize(data))
-      );
+    const url = `${environment.apiBase}/${endpoint}/${owner}/${objectType}/${encodeURIComponent(objectName)}`;
+    if (this.cache.has(url)) {
+      return of(this.cache.get(url));
+    }
+    return this.http.get<DatabaseObjectModel>(url).pipe(
+      map(data => new DatabaseObjectModel().deserialize(data)),
+      tap(data => this.cache.set(url, data))
+    );
   }
 
   /**

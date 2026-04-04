@@ -1,0 +1,40 @@
+.breadcrumb-container {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  margin-left: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb-link {
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.breadcrumb-link:hover {
+  text-decoration: underline;
+  opacity: 1;
+}
+
+.breadcrumb-separator {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0 4px;
+  opacity: 0.6;
+}
+
+.breadcrumb-current {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

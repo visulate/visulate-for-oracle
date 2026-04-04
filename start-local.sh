@@ -23,7 +23,7 @@ export APP_DEVELOPER_URL=http://localhost:10007/agent/generate
 export TEST_DATA_GENERATOR_URL=http://localhost:10008/agent/generate
 export SCHEMA_COMPARISON_URL=http://localhost:10009/agent/generate
 export QUERY_ENGINE_URL=http://localhost:5000/mcp-sql/call_tool
-export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200"
+export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200,http://192.168.1.202:4200,http://pgoldtho-desktop.goldthorp.org:4200"
 export VISULATE_DOWNLOADS=$(pwd)/downloads
 export TNS_ADMIN=${TNS_ADMIN:-$(pwd)/wallet}
 mkdir -p "$TNS_ADMIN"
