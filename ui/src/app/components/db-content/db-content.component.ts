@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { MediaMatcher } from '@angular/cdk/layout';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { EndpointListModel, EndpointModel } from '../../models/endpoint.model';
@@ -53,13 +54,20 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public errorMessage: string;
   public isChatFullScreen$ = this.state.isChatFullScreen$;
   public aiPanelExpanded: boolean = true;
+  mobileQuery: MediaQueryList;
+  private _mobileQueryListener: () => void;
 
   selectedOption = ''; // To store the selected option
   private unsubscribe$ = new Subject<void>();
 
   constructor(
     private restService: RestService,
-    private state: StateService) {
+    private state: StateService,
+    media: MediaMatcher,
+    changeDetectorRef: ChangeDetectorRef) {
+    this.mobileQuery = media.matchMedia('(max-width: 600px)');
+    this._mobileQueryListener = () => changeDetectorRef.detectChanges();
+    this.mobileQuery.addEventListener('change', this._mobileQueryListener);
   }
 
 
@@ -205,6 +213,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.mobileQuery.removeEventListener('change', this._mobileQueryListener);
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
   }

@@ -51,11 +51,13 @@
       <mat-panel-description>
         Database Analysis
       </mat-panel-description>
+      @if (!mobileQuery.matches) {
       <button mat-icon-button (click)="toggleChatFullScreen($event)"
         [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'"
         [attr.aria-label]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
         <mat-icon>{{ (isChatFullScreen$ | async) ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
       </button>
+      }
     </mat-expansion-panel-header>
     <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
   </mat-expansion-panel>
@@ -74,11 +76,13 @@
       <mat-panel-description>
         Schema Analysis & Comment Generation
       </mat-panel-description>
+      @if (!mobileQuery.matches) {
       <button mat-icon-button (click)="toggleChatFullScreen($event)"
         [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'"
         [attr.aria-label]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
         <mat-icon>{{ (isChatFullScreen$ | async) ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
       </button>
+      }
     </mat-expansion-panel-header>
     <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
   </mat-expansion-panel>
@@ -104,11 +108,13 @@
         <mat-panel-description>
           Code Generation and Analysis
         </mat-panel-description>
+        @if (!mobileQuery.matches) {
         <button mat-icon-button (click)="toggleChatFullScreen($event)"
           [matTooltip]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'"
           [attr.aria-label]="(isChatFullScreen$ | async) ? 'Exit Full Screen' : 'Full Screen'">
           <mat-icon>{{ (isChatFullScreen$ | async) ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
         </button>
+        }
       </mat-expansion-panel-header>
       <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
     </mat-expansion-panel>

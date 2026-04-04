@@ -3,3 +3,11 @@
     font-weight: 500;
     background-color: var(--app-active-bg) !important;
 }
+
+[mat-list-item] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    max-width: 100%;
+}
