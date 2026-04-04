@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { StateService } from '../../services/state.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { CurrentContextModel } from '../../models/current-context.model';
 
 interface Breadcrumb {
   label: string;
@@ -26,7 +27,7 @@ export class BreadcrumbsComponent implements OnInit, OnDestroy {
     });
   }
 
-  generateBreadcrumbs(context: any): void {
+  generateBreadcrumbs(context: CurrentContextModel): void {
     const items: Breadcrumb[] = [];
     
     // Always add Home/Database root
