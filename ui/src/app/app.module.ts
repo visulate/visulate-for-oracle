@@ -51,6 +51,7 @@ import { MainNavComponent } from './components/main-nav/main-nav.component';
 import { DbObjectListComponent } from './components/db-object-list/db-object-list.component';
 import { DbContentComponent } from './components/db-content/db-content.component';
 import { FindObjectComponent } from './components/find-object/find-object.component';
+import { BreadcrumbsComponent } from './components/breadcrumbs/breadcrumbs.component';
 import { HideInternalPipe } from './models/hide-internal.pipe';
 
 import { HighlightModule, HIGHLIGHT_OPTIONS } from 'ngx-highlightjs';
@@ -78,7 +79,8 @@ import { RestService } from './services/rest.service';
     TrimPipe,
     SqlValidatorDirective,
     ChatComponent,
-    CredentialDialogComponent
+    CredentialDialogComponent,
+    BreadcrumbsComponent
   ],
   imports: [
     BrowserModule,

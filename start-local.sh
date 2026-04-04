@@ -2,6 +2,12 @@
 # Local development startup script
 # Starts API Server, Query Engine, and AI Agents in background
 
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+    echo "Loading environment variables from .env"
+    export $(grep -v '^#' .env | xargs)
+fi
+
 if [ -z "$GOOGLE_AI_KEY" ]; then
     echo "GOOGLE_AI_KEY check: Not found in environment."
     read -p "Enter your Google AI Key or press Enter to skip AI: " INPUT_KEY
@@ -12,6 +18,16 @@ if [ -z "$GOOGLE_AI_KEY" ]; then
     fi
 else
     echo "GOOGLE_AI_KEY check: Found in environment."
+fi
+
+if [ -z "$LOCAL_WHITELIST" ]; then
+    echo "LOCAL_WHITELIST check: Not found in environment."
+    read -p "Enter additional CORS origins (comma separated) or press Enter to skip: " INPUT_WHITELIST
+    if [ -n "$INPUT_WHITELIST" ]; then
+        export LOCAL_WHITELIST="$INPUT_WHITELIST"
+    fi
+else
+    echo "LOCAL_WHITELIST check: Found in environment."
 fi
 export GOOGLE_AI_KEY
 export GOOGLE_API_KEY="${GOOGLE_AI_KEY}"
@@ -24,6 +40,9 @@ export TEST_DATA_GENERATOR_URL=http://localhost:10008/agent/generate
 export SCHEMA_COMPARISON_URL=http://localhost:10009/agent/generate
 export QUERY_ENGINE_URL=http://localhost:5000/mcp-sql/call_tool
 export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200"
+if [ -n "$LOCAL_WHITELIST" ]; then
+    export CORS_ORIGIN_WHITELIST="${CORS_ORIGIN_WHITELIST},${LOCAL_WHITELIST}"
+fi
 export VISULATE_DOWNLOADS=$(pwd)/downloads
 export TNS_ADMIN=${TNS_ADMIN:-$(pwd)/wallet}
 mkdir -p "$TNS_ADMIN"

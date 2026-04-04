@@ -126,8 +126,8 @@ export class DbContentComponent implements OnInit, OnDestroy {
     }
 
     // Call the database summary API when the user selects an endpoint
-    if (context.endpoint && (!context.objectName)
-      && subjectContext.changeSummary.endpointDiff) {
+    if (context.endpoint && (!context.owner) && (!context.objectName)
+      && (subjectContext.changeSummary.endpointDiff || subjectContext.changeSummary.ownerDiff)) {
       this.restService.getDatabaseProperties$(context.endpoint)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
@@ -135,7 +135,9 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
     // Call the schema summary API when the user selects a new schema or the object filter changes
     if (context.owner && (!context.objectName)
-      && (subjectContext.changeSummary.ownerDiff || subjectContext.changeSummary.filterDiff)) {
+      && (subjectContext.changeSummary.ownerDiff || 
+          subjectContext.changeSummary.filterDiff ||
+          subjectContext.changeSummary.objectNameDiff)) {
       this.restService.getSchemaProperties$(context.endpoint, context.owner, context.filter)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
@@ -143,7 +145,9 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
     // Call the object list API when the object type selection changes or a new filter is applied.
     if ((context.endpoint && context.owner && context.objectType)
-      && (subjectContext.changeSummary.objectTypeDiff || subjectContext.changeSummary.filterDiff)) {
+      && (subjectContext.changeSummary.objectTypeDiff || 
+          subjectContext.changeSummary.filterDiff ||
+          subjectContext.changeSummary.objectNameDiff)) {
       const filter = (context.filter) ? context.filter : '*';
       this.restService.getObjectList$(context.endpoint, context.owner, context.objectType, filter)
         .pipe(takeUntil(this.unsubscribe$))
