@@ -49,6 +49,19 @@ npm install || { echo -e "${RED}npm install failed in ui. Aborting test run.${NC
 npm run test -- --watch=false --browsers=ChromeHeadless || FAILURES=$((FAILURES + 1))
 cd ..
 
+# # 5. Run UI Cypress Component Tests
+# echo -e "\n${GREEN}>>> 5. Running UI Cypress Component Tests...${NC}"
+# cd ui || { echo -e "${RED}Failed to change directory to ui. Aborting test run.${NC}"; exit 1; }
+# # Note: using ng run is more reliable as it uses the project's architect configuration
+# npx ng run client:ct --headless --watch=false || FAILURES=$((FAILURES + 1))
+# cd ..
+
+# # 6. Run UI Cypress E2E Tests
+# echo -e "\n${GREEN}>>> 6. Running UI Cypress E2E Tests (Legacy E2E or Cypress modern)...${NC}"
+# cd ui || { echo -e "${RED}Failed to change directory to ui. Aborting test run.${NC}"; exit 1; }
+# npx cypress run --e2e --browser chrome || FAILURES=$((FAILURES + 1))
+# cd ..
+
 echo -e "\n=========================================================="
 if [ $FAILURES -eq 0 ]; then
     echo -e "${GREEN}   SUCCESS: All Visulate for Oracle test suites passed!   ${NC}"

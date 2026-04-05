@@ -1,4 +1,6 @@
-import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit } from '@angular/core';
+import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { TemplatePortal } from '@angular/cdk/portal';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -14,11 +16,15 @@ import { Router } from '@angular/router';
   styleUrls: ['./chat.component.css'],
   standalone: false
 })
-export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
+export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked, AfterViewInit {
   @Input() currentContext: any;
   @Input() currentObject: any;
   @Input() agent: string;
   @ViewChild('messageContainer') private messageContainer: ElementRef;
+  @ViewChild('chatTemplate') chatTemplate: TemplateRef<any>;
+
+  portal: TemplatePortal;
+  private overlayRef: OverlayRef;
 
   chatForm: FormGroup;
   messages$ = this.stateService.chatHistory$;
@@ -36,7 +42,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     private dialog: MatDialog,
     private router: Router,
     private zone: NgZone,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private overlay: Overlay,
+    private viewContainerRef: ViewContainerRef
   ) {
     this.chatForm = this.fb.group({
       message: ['']
@@ -82,14 +90,54 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       .subscribe((isFullScreen: boolean) => {
         this.isFullScreen = isFullScreen;
         if (this.isFullScreen) {
-          document.body.style.overflow = 'hidden';
-          document.body.classList.add('chat-fullscreen-active');
+          this.showFullScreen();
         } else {
-          document.body.style.overflow = '';
-          document.body.classList.remove('chat-fullscreen-active');
+          this.hideFullScreen();
         }
         this.cdr.detectChanges();
       });
+  }
+
+  ngAfterViewInit() {
+    this.portal = new TemplatePortal(this.chatTemplate, this.viewContainerRef);
+    this.cdr.detectChanges(); // Fix initial "blank screen" by triggering CD for portal outlet
+  }
+
+  private showFullScreen() {
+    if (!this.portal) {
+      // If portal isn't initialized yet (e.g. initial load in fullscreen), 
+      // wait until ngAfterViewInit runs.
+      return;
+    }
+
+    if (!this.overlayRef) {
+      this.overlayRef = this.overlay.create({
+        height: '100dvh',
+        width: '100vw',
+        positionStrategy: this.overlay.position().global().centerHorizontally().centerVertically(),
+        hasBackdrop: true,
+        panelClass: ['chat-fullscreen-overlay', 'cdk-overlay-pane-fullscreen']
+      });
+    }
+
+    if (!this.overlayRef.hasAttached()) {
+      if (this.portal.isAttached) {
+        this.portal.detach(); // Detach from inline outlet before moving to overlay
+      }
+      this.overlayRef.attach(this.portal);
+    }
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('chat-fullscreen-active');
+  }
+
+  private hideFullScreen() {
+    if (this.overlayRef && this.overlayRef.hasAttached()) {
+      this.overlayRef.detach();
+    }
+    // Note: The template's [cdkPortalOutlet] will re-attach the portal automatically 
+    // because its *ngIf becomes true and we call cdr.detectChanges() in the subscription.
+    document.body.style.overflow = '';
+    document.body.classList.remove('chat-fullscreen-active');
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -104,6 +152,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   ngOnDestroy(): void {
     if (this.isFullScreen) {
       this.stateService.toggleChatFullScreen(); // Reset global state if destroyed while active
+    }
+    if (this.overlayRef) {
+      this.overlayRef.dispose();
     }
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
