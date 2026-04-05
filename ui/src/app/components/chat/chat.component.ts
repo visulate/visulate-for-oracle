@@ -100,12 +100,19 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
 
   ngAfterViewInit() {
     this.portal = new TemplatePortal(this.chatTemplate, this.viewContainerRef);
+    this.cdr.detectChanges(); // Fix initial "blank screen" by triggering CD for portal outlet
   }
 
   private showFullScreen() {
+    if (!this.portal) {
+      // If portal isn't initialized yet (e.g. initial load in fullscreen), 
+      // wait until ngAfterViewInit runs.
+      return;
+    }
+
     if (!this.overlayRef) {
       this.overlayRef = this.overlay.create({
-        height: '100vh',
+        height: '100dvh',
         width: '100vw',
         positionStrategy: this.overlay.position().global().centerHorizontally().centerVertically(),
         hasBackdrop: true,
@@ -114,6 +121,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     }
 
     if (!this.overlayRef.hasAttached()) {
+      if (this.portal.isAttached) {
+        this.portal.detach(); // Detach from inline outlet before moving to overlay
+      }
       this.overlayRef.attach(this.portal);
     }
     document.body.style.overflow = 'hidden';
@@ -124,6 +134,8 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     if (this.overlayRef && this.overlayRef.hasAttached()) {
       this.overlayRef.detach();
     }
+    // Note: The template's [cdkPortalOutlet] will re-attach the portal automatically 
+    // because its *ngIf becomes true and we call cdr.detectChanges() in the subscription.
     document.body.style.overflow = '';
     document.body.classList.remove('chat-fullscreen-active');
   }
