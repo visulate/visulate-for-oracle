@@ -119,11 +119,14 @@ def handle_mcp_request():
                 tool_name = params.get("name")
                 arguments = params.get("arguments", {})
 
+                logger.info(f"MCP JSON-RPC tool call: {tool_name} with arguments: {mask_sensitive_data(arguments)}")
+
                 # Route to call_tool logic
                 if tool_name == "execute_sql":
                     database = arguments.get("database")
                     sql_query = arguments.get("sql")
                     credential_token = arguments.get("credential_token")
+                    session_id = arguments.get("session_id")
 
                     if not all([database, sql_query, credential_token]):
                         return jsonify({
@@ -132,7 +135,7 @@ def handle_mcp_request():
                             "error": {"code": -32602, "message": "Missing required arguments: database, sql, credential_token"}
                         }), 400
 
-                    result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token)
+                    result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token, session_id)
 
                     # Get username for logging (without exposing password)
                     username = result.get("username", "unknown")
@@ -151,15 +154,16 @@ def handle_mcp_request():
                     password = arguments.get("password")
                     database = arguments.get("database")
                     expiry_minutes = arguments.get("expiry_minutes", 30)  # 30 minutes default
+                    session_id = arguments.get("session_id")
 
-                    if not all([username, password, database]):
+                    if not all([username, password, database, session_id]):
                         return jsonify({
                             "jsonrpc": "2.0",
                             "id": request_id,
-                            "error": {"code": -32602, "message": "Missing required arguments: username, password, database"}
+                            "error": {"code": -32602, "message": "Missing required arguments: username, password, database, session_id"}
                         }), 400
 
-                    token = credential_manager.create_credential_token(username, password, database, expiry_minutes)
+                    token = credential_manager.create_credential_token(username, password, database, session_id, expiry_minutes)
 
                     # Log token creation for debugging (without sensitive data)
                     logger.info(f"Credential token created for {database}, user {username}, expires in {expiry_minutes}min")
@@ -198,6 +202,62 @@ def handle_mcp_request():
                         "id": request_id,
                         "result": {
                             "content": [{"type": "text", "text": response_text}]
+                        }
+                    })
+
+                elif tool_name == "revoke_session":
+                    session_id = arguments.get("session_id")
+                    database = arguments.get("database")
+
+                    if not session_id:
+                        return jsonify({
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {"code": -32602, "message": "Missing required argument: session_id"}
+                        }), 400
+
+                    if database:
+                        count = credential_manager.revoke_database_tokens(session_id, database)
+                        response_text = f"Revoked {count} tokens for session {session_id} on database {database}."
+                    else:
+                        count = credential_manager.revoke_session_tokens(session_id)
+                        response_text = f"Revoked {count} tokens for session {session_id}."
+
+                    return jsonify({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [{"type": "text", "text": response_text}]
+                        }
+                    })
+
+                elif tool_name == "validate_credentials":
+                    username = arguments.get("username")
+                    password = arguments.get("password")
+                    database = arguments.get("database")
+
+                    if not all([username, password, database]):
+                        return jsonify({
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {"code": -32602, "message": "Missing required arguments: username, password, database"}
+                        }), 400
+
+                    # Try a simple SELECT 1 to validate
+                    result = sql2csv.execute_sql_internal(database, "SELECT 1 FROM DUAL", username, password)
+                    
+                    if isinstance(result, list) or (isinstance(result, dict) and result.get("success") is not False):
+                        response_text = "Credentials validated successfully."
+                        status = "success"
+                    else:
+                        response_text = f"Credential validation failed: {result}"
+                        status = "error"
+
+                    return jsonify({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [{"type": "text", "text": response_text, "status": status}]
                         }
                     })
 
@@ -278,6 +338,10 @@ class McpTools:
                             "type": "string",
                             "description": "Database password for the username (will be securely stored temporarily)"
                         },
+                        "session_id": {
+                            "type": "string",
+                            "description": "The browser session ID this token should be bound to"
+                        },
                         "expiry_minutes": {
                             "type": "integer",
                             "description": "Token expiration time in minutes (default: 30)",
@@ -286,7 +350,7 @@ class McpTools:
                             "maximum": 1440
                         }
                     },
-                    "required": ["database", "username", "password"]
+                    "required": ["database", "username", "password", "session_id"]
                 }
             },
 
@@ -308,9 +372,13 @@ class McpTools:
                         "credential_token": {
                             "type": "string",
                             "description": "Secure credential token obtained from create_credential_token"
+                        },
+                        "session_id": {
+                            "type": "string",
+                            "description": "The browser session ID (must match the one used during token creation)"
                         }
                     },
-                    "required": ["database", "sql", "credential_token"]
+                    "required": ["database", "sql", "credential_token", "session_id"]
                 }
             },
 
@@ -328,6 +396,47 @@ class McpTools:
                     "required": ["credential_token"]
                 }
             },
+            {
+                "name": "revoke_session",
+                "description": "Revoke credential tokens for a specific session. Can be limited to a specific database.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "session_id": {
+                            "type": "string",
+                            "description": "The browser session ID to revoke tokens for"
+                        },
+                        "database": {
+                            "type": "string",
+                            "description": "Optional: Only revoke tokens for this database"
+                        }
+                    },
+                    "required": ["session_id"]
+                }
+            },
+            {
+                "name": "validate_credentials",
+                "description": "Validate database credentials by attempting a lightweight connection",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "database": {
+                            "type": "string",
+                            "description": "Database name to connect to",
+                            "enum": available_dbs
+                        },
+                        "username": {
+                            "type": "string",
+                            "description": "Database username"
+                        },
+                        "password": {
+                            "type": "string",
+                            "description": "Database password"
+                        }
+                    },
+                    "required": ["database", "username", "password"]
+                }
+            },
 
             {
                 "name": "list_databases",
@@ -343,15 +452,17 @@ class McpTools:
         return tools
 
     @staticmethod
-    def execute_sql_query_with_token(database, sql_query, credential_token):
+    def execute_sql_query_with_token(database, sql_query, credential_token, session_id=None):
         """Execute SQL using secure credential token."""
         try:
             # Retrieve credentials using the token
-            credentials = credential_manager.get_credentials(credential_token)
+            credentials = credential_manager.get_credentials(credential_token, session_id)
             if not credentials:
                 # Debug information about credential manager state
                 manager_info = credential_manager.get_instance_info()
-                logger.warning(f"Token validation failed for {database}. Manager info: active_tokens={manager_info['active_tokens']}, instance_id={manager_info['instance_id']}")
+                token_prefix = credential_token[:8] + "..." if credential_token else "none"
+                caller_session = session_id[:8] + "..." if session_id else "none"
+                logger.warning(f"Token validation failed for {database}. Provided token: {token_prefix}, session_id: {caller_session}. Manager info: active_tokens={manager_info['active_tokens']}, instance_id={manager_info['instance_id']}")
                 return {
                     "success": False,
                     "error": "Invalid or expired credential token",
@@ -438,11 +549,12 @@ def call_tool():
             password = arguments.get("password")
             database = arguments.get("database")
             expiry_minutes = arguments.get("expiry_minutes", 30)  # 30 minutes default
+            session_id = arguments.get("session_id")
 
-            if not all([username, password, database]):
-                raise BadRequest("Missing required arguments: username, password, database")
+            if not all([username, password, database, session_id]):
+                raise BadRequest("Missing required arguments: username, password, database, session_id")
 
-            token = credential_manager.create_credential_token(username, password, database, expiry_minutes)
+            token = credential_manager.create_credential_token(username, password, database, session_id, expiry_minutes)
 
             response_text = f"Credential token created successfully for {database}.\n"
             response_text += f"Token expires in {expiry_minutes} minutes.\n"
@@ -456,11 +568,12 @@ def call_tool():
             database = arguments.get("database")
             sql_query = arguments.get("sql")
             credential_token = arguments.get("credential_token")
+            session_id = arguments.get("session_id")
 
-            if not all([database, sql_query, credential_token]):
-                raise BadRequest("Missing required arguments: database, sql, credential_token")
+            if not all([database, sql_query, credential_token, session_id]):
+                raise BadRequest("Missing required arguments: database, sql, credential_token, session_id")
 
-            result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token)
+            result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token, session_id)
 
             # Get username for logging (without exposing password)
             username = result.get("username", "unknown")
@@ -486,6 +599,45 @@ def call_tool():
             return jsonify({
                 "content": [{"type": "text", "text": response_text}]
             })
+
+        elif tool_name == "revoke_session":
+            session_id = arguments.get("session_id")
+            database = arguments.get("database")
+
+            if not session_id:
+                raise BadRequest("Missing required argument: session_id")
+
+            if database:
+                count = credential_manager.revoke_database_tokens(session_id, database)
+                response_text = f"Revoked {count} tokens for session {session_id} on database {database}."
+            else:
+                count = credential_manager.revoke_session_tokens(session_id)
+                response_text = f"Revoked {count} tokens for session {session_id}."
+
+            return jsonify({
+                "content": [{"type": "text", "text": response_text}]
+            })
+
+        elif tool_name == "validate_credentials":
+            username = arguments.get("username")
+            password = arguments.get("password")
+            database = arguments.get("database")
+
+            if not all([username, password, database]):
+                raise BadRequest("Missing required arguments: username, password, database")
+
+            # Try a simple SELECT 1 to validate
+            result = sql2csv.execute_sql_internal(database, "SELECT 1 FROM DUAL", username, password)
+            
+            # Simple list result or success dictionary means valid
+            if isinstance(result, list) or (isinstance(result, dict) and result.get("success") is not False):
+                return jsonify({
+                    "content": [{"type": "text", "text": "Credentials validated successfully.", "status": "success"}]
+                })
+            else:
+                return jsonify({
+                    "content": [{"type": "text", "text": f"Credential validation failed: {result}", "status": "error"}]
+                }), 401
 
         elif tool_name == "list_databases":
             databases = current_app.endpoints

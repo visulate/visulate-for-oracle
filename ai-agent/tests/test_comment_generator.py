@@ -69,7 +69,12 @@ async def test_comment_generator_run_no_objects(tmp_path):
         mock_call.return_value = {"tables": [], "columns": []}
 
         output_file = tmp_path / "test.sql"
-        count = await generator.run(wildcard="%", output_file=str(output_file))
-
-        assert count == 0
+        # Patch CredentialManager to return a fake password so it doesn't stop at the interactive prompt
+        with patch('comment_generator.main.CredentialManager.get_password', return_value=('fake_pass', 'test-source')):
+            # Also mock token creation
+            with patch.object(client, "create_credential_token", new_callable=AsyncMock) as mock_token:
+                mock_token.return_value = True
+                
+                count = await generator.run(wildcard="%", output_file=str(output_file))
+                assert count == 0
         mock_call.assert_awaited()

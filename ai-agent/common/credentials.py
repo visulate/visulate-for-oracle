@@ -21,10 +21,12 @@ class CredentialManager:
                 )
                 self.gcp_project = None
 
-    def get_password(self, db_name: str, schema_name: str) -> str | None:
+    def get_password(self, db_name: str, schema_name: str) -> tuple[str | None, str | None]:
         """
         Retrieves a password, trying db_credentials_var first, then auth_token_var,
         then GCP Secret Manager, then .env.
+        Returns:
+            tuple: (password, source)
         """
         from common.context import auth_token_var, db_credentials_var
         import json
@@ -46,14 +48,14 @@ class CredentialManager:
                         password = match_creds.get("password")
                         if password:
                             logger.info(f"Fetched password for {db_name}.{schema_name} from db_credentials.")
-                            return password
+                            return password, 'ui-context'
 
                 # Check top-level if match
                 if creds.get("username", "").upper() == schema_name:
                     password = creds.get("password")
                     if password:
                          logger.info(f"Fetched password for {schema_name} from top-level db_credentials.")
-                         return password
+                         return password, 'ui-context'
             except Exception as e:
                 logger.warning(f"Failed to parse db_credentials: {e}")
 
@@ -69,14 +71,14 @@ class CredentialManager:
                         password = match_creds.get("password")
                         if password:
                             logger.info(f"Fetched password for {db_name}.{schema_name} from auth_token.")
-                            return password
+                            return password, 'ui-context-legacy'
 
                 # Check top-level if match
                 if creds.get("username", "").upper() == schema_name:
                     password = creds.get("password")
                     if password:
                          logger.info(f"Fetched password for {schema_name} from top-level auth_token.")
-                         return password
+                         return password, 'ui-context-legacy'
             except:
                 pass # auth_token is likely a JWT, skip
 
@@ -93,7 +95,7 @@ class CredentialManager:
                 )
                 password = response.payload.data.decode("UTF-8")
                 logger.info(f"Fetched secret '{secret_name}' from GCP.")
-                return password
+                return password, 'gcp-secret-manager'
             except exceptions.NotFound:
                 logger.info(f"Secret '{secret_name}' not found in GCP, checking .env.")
             except Exception as e:
@@ -104,6 +106,7 @@ class CredentialManager:
         password = os.getenv(env_var_name)
         if password:
             logger.info(f"Fetched password from env var '{env_var_name}'.")
+            return password, 'server-env-var'
         else:
             logger.warning(f"Password not found in GCP or for env var '{env_var_name}'.")
-        return password
+            return None, None

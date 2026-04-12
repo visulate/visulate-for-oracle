@@ -86,8 +86,43 @@ export class CredentialDialogComponent {
     });
   }
 
-  onLogout(): void {
-    sessionStorage.removeItem('visulate-credentials');
+  get isCurrentDbAuth(): boolean {
+    const database = this.form.get('database')?.value;
+    return !!(database && this.state.getAuthToken(database));
+  }
+
+  get hasAnyAuth(): boolean {
+    return Object.keys(this.state.getAllAuthTokens()).length > 0;
+  }
+
+  onLogout(all: boolean = false): void {
+    const sessionId = this.state.getSessionId();
+    const currentDb = this.form.get('database')?.value;
+
+    if (sessionId) {
+      // Server-side revocation
+      this.restService.revokeTokens(sessionId, all ? undefined : currentDb).subscribe(
+        () => console.log(`Tokens revoked successfully (all=${all})`),
+        (err) => console.error('Failed to revoke tokens', err)
+      );
+    }
+
+    // Local state cleanup
+    if (all) {
+      sessionStorage.removeItem('visulate-credentials');
+      this.state.clearAuthTokens();
+    } else if (currentDb) {
+      const saved = sessionStorage.getItem('visulate-credentials');
+      if (saved) {
+        try {
+          const credentials = JSON.parse(saved);
+          delete credentials[currentDb];
+          sessionStorage.setItem('visulate-credentials', JSON.stringify(credentials));
+        } catch (e) {}
+      }
+      this.state.clearAuthToken(currentDb);
+    }
+
     this.state.notifyCredentialsChanged();
     this.form.patchValue({
       username: '',
@@ -129,7 +164,8 @@ export class CredentialDialogComponent {
     sessionStorage.setItem('visulate-credentials', JSON.stringify(credentials));
     this.state.notifyCredentialsChanged();
 
-    this.restService.generateToken(database, username, password).subscribe(
+    const sessionId = this.state.getSessionId();
+    this.restService.generateToken(database, username, password, sessionId).subscribe(
       (response: any) => {
         this.isLoading = false;
         let token = null;

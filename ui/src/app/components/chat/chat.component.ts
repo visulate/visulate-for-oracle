@@ -32,8 +32,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   isFullScreen: boolean = false;
   currentStatus: string | null = null;
   private chunkBuffer: string = '';
+  elapsedTime: number = 0;
+  private timerInterval: any;
+  formattedTime: string = '00:00';
 
   private abortController: AbortController | null = null;
+  private unsubscribe$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -143,6 +147,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   ngOnChanges(changes: SimpleChanges): void {
     if (changes.currentContext) {
       this.currentContext = changes.currentContext.currentValue;
+      this.cdr.detectChanges(); // Ensure UI updates when context changes
     }
     // We don't necessarily need to clear chat on object change if we want global history,
     // but typically users might want context separation.
@@ -158,6 +163,27 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     }
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
+    this.stopTimer();
+  }
+
+  private startTimer() {
+    this.elapsedTime = 0;
+    this.formattedTime = '00:00';
+    this.stopTimer();
+    this.timerInterval = setInterval(() => {
+      this.elapsedTime++;
+      const minutes = Math.floor(this.elapsedTime / 60);
+      const seconds = this.elapsedTime % 60;
+      this.formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      this.cdr.detectChanges();
+    }, 1000);
+  }
+
+  private stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
   }
 
   ngAfterViewChecked(): void {
@@ -184,6 +210,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     }
 
     this.isLoading = true;
+    this.startTimer();
     this.abortController = new AbortController();
 
     // Create initial agent message placeholder
@@ -267,6 +294,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
             this.stateService.updateLastMessage(lastMsg.text + this.chunkBuffer);
           }
           this.isLoading = false;
+          this.stopTimer();
           this.currentStatus = null;
           this.chunkBuffer = '';
           this.abortController = null;
@@ -275,9 +303,15 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       },
       (error) => {
         this.zone.run(() => {
+          this.stopTimer();
           if (error.name !== 'AbortError') {
             console.error('Error calling LLM:', error);
-            this.stateService.updateLastMessage("Error: " + (error.message || "Failed to generate response"));
+            const isTimeout = error.isNetworkError && this.elapsedTime > 200;
+            const errorMsg = isTimeout 
+              ? "The connection was interrupted (Likely a network timeout). The session is still active; you can try refreshing the page or asking me to 'continue'."
+              : (error.message || "Failed to generate response");
+            
+            this.stateService.updateLastMessage("Error: " + errorMsg);
           }
           this.isLoading = false;
           this.abortController = null;
@@ -303,8 +337,10 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       this.abortController.abort();
       this.abortController = null;
     }
+    if (this.isLoading) {
+      this.stateService.addMessage({ user: 'System', text: 'Generation cancelled by user.' });
+    }
     this.isLoading = false;
-    this.stateService.addMessage({ user: 'System', text: 'Generation cancelled by user.' });
     this.cdr.detectChanges();
   }
 
@@ -318,7 +354,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     }
   }
 
-  private unsubscribe$ = new Subject<void>();
+
 
   toggleFullScreen(): void {
     this.stateService.toggleChatFullScreen();
@@ -335,5 +371,31 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  }
+
+  getCredentialState(): 'none' | 'partial' | 'matched' {
+    const tokens = this.stateService.getAllAuthTokens();
+    if (!tokens || Object.keys(tokens).length === 0) {
+      return 'none';
+    }
+    const currentEndpoint = this.currentContext?.endpoint;
+    if (currentEndpoint && tokens[currentEndpoint]) {
+      return 'matched';
+    }
+    return 'partial';
+  }
+
+  getCredentialColor(): string | null {
+    const state = this.getCredentialState();
+    if (state === 'matched') return 'warn'; // Amber/Orange
+    if (state === 'partial') return 'primary'; // Blue
+    return null; // Grey
+  }
+
+  getCredentialTooltip(): string {
+    const state = this.getCredentialState();
+    if (state === 'matched') return `Credentials active for ${this.currentContext?.endpoint}`;
+    if (state === 'partial') return 'Credentials saved for other databases';
+    return 'Connect to Database';
   }
 }

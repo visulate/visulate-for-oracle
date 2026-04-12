@@ -12,39 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:lts-alpine AS builder
+FROM node:22-alpine AS builder
 
 # 1. Set the working directory
 WORKDIR /visulate-client
 
 # 2. Copy only the dependency files first.
-# This ensures that the 'npm ci' step only rebuilds if package.json or
-# package-lock.json changes, which makes dependency installation faster and
-# ensures the correct lock file is always used for 'npm ci'.
+# This layer is cached separately so dependency installs are fast when only
+# source files change.
 COPY package.json package-lock.json ./
 
-# 3. Install latest npm globally (Good practice, but often unnecessary with lts-alpine)
-RUN npm install -g npm@latest
+# 3. Install all dependencies (production and development)
+# Use 'npm install' rather than 'npm ci' to avoid strict lock file sync errors
+# caused by peer dependency resolution differences across npm versions.
+RUN npm install
 
-# 4. Install all dependencies (production and development)
-# This step relies on the package.json and package-lock.json copied above.
-RUN npm ci
-
-# 5. Copy the rest of the application source code
-# This step is much faster since the heavy dependency installation is already cached.
+# 4. Copy the rest of the application source code
 COPY . .
 
-# 6. Build the application for production
+# 5. Build the application for production
 RUN npx ng build --configuration production
 
-# 7. Remove node_modules to reduce final image size
+# 6. Remove node_modules to reduce final image size
 RUN rm -rf node_modules
-
-# 8. Re-install ONLY production dependencies for the final stage
-# This is often skipped if you use a lightweight HTTP server like NGINX in Stage 2,
-# but included here if your app requires Node.js runtime prod dependencies.
-# Since you use NGINX in Stage 2, this step is arguably redundant but harmless.
-RUN npm ci --omit=dev
 
 # STAGE 2: Production Server
 FROM nginx:alpine

@@ -36,3 +36,10 @@ def get_mcp_urls():
         query_engine_url = f"{visulate_base}/mcp-sql"
 
     return api_server_url, query_engine_url
+
+def get_ai_timeout() -> int:
+    """
+    Get the AI session timeout in seconds.
+    Default: 240 seconds (to provide a safety buffer before GCP Load Balancer's 300s limit).
+    """
+    return int(os.getenv("VISULATE_AI_TIMEOUT", "240"))

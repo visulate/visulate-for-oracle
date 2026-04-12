@@ -6,6 +6,7 @@ from google.adk.tools.function_tool import FunctionTool
 from common.config import get_mcp_urls
 from common.credentials import CredentialManager
 from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data
+from common.context import session_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +20,16 @@ def create_connection_token_tool(query_engine_tools: McpToolset) -> FunctionTool
         This tool securely fetches the required password from a secret manager or
         environment variables and then calls the query engine to generate a token.
         """
-        password = cred_manager.get_password(database_name, schema_name)
+        password, source = cred_manager.get_password(database_name, schema_name)
         if not password:
             return f"Error: Credentials for database '{database_name}' and schema '{schema_name}' are not configured."
 
-        # Get the query engine URL from the environment
+        # Get the query engine URL and session ID
         _, query_engine_url = get_mcp_urls()
+        session_id = session_id_var.get() or "default"
 
         # Use helper to create token request
-        result = create_token_request(query_engine_url, database_name, schema_name, password)
+        result = create_token_request(query_engine_url, database_name, schema_name, password, session_id)
         token = parse_token_from_response(result)
 
         if token:

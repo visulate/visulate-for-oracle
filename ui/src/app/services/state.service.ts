@@ -199,6 +199,15 @@ export class StateService {
   getAuthToken(database: string): string | null {
     return this.authTokens[database] || null;
   }
+  getAllAuthTokens(): { [database: string]: string } {
+    return { ...this.authTokens };
+  }
+  clearAuthTokens() {
+    this.authTokens = {};
+  }
+  clearAuthToken(database: string) {
+    delete this.authTokens[database];
+  }
 
   notifyCredentialsChanged() {
     this.credentialsChanged.next();

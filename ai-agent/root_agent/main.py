@@ -18,10 +18,12 @@ from google.adk.agents.run_config import StreamingMode
 
 # Import from common module
 from common.config import get_mcp_urls
-from common.context import session_id_var, auth_token_var, progress_callback_var, stream_callback_var, cancelled_var, ui_context_var, db_credentials_var
+from common.context import session_id_var, auth_token_var, progress_callback_var, stream_callback_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var
 from common.utils import format_tool_name
 # Import Root Agent factory from local agent.py
 from root_agent.agent import create_root_agent
+from common.config import get_ai_timeout
+import time
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
@@ -210,6 +212,10 @@ def create_app() -> FastAPI:
 
                 agent_task = asyncio.create_task(run_agent())
 
+                start_time = time.time()
+                timeout_limit = get_ai_timeout()
+                is_timeout = False
+
                 try:
                     while True:
                         if await request.is_disconnected():
@@ -220,6 +226,16 @@ def create_app() -> FastAPI:
                             agent_task.cancel()
                             break
 
+                        # Check for internal timeout
+                        elapsed = time.time() - start_time
+                        if elapsed > timeout_limit and not is_timeout:
+                            is_timeout = True
+                            logger.warning(f"Timeout limit reached ({timeout_limit}s) for session {session_id}. Triggering wrap-up.")
+                            yield f"▌STATUS: Processing limit reached ({timeout_limit}s). Wrapping up current progress...\n"
+                            from common.context import cancelled_sessions
+                            cancelled_sessions.add(session_id)
+                            timeout_signal_var.set(True)
+
                         try:
                             item = await asyncio.wait_for(queue.get(), timeout=1.0)
                             if item is None:
@@ -229,7 +245,19 @@ def create_app() -> FastAPI:
                             yield " "
                             continue
 
-                    await agent_task
+                    if is_timeout:
+                        yield "\n\n**Note:** I've reached the processing time limit for this request. I've provided the results generated so far. Please review them and ask me to 'continue' if you would like me to finish the remaining tasks."
+
+                    # Safety: Wait for the agent task to finish gracefully after timeout
+                    try:
+                        await asyncio.wait_for(agent_task, timeout=10.0)
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Root Agent task for session {session_id} did not finish within 10s safety window. Cancelling hard.")
+                        agent_task.cancel()
+                        try:
+                            await agent_task
+                        except asyncio.CancelledError:
+                            pass
                 finally:
                     if not agent_task.done():
                         agent_task.cancel()

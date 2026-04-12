@@ -9,8 +9,10 @@ from google.adk.sessions.database_session_service import DatabaseSessionService
 from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
 from google.genai import types
-from common.context import progress_callback_var, session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var
+from common.context import progress_callback_var, session_id_var, browser_session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var, timeout_signal_var
 from common.utils import format_tool_name
+from common.config import get_ai_timeout
+import time
 
 from google.adk.flows.llm_flows.auto_flow import AutoFlow
 from google.adk.utils.context_utils import Aclosing
@@ -45,12 +47,17 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
         auth_token = context_data.get("authToken")
         db_credentials = context_data.get("dbCredentials")
         session_id = data.get("session_id", "default")
+        browser_session_id = data.get("browser_session_id")
 
         async def response_generator():
             queue = asyncio.Queue()
             loop = asyncio.get_event_loop()
             # Set up context variables
             session_token = session_id_var.set(session_id)
+            browser_session_token = None
+            if browser_session_id:
+                browser_session_token = browser_session_id_var.set(browser_session_id)
+
             auth_token_token = None
             if auth_token:
                 auth_token_token = auth_token_var.set(auth_token)
@@ -161,6 +168,10 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
 
             agent_task = asyncio.create_task(run_agent())
 
+            start_time = time.time()
+            timeout_limit = get_ai_timeout()
+            is_timeout = False
+
             try:
                 while True:
                     if await request.is_disconnected():
@@ -169,6 +180,16 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                         cancelled_var.set(True)
                         agent_task.cancel()
                         break
+
+                    # Check for internal timeout
+                    elapsed = time.time() - start_time
+                    if elapsed > timeout_limit and not is_timeout:
+                        is_timeout = True
+                        logger.warning(f"Timeout limit reached ({timeout_limit}s) for session {session_id}. Triggering wrap-up.")
+                        yield f"▌STATUS: Processing limit reached ({timeout_limit}s). Wrapping up current progress...\n"
+                        cancelled_sessions.add(session_id)
+                        timeout_signal_var.set(True)
+                        # We don't set cancelled_var because we want tools to finish gracefully
 
                     try:
                         item = await asyncio.wait_for(queue.get(), timeout=1.0)
@@ -184,7 +205,19 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                         yield " " # Heartbeat
                         continue
 
-                await agent_task
+                if is_timeout:
+                    yield "\n\n**Note:** I've reached the processing time limit for this request. I have provided the results generated so far. Please review them and ask me to 'continue' if you would like me to finish the remaining tasks."
+
+                # Safety: Wait for the agent task to finish gracefully after timeout
+                try:
+                    await asyncio.wait_for(agent_task, timeout=10.0)
+                except asyncio.TimeoutError:
+                    logger.warning(f"Agent task for session {session_id} did not finish within 10s safety window. Cancelling hard.")
+                    agent_task.cancel()
+                    try:
+                        await agent_task
+                    except asyncio.CancelledError:
+                        pass
             finally:
                 if not agent_task.done():
                     agent_task.cancel()

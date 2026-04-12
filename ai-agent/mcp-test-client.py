@@ -127,12 +127,13 @@ class MCPClient:
             print(f"❌ Error calling {tool_name}: {e}")
             return {"error": str(e)}
 
-    def create_credential_token(self, database: str, username: str, password: str, expiry_minutes: int = 30) -> bool:
+    def create_credential_token(self, database: str, username: str, password: str, expiry_minutes: int = 30, session_id: str = "test-session") -> bool:
         """Create a secure credential token for database access"""
         result = self.call_query_engine_tool("create_credential_token", {
             "database": database,
             "username": username,
             "password": password,
+            "session_id": session_id,
             "expiry_minutes": expiry_minutes
         })
 
@@ -165,7 +166,7 @@ class MCPClient:
             print(f"❌ Failed to create credential token: {result}")
             return False
 
-    def execute_sql(self, database: str, sql: str, binds: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def execute_sql(self, database: str, sql: str, binds: Optional[Dict[str, Any]] = None, session_id: str = "test-session") -> Dict[str, Any]:
         """Execute SQL using the secure credential token"""
         if not self.credential_token:
             return {"error": "No credential token available. Call create_credential_token first."}
@@ -173,7 +174,8 @@ class MCPClient:
         arguments = {
             "database": database,
             "credential_token": self.credential_token,
-            "sql": sql
+            "sql": sql,
+            "session_id": session_id
         }
 
         if binds:

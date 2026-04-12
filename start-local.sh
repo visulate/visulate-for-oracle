@@ -49,7 +49,14 @@ mkdir -p "$TNS_ADMIN"
 mkdir -p downloads/metadata
 
 # Trap to kill all background processes on exit
-trap 'kill $(jobs -p) 2>/dev/null' EXIT
+# Using kill 0 sends the signal to the entire process group
+trap 'kill 0 2>/dev/null' EXIT
+
+# Clear credential cache from shared memory on startup
+if [ -d "/dev/shm/mcp_credentials" ]; then
+    echo "Clearing credential cache in /dev/shm..."
+    rm -rf /dev/shm/mcp_credentials/*
+fi
 
 
 echo "Starting API Server..."

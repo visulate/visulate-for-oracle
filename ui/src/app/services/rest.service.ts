@@ -269,16 +269,29 @@ export class RestService {
     } catch (e) {
       if (e.name === 'AbortError') {
         // Cancellation handled by caller
-        onComplete(); // Or specific handling
+        onComplete();
       } else {
+        // Enhance network errors with more context
+        if (e instanceof TypeError && (e.message.toLowerCase().includes('network error') || e.message.toLowerCase().includes('failed to fetch'))) {
+           (e as any).isNetworkError = true;
+        }
         onError(e);
       }
     }
   }
 
-  generateToken(database: string, username: string, password: string): Observable<any> {
+  generateToken(database: string, username: string, password: string, sessionId?: string): Observable<any> {
     const apiUrl = `${environment.apiBase}/token`;
-    return this.http.post<any>(apiUrl, { database, username, password });
+    return this.http.post<any>(apiUrl, { database, username, password, session_id: sessionId });
+  }
+
+  revokeTokens(sessionId: string, database?: string): Observable<any> {
+    const apiUrl = `${environment.apiBase}/token`;
+    const params: any = { session_id: sessionId };
+    if (database) {
+      params.database = database;
+    }
+    return this.http.delete<any>(apiUrl, { params });
   }
 
 }

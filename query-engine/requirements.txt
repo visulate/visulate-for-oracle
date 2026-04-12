@@ -8,4 +8,4 @@ sqlparse >= 0.5
 mcp >= 1.0.0
 fastmcp==2.14.2
 python-dotenv>=1.1.0
-requests>=2.31.0
+requests>=2.31.0cryptography>=42.0.0

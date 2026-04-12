@@ -66,7 +66,7 @@ def parse_token_from_response(result: Dict[str, Any]) -> Optional[str]:
                     break
     return token
 
-def create_token_request(query_engine_url: str, database: str, username: str, password: str, expiry_minutes: int = 30) -> Dict[str, Any]:
+def create_token_request(query_engine_url: str, database: str, username: str, password: str, session_id: str, expiry_minutes: int = 30) -> Dict[str, Any]:
     """
     Helper to call the create_credential_token tool.
     Args:
@@ -74,6 +74,7 @@ def create_token_request(query_engine_url: str, database: str, username: str, pa
         database (str): The name of the database.
         username (str): The username for authentication.
         password (str): The password for authentication.
+        session_id (str): The browser session ID.
         expiry_minutes (int, optional): Token expiry time in minutes. Defaults to 30.
     Returns:
         Dict[str, Any]: On success, returns the JSON response from the tool.
@@ -86,6 +87,7 @@ def create_token_request(query_engine_url: str, database: str, username: str, pa
             "database": database,
             "username": username,
             "password": password,
+            "session_id": session_id,
             "expiry_minutes": expiry_minutes
         }
     }

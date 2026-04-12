@@ -47,6 +47,7 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                     json={
                         "message": message,
                         "session_id": sub_session_id,
+                        "browser_session_id": session_id,
                         "context": ui_context
                     }
                 ) as response:
@@ -71,9 +72,9 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
                                         clean_msg = line.replace("▌STATUS: ", "").replace("▌ERROR: ", "").replace("▌SUCCESS: ", "").strip()
                                         progress_callback(clean_msg)
 
-                                    # If it's an error, we want to capture it in the return value
-                                    # so the LLM knows the tool failed.
-                                    if "▌ERROR:" in line:
+                                    # Capture errors and success markers (like download links) in the return value
+                                    # so the LLM is aware of the final status and deliverables.
+                                    if "▌ERROR:" in line or "▌SUCCESS:" in line:
                                         full_response.append(line + "\n")
                                 elif line.strip():
                                     full_response.append(line + "\n")

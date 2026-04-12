@@ -251,7 +251,7 @@ module.exports.generativeAI = generativeAI;
  */
 async function generateToken(req, res, next) {
   try {
-    const { database, username, password } = req.body;
+    const { database, username, password, session_id } = req.body;
     if (!database || !username || !password) {
       res.status(400).send('Missing required fields: database, username, password');
       return;
@@ -259,12 +259,28 @@ async function generateToken(req, res, next) {
 
     const queryEngineUrl = process.env.QUERY_ENGINE_URL || 'http://vissql:5000/mcp-sql/call_tool';
 
+    // 1. Validate credentials first
+    logger.log('info', `Validating credentials for ${username} on ${database}`);
+    try {
+      await axios.post(queryEngineUrl, {
+        name: "validate_credentials",
+        arguments: { database, username, password }
+      });
+    } catch (valErr) {
+      const errorMsg = valErr.response?.data?.error || valErr.message;
+      logger.log('error', `Credential validation failed: ${errorMsg}`);
+      res.status(401).send(`Invalid credentials: ${errorMsg}`);
+      return;
+    }
+
+    // 2. If valid, create the token
     const payload = {
       name: "create_credential_token",
       arguments: {
         database: database,
         username: username,
         password: password,
+        session_id: session_id || "default",
         expiry_minutes: 60
       }
     };
@@ -273,13 +289,51 @@ async function generateToken(req, res, next) {
     res.status(200).json(response.data);
 
   } catch (err) {
-    logger.log('error', 'Token generation failed');
+    logger.log('error', 'Token generation workflow failed');
     logger.log('error', err.response?.data || err.message);
     res.status(503).send(err.response?.data?.error || err.message);
     next(err);
   }
 }
 module.exports.generateToken = generateToken;
+
+/**
+ * Implements DELETE /api/token endpoint.
+ * Revokes tokens associated with a session (all or specific database).
+ * @param {*} req - request
+ * @param {*} res - response
+ * @param {*} next - next matching route
+ */
+async function revokeToken(req, res, next) {
+  try {
+    const session_id = req.body.session_id || req.query.session_id;
+    const database = req.body.database || req.query.database;
+
+    if (!session_id) {
+       res.status(400).send('Missing required field: session_id');
+       return;
+    }
+
+    const queryEngineUrl = process.env.QUERY_ENGINE_URL || 'http://vissql:5000/mcp-sql/call_tool';
+    const payload = {
+      name: "revoke_session",
+      arguments: {
+        session_id: session_id,
+        database: database // optional
+      }
+    };
+
+    const response = await axios.post(queryEngineUrl, payload);
+    res.status(200).json(response.data);
+
+  } catch (err) {
+    logger.log('error', 'Token revocation failed');
+    logger.log('error', err.response?.data || err.message);
+    res.status(503).send(err.response?.data?.error || err.message);
+    next(err);
+  }
+}
+module.exports.revokeToken = revokeToken;
 async function searchObjectsInternal(db, args) {
   const { search_terms, object_types } = args;
   const poolAlias = endpointList[db];

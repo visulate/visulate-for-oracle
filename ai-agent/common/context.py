@@ -4,6 +4,9 @@ import contextvars
 # Context variable to store session ID (request-scoped)
 session_id_var = contextvars.ContextVar("session_id", default="default")
 
+# Context variable to store the original browser session ID (used for credentials)
+browser_session_id_var = contextvars.ContextVar("browser_session_id", default=None)
+
 # Context variable to store progress updates (request-scoped)
 progress_callback_var = contextvars.ContextVar("progress_callback", default=None)
 
@@ -15,6 +18,9 @@ auth_token_var = contextvars.ContextVar("auth_token", default=None)
 
 # Context variable to signal task cancellation (request-scoped)
 cancelled_var = contextvars.ContextVar("cancelled", default=False)
+
+# Context variable to signal soft timeout (request-scoped)
+timeout_signal_var = contextvars.ContextVar("timeout_signal", default=False)
 
 # Context variable to store raw DB credentials (JSON string or dict)
 db_credentials_var = contextvars.ContextVar("db_credentials", default=None)

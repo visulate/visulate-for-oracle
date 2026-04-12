@@ -180,7 +180,8 @@ router.route('/mcp')
   .delete(aiService.handleMcpRequest);
 
 router.route('/api/token')
-  .post(aiService.generateToken);
+  .post(aiService.generateToken)
+  .delete(aiService.revokeToken);
 
 router.route('/mcp/context/:db')
   .post(validate({ body: mcpContextSchema }), aiService.getContext);
