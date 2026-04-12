@@ -28,11 +28,12 @@ class CredentialManager:
         Returns:
             tuple: (password, source)
         """
-        from common.context import auth_token_var, db_credentials_var
+        from common.context import auth_token_var, db_credentials_var, progress_callback_var
         import json
 
         db_name = db_name.lower()
         schema_name = schema_name.upper()
+        callback = progress_callback_var.get()
 
         # 1. Try db_credentials_var (Explicit DB credentials from UI)
         db_creds = db_credentials_var.get()
@@ -47,14 +48,18 @@ class CredentialManager:
                     if match_creds.get("username", "").upper() == schema_name:
                         password = match_creds.get("password")
                         if password:
-                            logger.info(f"Fetched password for {db_name}.{schema_name} from db_credentials.")
+                            logger.info(f"Fetched password for {db_name}.{schema_name} from db_credentials (UI-Context).")
+                            if callback:
+                                callback(f"▌INFO: Using database credentials from Smart Key (UI Context).")
                             return password, 'ui-context'
 
                 # Check top-level if match
                 if creds.get("username", "").upper() == schema_name:
                     password = creds.get("password")
                     if password:
-                         logger.info(f"Fetched password for {schema_name} from top-level db_credentials.")
+                         logger.info(f"Fetched password for {schema_name} from top-level db_credentials (UI-Context).")
+                         if callback:
+                             callback(f"▌INFO: Using database credentials from Smart Key (UI Context).")
                          return password, 'ui-context'
             except Exception as e:
                 logger.warning(f"Failed to parse db_credentials: {e}")
@@ -70,19 +75,23 @@ class CredentialManager:
                     if match_creds.get("username", "").upper() == schema_name:
                         password = match_creds.get("password")
                         if password:
-                            logger.info(f"Fetched password for {db_name}.{schema_name} from auth_token.")
+                            logger.info(f"Fetched password for {db_name}.{schema_name} from auth_token (UI-Context-Legacy).")
+                            if callback:
+                                callback(f"▌INFO: Using credentials from UI context (legacy token).")
                             return password, 'ui-context-legacy'
 
                 # Check top-level if match
                 if creds.get("username", "").upper() == schema_name:
                     password = creds.get("password")
                     if password:
-                         logger.info(f"Fetched password for {schema_name} from top-level auth_token.")
+                         logger.info(f"Fetched password for {schema_name} from top-level auth_token (UI-Context-Legacy).")
+                         if callback:
+                             callback(f"▌INFO: Using credentials from UI context (legacy token).")
                          return password, 'ui-context-legacy'
             except:
                 pass # auth_token is likely a JWT, skip
 
-        # 2. Try GCP Secret Manager
+        # 3. Try GCP Secret Manager
 
         if self.secret_client:
             secret_name = f"db-password-{db_name}-{schema_name}"
@@ -95,18 +104,22 @@ class CredentialManager:
                 )
                 password = response.payload.data.decode("UTF-8")
                 logger.info(f"Fetched secret '{secret_name}' from GCP.")
+                if callback:
+                    callback(f"▌INFO: Using system-configured credentials from Secret Manager.")
                 return password, 'gcp-secret-manager'
             except exceptions.NotFound:
                 logger.info(f"Secret '{secret_name}' not found in GCP, checking .env.")
             except Exception as e:
                 logger.warning(f"Error fetching secret '{secret_name}' from GCP: {e}")
 
-        # Fallback to environment variables
+        # 4. Fallback to environment variables
         env_var_name = f"DB_PASSWORD_{db_name.upper()}_{schema_name.upper()}"
         password = os.getenv(env_var_name)
         if password:
             logger.info(f"Fetched password from env var '{env_var_name}'.")
+            if callback:
+                callback(f"▌INFO: Using server-side configuration for {db_name}.{schema_name}.")
             return password, 'server-env-var'
         else:
-            logger.warning(f"Password not found in GCP or for env var '{env_var_name}'.")
+            logger.warning(f"Password not found for {db_name}.{schema_name} in any source.")
             return None, None

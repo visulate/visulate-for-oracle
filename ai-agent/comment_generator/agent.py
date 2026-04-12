@@ -147,7 +147,7 @@ def create_comment_generator_agent() -> LlmAgent:
         tools=[
             api_server_tools,
             query_engine_tools,
-            create_connection_token_tool(query_engine_tools),
+            create_connection_token_tool(),
             create_generate_comments_tool(api_server_tools, query_engine_tools)
         ],
     )
@@ -299,5 +299,5 @@ if __name__ == "__main__":
             logger.error(f"Error processing request: {e}", exc_info=True)
             return JSONResponse(content={"error": str(e)}, status_code=500)
 
-    logger.info("Starting Comment Generator Agent on port 10001...")
-    uvicorn.run(app, host="0.0.0.0", port=10001)
+    logger.info("Starting Comment Generator Agent on port 10003...")
+    uvicorn.run(app, host="0.0.0.0", port=10003)

@@ -105,24 +105,7 @@ class MCPClient:
             logger.error(f"Error calling Query Engine tool {tool_name}: {e}")
             return {"error": str(e)}
 
-    async def create_credential_token(self, database: str, username: str, password: str) -> bool:
-        """Create a secure credential token for database access"""
-        try:
-            result = await self.call_query_engine_tool("create_credential_token", {
-                "database": database,
-                "username": username,
-                "password": password,
-                "session_id": browser_session_id_var.get() or self.session_id,
-                "expiry_minutes": 60
-            })
-            token = parse_token_from_response(result)
-            if token:
-                self.credential_token = token
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"Failed to create credential token: {e}")
-            return False
+
 
     async def execute_sql(self, database: str, sql: str) -> Dict[str, Any]:
         """Execute SQL using the secure credential token"""
@@ -174,6 +157,20 @@ class CommentGenerator:
         self.genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.credential_token = credential_token
         self.session_id = session_id
+
+    async def create_credential_token(self, database: str, username: str) -> bool:
+        """
+        Create a secure credential token for database access.
+        Uses the shared security logic from common.tools.
+        """
+        from common.tools import get_valid_token
+        token = await get_valid_token(database, username)
+        if token:
+            self.credential_token = token
+            # Also update the client's token
+            self.client.credential_token = token
+            return True
+        return False
 
     def report_progress(self, message: str):
         """Send progress update to the context-local callback if available"""
@@ -402,25 +399,16 @@ class CommentGenerator:
                 self.report_progress("Credential token verified.")
 
         if not self.credential_token:
-            # Get password and set up MCP credential token
-            cred_manager = CredentialManager()
-            password, source = cred_manager.get_password(self.database, self.schema)
-            if password:
-                if source == 'server-env-var':
-                     self.report_progress(f"▌INFO: Using server-managed credentials (DB_PASSWORD_...). Authenticating via the Smart Key button will override these and provide higher accuracy.")
-                else:
-                     self.report_progress(f"▌INFO: Using credentials from {source}.")
-                
-                self.report_progress(f"Creating new credential token for {self.schema}...")
-                if await self.client.create_credential_token(self.database, self.schema, password):
-                    self.report_progress("New credential token created.")
-                else:
-                    self.report_progress("▌WARNING: Failed to create credential token. Proceeding without data sampling.")
-            else:
+            # Automated handshake using shared logic
+            p_token = await self.create_credential_token(self.database, self.schema)
+            if not p_token:
+                # If handshake fails, it means no credentials were found in any source
                 self.report_progress("▌ACTION REQUIRED: No credentials found for this database/schema selection. Providing them enables data sampling for significantly better accuracy.")
                 self.report_progress("▌PROMPT: Would you like to provide credentials now, or should I proceed with basic metadata-only generation? (To provide them, click the key icon and then tell me to 'continue').")
                 # Return -1 to signal interactive stop to the agent
                 return -1
+            else:
+                self.report_progress("New credential token created and verified via shared handshake.")
 
         # 2. Find objects
         objects_map = await self.find_missing_comments(wildcard)

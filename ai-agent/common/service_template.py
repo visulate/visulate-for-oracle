@@ -226,6 +226,8 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                 session_id_var.reset(session_token)
                 if auth_token_token:
                     auth_token_var.reset(auth_token_token)
+                if db_credentials_token:
+                    db_credentials_var.reset(db_credentials_token)
                 ui_context_var.reset(ui_context_token)
                 progress_callback_var.reset(progress_callback_token)
 
