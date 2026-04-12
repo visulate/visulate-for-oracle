@@ -1,72 +1,43 @@
 ---
 sections:
-  - name: Visulate for Oracle
+  - name: Getting Started
     items:
       - title: "Product Overview"
         href: "/"
-        description: "Visulate for Oracle is a browser-based application to analyze and document Oracle databases using Agentic AI."
+        description: "Analyze and document Oracle databases using Agentic AI."
       - title: "Quickstart"
         href: "/pages/quickstart.html"
-        description: "Create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database."
-  - name: Visulate Services
+        description: "Create a Visulate for Oracle instance on Google Cloud Platform and connect it to an Oracle database."
+
+  - name: Agentic AI
     items:
-      - title: "Technical Design"
-        href: "/pages/design.html"
-        description: "Visulate for Oracle provides a browser UI to view and analyze Oracle database metadata"
-      - title: "Product Support"
-        href: "/pages/support.html"
-        description: "Visulate for Oracle provides a REST API to access Oracle metadata"
-  - name: How-to guides
-    items:
-      - title: "Agentic AI"
+      - title: "Agents Overview"
         href: "/pages/ai-agent-guide.html"
-        description: "Use autonomous AI agents for NL2SQL, ERDs, and automated documentation"
-      - title: "Database analysis"
+        description: "How to use autonomous AI agents for NL2SQL, ERDs, and documentation."
+
+  - name: Database Analysis
+    items:
+      - title: "Database Analysis"
         href: "/pages/db-analysis.html"
-        description: "Analyze schema complexity, dependencies, and PL/SQL logic"
-      - title: "CSV file generation"
+        description: "Analyze schema complexity, dependencies, and PL/SQL logic."
+      - title: "CSV File Generation"
         href: "/pages/csv-file-generation.html"
-        description: "Generate seed data CSV files from an Oracle database"
+        description: "Generate seed data CSV files from database tables."
       - title: "Code Generation"
         href: "/pages/code-generation.html"
-        description: "Generating code from Oracle metadata"
-      - title: "E-Business Suite Database"
-        href: "/pages/ebs-database.html"
-        description: "Documenting an Oracle E-Business Suite Database instance"
-  - name: Concepts
+        description: "Generate modern application code from Oracle metadata."
+
+  - name: Administration
     items:
-      - title: "Application Architecture"
-        href: "/pages/application-architecture.html"
-        description: "Visulate for Oracle uses Docker Compose to deliver a browser UI and AI services on a GCE VM."
-      - title: "GKE Reference (Deprecated)"
-        href: "/pages/gke-reference.html"
-        description: "Historical reference for the deprecated GKE deployment model."
-  - name: Setup
-    items:
-      - title: "Create a test database"
-        href: "/pages/create-test-db.html"
-        description: "How-to create an Oracle 23 Free instance on Google Cloud using a container image"
-      - title: "Setup a Visulate account"
-        href: "/pages/database-setup.html"
-        description: "Visulate for Oracle needs a user with the minimum privileges to read the data dictionary in each database."
-      - title: "Limit access to Visulate"
-        href: "/pages/iap-setup.html"
-        description: "Configure Identity-Aware Proxy to protect Visulate endpoints"
-      - title: "Register a database"
+      - title: "Database Registration"
         href: "/pages/database-registration.html"
-        description: "Register Oracle databases by editing configuration files on the Visulate VM."
-      - title: "Autonomous Database Registration"
-        href: "/pages/autonomous-database.html"
-        description: "Documenting an Oracle Autonomous Database instance"
-      - title: "SQL Query Engine configuration"
-        href: "/pages/query-engine-config.html"
-        description: "Setup the SQL to CSV feature in Visulate for Oracle"
-      - title: "Configure your network"
-        href: "/pages/network-configuration.html"
-        description: "Configure your network to allow connections from the Visulate cluster to each Oracle database"
-      - title: "Update to a later version"
-        href: "/pages/upgrade-guide.html"
-        description: "Updating Visulate for Oracle images for patches or minor updates"
+        description: "Connect and configure Oracle databases (including Autonomous and EBS)."
+      - title: "Network & Security"
+        href: "/pages/network-security.html"
+        description: "Configure IAP, TLS certificates, and firewall connectivity."
+      - title: "Technical Architecture"
+        href: "/pages/architecture.html"
+        description: "Review VM-based deployment and AI integration architecture."
       - title: "Troubleshooting"
         href: "/pages/troubleshooting.html"
-        description: "Visulate for Oracle troubleshooting tips and techniques"
+        description: "Tips and techniques for resolving connection and platform issues."
