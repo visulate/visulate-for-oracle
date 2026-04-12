@@ -69,6 +69,15 @@
   font-size: 0.875rem;
 }
 
+.timer {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 500;
+  margin-right: 12px;
+  background: var(--app-active-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 /* Message Rows */
 .message-row {
   display: flex;

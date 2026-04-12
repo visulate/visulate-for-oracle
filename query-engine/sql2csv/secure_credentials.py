@@ -13,24 +13,32 @@ import glob
 import json
 import fcntl
 import stat
+import logging
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
+from cryptography.fernet import Fernet
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class CredentialData:
     """Secure storage for database credentials."""
     username: str
-    password: str
+    password: str  # This will be stored ENCRYPTED in high-security environments
     database: str
+    session_id: str  # Bound to a specific browser session
     created_at: float
     expires_at: float
 
 
 # Process-level global storage that survives module reloads
-# This is stored in the Python process memory, not on disk
 _PROCESS_CREDENTIAL_STORAGE = {}
 _PROCESS_STORAGE_LOCK = threading.RLock()
+
+# Ephemeral encryption key generated on startup (process RAM only)
+_ENCRYPTION_KEY = Fernet.generate_key()
+_FERNET = Fernet(_ENCRYPTION_KEY)
 
 
 class SecureCredentialManager:
@@ -38,13 +46,10 @@ class SecureCredentialManager:
     Manages temporary credential tokens to avoid exposing passwords in MCP calls.
 
     SECURITY DESIGN:
-    - NO PERSISTENT STORAGE - credentials only exist in process memory
-    - NO DISK WRITES - prevents password exposure on filesystem
-    - Temporary tokens with longer default expiration (2 hours)
-    - Thread-safe operations using process-level locks
-    - Automatic cleanup of expired tokens
-    - No plaintext password storage in logs or responses
-    - Process-level storage survives module reloads within same Python process
+    - NO PERSISTENT STORAGE - credentials only exist in process memory or /dev/shm
+    - IN-MEMORY ENCRYPTION - passwords are encrypted with an ephemeral key
+    - SESSION BINDING - tokens are tied to a specific visulate_session_id
+    - NO plaintext password storage in logs or responses
     """
 
     def __init__(self, default_expiry_minutes: int = 30):  # 30 minutes default
@@ -55,14 +60,16 @@ class SecureCredentialManager:
         self._lock = _PROCESS_STORAGE_LOCK
 
     def create_credential_token(self, username: str, password: str, database: str,
+                              session_id: str,
                               expiry_minutes: Optional[int] = None) -> str:
         """
         Create a temporary token for database credentials.
 
         Args:
             username: Database username
-            password: Database password (stored securely)
+            password: Database password (will be encrypted)
             database: Database name
+            session_id: The browser session ID this token belongs to
             expiry_minutes: Token expiration time (default: 30 minutes)
 
         Returns:
@@ -76,10 +83,14 @@ class SecureCredentialManager:
             current_time = time.time()
             expires_at = current_time + (expiry_time * 60)
 
+            # Encrypt password before storage
+            encrypted_password = _FERNET.encrypt(password.encode()).decode()
+
             credential_data = CredentialData(
                 username=username,
-                password=password,
+                password=encrypted_password,
                 database=database,
+                session_id=session_id,
                 created_at=current_time,
                 expires_at=expires_at
             )
@@ -91,15 +102,16 @@ class SecureCredentialManager:
 
             return token
 
-    def get_credentials(self, token: str) -> Optional[Tuple[str, str, str]]:
+    def get_credentials(self, token: str, session_id: Optional[str] = None) -> Optional[Tuple[str, str, str]]:
         """
         Retrieve credentials using a token.
 
         Args:
             token: The credential token
+            session_id: The browser session ID attempting to use the token
 
         Returns:
-            Tuple of (username, password, database) or None if token invalid/expired
+            Tuple of (username, password, database) or None if token invalid/expired/mismatched
         """
         with self._lock:
             credential_data = self._credentials.get(token)
@@ -112,23 +124,54 @@ class SecureCredentialManager:
                 del self._credentials[token]
                 return None
 
-            return (credential_data.username, credential_data.password, credential_data.database)
+            # Verify session binding
+            if session_id and credential_data.session_id != session_id:
+                logger.warning(f"Session mismatch for token. Token bound to {credential_data.session_id[:8]}, caller is {session_id[:8]}")
+                return None
+
+            # Decrypt password for return
+            try:
+                decrypted_password = _FERNET.decrypt(credential_data.password.encode()).decode()
+            except Exception as e:
+                logger.error(f"Failed to decrypt password for token (likely process restart): {e}")
+                del self._credentials[token]
+                return None
+
+            return (credential_data.username, decrypted_password, credential_data.database)
 
     def revoke_token(self, token: str) -> bool:
-        """
-        Immediately revoke a credential token.
-
-        Args:
-            token: The token to revoke
-
-        Returns:
-            True if token was revoked, False if token didn't exist
-        """
+        """Immediately revoke a credential token."""
         with self._lock:
             if token in self._credentials:
                 del self._credentials[token]
                 return True
             return False
+
+    def revoke_session_tokens(self, session_id: str) -> int:
+        """Revoke all tokens associated with a session ID."""
+        if not session_id:
+            return 0
+        with self._lock:
+            tokens_to_revoke = [
+                token for token, cred in self._credentials.items()
+                if cred.session_id == session_id
+            ]
+            for token in tokens_to_revoke:
+                del self._credentials[token]
+            return len(tokens_to_revoke)
+
+    def revoke_database_tokens(self, session_id: str, database: str) -> int:
+        """Revoke all tokens for a specific session and database."""
+        if not session_id or not database:
+            return 0
+        with self._lock:
+            tokens_to_revoke = [
+                token for token, cred in self._credentials.items()
+                if cred.session_id == session_id and cred.database == database
+            ]
+            for token in tokens_to_revoke:
+                del self._credentials[token]
+            return len(tokens_to_revoke)
 
     def _cleanup_expired_tokens(self) -> int:
         """
@@ -170,6 +213,7 @@ class SecureCredentialManager:
                         "token_prefix": token[:12] + "...",
                         "username": cred.username,
                         "database": cred.database,
+                        "session_id_prefix": cred.session_id[:8] + "...",
                         "expires_in_minutes": (cred.expires_at - time.time()) / 60
                     }
                     for token, cred in self._credentials.items()
@@ -177,12 +221,14 @@ class SecureCredentialManager:
             }
 
     def create_credential_token_from_encoded(self, encoded_credentials: str,
+                                           session_id: str,
                                            expiry_minutes: Optional[int] = None) -> str:
         """
         Create a token from base64-encoded credentials (X-DB-Credentials format).
 
         Args:
             encoded_credentials: Base64 encoded "username/password@database" string
+            session_id: The browser session ID
             expiry_minutes: Token expiration time
 
         Returns:
@@ -197,7 +243,7 @@ class SecureCredentialManager:
             user_password, database = decoded_str.split('@')
             username, password = user_password.split('/')
 
-            return self.create_credential_token(username, password, database, expiry_minutes)
+            return self.create_credential_token(username, password, database, session_id, expiry_minutes)
 
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid credential format: {e}")
@@ -209,6 +255,8 @@ class SharedCredentialManager:
     
     SECURITY DESIGN:
     - Uses RAM-based filesystem (/dev/shm) - no persistent disk storage
+    - IN-MEMORY ENCRYPTION - passwords are encrypted with an ephemeral key
+    - SESSION BINDING - tokens are tied to a specific visulate_session_id
     - File-based locking for thread and process safety
     - Restrictive file permissions (600) - owner read/write only
     - Automatic cleanup of expired tokens
@@ -280,14 +328,16 @@ class SharedCredentialManager:
             return None
     
     def create_credential_token(self, username: str, password: str, database: str,
+                              session_id: str,
                               expiry_minutes: Optional[int] = None) -> str:
         """
         Create a temporary token for database credentials.
         
         Args:
             username: Database username
-            password: Database password (stored securely in /dev/shm)
+            password: Database password (encrypted in /dev/shm)
             database: Database name
+            session_id: The browser session ID
             expiry_minutes: Token expiration time (default: 30 minutes)
         
         Returns:
@@ -303,10 +353,14 @@ class SharedCredentialManager:
         current_time = time.time()
         expires_at = current_time + (expiry_time * 60)
         
+        # Encrypt password before storage
+        encrypted_password = _FERNET.encrypt(password.encode()).decode()
+
         credential_data = CredentialData(
             username=username,
-            password=password,
+            password=encrypted_password,
             database=database,
+            session_id=session_id,
             created_at=current_time,
             expires_at=expires_at
         )
@@ -319,15 +373,16 @@ class SharedCredentialManager:
         
         return token
     
-    def get_credentials(self, token: str) -> Optional[Tuple[str, str, str]]:
+    def get_credentials(self, token: str, session_id: Optional[str] = None) -> Optional[Tuple[str, str, str]]:
         """
         Retrieve credentials using a token.
         
         Args:
             token: The credential token
+            session_id: The browser session ID
         
         Returns:
-            Tuple of (username, password, database) or None if token invalid/expired
+            Tuple of (username, password, database) or None if token invalid/expired/mismatched
         """
         if not self.storage_dir:
             return None
@@ -343,23 +398,64 @@ class SharedCredentialManager:
             self._delete_token_file(file_path)
             return None
         
-        return (credential_data.username, credential_data.password, credential_data.database)
+        # Verify session binding
+        if session_id and credential_data.session_id != session_id:
+            logger.warning(f"Session mismatch for shared token. Token bound to {credential_data.session_id[:8]}, caller is {session_id[:8]}")
+            return None
+
+        # Decrypt password
+        try:
+            decrypted_password = _FERNET.decrypt(credential_data.password.encode()).decode()
+        except Exception as e:
+            logger.error(f"Failed to decrypt shared password for token (likely process restart): {e}")
+            self._delete_token_file(file_path)
+            return None
+        
+        return (credential_data.username, decrypted_password, credential_data.database)
     
     def revoke_token(self, token: str) -> bool:
-        """
-        Immediately revoke a credential token.
-        
-        Args:
-            token: The token to revoke
-        
-        Returns:
-            True if token was revoked, False if token didn't exist
-        """
+        """Immediately revoke a credential token."""
         if not self.storage_dir:
             return False
         
         file_path = self._get_token_file_path(token)
         return self._delete_token_file(file_path)
+
+    def revoke_session_tokens(self, session_id: str) -> int:
+        """Revoke all tokens associated with a session ID."""
+        if not self.storage_dir or not session_id:
+            return 0
+        
+        revoked_count = 0
+        try:
+            pattern = os.path.join(self.storage_dir, "token_*.json")
+            for file_path in glob.glob(pattern):
+                credential_data = self._read_token_file(file_path)
+                if credential_data and credential_data.session_id == session_id:
+                    if self._delete_token_file(file_path):
+                        revoked_count += 1
+        except Exception as e:
+            logger.error(f"Error revoking session tokens in shared storage: {e}")
+            
+        return revoked_count
+
+    def revoke_database_tokens(self, session_id: str, database: str) -> int:
+        """Revoke all tokens for a specific session and database."""
+        if not self.storage_dir or not session_id or not database:
+            return 0
+            
+        revoked_count = 0
+        try:
+            pattern = os.path.join(self.storage_dir, "token_*.json")
+            for file_path in glob.glob(pattern):
+                credential_data = self._read_token_file(file_path)
+                if credential_data and credential_data.session_id == session_id and credential_data.database == database:
+                    if self._delete_token_file(file_path):
+                        revoked_count += 1
+        except Exception as e:
+            logger.error(f"Error revoking database tokens in shared storage: {e}")
+            
+        return revoked_count
     
     def _delete_token_file(self, file_path: str) -> bool:
         """Delete a token file."""
@@ -437,6 +533,7 @@ class SharedCredentialManager:
                                 "token_prefix": token_hash[:12] + "...",
                                 "username": credential_data.username,
                                 "database": credential_data.database,
+                                "session_id_prefix": credential_data.session_id[:8] + "...",
                                 "expires_in_minutes": (credential_data.expires_at - current_time) / 60
                             })
                     except Exception:

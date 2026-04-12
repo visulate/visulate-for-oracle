@@ -1,8 +1,8 @@
 <ng-template #chatTemplate>
   <div class="chat-container" [class.full-screen]="isFullScreen">
     @if (isFullScreen) {
-    <button mat-icon-button class="exit-fullscreen-button" (click)="toggleFullScreen()"
-      matTooltip="Exit Full Screen" aria-label="Exit Full Screen">
+    <button mat-icon-button class="exit-fullscreen-button" (click)="toggleFullScreen()" matTooltip="Exit Full Screen"
+      aria-label="Exit Full Screen">
       <mat-icon>fullscreen_exit</mat-icon>
     </button>
     }
@@ -20,7 +20,8 @@
         <p>
           Visulate uses Generative AI to provide insights and analysis about your database objects. It can also be
           configured to generate SQL based on natural language queries (NL2SQL), execute SQL queries, and to generate
-          table and column comments for database objects. The list of available features varies based on the configuration
+          table and column comments for database objects. The list of available features varies based on the
+          configuration
           of your Visulate instance.</p>
         <p> Start by asking <b><em>"What can you do?"</em></b> to get an overview of the available features.
         </p>
@@ -53,6 +54,7 @@
       <p>
         <span *ngIf="!currentStatus">Working...</span>
         <span *ngIf="currentStatus">{{currentStatus}}</span>
+        <span class="timer">{{formattedTime}}</span>
         <button mat-button color="warn" (click)="cancelGeneration()">Stop</button>
       </p>
       <mat-progress-bar mode="indeterminate"></mat-progress-bar>
@@ -69,7 +71,8 @@
           <mat-icon>send</mat-icon>
         </button>
       </mat-form-field>
-      <button mat-icon-button (click)="openCredentialsDialog()" title="Connect to Database">
+      <button mat-icon-button (click)="openCredentialsDialog()" [color]="getCredentialColor()"
+        [matTooltip]="getCredentialTooltip()">
         <mat-icon>vpn_key</mat-icon>
       </button>
       <button mat-icon-button type="button" (click)="newChat()" matTooltip="New Chat Session">

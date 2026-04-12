@@ -16,7 +16,8 @@ import json
 import argparse
 import logging
 import requests
-from typing import Dict, Any, List, Optional
+import re
+from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from google import genai
@@ -27,7 +28,7 @@ from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from common.config import get_mcp_urls
 from common.credentials import CredentialManager
 from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data
-from common.context import progress_callback_var, auth_token_var, cancelled_var
+from common.context import progress_callback_var, session_id_var, browser_session_id_var, auth_token_var, cancelled_var, timeout_signal_var
 
 # Configure logging
 logging.basicConfig(
@@ -104,23 +105,7 @@ class MCPClient:
             logger.error(f"Error calling Query Engine tool {tool_name}: {e}")
             return {"error": str(e)}
 
-    async def create_credential_token(self, database: str, username: str, password: str) -> bool:
-        """Create a secure credential token for database access"""
-        try:
-            result = await self.call_query_engine_tool("create_credential_token", {
-                "database": database,
-                "username": username,
-                "password": password,
-                "expiry_minutes": 60
-            })
-            token = parse_token_from_response(result)
-            if token:
-                self.credential_token = token
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"Failed to create credential token: {e}")
-            return False
+
 
     async def execute_sql(self, database: str, sql: str) -> Dict[str, Any]:
         """Execute SQL using the secure credential token"""
@@ -130,7 +115,8 @@ class MCPClient:
         result = await self.call_query_engine_tool("execute_sql", {
             "database": database,
             "credential_token": self.credential_token,
-            "sql": sql
+            "sql": sql,
+            "session_id": browser_session_id_var.get() or self.session_id
         })
 
         # The rest of the script expects a dict with 'success' and 'data'
@@ -172,13 +158,27 @@ class CommentGenerator:
         self.credential_token = credential_token
         self.session_id = session_id
 
+    async def create_credential_token(self, database: str, username: str) -> bool:
+        """
+        Create a secure credential token for database access.
+        Uses the shared security logic from common.tools.
+        """
+        from common.tools import get_valid_token
+        token = await get_valid_token(database, username)
+        if token:
+            self.credential_token = token
+            # Also update the client's token
+            self.client.credential_token = token
+            return True
+        return False
+
     def report_progress(self, message: str):
         """Send progress update to the context-local callback if available"""
         # Check for cancellation before reporting progress
-        from common.context import cancelled_var, cancelled_sessions
-        if cancelled_var.get() or self.session_id in cancelled_sessions:
-             logger.info(f"Cancellation detected for session {self.session_id} in report_progress for: {message}. Raising Exception.")
-             raise Exception("Task cancelled by user")
+        from common.context import cancelled_var, cancelled_sessions, timeout_signal_var
+        if cancelled_var.get() or timeout_signal_var.get() or self.session_id in cancelled_sessions:
+             logger.info(f"Stop signal detected for session {self.session_id} in report_progress for: {message}. Raising Exception.")
+             raise Exception("Task stopped")
 
         callback = progress_callback_var.get()
         if callback:
@@ -343,9 +343,48 @@ class CommentGenerator:
                 result[f'{column_name}_comment'] = f"Auto-generated comment for column {column_name}"
             return result
 
-    async def run(self, wildcard: str, output_file: str) -> int:
+    def get_already_processed_stats(self, file_path: str) -> Dict[str, Set[str]]:
+        """
+        Parses an existing SQL file to find objects that already have comments.
+        Returns a dict mapping table_name -> set of processed items (including '__TABLE__' for table comment).
+        """
+        if not os.path.exists(file_path):
+            return {}
+            
+        processed = {} 
+        # Pattern for COMMENT ON TABLE schema.table IS ...
+        table_pattern = re.compile(r"COMMENT ON TABLE\s+\w+\.([\w$#]+)\s+IS", re.IGNORECASE)
+        # Pattern for COMMENT ON COLUMN schema.table.column IS ...
+        column_pattern = re.compile(r"COMMENT ON COLUMN\s+\w+\.([\w$#]+)\.([\w$#]+)\s+IS", re.IGNORECASE)
+        
+        try:
+            with open(file_path, 'r') as f:
+                for line in f:
+                    # Look for table comments
+                    t_match = table_pattern.search(line)
+                    if t_match:
+                        t_name = t_match.group(1).upper()
+                        if t_name not in processed:
+                            processed[t_name] = set()
+                        processed[t_name].add("__TABLE__")
+                        continue
+                        
+                    # Look for column comments
+                    c_match = column_pattern.search(line)
+                    if c_match:
+                        t_name = c_match.group(1).upper()
+                        c_name = c_match.group(2).upper()
+                        if t_name not in processed:
+                            processed[t_name] = set()
+                        processed[t_name].add(c_name.upper())
+        except Exception as e:
+            logger.error(f"Error parsing existing SQL file {file_path}: {e}")
+            
+        return processed
+
+    async def run(self, wildcard: str, output_file: str, offset: int = 0) -> int:
         """Main execution flow. Returns the number of comments generated."""
-        from common.context import cancelled_var, cancelled_sessions
+        from common.context import cancelled_var, cancelled_sessions, timeout_signal_var
 
         # 1. Setup Client
         if self.credential_token:
@@ -360,21 +399,50 @@ class CommentGenerator:
                 self.report_progress("Credential token verified.")
 
         if not self.credential_token:
-            # Get password and set up MCP credential token
-            cred_manager = CredentialManager()
-            password = cred_manager.get_password(self.database, self.schema)
-            if password:
-                self.report_progress(f"Creating new credential token for {self.schema}...")
-                if await self.client.create_credential_token(self.database, self.schema, password):
-                    self.report_progress("New credential token created.")
-                else:
-                    self.report_progress("▌WARNING: Failed to create credential token. Proceeding without data sampling.")
+            # Automated handshake using shared logic
+            p_token = await self.create_credential_token(self.database, self.schema)
+            if not p_token:
+                # If handshake fails, it means no credentials were found in any source
+                self.report_progress("▌ACTION REQUIRED: No credentials found for this database/schema selection. Providing them enables data sampling for significantly better accuracy.")
+                self.report_progress("▌PROMPT: Would you like to provide credentials now, or should I proceed with basic metadata-only generation? (To provide them, click the key icon and then tell me to 'continue').")
+                # Return -1 to signal interactive stop to the agent
+                return -1
             else:
-                self.report_progress(f"▌WARNING: Credentials not found for {self.schema}. Proceeding without data sampling.")
+                self.report_progress("New credential token created and verified via shared handshake.")
 
         # 2. Find objects
         objects_map = await self.find_missing_comments(wildcard)
-        self.report_progress(f"Found {len(objects_map)} tables/views with missing comments (table or columns).")
+        self.report_progress(f"Found {len(objects_map)} tables/views with missing comments (table or columns) in the database.")
+
+        # Check existing file for already processed items if we're appending or resuming
+        processed_stats = self.get_already_processed_stats(output_file)
+        skipped_tables = 0
+        if processed_stats:
+            fully_skipped_tables = []
+            
+            for table_name, info in list(objects_map.items()):
+                t_name_upper = table_name.upper()
+                if t_name_upper in processed_stats:
+                    already_done = processed_stats[t_name_upper]
+                    
+                    # Filter missing column comments
+                    if 'missing_columns' in info:
+                        info['missing_columns'] = [c for c in info['missing_columns'] if c.upper() not in already_done]
+                    
+                    # Filter missing table comment
+                    if info.get('missing_table_comment') and "__TABLE__" in already_done:
+                        info['missing_table_comment'] = False
+                        
+                    # If nothing left for this table, remove it from map
+                    if not info.get('missing_table_comment') and not info.get('missing_columns'):
+                        del objects_map[table_name]
+                        skipped_tables += 1
+            for t_name in fully_skipped_tables:
+                self.report_progress(f"▌SKIP: '{t_name}' already found in existing session file. Step 3 complete.")
+
+            if skipped_tables > 0:
+                self.report_progress(f"▌INFO: Skipped {skipped_tables} objects that are already up-to-date in the session script.")
+                logger.info(f"Skipped already processed tables: {fully_skipped_tables}")
 
         if not objects_map:
             self.report_progress("No objects missing comments found.")
@@ -382,58 +450,91 @@ class CommentGenerator:
 
         self.report_progress(f"Found {len(objects_map)} objects missing comments. Starting generation...")
 
+        # 4. Integrate Resume Logic
+        all_objects = list(objects_map.items())
+        
+        # Step 3 (file-parsing) is our primary resume mechanism. If we successfully 
+        # identified and skipped objects already in the file, we ignore the manual 
+        # offset to avoid double-skipping.
+        file_has_content = os.path.exists(output_file) and os.path.getsize(output_file) > 0
+        
+        if offset > 0 and not skipped_tables > 0:
+            self.report_progress(f"Applying manual resume offset {offset}...")
+            to_process = all_objects[offset:]
+        else:
+            # Step 3 handled the resume, or no offset provided
+            to_process = all_objects
+        
+        # Use append mode if we are resuming/continuing OR if the file already contains work
+        file_has_content = os.path.exists(output_file) and os.path.getsize(output_file) > 0
+        mode = 'a' if (offset > 0 or file_has_content) else 'w'
+        
+        self.report_progress(f"Opening output file {output_file} in mode '{mode}'...")
+        
         sql_statements = []
 
-        for table_name, info in objects_map.items():
-            # Check for cancellation
-            if cancelled_var.get() or self.session_id in cancelled_sessions:
-                self.report_progress("Cancellation detected. Stopping...")
-                break
+        with open(output_file, mode) as f:
+            if mode == 'w':
+                f.write(f"-- Auto-generated comments for {self.schema} in {self.database}\n")
+                f.write(f"-- Generated on {json.dumps(str(os.getenv('VISULATE_BASE')))}\n\n")
+                f.flush()
 
-            table_type = info['type']
-            missing_table_comment = info['missing_table_comment']
-            missing_columns = info['missing_columns']
+            for table_name, info in to_process:
+                # Check for cancellation or timeout
+                if cancelled_var.get() or timeout_signal_var.get() or self.session_id in cancelled_sessions:
+                    reason = "Time limit" if timeout_signal_var.get() else "Cancellation"
+                    self.report_progress(f"▌{reason.upper()}: Process stopped while working on {table_name}. All previous progress is saved.")
+                    break
 
-            self.report_progress(f"Processing {table_type} {table_name}...")
+                table_type = info['type']
+                missing_table_comment = info['missing_table_comment']
+                missing_columns = info['missing_columns']
 
-            # 3. Get Context (once per table)
-            context = await self.client.get_context(self.database, self.schema, table_name, table_type)
+                self.report_progress(f"Processing {table_type} {table_name}...")
+                
+                table_statements = [] # Statements for THIS table
 
-            # 4. Get Sample Data (once per table)
-            sample_data = await self.get_sample_rows(table_name)
+                # 3. Get Context (once per table)
+                context = await self.client.get_context(self.database, self.schema, table_name, table_type)
 
-            # 5. Generate all comments in a single request
-            comments_dict = await self.generate_comments_batch(table_name, table_type, context, sample_data, missing_table_comment, missing_columns)
+                # 4. Get Sample Data (once per table)
+                sample_data = await self.get_sample_rows(table_name)
 
-            # 6. Process table comment
-            if missing_table_comment and 'table_comment' in comments_dict:
-                comment = comments_dict['table_comment']
-                self.report_progress(f"Generated table comment for {table_name}")
-                safe_comment = comment.replace("'", "''")
-                stmt = f"COMMENT ON TABLE {self.schema}.{table_name} IS '{safe_comment}';"
-                sql_statements.append(stmt)
-                logger.info(f"Generated table comment: {comment}")
+                # 5. Generate all comments in a single request
+                comments_dict = await self.generate_comments_batch(table_name, table_type, context, sample_data, missing_table_comment, missing_columns)
 
-            # 7. Process column comments
-            for col_name in missing_columns:
-                comment_key = f'{col_name}_comment'
-                if comment_key in comments_dict:
-                    comment = comments_dict[comment_key]
-                    self.report_progress(f"Generated column comment for {table_name}.{col_name}")
+                # 6. Process table comment
+                if missing_table_comment and 'table_comment' in comments_dict:
+                    comment = comments_dict['table_comment']
+                    self.report_progress(f"Generated table comment for {table_name}")
                     safe_comment = comment.replace("'", "''")
-                    stmt = f"COMMENT ON COLUMN {self.schema}.{table_name}.{col_name} IS '{safe_comment}';"
+                    stmt = f"COMMENT ON TABLE {self.schema}.{table_name} IS '{safe_comment}';"
+                    table_statements.append(stmt)
                     sql_statements.append(stmt)
-                    logger.info(f"Generated column comment for {col_name}: {comment}")
+                    logger.info(f"Generated table comment: {comment}")
 
-        # 7. Write to file
-        with open(output_file, 'w') as f:
-            f.write(f"-- Auto-generated comments for {self.schema} in {self.database}\n")
-            f.write(f"-- Generated on {json.dumps(str(os.getenv('VISULATE_BASE')))}\n\n")
-            for stmt in sql_statements:
-                f.write(stmt + "\n")
+                # 7. Process column comments
+                for col_name in missing_columns:
+                    comment_key = f'{col_name}_comment'
+                    if comment_key in comments_dict:
+                        comment = comments_dict[comment_key]
+                        self.report_progress(f"Generated column comment for {table_name}.{col_name}")
+                        safe_comment = comment.replace("'", "''")
+                        stmt = f"COMMENT ON COLUMN {self.schema}.{table_name}.{col_name} IS '{safe_comment}';"
+                        table_statements.append(stmt)
+                        sql_statements.append(stmt)
+                        logger.info(f"Generated column comment for {col_name}: {comment}")
+                
+                # Write statements for this table to the file immediately
+                if table_statements:
+                    for stmt in table_statements:
+                        f.write(stmt + "\n")
+                    f.write("\n") # Add blank line between objects
+                    f.flush()
+                    os.fsync(f.fileno()) # Ensure it hits the disk
 
-        logger.info(f"Successfully wrote {len(sql_statements)} comments to {output_file}")
-        self.report_progress(f"▌SUCCESS: SQL script generated with {len(sql_statements)} comments: {output_file}")
+        logger.info(f"Successfully finalized {len(sql_statements)} comments to {output_file}")
+        self.report_progress(f"▌SUCCESS: SQL script updated with {len(sql_statements)} new comments: {output_file}")
         return len(sql_statements)
 
 def main():
@@ -445,14 +546,15 @@ def main():
 
     args = parser.parse_args()
 
-    # Use CredentialManager to get password
+    # Use CredentialManager to get password - handling the new (password, source) return type
     cred_manager = CredentialManager()
-    password = cred_manager.get_password(args.database, args.schema)
+    password, source = cred_manager.get_password(args.database, args.schema)
 
     if not password:
         # Fallback logic for specific test case if needed, or error
         if args.schema.upper() == "RNTMGR2":
-             password = "DevPasswd" # From memory/legacy
+             password = "DevPasswd" 
+             source = "Legacy Fallback"
         else:
              logger.error(f"Password not found for {args.database}.{args.schema}")
              sys.exit(1)
@@ -462,16 +564,13 @@ def main():
     query_engine_tools = McpToolset(connection_params=StreamableHTTPConnectionParams(url=qe_url))
     client = MCPClient(api_server_tools, query_engine_tools)
 
-    logger.info("Creating credential token...")
+    # Use the refactored HANDSHAKE logic from CommentGenerator
+    generator = CommentGenerator(client, args.database, args.schema)
+    
+    logger.info(f"Establishing secure connection for {args.database}.{args.schema} via {source}...")
     import asyncio
-    async def get_token():
-        return await client.create_credential_token(args.database, args.schema, password)
-
-    if not asyncio.run(get_token()):
-        sys.exit(1)
-
     async def run_gen():
-        generator = CommentGenerator(client, args.database, args.schema)
+        # This will perform the automated handshake/token creation internally
         await generator.run(args.wildcard, args.output)
 
     asyncio.run(run_gen())

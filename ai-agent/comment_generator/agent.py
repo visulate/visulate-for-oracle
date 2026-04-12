@@ -6,7 +6,7 @@ from google.adk.tools.function_tool import FunctionTool
 # Import from local modules
 from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
-from common.context import session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var
+from common.context import session_id_var, browser_session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var
 import asyncio
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_INSTRUCTION = """You are the Oracle Comment Generator Agent.
 Your purpose is to generate meaningful comments for Oracle database objects (tables and views) that are missing them.
+
+## Operational Rules
+1. **Strict Mission Scoping (Radical Stop)**: If a user asks for a specific table or a pattern (e.g., "PR_ tables"), you MUST call `generate_comments` EXACTLY ONCE with that target.
+   - **No Wildcard Expansion**: Use the exact name or pattern provided. If the user says "mls_listings", use `wildcard='MLS_LISTINGS'`. Do NOT use `%MLS_LISTINGS%` or `%`.
+   - **Mission Termination**: Once the tool call is complete, your mission for that turn is OVER. Regardless of the outcome (Success or No Objects Found), DO NOT probe the rest of the schema for unrelated missing work.
+2. **One Tool Call Per Mission**: Do not call `generate_comments` or `getObjectsMissingComments` multiple times in a row for a single user request. Trust the first result.
+3. **Response Priority (CRITICAL)**: Your final response MUST START with the download link using the format `[Download SQL](link)`. Do not provide any preamble or commentary before the link.
 
 You have a tool `generate_comments` that performs the following:
 1. Identifies tables and views in a specific schema that lack comments.
@@ -28,7 +35,7 @@ Check the provided input context for database ("endpoint") and schema ("owner") 
 If not found in the context or message, ask the user for them.
 You can optionally accept a wildcard pattern to filter object names.
 
-**STRICT LINK USAGE**: When the `generate_comments` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
+**STRICT LINK USAGE (CRITICAL)**: When the `generate_comments` tool returns a download link to you, you MUST output that EXACT link to the user in your final response. The download link is the primary wrap-up action. Even if the process is partial or reaches a time limit, the [Download SQL] link is MANDATORY and must be prominently featured as the very first line of your response.
 """
 
 from common.tools import get_mcp_toolsets, create_connection_token_tool
@@ -36,7 +43,7 @@ from common.tools import get_mcp_toolsets, create_connection_token_tool
 def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_tools: McpToolset) -> FunctionTool:
     """Factory to create the generate_comments tool."""
 
-    async def generate_comments(database: str, schema: str, wildcard: str = "%") -> str:
+    async def generate_comments(database: str, schema: str, wildcard: str = "%", offset: int = 0) -> str:
         """
         Generates comments for Oracle database objects missing them.
 
@@ -44,6 +51,7 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             database: The name of the database to connect to.
             schema: The schema to analyze.
             wildcard: Optional pattern to filter table/view names (default: "%").
+            offset: Optional index to start from. Use this to resume a previous task (default: 0).
 
         Returns:
             A message indicating success or failure, and the download link.
@@ -51,16 +59,20 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
         try:
             # Get session ID from context
             session_id = session_id_var.get()
+            browser_session_id = browser_session_id_var.get()
+            storage_id = browser_session_id or session_id
 
             # Define output directory and file
             downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
-            output_dir = os.path.join(downloads_base, session_id)
+            output_dir = os.path.join(downloads_base, storage_id)
             safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
             safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"comments_{safe_schema}_{safe_database}_{timestamp}.sql"
+            filename = f"comments_{safe_database}_{safe_schema}.sql"
             output_file = Path(output_dir) / filename
 
+            # Return a download link
+            download_link = f"/download/{storage_id}/{filename}"
+            
             # Ensure directory exists
             os.makedirs(output_dir, exist_ok=True)
 
@@ -72,17 +84,46 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
 
             # 3. Run Generator
             generator = CommentGenerator(client, database, schema, credential_token=auth_token, session_id=session_id)
-            stmt_count = await generator.run(wildcard, str(output_file))
+            stmt_count = await generator.run(wildcard, str(output_file), offset=offset)
+
+            if stmt_count == -1:
+                return (f"I have paused the comment generation because no database credentials were found. "
+                        f"Data sampling requires authentication and provides significantly better results.\n\n"
+                        f"### RESUME_OFFSET: 0\n\n"
+                        f"**Choose your next step:**\n"
+                        f"1. **Login**: Click the Amber key icon, enter credentials, and then tell me to 'continue'.\n"
+                        f"2. **Proceed anyway**: Tell me to 'proceed without sampling' if you prefer basic metadata-only comments.")
 
             if stmt_count == 0:
-                return f"No Oracle objects (tables or views) in {schema} were found that are missing comments."
+                if timeout_signal_var.get():
+                     return (f"[Download SQL]({download_link})\n\n"
+                             f"Reached processing time limit before I could finish any new objects in this turn.\n\n"
+                             f"### RESUME_OFFSET: {offset}\n\n"
+                             f"Ask me to 'continue' to try the next batch.")
 
-            # Return a download link
-            download_link = f"/download/{session_id}/{filename}"
+                if offset > 0:
+                    return f"[Download SQL]({download_link})\n\nNo more Oracle objects in {schema} were found that are missing comments."
+                return f"[Download SQL]({download_link})\n\nAll requested objects in {schema} are already up-to-date in your database or session file."
+
+            # Fail-safe: Always post download link to progress callback so it is visible in the UI
+            callback = progress_callback_var.get()
+            if callback:
+                 callback(f"▌SUCCESS: SQL script is available here: [Download SQL]({download_link})")
+            
+            # Check for timeout to provide specific guidance
+            if timeout_signal_var.get():
+                processed_total = offset + stmt_count
+                return (f"[Download SQL]({download_link})\n\n"
+                        f"Reached processing time limit. I've generated comments for {stmt_count} objects in this turn.\n\n"
+                        f"### RESUME_OFFSET: {processed_total}\n\n"
+                        f"**Recommendation:** Apply these comments now using the SQL script. Once applied, ask me to 'continue' to process the remaining objects.")
+
+            final_msg = f"[Download SQL]({download_link})\n\nSUCCESS: Generated {stmt_count} comments."
+            if offset > 0:
+                 final_msg = f"[Download SQL]({download_link})\n\nResumed and generated {stmt_count} more comments."
 
             from common.context import progress_callback_var
             callback = progress_callback_var.get()
-            final_msg = f"Successfully generated comments for {schema} in {database}. \nDownload the SQL script here: [Download SQL]({download_link})"
             if callback:
                  callback(f"▌SUCCESS: {final_msg}")
 
@@ -106,7 +147,7 @@ def create_comment_generator_agent() -> LlmAgent:
         tools=[
             api_server_tools,
             query_engine_tools,
-            create_connection_token_tool(query_engine_tools),
+            create_connection_token_tool(),
             create_generate_comments_tool(api_server_tools, query_engine_tools)
         ],
     )
@@ -162,12 +203,18 @@ if __name__ == "__main__":
 
             async def stream_generator():
                 queue = asyncio.Queue()
-                session_token = session_id_var.set(session_id)
+                
+                # Initialize tokens to None to avoid UnboundLocalError in finally block
+                session_token = None
                 auth_token_token = None
+                db_credentials_token = None
+                ui_context_token = None
+                progress_callback_token = None
+
+                session_token = session_id_var.set(session_id)
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
 
-                db_credentials_token = None
                 if db_credentials:
                     db_credentials_token = db_credentials_var.set(db_credentials)
 
@@ -243,13 +290,17 @@ if __name__ == "__main__":
                         agent_task.cancel()
                     from common.context import cancelled_var
                     cancelled_var.set(True) # Signal cancellation to tools
-                    session_id_var.reset(session_token)
+                    # Safely reset context variables
+                    if session_token:
+                        session_id_var.reset(session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
                     if db_credentials_token:
                         db_credentials_var.reset(db_credentials_token)
-                    ui_context_var.reset(ui_context_token)
-                    progress_callback_var.reset(progress_callback_token)
+                    if ui_context_token:
+                        ui_context_var.reset(ui_context_token)
+                    if progress_callback_token:
+                        progress_callback_var.reset(progress_callback_token)
                     logger.info(f"Cleanup completed for session {session_id}")
 
             return StreamingResponse(stream_generator(), media_type="text/plain")
@@ -258,5 +309,5 @@ if __name__ == "__main__":
             logger.error(f"Error processing request: {e}", exc_info=True)
             return JSONResponse(content={"error": str(e)}, status_code=500)
 
-    logger.info("Starting Comment Generator Agent on port 10001...")
-    uvicorn.run(app, host="0.0.0.0", port=10001)
+    logger.info("Starting Comment Generator Agent on port 10003...")
+    uvicorn.run(app, host="0.0.0.0", port=10003)

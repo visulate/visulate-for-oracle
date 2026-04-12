@@ -66,7 +66,7 @@ def parse_token_from_response(result: Dict[str, Any]) -> Optional[str]:
                     break
     return token
 
-def create_token_request(query_engine_url: str, database: str, username: str, password: str, expiry_minutes: int = 30) -> Dict[str, Any]:
+def create_token_request(query_engine_url: str, database: str, username: str, password: str, session_id: str, expiry_minutes: int = 30) -> Dict[str, Any]:
     """
     Helper to call the create_credential_token tool.
     Args:
@@ -74,6 +74,7 @@ def create_token_request(query_engine_url: str, database: str, username: str, pa
         database (str): The name of the database.
         username (str): The username for authentication.
         password (str): The password for authentication.
+        session_id (str): The browser session ID.
         expiry_minutes (int, optional): Token expiry time in minutes. Defaults to 30.
     Returns:
         Dict[str, Any]: On success, returns the JSON response from the tool.
@@ -86,6 +87,7 @@ def create_token_request(query_engine_url: str, database: str, username: str, pa
             "database": database,
             "username": username,
             "password": password,
+            "session_id": session_id,
             "expiry_minutes": expiry_minutes
         }
     }
@@ -136,3 +138,39 @@ async def setup_session_db(db_path: str = "sessions.db"):
             logger.info(f"SQLite WAL mode enabled for {db_path}")
     except Exception as e:
         logger.warning(f"Failed to set WAL mode on {db_path}: {e}")
+
+async def call_mcp_tool_rest(base_url: str, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calls an MCP tool via the custom REST endpoint.
+    This is an async alternative to create_token_request that can be used for any tool.
+    """
+    import httpx
+    url = f"{base_url}/call_tool"
+    payload = {
+        "name": tool_name,
+        "arguments": arguments
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {
+                "error": f"REST tool call to {url} failed: {str(e)}",
+                "success": False
+            }
+
+def format_mcp_text_response(result: Dict[str, Any]) -> str:
+    """
+    Extracts the plain text content from a standard MCP tool response.
+    MCP tools return { "content": [ { "type": "text", "text": "..." } ] }
+    """
+    if "content" in result and isinstance(result["content"], list):
+        for item in result["content"]:
+            if item.get("type") == "text":
+                return item.get("text", "")
+    elif "error" in result:
+        return f"Error: {result['error']}"
+    return str(result)

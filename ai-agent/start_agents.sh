@@ -20,6 +20,9 @@ python -m schema_comparison_agent.main &
 # Start Root Agent
 python -m root_agent.main &
 
+# Trap to kill all background processes on exit
+trap 'kill $(jobs -p) 2>/dev/null' EXIT
+
 echo "Agents started:"
 echo "- Root Agent: http://localhost:10000"
 echo "- NL2SQL Agent: http://localhost:10001"

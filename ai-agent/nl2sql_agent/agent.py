@@ -1,6 +1,6 @@
 import logging
 from google.adk.agents import LlmAgent
-from common.tools import get_mcp_toolsets, create_connection_token_tool
+from common.tools import get_mcp_toolsets
 
 from common.context import progress_callback_var
 
@@ -26,24 +26,25 @@ To fulfill a request, ALWAYS follow these steps:
    - IMPORTANT: Use the default relationship type (foreign keys / FK) to understand how tables join.
 3. **SQL Generation**: write a high-quality Oracle SQL query based on the retrieved context.
 4. **Execution**: Use the `execute_sql` tool to run the query.
-   - If you don't have a credential token, use the `create_connection_token` tool first.
-   - IMPORTANT: If `create_connection_token` fails or returns an error about missing configuration/passwords, DO NOT try to guess. Instead, inform the user that you need credentials and suggest they use the "Add Connection" or "Credentials" dialog in the UI to provide them.
-5. **Final Report**: provide a comprehensive summary of the findings and the query results. Your FINAL response MUST be a detailed string containing the data or a clear explanation of the results. This allows the Root Agent to present your work to the user.
+   - Note: Authentication is handled automatically. If a query fails due to missing credentials, inform the user they must provide them using the "Smart Key" (Amber/Blue icon) in the UI.
+5. **Final Report**: provide a comprehensive summary of the findings and the query results. Your FINAL response MUST be a detailed string containing the data or a clear explanation of the results.
 
 ## Guidelines
-- **Continuity**: If the user asks to "run it", "execute the query", or "continue" after you previously generated a query (even if execution failed due to auth), DO NOT start the workflow from scratch. Look at the session history, find the last SQL query you generated, and skip directly to step 4 (Execution).
-- **Thinking and Progress**: ALWAYS provide real-time updates using the `report_progress` tool at EACH step of your workflow (Searching, Getting Context, Executing SQL). This keeps the user informed and ensures the Root Agent can relay your "thinking" progress.
+- **Thinking and Progress**: ALWAYS provide real-time updates using the `report_progress` tool at EACH step of your workflow (Searching, Getting Context, Executing SQL).
 - Be precise with column names and join conditions.
-- If a query fails, analyze the error and attempt to fix it.
 - Ground all SQL in the actual schema structure retrieved via tools.
 """
 
 def create_nl2sql_agent() -> LlmAgent:
+    from common.tools import get_mcp_toolsets, create_smart_execute_sql_tool
     api_server_tools, query_engine_tools = get_mcp_toolsets()
 
     # Create progress reporting tool
     from google.adk.tools.function_tool import FunctionTool
     progress_tool = FunctionTool(report_progress)
+    
+    # Create the unified smart SQL tool
+    smart_sql_tool = create_smart_execute_sql_tool(query_engine_tools)
 
     return LlmAgent(
         model="gemini-flash-latest",
@@ -52,8 +53,7 @@ def create_nl2sql_agent() -> LlmAgent:
         instruction=SYSTEM_INSTRUCTION,
         tools=[
             api_server_tools,
-            query_engine_tools,
-            create_connection_token_tool(query_engine_tools),
+            smart_sql_tool, # Use the unified smart tool instead of raw MCP
             progress_tool
         ]
     )
