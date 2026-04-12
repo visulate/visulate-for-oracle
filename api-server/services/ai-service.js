@@ -252,22 +252,21 @@ module.exports.generativeAI = generativeAI;
 async function generateToken(req, res, next) {
   try {
     const { database, username, password, session_id } = req.body;
-    if (!database || !username || !password) {
-      res.status(400).send('Missing required fields: database, username, password');
+    if (!database || !username || !password || !session_id) {
+      res.status(400).send('Missing required fields: database, username, password, session_id');
       return;
     }
 
     const queryEngineUrl = process.env.QUERY_ENGINE_URL || 'http://vissql:5000/mcp-sql/call_tool';
 
-    // 1. Validate credentials first
-    logger.log('info', `Validating credentials for ${username} on ${database}`);
     try {
       await axios.post(queryEngineUrl, {
         name: "validate_credentials",
         arguments: { database, username, password }
       });
     } catch (valErr) {
-      const errorMsg = valErr.response?.data?.error || valErr.message;
+      // Better extraction for standardized MCP tool error responses
+      const errorMsg = valErr.response?.data?.content?.[0]?.text || valErr.response?.data?.error || valErr.message;
       logger.log('error', `Credential validation failed: ${errorMsg}`);
       res.status(401).send(`Invalid credentials: ${errorMsg}`);
       return;
@@ -280,7 +279,7 @@ async function generateToken(req, res, next) {
         database: database,
         username: username,
         password: password,
-        session_id: session_id || "default",
+        session_id: session_id,
         expiry_minutes: 60
       }
     };

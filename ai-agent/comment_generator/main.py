@@ -416,8 +416,8 @@ class CommentGenerator:
 
         # Check existing file for already processed items if we're appending or resuming
         processed_stats = self.get_already_processed_stats(output_file)
+        skipped_tables = 0
         if processed_stats:
-            skipped_tables = 0
             fully_skipped_tables = []
             
             for table_name, info in list(objects_map.items()):
@@ -546,14 +546,15 @@ def main():
 
     args = parser.parse_args()
 
-    # Use CredentialManager to get password
+    # Use CredentialManager to get password - handling the new (password, source) return type
     cred_manager = CredentialManager()
-    password = cred_manager.get_password(args.database, args.schema)
+    password, source = cred_manager.get_password(args.database, args.schema)
 
     if not password:
         # Fallback logic for specific test case if needed, or error
         if args.schema.upper() == "RNTMGR2":
-             password = "DevPasswd" # From memory/legacy
+             password = "DevPasswd" 
+             source = "Legacy Fallback"
         else:
              logger.error(f"Password not found for {args.database}.{args.schema}")
              sys.exit(1)
@@ -563,16 +564,13 @@ def main():
     query_engine_tools = McpToolset(connection_params=StreamableHTTPConnectionParams(url=qe_url))
     client = MCPClient(api_server_tools, query_engine_tools)
 
-    logger.info("Creating credential token...")
+    # Use the refactored HANDSHAKE logic from CommentGenerator
+    generator = CommentGenerator(client, args.database, args.schema)
+    
+    logger.info(f"Establishing secure connection for {args.database}.{args.schema} via {source}...")
     import asyncio
-    async def get_token():
-        return await client.create_credential_token(args.database, args.schema, password)
-
-    if not asyncio.run(get_token()):
-        sys.exit(1)
-
     async def run_gen():
-        generator = CommentGenerator(client, args.database, args.schema)
+        # This will perform the automated handshake/token creation internally
         await generator.run(args.wildcard, args.output)
 
     asyncio.run(run_gen())

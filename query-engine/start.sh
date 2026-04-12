@@ -2,6 +2,12 @@
 
 # Start the query engine (Gunicorn) in the background
 echo "Starting Query Engine..."
+
+# Clear credential cache from shared memory on startup 
+if [ -d "/dev/shm/mcp_credentials" ]; then
+    echo "Clearing credential cache in /dev/shm..."
+    rm -rf /dev/shm/mcp_credentials/*
+fi
 gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --bind 0.0.0.0:5000 "sql2csv:create_app()" &
 QUERY_ENGINE_PID=$!
 

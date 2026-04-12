@@ -128,11 +128,11 @@ def handle_mcp_request():
                     credential_token = arguments.get("credential_token")
                     session_id = arguments.get("session_id")
 
-                    if not all([database, sql_query, credential_token]):
+                    if not all([database, sql_query, credential_token, session_id]):
                         return jsonify({
                             "jsonrpc": "2.0",
                             "id": request_id,
-                            "error": {"code": -32602, "message": "Missing required arguments: database, sql, credential_token"}
+                            "error": {"code": -32602, "message": "Missing required arguments: database, sql, credential_token, session_id"}
                         }), 400
 
                     result = McpTools.execute_sql_query_with_token(database, sql_query, credential_token, session_id)

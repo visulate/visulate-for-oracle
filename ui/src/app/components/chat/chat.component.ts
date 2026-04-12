@@ -333,6 +333,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   }
 
   cancelGeneration(): void {
+    this.stopTimer();
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;

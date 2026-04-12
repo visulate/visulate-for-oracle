@@ -16,6 +16,7 @@
 
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { v4 as uuidv4 } from 'uuid';
 import { EndpointListModel } from '../models/endpoint.model';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../models/current-context.model';
 
@@ -175,9 +176,13 @@ export class StateService {
     this.clearSessionId();
   }
 
-  getSessionId(): string | null {
+  getSessionId(): string {
     if (!this._sessionId) {
       this._sessionId = sessionStorage.getItem('ai-session-id');
+      if (!this._sessionId) {
+        this._sessionId = uuidv4();
+        sessionStorage.setItem('ai-session-id', this._sessionId);
+      }
     }
     return this._sessionId;
   }

@@ -52,17 +52,23 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
         async def response_generator():
             queue = asyncio.Queue()
             loop = asyncio.get_event_loop()
+            
+            # Initialize tokens to None to avoid UnboundLocalError in finally block
+            session_token = None
+            browser_session_token = None
+            auth_token_token = None
+            db_credentials_token = None
+            ui_context_token = None
+            progress_callback_token = None
+
             # Set up context variables
             session_token = session_id_var.set(session_id)
-            browser_session_token = None
             if browser_session_id:
                 browser_session_token = browser_session_id_var.set(browser_session_id)
 
-            auth_token_token = None
             if auth_token:
                 auth_token_token = auth_token_var.set(auth_token)
 
-            db_credentials_token = None
             if db_credentials:
                 db_credentials_token = db_credentials_var.set(db_credentials)
 
@@ -223,13 +229,18 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                     agent_task.cancel()
 
                 # Cleanup context variables
-                session_id_var.reset(session_token)
+                if session_token:
+                    session_id_var.reset(session_token)
+                if browser_session_token:
+                    browser_session_id_var.reset(browser_session_token)
                 if auth_token_token:
                     auth_token_var.reset(auth_token_token)
                 if db_credentials_token:
                     db_credentials_var.reset(db_credentials_token)
-                ui_context_var.reset(ui_context_token)
-                progress_callback_var.reset(progress_callback_token)
+                if ui_context_token:
+                    ui_context_var.reset(ui_context_token)
+                if progress_callback_token:
+                    progress_callback_var.reset(progress_callback_token)
 
         return StreamingResponse(response_generator(), media_type="text/plain")
 

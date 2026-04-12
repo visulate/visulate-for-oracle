@@ -8,7 +8,7 @@ from google.adk.tools.function_tool import FunctionTool
 from common.config import get_mcp_urls
 from common.credentials import CredentialManager
 from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data, call_mcp_tool_rest, format_mcp_text_response
-from common.context import session_id_var, auth_token_var, progress_callback_var, ui_context_var
+from common.context import session_id_var, auth_token_var, progress_callback_var, ui_context_var, browser_session_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ async def get_valid_token(database: str, schema: str) -> Optional[str]:
     
     # 2. Extract session info
     _, query_engine_url = get_mcp_urls()
-    session_id = session_id_var.get() or "default"
+    session_id = browser_session_id_var.get() or session_id_var.get() or "default"
     
     # 3. Create token via Query Engine
     result = create_token_request(query_engine_url, database, schema, password, session_id)
@@ -78,7 +78,7 @@ def create_smart_execute_sql_tool(query_engine_tools: McpToolset) -> FunctionToo
         
         # 2. Delegate to the actual MCP tool on the Query Engine via REST
         _, query_engine_url = get_mcp_urls()
-        session_id = session_id_var.get() or "default"
+        session_id = browser_session_id_var.get() or session_id_var.get() or "default"
         
         result = await call_mcp_tool_rest(query_engine_url, "execute_sql", {
             "database": database,

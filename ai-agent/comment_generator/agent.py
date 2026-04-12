@@ -203,12 +203,18 @@ if __name__ == "__main__":
 
             async def stream_generator():
                 queue = asyncio.Queue()
-                session_token = session_id_var.set(session_id)
+                
+                # Initialize tokens to None to avoid UnboundLocalError in finally block
+                session_token = None
                 auth_token_token = None
+                db_credentials_token = None
+                ui_context_token = None
+                progress_callback_token = None
+
+                session_token = session_id_var.set(session_id)
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
 
-                db_credentials_token = None
                 if db_credentials:
                     db_credentials_token = db_credentials_var.set(db_credentials)
 
@@ -284,13 +290,17 @@ if __name__ == "__main__":
                         agent_task.cancel()
                     from common.context import cancelled_var
                     cancelled_var.set(True) # Signal cancellation to tools
-                    session_id_var.reset(session_token)
+                    # Safely reset context variables
+                    if session_token:
+                        session_id_var.reset(session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
                     if db_credentials_token:
                         db_credentials_var.reset(db_credentials_token)
-                    ui_context_var.reset(ui_context_token)
-                    progress_callback_var.reset(progress_callback_token)
+                    if ui_context_token:
+                        ui_context_var.reset(ui_context_token)
+                    if progress_callback_token:
+                        progress_callback_var.reset(progress_callback_token)
                     logger.info(f"Cleanup completed for session {session_id}")
 
             return StreamingResponse(stream_generator(), media_type="text/plain")

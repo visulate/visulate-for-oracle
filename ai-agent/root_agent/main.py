@@ -120,12 +120,19 @@ def create_app() -> FastAPI:
             async def response_generator() -> AsyncGenerator[str, None]:
                 queue = asyncio.Queue()
                 loop = asyncio.get_running_loop()
-                session_token = session_id_var.set(session_id)
+
+                # Initialize tokens to None to avoid UnboundLocalError in finally block
+                session_token = None
                 auth_token_token = None
+                db_credentials_token = None
+                ui_context_token = None
+                progress_callback_token = None
+                stream_callback_token = None
+
+                session_token = session_id_var.set(session_id)
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
 
-                db_credentials_token = None
                 if db_credentials:
                     db_credentials_token = db_credentials_var.set(db_credentials)
 
@@ -261,14 +268,19 @@ def create_app() -> FastAPI:
                 finally:
                     if not agent_task.done():
                         agent_task.cancel()
-                    session_id_var.reset(session_token)
+                    # Safely reset context variables
+                    if session_token:
+                        session_id_var.reset(session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
                     if db_credentials_token:
                         db_credentials_var.reset(db_credentials_token)
-                    ui_context_var.reset(ui_context_token)
-                    progress_callback_var.reset(progress_callback_token)
-                    stream_callback_var.reset(stream_callback_token)
+                    if ui_context_token:
+                        ui_context_var.reset(ui_context_token)
+                    if progress_callback_token:
+                        progress_callback_var.reset(progress_callback_token)
+                    if stream_callback_token:
+                        stream_callback_var.reset(stream_callback_token)
 
             return StreamingResponse(
                 response_generator(),
