@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
     "a2a-sdk==0.3.3",
     "fastmcp==3.2.0",
-    "google-adk==1.28.0",
+    "google-adk==1.28.1",
     "google-genai>=1.17.0",
     "python-dotenv>=1.1.0",
     "requests>=2.31.0",
