@@ -110,7 +110,7 @@ Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing 
    {
      "my_adb": {
          "dsn": "my_adb_high",
-         "wallet_location": "/usr/src/app/wallet"
+         "wallet_location": "/opt/oracle/network/admin"
      }
    }
    ```
