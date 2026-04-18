@@ -30,7 +30,7 @@ Before registering a database in the UI, verify connectivity from the Visulate V
    docker exec -it visapi sqlplus visulate@db_host:1521/service_name
    ```
 3. **Internal Troubleshooting**:
-   If SQL*Plus fails, use `nmap` (if installed) or `curl` to check if the port is reachable:
+   If SQL*Plus fails, use `nc` (netcat) to check if the port is reachable:
    ```bash
    # Check if the port is open
    nc -zv db_host 1521
