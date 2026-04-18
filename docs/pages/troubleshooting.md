@@ -9,7 +9,7 @@ Follow these steps if the database registration succeeds but some (or all) of yo
 The `endpoints` API lists valid and invalid database connections. Call the API with no arguments to get a list of valid connections. Pass `status=invalid` as a GET parameter to identify invalid ones. Example:
 
 ```bash
-curl http://localhost/endpoints?status=invalid
+curl http://localhost/endpoints/?status=invalid
 {"ora18xe":{"connectString":"ap884.visulate.net:91521/XEPDB1","error":"Get connection timed out after 5000 ms"}}
 ```
 
