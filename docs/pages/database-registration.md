@@ -87,7 +87,7 @@ To enable Natural Language to SQL (NL2SQL) and CSV export features, you must als
 ## Specialized Environments
 
 ### Oracle Autonomous Database (ADB)
-Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing (ATP) can be created with or without a wallet. For connections that, require a client credentials wallet.
+Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing (ATP) can be created with or without a wallet. For connections that require a client credentials wallet, use the following configuration.
 
 1. **Upload Wallet**: Place the unzipped wallet files in a directory on the VM (e.g., `/home/visulate/wallets/mydb`).
 2. **Update `database.js`**:
