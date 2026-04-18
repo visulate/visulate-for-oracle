@@ -205,9 +205,6 @@ Clicking on an object name in the dependency list will take you to a report show
 
 ![SQL Statements](/images/sql-statements.png){: class="screenshot" tabindex="0" }
 
-Open the hamburger menu at the top (left) of the page. This provides a quick way to access other objects of the same type in the schema.
-
-![Hamburger menu](/images/hamburger-menu.png){: class="screenshot" tabindex="0" }
 
 Click on the search icon at the top (right) of the page to access the search form. Enter dba_objects in the search box and press return. This queries every registered database to find objects with a matching object_name (in our case we only have one registered database).
 
@@ -279,8 +276,13 @@ A curl command appears below the results. Cut and paste this into a console wind
 
     ![Visulate for Oracle Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
 
+    Click the expand icon at the top right of the chat window to expand to full screen
+
+
+    ![Visulate for Oracle Gen AI](/images/gen-ai-fullscreen.png){: class="screenshot" tabindex="0" }
+
 
 ## Next Steps
 
-- [Configure an Identity Aware Proxy](/pages/iap-setup.html) to control who has access to Visulate
-- [Register additional databases](/pages/database-registration)
+- [Configure Network Security and IAP](/pages/network-security.html) to control access and protect your instance
+- [Register additional databases](/pages/database-registration.html) to expand your AI-powered catalog

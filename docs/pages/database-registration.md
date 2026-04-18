@@ -1,55 +1,62 @@
 * TOC
 {:toc id="toc"}
 
-# Database Registration
-## Overview
-Each database in the Visulate catalog needs to be registered. The API server maintains an Oracle database connection pool for each registration. Routing code in the server identifies the correct pool for a given API call and uses it to run SQL statements.
+# Database Setup and Registration
 
-![Database Connections](/images/database-connections.png)
+This guide describes how to prepare an Oracle database for use with Visulate and register it in the application catalog.
 
- The parameters for each pool are read from a file during initialization. The contents of this file is delivered via a Kubernetes secret. A secret is applied to the cluster with database registration information. Registration occurs when the API Server deployment is updated to reference the secret. This causes a redeployment of the API Server pods with an updated configuration.
+## Step 1: Database Account Setup
+Visulate for Oracle needs to read the data dictionary in each registered database. Create a dedicated user with the minimum required privileges in each database you want to catalog.
 
-## Database registration file
+### Create the VISULATE user
+Login to SQL*Plus as SYSTEM and create a database user called "VISULATE" and grant CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY privileges:
 
-The database registration file (/config/database.js in the diagram) exports a Javascript array object with connection details for the Visulate account in each database (see [database setup guide](/pages/database-setup.html)).  A sample file appears below.
-
+```sql
+create user visulate identified by &password;
+alter user visulate account unlock;
+grant create session to visulate;
+grant select any dictionary to visulate;
+grant select_catalog_role to visulate;
 ```
+
+### Why these privileges?
+- **CREATE SESSION**: Required for database connections.
+- **SELECT ANY DICTIONARY**: Grants Read access on Data Dictionary tables owned by SYS (excluding sensitive password/history tables). Visulate accesses some tables directly for performance.
+- **SELECT_CATALOG_ROLE**: Required for `DBMS_METADATA` calls used by the DDL download and AI documentation features.
+
+> [!IMPORTANT]
+> For security, the account must be called "VISULATE" and must not have additional privileges. The API server verifies these privileges on startup and will reject connections that are over-privileged.
+
+---
+
+## Step 2: Database Registration
+Each database in the Visulate catalog must be registered. The API server maintains a connection pool for each registration, read from a configuration file on the VM.
+
+### The registration file (`database.js`)
+The registration file is located at `/home/visulate/config/database.js`. It exports a JavaScript array with connection details.
+
+**Sample `database.js`:**
+```javascript
 const endpoints = [
- { namespace: 'oracle18XE',
-    description: '18c XE PDB instance running in a docker container',
-    connect: { poolAlias: 'oracle18XE',
+ { namespace: 'prod_db',
+    description: 'Production Database',
+    connect: { poolAlias: 'prod_db',
               user: 'visulate',
-              password: 'HtuUDK%?4JY#]L3:',
-              connectString: 'db20.visulate.net:41521/XEPDB1',
+              password: 'YourSecurePassword',
+              connectString: 'prod-scan.internal:1521/PROD',
               poolMin: 4,
               poolMax: 4,
-              poolIncrement: 0,
-              poolPingInterval: 0
-            }
-  },
-  { namespace: 'oracle11XE',
-    description: '11.2 XE database',
-    connect: { poolAlias: 'oracle11XE',
-              user: 'visulate',
-              password: '7>rC4P?!~U42tS^^',
-              connectString: 'db20.visulate.net:49161/XE',
-              poolMin: 4,
-              poolMax: 4,
-              poolIncrement: 0,
-              poolPingInterval: 0
+              poolIncrement: 0
             }
   }
 ];
 module.exports.endpoints = endpoints;
 ```
 
-Parameter values are described in the [Oracle node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#connpooling) documentation. The Visulate for Oracle sets the [UV_THREADPOOL_SIZE environment variable](http://docs.libuv.org/en/v1.x/threadpool.html) to the sum of the poolMax values + 4 before starting the Express server.
+---
 
-## Registration on VM
-
-In a VM deployment, the *database.js* file is the source of truth for all registered connections. It is located in the **/home/visulate/config** directory and can be edited directly.
-
-### Steps to Register a Database:
+## Step 3: Registration on VM
+In a VM deployment, follow these steps to register a new connection:
 
 1. **SSH into the VM**: Connect to your Visulate instance.
 2. **Edit the Config**:
@@ -57,33 +64,67 @@ In a VM deployment, the *database.js* file is the source of truth for all regist
    cd /home/visulate
    sudo vi config/database.js
    ```
-3. **Add Connection Details**: Follow the structure in the [database integration file](#database-registration-file) section.
-4. **Restart Services**: Apply the changes by restarting the Docker containers.
+3. **Add Connection Details**: Add a new object to the `endpoints` array following the sample above.
+4. **Restart Services**:
    ```bash
-   docker-compose down
-   docker-compose up -d
+   docker-compose down && docker-compose up -d
    ```
 
 ### SQL Query Engine Registration
-If you want to use the SQL-to-CSV features with a registered database, you must also add an entry to `config/endpoints.json`.
+To enable Natural Language to SQL (NL2SQL) and CSV export features, you must also map the endpoint in `config/endpoints.json`.
 
 1. **Edit the Endpoints**:
    ```bash
    sudo vi config/endpoints.json
    ```
-2. **Add Mapping**: Add a key-value pair where the key is the `namespace` from `database.js` and the value is the `connectString`.
+2. **Add Mapping**: The key must match the `namespace` used in `database.js`.
    ```json
    {"prod_db": "prod-scan.internal:1521/PROD"}
    ```
 
-## Testing Connections
-After restarting, call the `endpoints` API to list registered database connections:
+---
 
+## Specialized Environments
+
+### Oracle Autonomous Database (ADB)
+Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing (ATP) can be created with or without a wallet. For connections that require a client credentials wallet, use the following configuration.
+
+1. **Upload Wallet**: Place the unzipped wallet files in a directory on the VM (e.g., `/home/visulate/wallets/mydb`).
+2. **Update `database.js`**:
+   ```javascript
+   { namespace: 'my_adb',
+     description: 'Autonomous Database',
+     connect: { poolAlias: 'my_adb',
+                user: 'visulate',
+                password: 'YourPassword',
+                connectString: 'my_adb_high',
+                externalAuth: false
+              },
+     tnsAdmin: '/visulate-server/config/wallets/mydb'
+   }
+   ```
+   *Note: `/visulate-server/config` inside the container maps to `/home/visulate/config` on the VM host.*
+
+3. **Update `endpoints.json` for NL2SQL**:
+   ```json
+   {
+     "my_adb": {
+         "dsn": "my_adb_high",
+         "wallet_location": "/opt/oracle/network/admin"
+     }
+   }
+   ```
+
+### Oracle E-Business Suite (EBS)
+EBS databases contain thousands of schemas and tens of thousands of packages. Visulate provides a specialized **Product Prefix Navigation Filter** to handle this volume.
+
+- **Object Search**: Access EBS objects directly by name (e.g., `AP_BANK_ACCOUNTS_ALL`).
+- **Product Filtering**: Select a product prefix (e.g., `AR_` for Receivables) to limit the schema and object lists to relevant items, significantly improving navigation speed in high-density environments.
+
+---
+
+## Verification
+Call the `endpoints` API or check the UI dropdown:
 ```bash
 curl http://localhost/endpoints/
 ```
-
-The registered connections should also appear in the Database dropdown in the Visulate UI. If connections are missing, follow the [troubleshooting guide](/pages/troubleshooting.html).
-
-## Deregistering Connections
-To deregister a connection, simply remove its entry from `database.js` (and `endpoints.json` if applicable) and restart the services using the steps above.
