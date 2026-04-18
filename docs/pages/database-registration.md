@@ -33,7 +33,7 @@ grant select_catalog_role to visulate;
 Each database in the Visulate catalog must be registered. The API server maintains a connection pool for each registration, read from a configuration file on the VM.
 
 ### The registration file (`database.js`)
-The registration file is located at `/home/visulate/config/database.js`. It exports a Javascript array with connection details.
+The registration file is located at `/home/visulate/config/database.js`. It exports a JavaScript array with connection details.
 
 **Sample `database.js`:**
 ```javascript
