@@ -55,6 +55,7 @@ USER root
 RUN rm -rf /usr/lib/python3.*/site-packages/pip* && \
     rm -rf /usr/lib/python3.*/site-packages/setuptools* && \
     rm -rf /usr/lib/python3.*/site-packages/__pycache__ && \
+    python3.11 -m ensurepip --upgrade && \
     python3.11 -m pip install --upgrade "pip>=26.0.1" "setuptools>=82.0.1"
 
 # Set the command to run the application
