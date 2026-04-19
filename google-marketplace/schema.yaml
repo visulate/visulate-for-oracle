@@ -47,6 +47,7 @@ x-google-marketplace:
       v2.5.13 Security updates and UI enhancements.
       v2.5.14 Introduce 5 minute timeout for AI requests. Improved credential handling + security updates
       v2.5.15 Dependabot security updates.
+      v2.5.16 Address CVE's found by Artifact Registry.
   images:
     '':
       properties:

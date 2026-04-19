@@ -30,8 +30,45 @@ if [ ! -d /home/visulate/config ]; then
   docker cp "$api_container:/visulate-server/config/." /home/visulate/config/
   docker rm "$api_container"
 
-  # copy the query engine config files from the container to the host
-  docker run --rm ${IMAGE_REPO}/visulate-for-oracle/sql:${VERSION} cat /query-engine/sql2csv/config/endpoints.json > /home/visulate/config/endpoints.json
+  # Overwrite database.js and endpoints.json with dummy entries
+  cat << EOF > /home/visulate/config/database.js
+const endpoints = [
+    {
+        namespace: 'ORCL1',
+        description: 'First Oracle Database',
+        connect: {
+            poolAlias: 'ORCL1',
+            user: 'VISULATE',
+            password: 'password',
+            connectString: '10.0.0.1:1521/ORCL1',
+            poolMin: 4,
+            poolMax: 4,
+            poolIncrement: 0
+        }
+    },
+    {
+        namespace: 'ORCL2',
+        description: 'Second Oracle Database',
+        connect: {
+            poolAlias: 'ORCL2',
+            user: 'VISULATE',
+            password: 'password',
+            connectString: 'db.example.com:1521/ORCL2',
+            poolMin: 4,
+            poolMax: 4,
+            poolIncrement: 0
+        }
+    }
+];
+module.exports.endpoints = endpoints;
+EOF
+
+  cat << EOF > /home/visulate/config/endpoints.json
+{
+  "ORCL1": "10.0.0.1:1521/ORCL1",
+  "ORCL2": "db.example.com:1521/ORCL2"
+}
+EOF
 fi
 
 # Create visulate-downloads directory if it doesn't exist

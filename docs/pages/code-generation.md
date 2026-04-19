@@ -1,23 +1,38 @@
-* TOC
-{:toc id="toc"}
 # Code Generation
 
-Visulate provides 2 mechanisms for code generation:
+Visulate provides two distinct mechanisms for code generation: **Agentic AI** for creative, context-aware development and **Template-driven** for standardized, deterministic output.
 
-- Generative AI
-- Template driven
+## Agentic AI Code Generation
 
-## Generative AI
+The modern approach to code generation in Visulate is powered by the **Code Generation Agent**. Unlike simple snippets, this agent understands the full architectural context of your database.
 
-Generative AI code generation uses a large language model (LLM) to generate code based on the metadata for a given database object. Visulate sends this metadata to the LLM along with a user request in a chat window as shown in the example below:
+### Key Capabilities
 
-![Visulate code gen](/images/code-gen-ai.png){: class="screenshot" tabindex="0" }
+- **Context Awareness**: The agent analyzes **Foreign Keys**, **Object Dependencies**, and **Primary Key** constraints to ensure the generated code respects your database integrity.
+- **Multilingual Support**: Generate code in **Java (Spring Boot)**, **Python (FastAPI/SQLAlchemy)**, **Node.js (Express/Sequelize)**, or **PL/SQL**. 
+- **Relationship Mapping**: When generating an API for a table, the agent can automatically include logic for related parent/child tables based on its discovery of schema relationships.
+- **Iterative Refinement**: Interact with the agent in the chat window to refine logic, add validation, or change the target framework.
 
-The chat window allows the user to interact with the LLM and request refinements to the generated code. A `Download Messages` button allows the result to be saved to a text file.
+### Agentic Development Examples
 
-## Template Driven
+To get the most out of the Code Generation Agent, try the following scenarios:
 
-Template driven code generation uses handlebars templates to transform database metadata into code. The result can be accessed via a drop down in the UI or an API call
+- **Context-Aware API Bootstrapping**: Ask the agent to *"Generate a Spring Boot project structure (Controller, Service, Repository) for the EMPLOYEES table. Include logic to fetch related DEPARTMENT data based on the foreign key."* The agent will analyze the FK relationships and generate a set of interconnected Java classes.
+- **Multi-Step Database Migrations**: Request a complex change like *"Add an audit trail to the ORDERS table. Generate the DDL for an ORDERS_AUDIT table and a PL/SQL trigger to populate it."* The agent will provide a set of scripts: setup DDL, the trigger, and a test script.
+- **Dependency-Aware Refactoring**: Use the agent to modernize legacy code: *"Analyze the RNT_MENUS_PKG package. Identify all tables it depends on and refactor its business logic into a Python FastAPI service using SQLAlchemy."*
+- **Cross-Framework Comparison**: Generate the same logic in multiple stacks: *"Generate a data access object (DAO) for the PAYMENTS table in both Java/Hibernate and Node.js/Sequelize so I can compare the implementation."*
+
+> [!TIP]
+> **Multi-File Downloads**: The agent uses a specialized tool to save your code. Instead of a single text block, it will provide a list of download links for each generated file (e.g., `Controller.java`, `Service.java`, `Repository.java`).
+
+---
+
+## Template Driven (Deterministic)
+
+Template-driven code generation uses Handlebars templates to transform database metadata into code. This approach is maintained for situations where **deterministic logic** and **standardized patterns** are required (e.g., generating corporate-standard PL/SQL APIs or maintenance scripts).
+
+### How it Works
+The result can be accessed via a drop-down in the UI or directly via an API call.
 
 ![Visulate code gen](/images/code-gen-template.png){: class="screenshot" tabindex="0" }
 

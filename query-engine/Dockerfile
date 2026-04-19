@@ -14,7 +14,8 @@
 FROM oraclelinux:9-slim
 
 # Install Python 3.11 and pip
-RUN microdnf install -y python3.11 python3-pip && \
+RUN microdnf update -y && \
+    microdnf install -y python3.11 python3-pip && \
     python3.11 -m ensurepip --upgrade && \
     rm -rf /var/cache/yum && \
     python3.11 --version && python3.11 -m pip --version && \
