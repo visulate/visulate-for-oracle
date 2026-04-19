@@ -14,15 +14,16 @@
 
 FROM oraclelinux:8-slim
 ARG oracleRelease=19
-ARG oracleUpdate=23
+ARG oracleUpdate=30
 
 # Install Oracle Instant Client and Node.js
-RUN microdnf install dnf -y
+RUN microdnf install dnf -y && \
+    dnf update -y
 RUN  dnf -y install oracle-release-el8 && \
     dnf config-manager --set-enabled ol8_oracle_instantclient && \
     dnf -y install oracle-instantclient${oracleRelease}.${oracleUpdate}-basic oracle-instantclient${oracleRelease}.${oracleUpdate}-devel oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
     dnf -y module enable nodejs:20 && \
-    dnf -y install nodejs npm && \
+    dnf -y install nodejs npm findutils && \
     npm install -g npm@latest && \
     rm -rf /var/cache/yum
 
@@ -44,10 +45,11 @@ ENV TNS_ADMIN=/opt/oracle/network/admin
 # Install npm dependencies without development dependencies
 RUN npm install --omit=dev
 
-# Remove pip and setuptools from site-packages
-RUN rm -rf /usr/lib/python3.6/site-packages/pip* && \
-    rm -rf /usr/lib/python3.6/site-packages/setuptools* && \
-    rm -rf /usr/lib/python3.6/site-packages/__pycache__
+# Remove pip and setuptools to address vulnerabilities
+RUN rm -rf /usr/bin/pip* /usr/bin/easy_install* && \
+    find /usr/lib /usr/lib64 /usr/local/lib -name "pip*" -type d -exec rm -rf {} + && \
+    find /usr/lib /usr/lib64 /usr/local/lib -name "setuptools*" -type d -exec rm -rf {} + && \
+    rm -rf /usr/lib/python*/site-packages/__pycache__
 
 # Set the command to start the application
 CMD exec npm start

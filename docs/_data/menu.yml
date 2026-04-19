@@ -14,6 +14,9 @@ sections:
       - title: "Agents Overview"
         href: "/pages/ai-agent-guide.html"
         description: "How to use autonomous AI agents for NL2SQL, ERDs, and documentation."
+      - title: "AI Tutorial"
+        href: "/pages/ai-tutorial.html"
+        description: "A step-by-step walkthrough of Visulate's AI capabilities for new users."
 
   - name: Database Analysis
     items:

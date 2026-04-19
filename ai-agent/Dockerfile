@@ -1,5 +1,11 @@
 FROM python:3.12-slim
 ENV TNS_ADMIN=/opt/oracle/network/admin
+
+# Update OS packages and upgrade pip/setuptools to address vulnerabilities
+RUN apt-get update && apt-get upgrade -y && \
+    pip install --upgrade "pip>=26.0.1" "setuptools>=82.0.1" && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /opt/oracle/network/admin
 
 WORKDIR /app
