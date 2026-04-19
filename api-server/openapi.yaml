@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: Visulate for Oracle
-  version: 1.1.38
+  version: 2.5.15
   description: |-
     Visulate for Oracle is a tool to catalog a company's Oracle databases. It
     provides read-only access to the data dictionary for one or more registered
@@ -939,6 +939,136 @@ paths:
                       example: 95.5
         '400':
           description: Bad request, likely missing search_terms.
+  /mcp/schema-summary/{db}:
+    post:
+      summary: (MCP) Get schema summary
+      description: Returns a summary of object types and counts for a specific schema.
+      parameters:
+        - in: path
+          name: db
+          description: database endpoint
+          required: true
+          schema:
+            type: string
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required: [owner]
+            properties:
+              owner:
+                type: string
+      responses:
+        '200':
+          description: Schema summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    type: { type: string }
+                    rows: { type: integer }
+                    comments: { type: string }
+  /mcp/schema-relationships/{db}:
+    post:
+      summary: (MCP) Get schema relationships
+      description: Returns a list of foreign key relationships for a schema. Metadata is cached for ERD generation.
+      parameters:
+        - in: path
+          name: db
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner]
+              properties:
+                owner: { type: string }
+      responses:
+        '200':
+          description: List of relationships or cache summary
+  /mcp/schema-columns/{db}:
+    post:
+      summary: (MCP) Get schema columns
+      description: Returns a list of columns for all tables in a schema. Metadata is cached for ERD generation.
+      parameters:
+        - in: path
+          name: db
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner]
+              properties:
+                owner: { type: string }
+      responses:
+        '200':
+          description: List of columns or cache summary
+  /api/token:
+    post:
+      summary: Create credential token
+      description: Proxies to query-engine to create a secure credential token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [database, username, password, session_id]
+              properties:
+                database: { type: string }
+                username: { type: string }
+                password: { type: string }
+                session_id: { type: string }
+      responses:
+        '200':
+          description: Token created
+    delete:
+      summary: Revoke session tokens
+      description: Revokes all tokens for a session or a specific database.
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: database
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tokens revoked
+  /download/{sessionId}/{filename}:
+    get:
+      summary: Download file
+      description: Serves a file from the download directory.
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: filename
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
 
   /mcp-sql:
     get:
