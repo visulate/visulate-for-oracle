@@ -44,10 +44,11 @@ ENV TNS_ADMIN=/opt/oracle/network/admin
 # Install npm dependencies without development dependencies
 RUN npm install --omit=dev
 
-# Remove pip and setuptools from site-packages
-RUN rm -rf /usr/lib/python3.6/site-packages/pip* && \
-    rm -rf /usr/lib/python3.6/site-packages/setuptools* && \
-    rm -rf /usr/lib/python3.6/site-packages/__pycache__
+# Remove pip and setuptools to address vulnerabilities
+RUN rm -rf /usr/bin/pip* /usr/bin/easy_install* && \
+    rm -rf /usr/lib/python*/site-packages/pip* && \
+    rm -rf /usr/lib/python*/site-packages/setuptools* && \
+    rm -rf /usr/lib/python*/site-packages/__pycache__
 
 # Set the command to start the application
 CMD exec npm start

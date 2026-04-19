@@ -18,7 +18,7 @@ RUN microdnf install -y python3.11 python3-pip && \
     python3.11 -m ensurepip --upgrade && \
     rm -rf /var/cache/yum && \
     python3.11 --version && python3.11 -m pip --version && \
-    python3.11 -m pip install --upgrade pip && \
+    python3.11 -m pip install --upgrade "pip>=26.0.1" "setuptools>=82.0.1" && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     alternatives --set python3 /usr/bin/python3.11
 
@@ -38,7 +38,7 @@ COPY --chown=queryeng:queryeng . /query-engine/
 WORKDIR /query-engine
 
 # Install dependencies and build the wheel
-RUN python3.11 -m pip install --upgrade pip setuptools-rust wheel --user && \
+RUN python3.11 -m pip install --upgrade "pip>=26.0.1" "setuptools>=82.0.1" setuptools-rust wheel --user && \
     python3.11 -m pip install oracledb --upgrade --user && \
     python3.11 -m pip install -r requirements.txt --user && \
     python3.11 setup.py bdist_wheel && \
@@ -49,12 +49,12 @@ COPY --chown=queryeng:queryeng dist/sql2csv-2.0.0-py3-none-any.whl /var/www/sql2
 RUN python3.11 -m pip install /var/www/sql2csv-2.0.0-py3-none-any.whl --user && \
     rm -rf /home/queryeng/.cache/pip
 
-# Remove old pip and setuptools from site-packages
+# Remove old pip and setuptools from site-packages and upgrade to safe versions
 USER root
-RUN rm -rf /usr/lib/python3.9/site-packages/pip* && \
-    rm -rf /usr/lib/python3.9/site-packages/setuptools* && \
-    rm -rf /usr/lib/python3.9/site-packages/__pycache__ && \
-    pip3 install --upgrade setuptools
+RUN rm -rf /usr/lib/python3.*/site-packages/pip* && \
+    rm -rf /usr/lib/python3.*/site-packages/setuptools* && \
+    rm -rf /usr/lib/python3.*/site-packages/__pycache__ && \
+    python3.11 -m pip install --upgrade "pip>=26.0.1" "setuptools>=82.0.1"
 
 # Set the command to run the application
 # Copy startup script
