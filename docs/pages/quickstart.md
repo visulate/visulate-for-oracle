@@ -166,6 +166,8 @@ Change "/api/" to "/api-docs/" to review the API documentation.
                 }
     }
     ];
+    module.exports.endpoints = endpoints;
+
     ```
 
   - Edit `endpoints.json` in the `/home/visulate/config` directory to enable query access for a database. Note: the json key must match an endpoint declared in the database.js file and the json value must match its connectString.
@@ -233,43 +235,19 @@ A curl command appears below the results. Cut and paste this into a console wind
 
 1. Register an API key in [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-2. Edit the `docker-compose.yaml` in the `/home/visulate` directory to add the key as an environment variable for the `visapi` service
+2. Create an `.env` file in the `/home/visulate` directory and add your key. This ensures the key is available to all services (API Server and AI Agents).
 
-    ```
-    version: "3.8"
-    services:
-      reverseproxy:
-        image: gcr.io/visulate-llc-public/visulate-for-oracle/proxy:2.0
-        container_name: reverseproxy
-        ports:
-          - 80:80
-        networks:
-          - visulate_network
-
-      visapi:
-        image: gcr.io/visulate-llc-public/visulate-for-oracle:2.0
-        container_name: visapi
-        expose:
-          - "3000"
-        volumes:
-          - /home/visulate/config:/visulate-server/config
-        environment:
-          - GOOGLE_AI_KEY=your-google-api-key
-        networks:
-          - visulate_network
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost:3000"]
-          interval: 30s
-          timeout: 10s
-          retries: 3
+    ```bash
+    echo "GOOGLE_AI_KEY=your-google-api-key" | sudo tee /home/visulate/.env
     ```
 
 3. Restart Visulate
 
-    ```
+    ```bash
     docker-compose down
     docker-compose up -d
     ```
+
 
 4. Navigate to a database table screen and start asking questions
 
