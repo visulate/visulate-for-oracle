@@ -326,8 +326,10 @@ module.exports.getSchemaDetails = getSchemaDetails;
 // List object for a given database, schema, object type and filter conditions
 ////////////////////////////////////////////////////////////////////////////////
 async function getObjectList(connection, owner, type, name, status, queryName) {
-  const poolAlias = connection.poolAlias || 'pdb21'; // Fallback or better way?
-  const sql = getSql(poolAlias);
+  if (!connection || !connection.poolAlias) {
+    throw new Error('Database connection poolAlias is required to determine the SQL dialect');
+  }
+  const sql = getSql(connection.poolAlias);
   // Get the list of object types
   const query = sql.statement[queryName];
   const filtered_name = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
