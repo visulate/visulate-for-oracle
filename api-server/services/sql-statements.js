@@ -1,5 +1,5 @@
 /*!
- * Copyright 2019, 2024 Visulate LLC. All Rights Reserved.
+ * Copyright 2019, 2025 Visulate LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,224 +14,216 @@
  * limitations under the License.
  */
 
+function loadDialect(dialect) {
+  const schemaSql = require(`./sql/${dialect}/schema-queries`);
+  const tableSql = require(`./sql/${dialect}/table-queries`);
+  const typeSql = require(`./sql/${dialect}/type-queries`);
+  const depSql = require(`./sql/${dialect}/dependency-queries`);
+  
+  const statement = Object.assign({}, schemaSql.statement, tableSql.statement, typeSql.statement, depSql.statement);
+  
+  let collection = {};
+  
+  collection['DATABASE'] = {
+    noParamQueries: [
+      statement['DB-VERSION'],
+      statement['ADB-YN'],
+      statement['EBS-SCHEMA'],
+      statement['PATCHES'],
+      statement['DB-LINKS'],
+      statement['COUNT-INVALID-OBJECTS'],
+      statement['DB-SGA-SIZE'],
+      statement['DB-SGA-FREE'],
+      statement['DB-SIZE'],
+      statement['DB-SPACE-USED'],
+      statement['DB-OS-STAT'],
+      statement['DB-FEATURE-USAGE']
+    ].filter(s => s !== undefined)
+  };
 
-/**
- * SQL statements + bind variables to query the data dictionary
- */
-const schemaSql = require('./sql/schema-queries');
-const tableSql = require('./sql/table-queries');
-const typeSql = require('./sql/type-queries');
-const depSql = require('./sql/dependency-queries');
-const statement = Object.assign(schemaSql.statement, tableSql.statement, typeSql.statement, depSql.statement);
-module.exports.statement = statement;
+  collection['SCHEMA'] = {
+    ownerNameQueries: [
+      statement['SCHEMA-USER'],
+      statement['SCHEMA-SUMMARY'],
+      statement['SCHEMA-GRANTS']
+    ].filter(s => s !== undefined)
+  };
 
-/**
- * Collect statements by object type.
- * @param noParamQueries - queries that do not require input parameters
- * @param ownerNameQueries - queries that accept owner as input
- * @param objectNameQueries - queries that accept owner + object_name as input
- * @param objectIdQueries - queries that accept object_id as input
- * @param objectTypeQueries - queries that accept owner, object_name + object_type
- * @param objectNameIdQueries - queries that accept object_name + object_id
- */
-let collection = {};
+  collection['SCHEMA-FILTERED'] = {
+    ownerNameQueries: [
+      statement['SCHEMA-DATATYPES'],
+      statement['SCHEMA-INDEXES'],
+      statement['SCHEMA-INVALID-OBJECTS']
+    ].filter(s => s !== undefined)
+  };
 
-collection['DATABASE'] = {
-  noParamQueries: [
-    statement['DB-VERSION'],
-    statement['ADB-YN'],
-    statement['EBS-SCHEMA'],
-    statement['PATCHES'],
-    statement['DB-LINKS'],
-    statement['COUNT-INVALID-OBJECTS'],
-    statement['DB-SGA-SIZE'],
-    statement['DB-SGA-FREE'],
-    statement['DB-SIZE'],
-    statement['DB-SPACE-USED'],
-    statement['DB-OS-STAT'],
-    statement['DB-FEATURE-USAGE']
-  ]
-};
+  collection['TABLE'] = {
+    objectNameQueries: [
+      statement['TABLE-DETAILS'],
+      statement['TABLE-COMMENTS'],
+      statement['TABLE-INDEXES'],
+      statement['INDEX-FUNCTION'],
+      statement['TABLE-KEYS'],
+      statement['TABLE-COLUMNS'],
+      statement['FK-IN-TABLE-NAME'],
+      statement['FK-TO-TABLE-NAME']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['SCHEMA'] = {
-  ownerNameQueries: [
-    statement['SCHEMA-USER'],
-    statement['SCHEMA-SUMMARY'],
-    statement['SCHEMA-GRANTS']
-  ]
-};
+  collection['VIEW'] = {
+    objectNameQueries: [
+      statement['TABLE-DETAILS'],
+      statement['TABLE-COMMENTS'],
+      statement['TABLE-COLUMNS'],
+      statement['VIEW-SOURCE']
+    ].filter(s => s !== undefined),
+    objectTypeQueries: [],
+    objectIdQueries: []
+  };
 
-collection['SCHEMA-FILTERED'] = {
-  ownerNameQueries: [
-    statement['SCHEMA-DATATYPES'],
-    statement['SCHEMA-INDEXES'],
-    statement['SCHEMA-INVALID-OBJECTS']
-  ]
-};
+  collection['PACKAGE'] = {
+    objectNameQueries: [],
+    objectIdQueries: [
+      statement['PROCEDURE-ARGS']
+    ].filter(s => s !== undefined),
+    objectTypeQueries: [
+      statement['SOURCE']
+    ].filter(s => s !== undefined)
+  };
 
-collection['TABLE'] = {
-  objectNameQueries: [
-    statement['TABLE-DETAILS'],
-    statement['TABLE-COMMENTS'],
-    statement['TABLE-INDEXES'],
-    statement['INDEX-FUNCTION'],
-    statement['TABLE-KEYS'],
-    statement['TABLE-COLUMNS'],
-    statement['FK-IN-TABLE-NAME'],
-    statement['FK-TO-TABLE-NAME']
-  ],
-  objectIdQueries: [
-  ],
-  objectTypeQueries: []
-};
+  collection['PACKAGE BODY'] = {
+    objectNameQueries: [],
+    objectIdQueries: [],
+    objectTypeQueries: [
+      statement['SOURCE']
+    ].filter(s => s !== undefined)
+  };
 
-collection['VIEW'] = {
-  objectNameQueries: [
-    statement['TABLE-DETAILS'],
-    statement['TABLE-COMMENTS'],
-    statement['TABLE-COLUMNS'],
-    statement['VIEW-SOURCE']
-  ],
-  objectTypeQueries: [],
-  objectIdQueries: []
-};
+  collection['PROCEDURE'] = {
+    objectNameQueries: [],
+    objectIdQueries: [
+      statement['PROCEDURE-ARGS']
+    ].filter(s => s !== undefined),
+    objectTypeQueries: [
+      statement['SOURCE']
+    ].filter(s => s !== undefined)
+  };
 
-collection['PACKAGE'] = {
-  objectNameQueries: [],
-  objectIdQueries: [
-    statement['PROCEDURE-ARGS']
-  ],
-  objectTypeQueries: [
-    statement['SOURCE']
-  ]
-};
+  collection['FUNCTION'] = {
+    objectNameQueries: [],
+    objectIdQueries: [
+      statement['PROCEDURE-ARGS']
+    ].filter(s => s !== undefined),
+    objectTypeQueries: [
+      statement['SOURCE']
+    ].filter(s => s !== undefined)
+  };
 
-collection['PACKAGE BODY'] = {
-  objectNameQueries: [],
-  objectIdQueries: [],
-  objectTypeQueries: [
-    statement['SOURCE']
-  ]
-};
+  collection['TYPE BODY'] = {
+    objectNameQueries: [],
+    objectIdQueries: [],
+    objectTypeQueries: [
+      statement['SOURCE']
+    ].filter(s => s !== undefined)
+  };
 
-collection['PROCEDURE'] = {
-  objectNameQueries: [],
-  objectIdQueries: [
-    statement['PROCEDURE-ARGS']
-  ],
-  objectTypeQueries: [
-    statement['SOURCE']
-  ]
-};
+  collection['JAVA SOURCE'] = {
+    objectNameQueries: [],
+    objectIdQueries: [],
+    objectTypeQueries: [
+      statement['SOURCE']
+    ].filter(s => s !== undefined)
+  };
 
+  collection['MATERIALIZED VIEW'] = {
+    objectNameQueries: [
+      statement['MVIEW-DETAILS'],
+      statement['TABLE-COMMENTS'],
+      statement['TABLE-COLUMNS'],
+      statement['MVIEW-SOURCE'],
+      statement['MVIEW-LOG_DEPENDENCIES']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['FUNCTION'] = {
-  objectNameQueries: [],
-  objectIdQueries: [
-    statement['PROCEDURE-ARGS']
-  ],
-  objectTypeQueries: [
-    statement['SOURCE']
-  ]
-};
+  collection['TRIGGER'] = {
+    objectNameQueries: [
+      statement['TRIGGER-DETAILS']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['TYPE BODY'] = {
-  objectNameQueries: [],
-  objectIdQueries: [],
-  objectTypeQueries: [
-    statement['SOURCE']
-  ]
-};
+  collection['INDEX'] = {
+    objectNameQueries: [
+      statement['INDEX-COLUMNS'],
+      statement['INDEX-FUNCTION'],
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['JAVA SOURCE'] = {
-  objectNameQueries: [],
-  objectIdQueries: [],
-  objectTypeQueries: [
-    statement['SOURCE']
-  ]
-};
+  collection['QUEUE'] = {
+    objectNameQueries: [
+      statement['QUEUE-DETAILS']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['MATERIALIZED VIEW'] = {
-  objectNameQueries: [
-    statement['MVIEW-DETAILS'],
-    statement['MVIEW-SOURCE'],
-    statement['MVIEW-LOG_DEPENDENCIES']
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
+  collection['SYNONYM'] = {
+    objectNameQueries: [
+      statement['DECODE-SYNONYM']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['TRIGGER'] = {
-  objectNameQueries: [
-    statement['TRIGGER-DETAILS']
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
+  collection['CLUSTER'] = {
+    objectNameQueries: [
+      statement['TABLE-COLUMNS']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['INDEX'] = {
-  objectNameQueries: [
-    statement['INDEX-COLUMNS'],
-    statement['INDEX-FUNCTION'],
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
+  collection['TYPE'] = {
+    objectNameQueries: [
+      statement['TYPE-DETAILS'],
+      statement['COLLECTION-TYPE-DETAILS'],
+      statement['TYPE-ATTRIBUTES'],
+      statement['TYPE-METHODS']
+    ].filter(s => s !== undefined),
+    objectIdQueries: [],
+    objectTypeQueries: []
+  };
 
-collection['QUEUE'] = {
-  objectNameQueries: [
-    statement['QUEUE-DETAILS']
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
+  collection['DEPENDENCIES'] = {
+    objectNameIdQueries: [statement['USED-BY-OBJECTS']].filter(s => s !== undefined),
+    objectIdQueries: [statement['USES-OBJECTS']].filter(s => s !== undefined),
+    objectTypeQueries: []
+  };
+  collection['DEPENDENCIES-NOSOURCE'] = {
+    objectNameIdQueries: [statement['USED-BY-OBJECTS']].filter(s => s !== undefined),
+    objectIdQueries: [statement['USES-OBJECTS-NOLINE']].filter(s => s !== undefined),
+    objectTypeQueries: []
+  };
+  collection['DEPENDENCIES-ADB'] = {
+    objectNameIdQueries: [],
+    objectIdQueries: [],
+    objectTypeQueries: [
+      statement['USED-BY-ADB'],
+      statement['USES-ADB']
+    ].filter(s => s !== undefined)
+  }
 
-collection['SYNONYM'] = {
-  objectNameQueries: [
-    statement['DECODE-SYNONYM']
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
-
-collection['CLUSTER'] = {
-  objectNameQueries: [
-    statement['TABLE-COLUMNS']
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
-
-collection['TYPE'] = {
-  objectNameQueries: [
-    statement['TYPE-DETAILS'],
-    statement['COLLECTION-TYPE-DETAILS'],
-    statement['TYPE-ATTRIBUTES'],
-    statement['TYPE-METHODS']
-  ],
-  objectIdQueries: [],
-  objectTypeQueries: []
-};
-
-// https://github.com/visulate/visulate-for-oracle/issues/253
-// use NOLINE for all dependencies
-collection['DEPENDENCIES'] = {
-  objectNameIdQueries: [statement['USED-BY-OBJECTS']],
-  objectIdQueries: [statement['USES-OBJECTS']],
-  objectTypeQueries: []
-};
-collection['DEPENDENCIES-NOSOURCE'] = {
-  objectNameIdQueries: [statement['USED-BY-OBJECTS']],
-  objectIdQueries: [statement['USES-OBJECTS-NOLINE']],
-  objectTypeQueries: []
-};
-collection['DEPENDENCIES-ADB'] = {
-  objectNameIdQueries: [],
-  objectIdQueries: [],
-  objectTypeQueries: [
-    statement['USED-BY-ADB'],
-    statement['USES-ADB']
-  ]
+  return { statement, collection };
 }
 
-module.exports.collection = collection;
+const oracle = loadDialect('oracle');
+const postgres = loadDialect('postgres');
+
+module.exports = { oracle, postgres };

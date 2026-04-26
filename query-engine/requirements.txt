@@ -1,4 +1,5 @@
 oracledb
+psycopg2-binary
 Flask >= 2.2.5
 gunicorn
 Flask-Cors

@@ -243,14 +243,16 @@ def handle_mcp_request():
                             "error": {"code": -32602, "message": "Missing required arguments: username, password, database"}
                         }), 400
 
-                    # Try a simple SELECT 1 to validate
-                    result = sql2csv.execute_sql_internal(database, "SELECT 1 FROM DUAL", username, password)
+                    # Try a simple lightweight query to validate
+                    params = sql2csv.get_connection_params(database)
+                    validation_sql = "SELECT 1" if params.get("dbType") == "postgres" else "SELECT 1 FROM DUAL"
                     
-                    if isinstance(result, list) or (isinstance(result, dict) and result.get("success") is not False):
+                    try:
+                        result = sql2csv.execute_sql_internal(database, validation_sql, username, password)
                         response_text = "Credentials validated successfully."
                         status = "success"
-                    else:
-                        response_text = f"Credential validation failed: {result}"
+                    except Exception as validation_err:
+                        response_text = f"Credential validation failed: {str(validation_err)}"
                         status = "error"
 
                     return jsonify({
@@ -264,8 +266,14 @@ def handle_mcp_request():
                 elif tool_name == "list_databases":
                     databases = current_app.endpoints
                     response_text = "Available databases for SQL execution:\n\n"
-                    for name, connection_string in databases.items():
-                        response_text += f"- {name}: {connection_string}\n"
+                    for name, params in databases.items():
+                        if isinstance(params, str):
+                            db_type = "oracle"
+                            dsn = params
+                        else:
+                            db_type = params.get("dbType", "oracle")
+                            dsn = params.get("dsn")
+                        response_text += f"- {name}: {db_type} ({dsn})\n"
                     response_text += "\nNote: Create a credential token first using create_credential_token, then use that token for execute_sql calls."
 
                     return jsonify({
@@ -627,7 +635,9 @@ def call_tool():
                 raise BadRequest("Missing required arguments: username, password, database")
 
             # Try a simple SELECT 1 to validate
-            result = sql2csv.execute_sql_internal(database, "SELECT 1 FROM DUAL", username, password)
+            conn_params = sql2csv.get_connection_params(database)
+            validation_sql = "SELECT 1" if conn_params.get("dbType") == "postgres" else "SELECT 1 FROM DUAL"
+            result = sql2csv.execute_sql_internal(database, validation_sql, username, password)
             
             # Simple list result or success dictionary means valid
             if isinstance(result, list) or (isinstance(result, dict) and result.get("success") is not False):

@@ -35,7 +35,7 @@ module.exports.eventEmitter = eventEmitter;
 // Increase thread pool size by poolMax
 let threadRequirement = 0;
 dbConfig.endpoints.forEach(endpoint => {
-  threadRequirement += endpoint.connect.poolMax;
+  threadRequirement += endpoint.connect.poolMax || 0;
 });
 logger.log('info', '===============================================================')
 logger.log('info', `Oracle connection pool thread requirement = ${threadRequirement}`)

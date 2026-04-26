@@ -5,7 +5,7 @@ from comment_generator.agent import create_comment_generator_agent
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to understand user intent and coordinate specialized microservices.
+SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to understand user intent and coordinate specialized microservices to analyze Oracle and PostgreSQL databases.
 
 ## Specialized Tools
 

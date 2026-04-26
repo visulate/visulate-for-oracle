@@ -65,7 +65,7 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   }
 
   setDdlLink() {
-    if (this.currentContext && this.currentSchema && !(environment.internalSchemas.includes(this.currentSchema.owner))) {
+    if (this.currentContext && this.currentSchema && !this.currentSchema.internal) {
       const filter = (this.currentContext.filter === '') ? '*' : this.currentContext.filter;
       if (this.currentObjectType && this.currentObjectType.count > 0) {
         this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0) ?

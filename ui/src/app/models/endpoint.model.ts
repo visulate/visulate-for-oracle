@@ -39,6 +39,7 @@ export class EndpointModel implements Deserializable {
    * API endpoint corresponding to a database connection
    */
   public endpoint: string;
+  public dbType: string;
   public description: string;
   public connectString: string;
   public ebsInstance: boolean;
@@ -46,7 +47,8 @@ export class EndpointModel implements Deserializable {
 
   deserialize(input: any): this {
     Object.assign(this, input);
-    const convertedSchema = convertSchema(input.schemas);
+    this.dbType = input.dbType || 'oracle';
+    const convertedSchema = convertSchema(input.schemas, this.dbType);
     this.ebsInstance = ((input.schemas.APPLSYS) ? true : false);
     this.schemas = convertedSchema.map(
       schema => new SchemaModel().deserialize(schema)
@@ -72,7 +74,7 @@ export class SchemaModel implements Deserializable {
   }
 }
 
-function convertSchema(input: any): SchemaModel[] {
+function convertSchema(input: any, dbType: string = 'oracle'): SchemaModel[] {
   /**
    * Converts schema object from REST API to display model
    * @remarks
@@ -124,7 +126,7 @@ function convertSchema(input: any): SchemaModel[] {
    */
   const outputSchemas = [];
   Object.keys(input).forEach((schema) => {
-    let internal = environment.internalSchemas.includes(schema);
+    let internal = environment.internalSchemas[dbType]?.includes(schema) || false;
     // If the API provided an INTERNAL flag, use it.
     // The API returns 1 for internal, 0 for user.
     if (input[schema][0] && input[schema][0].hasOwnProperty('INTERNAL')) {

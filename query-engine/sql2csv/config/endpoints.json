@@ -3,5 +3,9 @@
   "pdb21": "192.168.1.170:1522/pdb21.goldthorp.org",
   "pdb22": "192.168.1.170:1522/pdb22.goldthorp.org",
   "pdb23": "192.168.1.170:1522/pdb23.goldthorp.org",
-  "vis25adb": "vis25adb_tp"
+  "vis25adb": "vis25adb_tp",
+  "cmbs-postgres": {
+    "dsn": "localhost:5432/cmbs",
+    "dbType": "postgres"
+  }
 }

@@ -22,7 +22,7 @@ const { compareEntities } = require('./compare-service.js');
 const templateEngine = require('./template-engine');
 const axios = require('axios');
 const oracledb = require('oracledb');
-const { statement } = require('./sql-statements');
+const sqlStatements = require('./sql-statements');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -34,13 +34,29 @@ const mcpSessionStore = new AsyncLocalStorage();
  * @returns an endpoint to pool alias  dictionary
  */
 function getEndpointList(endpoints) {
-  let endpointList = [];
+  let endpointList = {};
   endpoints.forEach(endpoint => {
-    endpointList[endpoint.namespace] = endpoint.connect.poolAlias;
+    endpointList[endpoint.namespace] = {
+      poolAlias: endpoint.connect.poolAlias,
+      dbType: endpoint.connect.dbType || 'oracle'
+    };
   });
   return endpointList;
 }
 const endpointList = getEndpointList(dbConfig.endpoints);
+
+/**
+ * Gets the SQL statement registry for a given database
+ * @param {string} db - The database namespace/alias
+ * @returns {object} The statement and collection objects for the dialect
+ */
+function getSqlRegistry(db) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
+    throw new Error("Requested database was not found");
+  }
+  return sqlStatements[endpoint.dbType];
+}
 
 
 /**
@@ -335,10 +351,11 @@ async function revokeToken(req, res, next) {
 module.exports.revokeToken = revokeToken;
 async function searchObjectsInternal(db, args) {
   const { search_terms, object_types } = args;
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
 
   if (!search_terms || search_terms.length === 0) {
     throw new Error('search_terms array is required');
@@ -426,10 +443,11 @@ module.exports.searchObjects = searchObjects;
  */
 async function getContextInternal(args) {
   const { db, owner, type, name, relationship_types } = args;
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
 
   const objectDetails = await getObjectDetails(poolAlias, owner, type, name, true);
   if (objectDetails === '404') {
@@ -512,15 +530,24 @@ async function getContextInternal(args) {
  * @param {string} owner - The schema owner
  */
 async function getSchemaSummaryInternal(db, owner) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['SCHEMA-SUMMARY'];
 
-  const query = statement['SCHEMA-SUMMARY'];
-  const params = {
-    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
-  };
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+    };
+  } else {
+    params = {
+      owner: { val: owner.toLowerCase() }
+    };
+  }
 
   const result = await dbService.simpleExecute(poolAlias, query.sql, params);
   return result.map(row => ({
@@ -537,15 +564,28 @@ async function getSchemaSummaryInternal(db, owner) {
  * @param {string} owner - The schema owner
  */
 async function getSchemaGrantsInternal(db, owner) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['SCHEMA-GRANTS'];
 
-  const query = statement['SCHEMA-GRANTS'];
-  const params = {
-    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
-  };
+  if (!query) {
+    return [];
+  }
+
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+    };
+  } else {
+    params = {
+      owner: { val: owner.toLowerCase() }
+    };
+  }
 
   const result = await dbService.simpleExecute(poolAlias, query.sql, params);
   return result.map(row => ({
@@ -562,18 +602,28 @@ async function getSchemaGrantsInternal(db, owner) {
  * @param {string} wildcard - Optional pattern to filter object names
  */
 async function getObjectsMissingCommentsInternal(db, owner, wildcard = '%') {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const tableQuery = registry.statement['SCHEMA-MISSING-TABLE-COMMENTS'];
+  const colQuery = registry.statement['SCHEMA-MISSING-COL-COMMENTS'];
 
-  const tableQuery = statement['SCHEMA-MISSING-TABLE-COMMENTS'];
-  const colQuery = statement['SCHEMA-MISSING-COL-COMMENTS'];
-  const params = {
-    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() },
-    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: wildcard.toUpperCase() },
-    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" }
-  };
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() },
+      object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: wildcard.toUpperCase() },
+      esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" }
+    };
+  } else {
+    params = {
+      owner: { val: owner.toLowerCase() },
+      object_name: { val: wildcard.toLowerCase() }
+    };
+  }
 
   const [tables, columns] = await Promise.all([
     dbService.simpleExecute(poolAlias, tableQuery.sql, params),
@@ -598,17 +648,27 @@ async function getObjectsMissingCommentsInternal(db, owner, wildcard = '%') {
  * @param {string} owner - The schema owner
  */
 async function getSchemaInvalidObjectsInternal(db, owner) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['SCHEMA-INVALID-OBJECTS'];
 
-  const query = statement['SCHEMA-INVALID-OBJECTS'];
-  const params = {
-    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() },
-    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
-    esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" }
-  };
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() },
+      object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "%" },
+      esc: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: "\\" }
+    };
+  } else {
+    params = {
+      owner: { val: owner.toLowerCase() },
+      object_name: { val: "%" }
+    };
+  }
 
   const result = await dbService.simpleExecute(poolAlias, query.sql, params);
   return result.map(row => ({
@@ -625,15 +685,24 @@ async function getSchemaInvalidObjectsInternal(db, owner) {
  * @param {string} objectName - The name of the object to find
  */
 async function findObjectInternal(db, objectName) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['FIND-DBA-OBJECTS'];
 
-  const query = statement['FIND-DBA-OBJECTS'];
-  const params = {
-    object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: objectName.toUpperCase() }
-  };
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      object_name: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: objectName.toUpperCase() }
+    };
+  } else {
+    params = {
+      object_name: { val: objectName }
+    };
+  }
 
   return await dbService.simpleExecute(poolAlias, query.sql, params);
 }
@@ -645,12 +714,17 @@ async function findObjectInternal(db, objectName) {
  * @param {string} db - The database name
  */
 async function getDbLinksInternal(db) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
-
-  const query = statement['DB-LINKS'];
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['DB-LINKS'];
+  
+  if (!query) {
+    return [];
+  }
   return await dbService.simpleExecute(poolAlias, query.sql, query.params);
 }
 
@@ -660,17 +734,24 @@ async function getDbLinksInternal(db) {
  * @param {string} owner - The schema owner
  */
 async function getSchemaColumnsInternal(db, owner, options = {}) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['SCHEMA-COLUMNS'];
 
-  const { sessionId: providedSessionId, tableNames } = options;
-  const sessionId = providedSessionId || mcpSessionStore.getStore();
-  const query = statement['SCHEMA-COLUMNS'];
-  const params = {
-    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
-  };
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+    };
+  } else {
+    params = {
+      owner: { val: owner.toLowerCase() }
+    };
+  }
 
   const result = await dbService.simpleExecute(poolAlias, query.sql, params);
 
@@ -730,17 +811,24 @@ module.exports.getSchemaColumns = getSchemaColumns;
  * @param {string} owner - The schema owner
  */
 async function getSchemaRelationshipsInternal(db, owner, options = {}) {
-  const poolAlias = endpointList[db];
-  if (!poolAlias) {
+  const endpoint = endpointList[db];
+  if (!endpoint) {
     throw new Error("Requested database was not found");
   }
+  const poolAlias = endpoint.poolAlias;
+  const registry = sqlStatements[endpoint.dbType];
+  const query = registry.statement['SCHEMA-RELATIONSHIPS'];
 
-  const { sessionId: providedSessionId, tableNames } = options;
-  const sessionId = providedSessionId || mcpSessionStore.getStore();
-  const query = statement['SCHEMA-RELATIONSHIPS'];
-  const params = {
-    owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
-  };
+  let params;
+  if (endpoint.dbType === 'oracle') {
+    params = {
+      owner: { dir: oracledb.BIND_IN, type: oracledb.STRING, val: owner.toUpperCase() }
+    };
+  } else {
+    params = {
+      owner: { val: owner.toLowerCase() }
+    };
+  }
 
   const result = await dbService.simpleExecute(poolAlias, query.sql, params);
 

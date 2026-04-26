@@ -59,6 +59,7 @@ export class SqlComponent implements OnInit, OnDestroy {
    * Update query form to reflect the current context
    * @param subjectContext - currentContext$ observable
    */
+  public endpointList: any;
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     const context = subjectContext.currentContext;
     this.currentContext = context;
@@ -68,7 +69,16 @@ export class SqlComponent implements OnInit, OnDestroy {
       (this.currentContext.objectType === 'TABLE' ||
         this.currentContext.objectType === 'VIEW' ||
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
-      this.setSql(`select * from ${this.currentContext.objectName} where rownum < :maxrows`);
+      
+      const endpoint = this.endpointList?.databases?.find(d => d.endpoint === this.currentContext.endpoint);
+      const isPostgres = endpoint?.dbType === 'postgres';
+      
+      if (isPostgres) {
+        this.setSql(`select * from ${this.currentContext.objectName} limit %(maxrows)s`);
+      } else {
+        this.setSql(`select * from ${this.currentContext.objectName} where rownum <= :maxrows`);
+      }
+      
       this.bindVariables = '{"maxrows": 10 }';
       this.queryOptions = '{"download_lobs": "N", "csv_header": "N"}';
       this.resultSet = new SqlModel();
@@ -150,6 +160,10 @@ export class SqlComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentContext = this.state.getCurrentContext();
     this.queryUrl = `${this.queryBase}/${this.currentContext.endpoint}`;
+
+    this.state.endpoints$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(endpoints => { this.endpointList = endpoints; });
 
     this.state.currentContext$
       .pipe(takeUntil(this.unsubscribe$))

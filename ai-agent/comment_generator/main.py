@@ -28,7 +28,7 @@ from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from common.config import get_mcp_urls
 from common.credentials import CredentialManager
 from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data
-from common.context import progress_callback_var, session_id_var, browser_session_id_var, auth_token_var, cancelled_var, timeout_signal_var
+from common.context import progress_callback_var, session_id_var, browser_session_id_var, auth_token_var, cancelled_var, timeout_signal_var, cancelled_sessions
 
 # Configure logging
 logging.basicConfig(
@@ -150,13 +150,16 @@ class MCPClient:
         })
 
 class CommentGenerator:
-    def __init__(self, mcp_client: MCPClient, database: str, schema: str, credential_token: Optional[str] = None, session_id: str = "default"):
+    def __init__(self, mcp_client: MCPClient, database: str, schema: str, credential_token: Optional[str] = None, session_id: str = "default", username: Optional[str] = None):
         self.client = mcp_client
         self.database = database
-        self.schema = schema.upper()
-        self.genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.schema_input = schema
+        self.schema = schema
+        self.username = username
         self.credential_token = credential_token
+        self.genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.session_id = session_id
+        self.db_type = "oracle" 
 
     async def create_credential_token(self, database: str, username: str) -> bool:
         """
@@ -175,7 +178,7 @@ class CommentGenerator:
     def report_progress(self, message: str):
         """Send progress update to the context-local callback if available"""
         # Check for cancellation before reporting progress
-        from common.context import cancelled_var, cancelled_sessions, timeout_signal_var
+        from common.context import cancelled_sessions
         if cancelled_var.get() or timeout_signal_var.get() or self.session_id in cancelled_sessions:
              logger.info(f"Stop signal detected for session {self.session_id} in report_progress for: {message}. Raising Exception.")
              raise Exception("Task stopped")
@@ -258,7 +261,10 @@ class CommentGenerator:
 
     async def get_sample_rows(self, table_name: str) -> List[Dict[str, Any]]:
         """Get sample rows for a table/view"""
-        sql = f"SELECT * FROM {self.schema}.{table_name} WHERE ROWNUM <= 3"
+        if self.db_type == "postgres":
+            sql = f'SELECT * FROM "{self.schema}"."{table_name}" LIMIT 3'
+        else:
+            sql = f"SELECT * FROM {self.schema}.{table_name} WHERE ROWNUM <= 3"
         result = await self.client.execute_sql(self.database, sql)
         if result.get("success"):
             return result.get("data", [])
@@ -286,7 +292,7 @@ class CommentGenerator:
             json_keys.append(f'"{column_name}_comment": "your comment for {column_name} here"')
 
         prompt = f"""
-        You are an Oracle Database expert. Generate concise but descriptive comments for the following database objects.
+        You are a {self.db_type.capitalize()} Database expert. Generate concise but descriptive comments for the following database objects.
 
         Database Object: {self.schema}.{object_name} ({object_type})
 
@@ -352,10 +358,10 @@ class CommentGenerator:
             return {}
             
         processed = {} 
-        # Pattern for COMMENT ON TABLE schema.table IS ...
-        table_pattern = re.compile(r"COMMENT ON TABLE\s+\w+\.([\w$#]+)\s+IS", re.IGNORECASE)
+        # Pattern for COMMENT ON TABLE/VIEW/MATERIALIZED VIEW schema.table IS ... (handles optional quotes)
+        table_pattern = re.compile(r"COMMENT ON (?:TABLE|(?:MATERIALIZED )?VIEW)\s+(?:\"?\w+\"?)\.(\"?[\w$#]+\"?)\s+IS", re.IGNORECASE)
         # Pattern for COMMENT ON COLUMN schema.table.column IS ...
-        column_pattern = re.compile(r"COMMENT ON COLUMN\s+\w+\.([\w$#]+)\.([\w$#]+)\s+IS", re.IGNORECASE)
+        column_pattern = re.compile(r"COMMENT ON COLUMN\s+(?:\"?\w+\"?)\.(\"?[\w$#]+\"?)\.(\"?[\w$#]+\"?)\s+IS", re.IGNORECASE)
         
         try:
             with open(file_path, 'r') as f:
@@ -363,7 +369,7 @@ class CommentGenerator:
                     # Look for table comments
                     t_match = table_pattern.search(line)
                     if t_match:
-                        t_name = t_match.group(1).upper()
+                        t_name = t_match.group(1).replace('"', '').upper()
                         if t_name not in processed:
                             processed[t_name] = set()
                         processed[t_name].add("__TABLE__")
@@ -372,11 +378,11 @@ class CommentGenerator:
                     # Look for column comments
                     c_match = column_pattern.search(line)
                     if c_match:
-                        t_name = c_match.group(1).upper()
-                        c_name = c_match.group(2).upper()
+                        t_name = c_match.group(1).replace('"', '').upper()
+                        c_name = c_match.group(2).replace('"', '').upper()
                         if t_name not in processed:
                             processed[t_name] = set()
-                        processed[t_name].add(c_name.upper())
+                        processed[t_name].add(c_name)
         except Exception as e:
             logger.error(f"Error parsing existing SQL file {file_path}: {e}")
             
@@ -384,14 +390,28 @@ class CommentGenerator:
 
     async def run(self, wildcard: str, output_file: str, offset: int = 0) -> int:
         """Main execution flow. Returns the number of comments generated."""
-        from common.context import cancelled_var, cancelled_sessions, timeout_signal_var
+
+        # 0. Determine Database Type First
+        databases_result = await self.client.call_query_engine_tool("list_databases", {})
+        if "content" in databases_result:
+            for item in databases_result["content"]:
+                if item.get("type") == "text":
+                    # Try to find this database in the list to get its type
+                    match = re.search(fr"- {self.database}: (\w+)", item.get("text", ""))
+                    if match:
+                        self.db_type = match.group(1).lower()
+                        logger.info(f"Detected database type for {self.database}: {self.db_type}")
+
+        # Set schema casing based on db type
+        self.schema = self.schema_input.upper() if self.db_type == "oracle" else self.schema_input
 
         # 1. Setup Client
         if self.credential_token:
             self.client.credential_token = self.credential_token
             self.report_progress("Verifying credential token...")
-            # Test the token
-            test_result = await self.client.execute_sql(self.database, "SELECT 1 FROM DUAL")
+            # Test the token with dialect-aware SQL
+            test_sql = "SELECT 1" if self.db_type == "postgres" else "SELECT 1 FROM DUAL"
+            test_result = await self.client.execute_sql(self.database, test_sql)
             if not test_result.get("success"):
                 logger.warning(f"Provided token failed validation: {test_result.get('error')}. Attempting fallback to password...")
                 self.credential_token = None
@@ -400,7 +420,8 @@ class CommentGenerator:
 
         if not self.credential_token:
             # Automated handshake using shared logic
-            p_token = await self.create_credential_token(self.database, self.schema)
+            # Use self.username if provided, otherwise fallback to schema (Oracle style)
+            p_token = await self.create_credential_token(self.database, self.username or self.schema)
             if not p_token:
                 # If handshake fails, it means no credentials were found in any source
                 self.report_progress("▌ACTION REQUIRED: No credentials found for this database/schema selection. Providing them enables data sampling for significantly better accuracy.")
@@ -410,9 +431,12 @@ class CommentGenerator:
             else:
                 self.report_progress("New credential token created and verified via shared handshake.")
 
+
         # 2. Find objects
         objects_map = await self.find_missing_comments(wildcard)
         self.report_progress(f"Found {len(objects_map)} tables/views with missing comments (table or columns) in the database.")
+
+        self.generated_count = 0
 
         # Check existing file for already processed items if we're appending or resuming
         processed_stats = self.get_already_processed_stats(output_file)
@@ -479,63 +503,81 @@ class CommentGenerator:
                 f.write(f"-- Generated on {json.dumps(str(os.getenv('VISULATE_BASE')))}\n\n")
                 f.flush()
 
-            for table_name, info in to_process:
-                # Check for cancellation or timeout
-                if cancelled_var.get() or timeout_signal_var.get() or self.session_id in cancelled_sessions:
-                    reason = "Time limit" if timeout_signal_var.get() else "Cancellation"
-                    self.report_progress(f"▌{reason.upper()}: Process stopped while working on {table_name}. All previous progress is saved.")
-                    break
+            try:
+                for table_name, info in to_process:
+                    # Check for cancellation or timeout
+                    if cancelled_var.get() or timeout_signal_var.get() or self.session_id in cancelled_sessions:
+                        reason = "Time limit" if timeout_signal_var.get() else "Cancellation"
+                        logger.info(f"▌{reason.upper()}: Process stopped while working on {table_name}.")
+                        break
 
-                table_type = info['type']
-                missing_table_comment = info['missing_table_comment']
-                missing_columns = info['missing_columns']
+                    table_type = info['type']
+                    missing_table_comment = info['missing_table_comment']
+                    missing_columns = info['missing_columns']
 
-                self.report_progress(f"Processing {table_type} {table_name}...")
-                
-                table_statements = [] # Statements for THIS table
+                    self.report_progress(f"Processing {table_type} {table_name}...")
+                    
+                    table_statements = [] # Statements for THIS table
 
-                # 3. Get Context (once per table)
-                context = await self.client.get_context(self.database, self.schema, table_name, table_type)
+                    # 3. Get Context (once per table)
+                    context = await self.client.get_context(self.database, self.schema, table_name, table_type)
 
-                # 4. Get Sample Data (once per table)
-                sample_data = await self.get_sample_rows(table_name)
+                    # 4. Get Sample Data (once per table)
+                    sample_data = await self.get_sample_rows(table_name)
 
-                # 5. Generate all comments in a single request
-                comments_dict = await self.generate_comments_batch(table_name, table_type, context, sample_data, missing_table_comment, missing_columns)
+                    # 5. Generate all comments in a single request
+                    comments_dict = await self.generate_comments_batch(table_name, table_type, context, sample_data, missing_table_comment, missing_columns)
 
-                # 6. Process table comment
-                if missing_table_comment and 'table_comment' in comments_dict:
-                    comment = comments_dict['table_comment']
-                    self.report_progress(f"Generated table comment for {table_name}")
-                    safe_comment = comment.replace("'", "''")
-                    stmt = f"COMMENT ON TABLE {self.schema}.{table_name} IS '{safe_comment}';"
-                    table_statements.append(stmt)
-                    sql_statements.append(stmt)
-                    logger.info(f"Generated table comment: {comment}")
-
-                # 7. Process column comments
-                for col_name in missing_columns:
-                    comment_key = f'{col_name}_comment'
-                    if comment_key in comments_dict:
-                        comment = comments_dict[comment_key]
-                        self.report_progress(f"Generated column comment for {table_name}.{col_name}")
+                    # 6. Process table comment
+                    if missing_table_comment and 'table_comment' in comments_dict:
+                        comment = comments_dict['table_comment']
+                        self.report_progress(f"Generated table comment for {table_name}")
                         safe_comment = comment.replace("'", "''")
-                        stmt = f"COMMENT ON COLUMN {self.schema}.{table_name}.{col_name} IS '{safe_comment}';"
+                        if self.db_type == "postgres":
+                            if table_type.upper() == "VIEW":
+                                obj_keyword = "VIEW"
+                            elif "MATERIALIZED" in table_type.upper():
+                                obj_keyword = "MATERIALIZED VIEW"
+                            else:
+                                obj_keyword = "TABLE"
+                            stmt = f'COMMENT ON {obj_keyword} "{self.schema}"."{table_name}" IS \'{safe_comment}\';'
+                        else:
+                            stmt = f"COMMENT ON TABLE {self.schema}.{table_name} IS '{safe_comment}';"
                         table_statements.append(stmt)
-                        sql_statements.append(stmt)
-                        logger.info(f"Generated column comment for {col_name}: {comment}")
-                
-                # Write statements for this table to the file immediately
-                if table_statements:
-                    for stmt in table_statements:
-                        f.write(stmt + "\n")
-                    f.write("\n") # Add blank line between objects
-                    f.flush()
-                    os.fsync(f.fileno()) # Ensure it hits the disk
+                        self.generated_count += 1
+                        logger.info(f"Generated table comment: {comment}")
 
-        logger.info(f"Successfully finalized {len(sql_statements)} comments to {output_file}")
-        self.report_progress(f"▌SUCCESS: SQL script updated with {len(sql_statements)} new comments: {output_file}")
-        return len(sql_statements)
+                    # 7. Process column comments
+                    for col_name in missing_columns:
+                        comment_key = f'{col_name}_comment'
+                        if comment_key in comments_dict:
+                            comment = comments_dict[comment_key]
+                            self.report_progress(f"Generated column comment for {table_name}.{col_name}")
+                            safe_comment = comment.replace("'", "''")
+                            if self.db_type == "postgres":
+                                stmt = f'COMMENT ON COLUMN "{self.schema}"."{table_name}"."{col_name}" IS \'{safe_comment}\';'
+                            else:
+                                stmt = f"COMMENT ON COLUMN {self.schema}.{table_name}.{col_name} IS '{safe_comment}';"
+                            table_statements.append(stmt)
+                            self.generated_count += 1
+                            logger.info(f"Generated column comment for {col_name}: {comment}")
+                    
+                    if table_statements:
+                        for stmt in table_statements:
+                            f.write(stmt + "\n")
+                        f.write("\n") # Add blank line between objects
+                        f.flush()
+                        os.fsync(f.fileno()) # Ensure it hits the disk
+            except Exception as e:
+                if str(e) == "Task stopped":
+                    logger.info("Task stopped via exception, returning partial results.")
+                else:
+                    raise e
+
+        logger.info(f"Successfully finalized {self.generated_count} comments to {output_file}")
+        if self.generated_count > 0:
+             self.report_progress(f"▌SUCCESS: SQL script updated with {self.generated_count} new comments: {output_file}")
+        return self.generated_count
 
 def main():
     parser = argparse.ArgumentParser(description="Oracle Comment Generator Agent")

@@ -198,20 +198,58 @@ export class StateService {
   }
 
   private authTokens: { [database: string]: string } = {};
-  setAuthToken(database: string, token: string) {
-    this.authTokens[database] = token;
+
+  private loadAuthTokens() {
+    try {
+      const saved = sessionStorage.getItem('visulate-auth-tokens');
+      if (saved) {
+        this.authTokens = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to load auth tokens from sessionStorage', e);
+      this.authTokens = {};
+    }
   }
+
+  private saveAuthTokens() {
+    try {
+      sessionStorage.setItem('visulate-auth-tokens', JSON.stringify(this.authTokens));
+    } catch (e) {
+      console.warn('Failed to save auth tokens to sessionStorage', e);
+    }
+  }
+
+  setAuthToken(database: string, token: string) {
+    if (!this.authTokens) this.authTokens = {};
+    this.authTokens[database] = token;
+    this.saveAuthTokens();
+    this.credentialsChanged.next();
+  }
+  
   getAuthToken(database: string): string | null {
+    if (Object.keys(this.authTokens).length === 0) {
+      this.loadAuthTokens();
+    }
     return this.authTokens[database] || null;
   }
+  
   getAllAuthTokens(): { [database: string]: string } {
+    if (Object.keys(this.authTokens).length === 0) {
+      this.loadAuthTokens();
+    }
     return { ...this.authTokens };
   }
+  
   clearAuthTokens() {
     this.authTokens = {};
+    sessionStorage.removeItem('visulate-auth-tokens');
+    this.credentialsChanged.next();
   }
+  
   clearAuthToken(database: string) {
     delete this.authTokens[database];
+    this.saveAuthTokens();
+    this.credentialsChanged.next();
   }
 
   notifyCredentialsChanged() {
