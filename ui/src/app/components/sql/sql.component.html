@@ -89,7 +89,7 @@
             {{ '{' }} "sql": "{{curlSql | trim}}"@if (bindVariables) {
             ,
             "binds":  {{bindVariables}}
-            }@if (queryOptions) {
+            }@if (queryOptions && !isPostgres) {
             ,
             "options": {{queryOptions}}
           }

@@ -21,7 +21,7 @@ import { RestService } from '../../services/rest.service';
 import { MatDialog } from '@angular/material/dialog';
 import { CredentialDialogComponent } from '../../components/credential-dialog/credential-dialog.component';
 import { environment } from '../../../environments/environment';
-import { Subject } from 'rxjs';
+import { Subject, combineLatest } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SqlModel } from '../../models/sql.model';
 
@@ -47,6 +47,7 @@ export class SqlComponent implements OnInit, OnDestroy {
   public resultSet: SqlModel;
   public errorMessage: string;
   public dbUser: string;
+  public isPostgres = false;
 
 
   constructor(
@@ -59,6 +60,7 @@ export class SqlComponent implements OnInit, OnDestroy {
    * Update query form to reflect the current context
    * @param subjectContext - currentContext$ observable
    */
+  public endpointList: any;
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     const context = subjectContext.currentContext;
     this.currentContext = context;
@@ -68,7 +70,16 @@ export class SqlComponent implements OnInit, OnDestroy {
       (this.currentContext.objectType === 'TABLE' ||
         this.currentContext.objectType === 'VIEW' ||
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
-      this.setSql(`select * from ${this.currentContext.objectName} where rownum < :maxrows`);
+      
+      const endpoint = this.endpointList?.databases?.find(d => d.endpoint === this.currentContext.endpoint);
+      this.isPostgres = endpoint?.dbType === 'postgres';
+      
+      if (this.isPostgres) {
+        this.setSql(`select * from ${this.currentContext.objectName} limit %(maxrows)s`);
+      } else {
+        this.setSql(`select * from ${this.currentContext.objectName} where rownum <= :maxrows`);
+      }
+      
       this.bindVariables = '{"maxrows": 10 }';
       this.queryOptions = '{"download_lobs": "N", "csv_header": "N"}';
       this.resultSet = new SqlModel();
@@ -151,9 +162,14 @@ export class SqlComponent implements OnInit, OnDestroy {
     this.currentContext = this.state.getCurrentContext();
     this.queryUrl = `${this.queryBase}/${this.currentContext.endpoint}`;
 
-    this.state.currentContext$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(context => { this.processContextChange(context); });
+    combineLatest([
+      this.state.endpoints$,
+      this.state.currentContext$
+    ]).pipe(takeUntil(this.unsubscribe$))
+      .subscribe(([endpoints, context]) => {
+        this.endpointList = endpoints;
+        this.processContextChange(context);
+      });
 
     this.state.credentialsChanged$
       .pipe(takeUntil(this.unsubscribe$))

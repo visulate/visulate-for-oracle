@@ -6,7 +6,7 @@ from google.adk.tools.function_tool import FunctionTool
 # Import from local modules
 from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
-from common.context import session_id_var, browser_session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var
+from common.context import session_id_var, browser_session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var, cancelled_sessions
 import asyncio
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +14,7 @@ from google.adk.tools.mcp_tool import McpToolset
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_INSTRUCTION = """You are the Oracle Comment Generator Agent.
+SYSTEM_INSTRUCTION = """You are the Visulate Comment Generator Agent.
 Your purpose is to generate meaningful comments for Oracle database objects (tables and views) that are missing them.
 
 ## Operational Rules
@@ -82,8 +82,23 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             # 2. Setup Client using provided toolsets
             client = MCPClient(api_server_tools, query_engine_tools, session_id=session_id)
 
-            # 3. Run Generator
-            generator = CommentGenerator(client, database, schema, credential_token=auth_token, session_id=session_id)
+            # 3. Resolve username for authentication
+            # In Postgres, the schema (e.g. public) often differs from the user (e.g. visulate)
+            ui_ctx = ui_context_var.get() or {}
+            db_creds = db_credentials_var.get() or {}
+            
+            # Try to find username in db credentials first
+            username = None
+            if isinstance(db_creds, dict):
+                # Check for database-specific credentials
+                if database in db_creds and isinstance(db_creds[database], dict):
+                    username = db_creds[database].get("username")
+                # Fallback to top-level username
+                if not username:
+                    username = db_creds.get("username")
+            
+            # 4. Run Generator
+            generator = CommentGenerator(client, database, schema, credential_token=auth_token, session_id=session_id, username=username)
             stmt_count = await generator.run(wildcard, str(output_file), offset=offset)
 
             if stmt_count == -1:
@@ -121,8 +136,7 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             final_msg = f"[Download SQL]({download_link})\n\nSUCCESS: Generated {stmt_count} comments."
             if offset > 0:
                  final_msg = f"[Download SQL]({download_link})\n\nResumed and generated {stmt_count} more comments."
-
-            from common.context import progress_callback_var
+            
             callback = progress_callback_var.get()
             if callback:
                  callback(f"▌SUCCESS: {final_msg}")
@@ -130,6 +144,15 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             return final_msg
 
         except Exception as e:
+            # Handle graceful stop/timeout
+            if str(e) == "Task stopped" or timeout_signal_var.get():
+                processed_total = offset + (generator.generated_count if 'generator' in locals() else 0)
+                return (f"[Download SQL]({download_link})\n\n"
+                        f"▌TIMEOUT: I've reached the processing time limit for this turn. "
+                        f"I've saved the comments generated so far to the SQL script.\n\n"
+                        f"### RESUME_OFFSET: {processed_total}\n\n"
+                        f"Please apply the current script and then ask me to 'continue' to process the remaining objects.")
+            
             logger.error(f"Error in generate_comments: {e}")
             return f"Error occurred: {str(e)}"
 
@@ -184,6 +207,8 @@ if __name__ == "__main__":
             context_data = data.get("context", {})
             auth_token = context_data.get("authToken")
             db_credentials = context_data.get("dbCredentials")
+            request_session_id = data.get("session_id")
+            browser_session_id = data.get("browser_session_id")
 
             if context_data and isinstance(context_data, dict):
                 preamble = "Current UI Context:\n"
@@ -199,19 +224,22 @@ if __name__ == "__main__":
                 full_message = message
 
             content = types.Content(role="user", parts=[types.Part(text=full_message)])
-            session_id = str(uuid.uuid4())
+            session_id = request_session_id or str(uuid.uuid4())
 
             async def stream_generator():
                 queue = asyncio.Queue()
                 
                 # Initialize tokens to None to avoid UnboundLocalError in finally block
                 session_token = None
+                browser_session_token = None
                 auth_token_token = None
                 db_credentials_token = None
                 ui_context_token = None
                 progress_callback_token = None
 
                 session_token = session_id_var.set(session_id)
+                if browser_session_id:
+                    browser_session_token = browser_session_id_var.set(browser_session_id)
                 if auth_token:
                     auth_token_token = auth_token_var.set(auth_token)
 
@@ -261,7 +289,6 @@ if __name__ == "__main__":
                     while True:
                         if await request.is_disconnected():
                             logger.info(f"Client disconnected for session {session_id}. Cancelling agent task.")
-                            from common.context import cancelled_var, cancelled_sessions
                             cancelled_sessions.add(session_id)
                             cancelled_var.set(True) # Signal cancellation to tools
                             agent_task.cancel()
@@ -288,11 +315,12 @@ if __name__ == "__main__":
                 finally:
                     if not agent_task.done():
                         agent_task.cancel()
-                    from common.context import cancelled_var
                     cancelled_var.set(True) # Signal cancellation to tools
                     # Safely reset context variables
                     if session_token:
                         session_id_var.reset(session_token)
+                    if browser_session_token:
+                        browser_session_id_var.reset(browser_session_token)
                     if auth_token_token:
                         auth_token_var.reset(auth_token_token)
                     if db_credentials_token:

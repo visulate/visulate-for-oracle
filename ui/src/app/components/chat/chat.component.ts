@@ -100,6 +100,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
         }
         this.cdr.detectChanges();
       });
+
+    this.stateService.credentialsChanged$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(() => {
+        this.cdr.detectChanges();
+      });
   }
 
   ngAfterViewInit() {
@@ -376,14 +382,31 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
 
   getCredentialState(): 'none' | 'partial' | 'matched' {
     const tokens = this.stateService.getAllAuthTokens();
-    if (!tokens || Object.keys(tokens).length === 0) {
-      return 'none';
+    const saved = sessionStorage.getItem('visulate-credentials');
+    let credentials: any = {};
+    if (saved) {
+      try { credentials = JSON.parse(saved); } catch (e) {}
     }
+
     const currentEndpoint = this.currentContext?.endpoint;
-    if (currentEndpoint && tokens[currentEndpoint]) {
+    
+    // Check for matched (active token OR saved credentials for current endpoint)
+    const hasToken = currentEndpoint && tokens[currentEndpoint];
+    const hasSaved = currentEndpoint && credentials[currentEndpoint];
+    
+    if (hasToken || hasSaved) {
       return 'matched';
     }
-    return 'partial';
+    
+    // Check for partial (tokens or saved credentials for OTHER endpoints)
+    const hasOtherTokens = Object.keys(tokens).length > 0;
+    const hasOtherSaved = Object.keys(credentials).length > 0;
+    
+    if (hasOtherTokens || hasOtherSaved) {
+      return 'partial';
+    }
+    
+    return 'none';
   }
 
   getCredentialColor(): string | null {

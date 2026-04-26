@@ -21,7 +21,8 @@ async def get_valid_token(database: str, schema: str) -> Optional[str]:
     cred_manager = CredentialManager()
     
     # 1. Fetch password using prioritized sources (UI Context -> Secret Manager -> Env)
-    password, source = cred_manager.get_password(database, schema)
+    # We pass the schema as a fallback, but get_password will now be smarter.
+    password, source, username = cred_manager.get_password(database, schema)
     if not password:
         logger.warning(f"Handshake failed: No password found for {database}.{schema} in any source.")
         return None
@@ -31,13 +32,14 @@ async def get_valid_token(database: str, schema: str) -> Optional[str]:
     session_id = browser_session_id_var.get() or session_id_var.get() or "default"
     
     # 3. Create token via Query Engine
-    result = create_token_request(query_engine_url, database, schema, password, session_id)
+    # Use the username found by the credential manager for the token request
+    result = create_token_request(query_engine_url, database, username, password, session_id)
     token = parse_token_from_response(result)
     
     if token:
-        logger.info(f"Handshake successful: Created new token for {database}.{schema} using {source}.")
+        logger.info(f"Handshake successful: Created new token for {database} (user: {username}) using {source}.")
     else:
-        logger.error(f"Handshake failed: Query Engine rejected credential token request for {database}.{schema}.")
+        logger.error(f"Handshake failed: Query Engine rejected credential token request for {database}.{username}.")
         
     return token
 

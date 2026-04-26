@@ -19,7 +19,7 @@ def report_progress(message: str) -> str:
     logger.info(message)
     return f"Progress reported: {message}"
 
-SYSTEM_INSTRUCTION = """You are the Visulate ERD Generation Agent, a specialist in creating architectural diagrams for Oracle database schemas.
+SYSTEM_INSTRUCTION = """You are the Visulate ERD Generation Agent, a specialist in creating architectural diagrams for Oracle and PostgreSQL database schemas.
 
 ## Your Goal
 Your primary objective is to generate a Draw.io (XML) Entity Relationship Diagram for a given database schema.

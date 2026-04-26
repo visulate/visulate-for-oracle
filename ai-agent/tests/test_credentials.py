@@ -9,9 +9,10 @@ def test_credential_manager_env_fallback():
     """Test that CredentialManager falls back to env variables."""
     manager = CredentialManager()
     with patch.dict(os.environ, {"DB_PASSWORD_PDB21_RNTMGR2": "env_password"}):
-        password, source = manager.get_password("pdb21", "RNTMGR2")
+        password, source, user = manager.get_password("pdb21", "RNTMGR2")
         assert password == "env_password"
         assert source == "server-env-var"
+        assert user == "RNTMGR2"
 
 def test_credential_manager_token_priority():
     """Test that auth_token_var has priority over env variables."""
@@ -26,17 +27,20 @@ def test_credential_manager_token_priority():
     auth_token_var.set(json.dumps(token_creds))
 
     with patch.dict(os.environ, {"DB_PASSWORD_PDB21_RNTMGR2": "env_password"}):
-        password, source = manager.get_password("pdb21", "RNTMGR2")
+        password, source, user = manager.get_password("pdb21", "RNTMGR2")
         assert password == "token_password"
         assert source == "ui-context-legacy"
+        assert user == "RNTMGR2"
 
 def test_credential_manager_case_insensitivity():
     """Test that DB and Schema names are handled correctly regardless of case."""
     manager = CredentialManager()
     with patch.dict(os.environ, {"DB_PASSWORD_PDB21_RNTMGR2": "case_password"}):
         # Mixed case input should work
-        password, source = manager.get_password("Pdb21", "rntmgr2")
+        password, source, user = manager.get_password("Pdb21", "rntmgr2")
         assert password == "case_password"
+        assert source == "server-env-var"
+        assert user == "RNTMGR2"
 
 def test_credential_manager_top_level_token():
     """Test retrieval from top-level JSON in auth_token."""
@@ -47,6 +51,7 @@ def test_credential_manager_top_level_token():
     }
 
     auth_token_var.set(json.dumps(token_creds))
-    password, source = manager.get_password("pdb21", "RNTMGR2")
+    password, source, user = manager.get_password("pdb21", "RNTMGR2")
     assert password == "top_level_password"
     assert source == "ui-context-legacy"
+    assert user == "RNTMGR2"

@@ -5,7 +5,6 @@
 
 table {
   width: 100%;
-  table-layout: fixed; /* Essential for ellipsis in table cells */
 }
 
 .mat-mdc-cell, .mat-mdc-header-cell {
@@ -13,6 +12,19 @@ table {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 8px !important;
+}
+
+/* Allow text wrapping for long-content columns */
+.mat-column-Description,
+.mat-column-Comment,
+.mat-column-Comments,
+.mat-column-Source,
+.mat-column-Definition,
+.mat-column-Statement,
+[class*="mat-column-Search"] {
+  white-space: normal !important;
+  word-wrap: break-word;
+  max-width: 400px;
 }
 
 /* Allow some columns to be narrow if they contain short content */

@@ -16,7 +16,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { Subject, combineLatest } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, filter } from 'rxjs/operators';
 import { ActivatedRoute } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { CurrentContextModel } from 'src/app/models/current-context.model';
@@ -61,9 +61,10 @@ export class MainNavComponent implements OnInit, OnDestroy {
   setContext(): void {
     combineLatest([
       this.route.paramMap,
-      this.route.queryParamMap
+      this.route.queryParamMap,
+      this.state.endpoints$.pipe(filter(e => e.databases.length > 0 || !!e.errorMessage))
     ]).pipe(takeUntil(this.unsubscribe$))
-      .subscribe(([params, queryParams]) => {
+      .subscribe(([params, queryParams, endpoints]) => {
         const context = this.state.getCurrentContext();
         const priorContext = new CurrentContextModel
           (context.endpoint, context.owner, context.objectType,
@@ -75,11 +76,19 @@ export class MainNavComponent implements OnInit, OnDestroy {
         const object = params.get('object');
         const filter = queryParams.get('filter');
 
+        const endpoint = endpoints.databases.find(d => d.endpoint === db);
+        const dbType = endpoint ? endpoint.dbType : 'oracle';
+        const useUpper = dbType === 'oracle';
+
         context.setEndpoint(db);
-        if (schema != null) { context.setOwner(schema.toUpperCase()); }
-        if (type != null) { context.setObjectType(type.toUpperCase()); }
+        if (schema != null) {
+          context.setOwner(useUpper ? schema.toUpperCase() : schema);
+        }
+        if (type != null) {
+          context.setObjectType(type.toUpperCase());
+        }
         if (object != null) {
-          context.setObjectName(object.toUpperCase());
+          context.setObjectName(useUpper ? object.toUpperCase() : object);
           this.opened = this.mobileQuery.matches ? null : 'opened';
         }
         if (filter != null) { context.setFilter(filter); }
@@ -87,7 +96,9 @@ export class MainNavComponent implements OnInit, OnDestroy {
         // Preserve the current object list if context has not changed
         // (e.g when navigating from one object to the next)
         const changeSummary = this.state.getContextDiff(context, priorContext);
-        if ((!changeSummary.objectTypeDiff) && (!changeSummary.filterDiff)) { context.setObjectList(priorContext.objectList); }
+        if ((!changeSummary.objectTypeDiff) && (!changeSummary.filterDiff)) {
+          context.setObjectList(priorContext.objectList);
+        }
 
         this.state.setCurrentContext(context);
       });

@@ -2,6 +2,8 @@ import csv
 import sys
 import simplejson as json
 import oracledb
+import psycopg2
+import psycopg2.extras
 import sqlparse
 import base64
 import time
@@ -36,7 +38,6 @@ def format_bytes(num):
 
 def get_option(option, default):
     """Return an option from the query options dictionary"""
-    # This function is called *within* the request context
     query = request.json
     options = query.get('options')
     if options is not None:
@@ -45,9 +46,7 @@ def get_option(option, default):
         return default
 
 def dump_oracle_object_to_dict(obj):
-    """
-    Recursively converts an oracledb.Object (or collection) into a dictionary or list.
-    """
+    """Recursively converts an oracledb.Object into a dictionary or list."""
     if not isinstance(obj, oracledb.Object):
         return obj
 
@@ -67,11 +66,8 @@ def dump_oracle_object_to_dict(obj):
                 result[attr.name] = f"Error: Attribute '{attr.name}' not found/accessible"
         return result
 
-def convert_db_value(value, download_lobs_flag): # Now accepts download_lobs_flag
-    """
-    Converts a single database value to a Python-friendly format suitable for JSON/CSV.
-    Handles LOBs, bytes, datetimes, and oracledb.Objects.
-    """
+def convert_db_value(value, download_lobs_flag):
+    """Converts a database value to a Python-friendly format."""
     if isinstance(value, oracledb.LOB):
         if download_lobs_flag.upper() == 'Y':
             try:
@@ -94,70 +90,75 @@ def convert_db_value(value, download_lobs_flag): # Now accepts download_lobs_fla
         return value
 
 def output_type_handler(cursor, name, default_type, size, precision, scale):
-    """
-    Modify the fetched data types for LOB and OBJECT columns.
-    For LOBs, we set long types to enable direct reading.
-    For OBJECTs, we just let oracledb return the Object directly; conversion
-    happens later in pipe_results_as_json/pipe_results.
-    """
-    if default_type == oracledb.CLOB:
-        return cursor.var(oracledb.DB_TYPE_LONG, arraysize=cursor.arraysize)
-    if default_type == oracledb.BLOB:
+    """Modify the fetched data types for LOB and OBJECT columns (Oracle only)."""
+    if default_type == oracledb.DB_TYPE_CLOB:
+        return cursor.var(oracledb.DB_TYPE_LONG_STR, arraysize=cursor.arraysize)
+    if default_type == oracledb.DB_TYPE_BLOB:
         return cursor.var(oracledb.DB_TYPE_LONG_RAW, arraysize=cursor.arraysize)
-
-    object_typename = get_option("oracle_object_type", None)
-    if default_type == oracledb.OBJECT and object_typename is not None:
-        return cursor.var(default_type, arraysize=cursor.arraysize, typename=object_typename)
-
-    if default_type == oracledb.DB_TYPE_VARCHAR:
-        return cursor.var(default_type, size, arraysize=cursor.arraysize, encodingErrors="replace")
-
     return None
 
-def pipe_results(connection, cursor, csv_header, download_lobs): # Added download_lobs
-    """Loop through a SQL statement's result set and return as CSV"""
+def pipe_results_as_csv(connection, cursor, start_time, download_lobs):
+    """Loop through a SQL statement's result set and return as a CSV stream"""
     if cursor is None:
         connection.close()
-        yield "Statement processed"
-        return
+        return Response('Statement processed', mimetype='text/csv')
 
-    line = Line()
-    writer = csv.writer(line, delimiter=',', lineterminator="\n", quoting=csv.QUOTE_NONNUMERIC)
+    csv_header = get_option('csv_header', 'n').lower()
 
-    try:
-        if csv_header.upper() == "Y":
+    def generate(download_lobs_arg):
+        line = Line()
+        writer = csv.writer(line, lineterminator='\n', quoting=csv.QUOTE_NONNUMERIC)
+        
+        is_postgres = hasattr(connection, 'cursor_factory')
+        if is_postgres:
+            columns = [desc[0] for desc in cursor.description]
+        else:
             columns = [col[0] for col in cursor.description]
+
+        if csv_header == 'y':
             writer.writerow(columns)
             yield line.read()
 
-        for row in cursor:
-            # Pass download_lobs directly to convert_db_value
-            processed_row = [convert_db_value(value, download_lobs) for value in row]
-            final_csv_row = []
-            for item in processed_row:
-                if isinstance(item, (dict, list)):
-                    final_csv_row.append(json.dumps(item, default=str))
+        try:
+            for row in cursor:
+                # If row is a dict (Postgres with RealDictCursor), convert to list
+                if isinstance(row, dict):
+                    row_values = [convert_db_value(row[col], download_lobs_arg) for col in columns]
                 else:
-                    final_csv_row.append(item)
-            writer.writerow(final_csv_row)
-            yield line.read()
+                    row_values = [convert_db_value(val, download_lobs_arg) for val in row]
+                
+                writer.writerow(row_values)
+                yield line.read()
+            
+            connection.close()
+        except Exception as e:
+            current_app.logger.error(f"Error during CSV streaming: {str(e)}")
+            yield f"ERROR: {str(e)}"
+        finally:
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                connection.close()
+            except:
+                pass
 
-        cursor.close()
-        connection.close()
-    except oracledb.DatabaseError as e:
-        errorObj, = e.args
-        fail_request(400, description=errorObj.message)
-    except Exception as e:
-        fail_request(500, description=f"Error processing CSV results: {str(e)}")
+    return Response(generate(download_lobs), mimetype='text/csv')
 
-def pipe_results_as_json(connection, cursor, start_time, download_lobs): # Added download_lobs
+def pipe_results_as_json(connection, cursor, start_time, download_lobs):
     """Loop through a SQL statement's result set and return as a JSON object"""
     if cursor is None:
         connection.close()
         return Response('{"message": "Statement processed"}', mimetype='application/json')
 
-    def generate(download_lobs_arg): # Generator now accepts download_lobs as an argument
-        columns = [col[0] for col in cursor.description]
+    is_postgres = hasattr(connection, 'cursor_factory')
+
+    def generate(download_lobs_arg):
+        if is_postgres:
+            columns = [desc[0] for desc in cursor.description]
+        else:
+            columns = [col[0] for col in cursor.description]
 
         yield('{\n')
         yield(f'"columns":{json.dumps(columns)}, \n')
@@ -171,140 +172,253 @@ def pipe_results_as_json(connection, cursor, start_time, download_lobs): # Added
                     yield (',\n')
 
                 row_dict = {}
-                for i, col_value in enumerate(row):
-                    col_name = columns[i]
-                    # Use the argument passed to the generator
-                    row_dict[col_name] = convert_db_value(col_value, download_lobs_arg)
+                if is_postgres:
+                    # row is already a dict-like object if using RealDictCursor
+                    for k, v in row.items():
+                        row_dict[k] = convert_db_value(v, download_lobs_arg)
+                else:
+                    for i, col_value in enumerate(row):
+                        col_name = columns[i]
+                        row_dict[col_name] = convert_db_value(col_value, download_lobs_arg)
 
                 yield(json.dumps(row_dict, default=str))
 
-            cursor.close()
-            connection.close()
             yield('\n],')
             yield(f'"executionTime":{json.dumps(time.time() - start_time)} \n')
             yield('}')
-        except oracledb.DatabaseError as e:
-            errorObj, = e.args
-            current_app.logger.error(f"Database Error during JSON streaming: {errorObj.message}")
-            yield(f'{{"error": "Database Error: {errorObj.message}"}}')
         except Exception as e:
             current_app.logger.error(f"Error during JSON streaming: {str(e)}")
             yield(f'{{"error": "Internal Server Error: {str(e)}"}}')
+        finally:
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                connection.close()
+            except:
+                pass
 
-    # Pass download_lobs to the generator when creating the Response
     return Response(generate(download_lobs), mimetype='application/json')
 
 def get_connection(username, password, params):
-    """Get an Oracle database connection"""
+    """Get a database connection (Oracle or Postgres)"""
+    db_type = params.get("dbType", "oracle")
     try:
-        # Check for wallet parameters and initialize the client if needed
-        wallet_location = params.get("wallet_location")
-        if wallet_location:
-            connection = oracledb.connect(user=username, password=password,
-                                             dsn=params.get("dsn"),
-                                             config_dir=wallet_location,
-                                             wallet_location=wallet_location,
-                                             wallet_password=params.get("wallet_password"))
+        if db_type == "postgres":
+            dsn = params.get("dsn")
+            if '/' in dsn and ':' in dsn and ' ' not in dsn and '=' not in dsn:
+                host_port, dbname = dsn.split('/')
+                host, port = host_port.split(':')
+                connection = psycopg2.connect(
+                    user=username,
+                    password=password,
+                    host=host,
+                    port=port,
+                    database=dbname,
+                    cursor_factory=psycopg2.extras.RealDictCursor
+                )
+            else:
+                connection = psycopg2.connect(dsn, user=username, password=password, cursor_factory=psycopg2.extras.RealDictCursor)
+            return connection
         else:
-            connection = oracledb.connect(user=username, password=password, dsn=params.get("dsn"))
-
-        connection.outputtypehandler = output_type_handler
-    except oracledb.DatabaseError as e:
-        errorObj, = e.args
-        fail_request(401, description=errorObj.message)
-    else:
-        return connection
+            wallet_location = params.get("wallet_location")
+            if wallet_location:
+                connection = oracledb.connect(user=username, password=password,
+                                                 dsn=params.get("dsn"),
+                                                 config_dir=wallet_location,
+                                                 wallet_location=wallet_location,
+                                                 wallet_password=params.get("wallet_password"))
+            else:
+                connection = oracledb.connect(user=username, password=password, dsn=params.get("dsn"))
+            connection.outputtypehandler = output_type_handler
+            return connection
+    except Exception as e:
+        fail_request(401, description=str(e))
 
 def get_cursor(connection, sql, binds):
     """Create a cursor and execute a SQL statement"""
+    is_postgres = hasattr(connection, 'cursor_factory')
     try:
         cursor = connection.cursor()
-        cursor.execute("set transaction read only")
+        if not is_postgres:
+            cursor.execute("set transaction read only")
+            
         if binds is None or not binds:
-            return cursor.execute(sql)
+            cursor.execute(sql)
         else:
-            return cursor.execute(sql, binds)
-    except oracledb.DatabaseError as e:
-        errorObj, = e.args
-        fail_request(400, description=errorObj.message)
+            if is_postgres:
+                # Convert Oracle-style binds to Postgres
+                import re
+                if isinstance(binds, dict):
+                    # Convert :name to %(name)s
+                    pg_sql = re.sub(r':(\w+)', r'%(\1)s', sql)
+                    cursor.execute(pg_sql, binds)
+                else:
+                    # Convert :1, :2 or :any to %s for positional binds
+                    pg_sql = re.sub(r':\w+', '%s', sql)
+                    cursor.execute(pg_sql, binds)
+            else:
+                cursor.execute(sql, binds)
+        return cursor
+    except Exception as e:
+        fail_request(400, description=str(e))
+
+@bp.route('/healthz')
+@bp.route('/')
+def healthz():
+    return "healthy"
+
+@bp.route('/sql/<endpoint>', methods=['GET'])
+def get_endpoint(endpoint):
+    params = current_app.endpoints.get(endpoint)
+    if params is None:
+        return ""
+    if isinstance(params, str):
+        return params
+    return params.get('dsn', '')
+
+@bp.route('/sql', methods=['POST'])
+@bp.route('/sql/<endpoint>', methods=['POST'])
+def run_sql(endpoint=None):
+    """Main entry point for running SQL and streaming results"""
+    start_time = time.time()
+    if not request.json or 'sql' not in request.json:
+        fail_request(400, description="Missing 'sql' in request body")
+    
+    sql = request.json.get('sql')
+    if endpoint is None:
+        endpoint = request.json.get('endpoint')
+    
+    # Get credentials from X-DB-Credentials header or similar
+    auth = request.headers.get('X-DB-Credentials')
+    if auth:
+        try:
+            decoded_auth = base64.b64decode(auth).decode('utf-8')
+            if ':' in decoded_auth:
+                username, password = decoded_auth.split(':', 1)
+            elif '/' in decoded_auth:
+                parts = decoded_auth.split('/', 1)
+                username = parts[0]
+                if '@' in parts[1]:
+                    password, _ = parts[1].split('@', 1)
+                else:
+                    password = parts[1]
+            else:
+                username = decoded_auth
+                password = ""
+        except Exception as e:
+            fail_request(401, description=f"Invalid X-DB-Credentials header: {str(e)}")
+    else:
+        # Fallback to basic auth
+        if request.authorization:
+            username = request.authorization.username
+            password = request.authorization.password
+        else:
+            fail_request(401, description="Missing database credentials")
+
+    params = get_connection_params(endpoint)
+    options = validate_options(request.json.get('options'))
+    
+    # Validate SQL - only SELECT allowed
+    parsed = sqlparse.parse(sql)
+    if not parsed:
+        fail_request(400, description="Invalid SQL statement")
+    
+    main_stmt = parsed[0]
+    stmt_type = main_stmt.get_type()
+    
+    if stmt_type != 'SELECT':
+        # Check if it's a WITH statement that is actually a SELECT
+        is_with_select = False
+        if stmt_type == 'UNKNOWN':
+            sql_upper = sql.strip().upper()
+            if sql_upper.startswith('WITH'):
+                # Crude check: does it contain SELECT?
+                # A more robust way is needed but for now let's be strict
+                # Actually sqlparse should identify WITH ... SELECT as SELECT in some versions
+                # but if it's UNKNOWN we need to be careful.
+                if 'SELECT' in sql_upper:
+                    # Final check: does it contain DELETE, INSERT, UPDATE?
+                    if not any(x in sql_upper for x in ['DELETE', 'INSERT', 'UPDATE', 'DROP', 'ALTER']):
+                        is_with_select = True
+        
+        if not is_with_select:
+            fail_request(403, description="SQL statement is not of type SELECT")
+
+    # Validate binds
+    binds = request.json.get('binds')
+    if binds:
+        if isinstance(binds, list):
+            for item in binds:
+                if isinstance(item, dict):
+                    fail_request(400, description="Bind variables must be a simple array")
+        elif not isinstance(binds, dict):
+            fail_request(400, description="Bind variables must be a simple array or object")
+
+    download_lobs = get_option('download_lobs', 'N')
+    
+    # Determine output format
+    output_format = get_option('format', None)
+    if not output_format:
+        if request.headers.get('Accept') == 'application/json':
+            output_format = 'json'
+        else:
+            output_format = 'csv'
+
+    connection = get_connection(username, password, params)
+    cursor = get_cursor(connection, sql, binds)
+
+    if output_format == 'csv':
+        return pipe_results_as_csv(connection, cursor, start_time, download_lobs)
+    else:
+        return pipe_results_as_json(connection, cursor, start_time, download_lobs)
 
 def execute_sql_internal(endpoint, sql_query, username, password):
-    """
-    Internal function to execute SQL queries for MCP endpoints.
-    Returns the result as a Python object (list of dicts).
-    """
+    """Internal function to execute SQL queries for MCP endpoints."""
     try:
-        # Get connection parameters
         conn_params = get_connection_params(endpoint)
-
-        # Validate SQL is SELECT only
-        # Clean the SQL query (remove extra whitespace, ensure proper formatting)
         sql_query_clean = sql_query.strip()
-        if not sql_query_clean.endswith(';'):
-            # Add semicolon if missing, but remove it for Oracle execution
-            sql_query_for_parsing = sql_query_clean
-            sql_query_for_execution = sql_query_clean
-        else:
-            sql_query_for_parsing = sql_query_clean
-            sql_query_for_execution = sql_query_clean.rstrip(';')
+        sql_query_for_execution = sql_query_clean.rstrip(';')
 
-        statements = list(sqlparse.parse(sql_query_for_parsing))
-        current_app.logger.info(f"Parsed {len(statements)} SQL statements")
-
-        for i, statement in enumerate(statements):
-            statement_type = statement.get_type()
-            current_app.logger.info(f"Statement {i+1} type: {statement_type}")
-            if statement_type != 'SELECT':
-                raise ValueError(f'SQL statement {i+1} is not of type SELECT (got: {statement_type})')
-
-        # Establish connection
         connection = get_connection(username, password, conn_params)
+        is_postgres = hasattr(connection, 'cursor_factory')
+        
         cursor = get_cursor(connection, sql_query_for_execution, None)
 
-        # Fetch all results
-        columns = [desc[0] for desc in cursor.description]
-        rows = cursor.fetchall()
+        if is_postgres:
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                processed_row = {k: convert_db_value(v, 'Y') for k, v in row.items()}
+                result.append(processed_row)
+        else:
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                row_dict = {}
+                for i, value in enumerate(row):
+                    row_dict[columns[i]] = convert_db_value(value, 'Y')
+                result.append(row_dict)
 
-        # Convert to list of dictionaries
-        result = []
-        for row in rows:
-            row_dict = {}
-            for i, value in enumerate(row):
-                column_name = columns[i]
-                # Use convert_db_value to handle LOBs, Objects, Dates, etc.
-                # Default download_lobs to 'Y' for MCP/Agent usage so we get the content
-                row_dict[column_name] = convert_db_value(value, 'Y')
-            result.append(row_dict)
-
-        # Clean up
         cursor.close()
         connection.close()
-
         return result
-
     except Exception as e:
-        current_app.logger.error(
-            f"Error executing SQL internally for endpoint '{endpoint}', user '{username}': {e}"
-        )
-        current_app.logger.error(f"SQL query length: {len(sql_query)} characters")
-        current_app.logger.error(f"SQL query (first 500 chars): {sql_query[:500]}")
-        if hasattr(e, 'args') and len(e.args) > 0:
-            current_app.logger.error(f"Error details: {e.args}")
+        current_app.logger.error(f"Error executing SQL internally for endpoint '{endpoint}': {e}")
         raise
-
 
 def get_connection_params(endpoint):
     """Get the connection parameters for a registered endpoint"""
     params = current_app.endpoints.get(endpoint)
     if params is None:
         fail_request(404, description=f"Endpoint '{endpoint}' not found")
-    # If params is just a string, convert it to the dict structure for backward compatibility
     if isinstance(params, str):
-        return {"dsn": params}
+        return {"dsn": params, "dbType": "oracle"}
     return params
 
 def validate_binds(binds):
-    """Verify bind varables are a list or dict of database chars or numbers"""
     if isinstance(binds, list) and all(isinstance(item, (str, int, float)) for item in binds):
         return binds
     elif isinstance(binds, dict) and all(isinstance(item, (str, int, float)) for item in binds.values()):
@@ -312,95 +426,12 @@ def validate_binds(binds):
     elif binds is None:
         return []
     else:
-        fail_request(400, description=\
-            "Bind variables must be a simple array e.g. [280, \"Accounts\"]\
-                     or object { \"dept_id\": 280, \"dept_name\": \"Accounts\"}")
+        fail_request(400, description="Invalid bind variables")
 
 def validate_options(options):
     if isinstance(options, dict):
-        pass
+        return options
     elif options is None:
-        pass
+        return {}
     else:
-        fail_request(400, description="Invalid query options")
-
-def decode_credentials(encoded_str):
-    # Decode the Base64 string
-    decoded_bytes = base64.b64decode(encoded_str)
-    decoded_str = decoded_bytes.decode('utf-8')
-
-    # Split the string into components
-    user_password, endpoint = decoded_str.split('@')
-    user, password = user_password.split('/')
-    return user, password, endpoint
-
-
-@bp.route('/', methods=['GET'])
-@bp.route('/healthz', methods=['GET'])
-def healthz():
-    response = make_response('healthy', 200)
-    response.mimetype="text/plain"
-    return response
-
-@bp.route('/sql/<endpoint>', methods=['POST', 'GET'])
-def sql2csv(endpoint):
-    """Generate a CSV file or JSON object from a SQL statement"""
-
-    if request.method == 'POST':
-        query = request.json
-        conn_params = get_connection_params(endpoint)
-        httpHeaders = request.headers
-        dbCredentials = httpHeaders.get('X-DB-Credentials')
-        if dbCredentials is not None:
-            user, passwd, db = decode_credentials(dbCredentials)
-        else:
-            fail_request(401, description='Missing X-DB-Credentials header')
-
-        if db != endpoint:
-            fail_request(403, description='Invalid endpoint credentials')
-
-        sql = query.get('sql')
-        current_app.logger.info(f"POST {user} @ {endpoint}: {sql}")
-        statements = list(sqlparse.parse(sql))
-
-        for statement in statements:
-            if statement.get_type() != 'SELECT':
-                fail_request(403, description='SQL statement is not of type SELECT')
-
-        binds = query.get('binds')
-        vbinds = validate_binds(binds)
-
-        options = query.get('options')
-        validate_options(options)
-
-        start_time = time.time()
-        connection = get_connection(user, passwd, conn_params)
-        cursor = get_cursor(connection, sql, vbinds)
-
-        # Retrieve download_lobs here, within the request context
-        download_lobs = get_option("download_lobs", "N")
-        csv_header = get_option("csv_header", "N") # Also for CSV
-
-        if httpHeaders.get('accept') == 'application/json':
-            # Pass download_lobs to the streaming function
-            response = pipe_results_as_json(connection, cursor, start_time, download_lobs)
-        else:
-            # Pass download_lobs to the streaming function
-            response = Response(pipe_results(connection, cursor, csv_header, download_lobs),
-                                mimetype='text/csv')
-
-        return response
-
-    # return connect string or empty string for GET request
-    conn_params = current_app.endpoints.get(endpoint)
-    dsn = ""
-    if conn_params is None:
-        dsn = ""
-    elif isinstance(conn_params, dict):
-        dsn = conn_params.get("dsn", "")
-    elif isinstance(conn_params, str): # Keep backward compatibility
-        dsn = conn_params
-
-    response = make_response(dsn, 200)
-    response.mimetype="text/plain"
-    return response
+        fail_request(400, description="Options must be a JSON object")

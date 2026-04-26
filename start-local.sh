@@ -49,8 +49,17 @@ mkdir -p "$TNS_ADMIN"
 mkdir -p downloads/metadata
 
 # Trap to kill all background processes on exit
-# Using kill 0 sends the signal to the entire process group
-trap 'kill 0 2>/dev/null' EXIT
+cleanup() {
+    echo "Stopping all services..."
+    # Kill background processes by PID if they exist
+    [ -n "$API_PID" ] && kill $API_PID 2>/dev/null
+    [ -n "$QUERY_PID" ] && kill $QUERY_PID 2>/dev/null
+    [ -n "$AGENTS_PID" ] && kill $AGENTS_PID 2>/dev/null
+    
+    # Send SIGTERM to the entire process group as a fallback
+    kill 0 2>/dev/null
+}
+trap cleanup EXIT
 
 # Clear credential cache from shared memory on startup
 if [ -d "/dev/shm/mcp_credentials" ]; then

@@ -17,8 +17,18 @@
 const dbConfig = require('../config/database.js');
 const httpConfig = require('../config/http-server.js');
 const dbService = require('./database.js');
-const sql = require('./sql-statements');
+const sqlRegistry = require('./sql-statements');
 const logger = require('./logger.js');
+
+/**
+ * Gets the SQL dialect for a given poolAlias
+ */
+function getSql(poolAlias) {
+  const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
+  const dbType = (endpoint && endpoint.connect.dbType) || 'oracle';
+  return sqlRegistry[dbType];
+}
+
 const util = require('./util');
 const endpointList = getEndpointList(dbConfig.endpoints);
 const dbConstants = require('../config/db-constants');
@@ -60,6 +70,7 @@ const groupBy = key => array =>
 function formatEndpoint(endpoint, objectCountRows, version) {
   let epObj = {};
   epObj['endpoint'] = endpoint.namespace;
+  epObj['dbType'] = endpoint.connect.dbType || 'oracle';
   epObj['description'] = endpoint.description;
   epObj['connectString'] = endpoint.connect.connectString;
   epObj['version'] = version;
@@ -72,17 +83,22 @@ async function endpoints(filter) {
   const rows = [];
   await async.each(dbConfig.endpoints, async function (ep) {
     try {
+      const sql = getSql(ep.connect.poolAlias);
       // Get the database version
       let versionQuery = sql.statement['DB-VERSION'];
       const versionResult = await dbService.simpleExecute(ep.connect.poolAlias, versionQuery.sql, versionQuery.params);
-      const versionBanner = versionResult[0].Version;
+      const row = versionResult[0];
+      const versionBanner = row.Version || row.VERSION || '';
       const is11g = versionBanner.includes('Release 11.');
 
       let query = is11g ? sql.statement['COUNT_DBA_OBJECTS_11G'] : sql.statement['COUNT_DBA_OBJECTS'];
 
       if (filter && filter !== '*') {
-        query = is11g ? sql.statement['COUNT_DBA_OBJECTS_FILTER_11G'] : sql.statement['COUNT_DBA_OBJECTS_FILTER'];
-        query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+        const dbType = (ep.connect && ep.connect.dbType) || 'oracle';
+        const rawQuery = is11g ? sql.statement['COUNT_DBA_OBJECTS_FILTER_11G'] : sql.statement['COUNT_DBA_OBJECTS_FILTER'];
+        query = JSON.parse(JSON.stringify(rawQuery));
+        const searchPattern = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+        query.params.object_name.val = (dbType === 'oracle') ? searchPattern : searchPattern.toLowerCase();
       }
 
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
@@ -178,11 +194,13 @@ async function getEndpointConnections(req, res, next) {
 module.exports.getEndpointConnections = getEndpointConnections;
 
 async function executeSearch(searchCondition) {
-  let query = sql.statement['FIND-DBA-OBJECTS']
-  query.params.object_name = searchCondition.toUpperCase();
   let rows = [];
   for (const ep of dbConfig.endpoints) {
     try {
+      const sql = getSql(ep.connect.poolAlias);
+      const query = JSON.parse(JSON.stringify(sql.statement['FIND-DBA-OBJECTS']));
+      const dbType = (ep.connect && ep.connect.dbType) || 'oracle';
+      query.params.object_name.val = (dbType === 'oracle') ? searchCondition.toUpperCase() : searchCondition.toLowerCase();
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
       if (result) {
         rows.push({ database: ep.namespace, objects: result });
@@ -228,6 +246,7 @@ async function getDbDetails(req, res, next) {
     return;
   }
 
+  const sql = getSql(poolAlias);
   let queryCollection = sql.collection['DATABASE'];
   let result = [];
   let connection;
@@ -269,6 +288,7 @@ async function getSchemaDetails(req, res, next) {
   }
   let connection;
   try {
+    const sql = getSql(poolAlias);
     let queryCollection = sql.collection['SCHEMA'];
     let result = [];
     connection = await dbService.getConnection(poolAlias);
@@ -280,10 +300,14 @@ async function getSchemaDetails(req, res, next) {
 
     // Queries that support object_name filters
     const filter = req.query.filter;
+    const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
+    const dbType = (endpoint && endpoint.connect.dbType) || 'oracle';
     queryCollection = sql.collection['SCHEMA-FILTERED'];
-    for (let c of queryCollection.ownerNameQueries) {
+    for (let rawQuery of queryCollection.ownerNameQueries) {
+      const c = JSON.parse(JSON.stringify(rawQuery));
       c.params.owner.val = req.params.owner;
-      c.params.object_name.val = (filter) ? filter.toString().toUpperCase().replace('*', '%').replace('_', '\_') : '%';
+      const searchPattern = (filter) ? filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_') : '%';
+      c.params.object_name.val = (dbType === 'oracle') ? searchPattern : searchPattern.toLowerCase();
       const cResult = await dbService.query(connection, c.sql, c.params);
       result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
     }
@@ -309,10 +333,16 @@ module.exports.getSchemaDetails = getSchemaDetails;
 ////////////////////////////////////////////////////////////////////////////////
 // List object for a given database, schema, object type and filter conditions
 ////////////////////////////////////////////////////////////////////////////////
-async function getObjectList(connection, owner, type, name, status, query) {
-  // Get the list of object types
-  query = sql.statement[query];
-  const filtered_name = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+async function getObjectList(connection, owner, type, name, status, queryName) {
+  if (!connection || !connection.poolAlias) {
+    throw new Error('Database connection poolAlias is required to determine the SQL dialect');
+  }
+  const sql = getSql(connection.poolAlias);
+  const query = JSON.parse(JSON.stringify(sql.statement[queryName]));
+  const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === connection.poolAlias);
+  const dbType = (endpoint && endpoint.connect.dbType) || 'oracle';
+  const searchPattern = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+  const filtered_name = (dbType === 'oracle') ? searchPattern : searchPattern.toLowerCase();
   const filtered_type = type.toString().replace('*', '%');
   let filtered_status = status.toString().toUpperCase();
   if (filtered_status !== 'VALID' &&
@@ -504,6 +534,7 @@ async function getDependencies(connection, sql, dbService, owner, object_type, o
  * @param {boolean} [include_dependencies=true] - whether to include dependencies
  */
 async function getObjectDetails(poolAlias, owner, object_type, object_name, include_dependencies = true) {
+  const sql = getSql(poolAlias);
   let query = JSON.parse(JSON.stringify(sql.statement['OBJECT-DETAILS']));
   query.params.owner.val = owner;
   query.params.object_type.val = object_type;
@@ -517,7 +548,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name, incl
       return ('404');
     }
     let result = [{ title: query.title, description: query.description, display: query.display, rows: r }];
-    if (r[0]['Status'] === 'INVALID') {
+    if (r[0]['Status'] === 'INVALID' || r[0]['STATUS'] === 'INVALID') {
       query = JSON.parse(JSON.stringify(sql.statement['ERRORS']));
       query.params.owner.val = owner;
       query.params.object_type.val = object_type;
@@ -527,7 +558,7 @@ async function getObjectDetails(poolAlias, owner, object_type, object_name, incl
     }
 
     // Store the object_id for  use in queries that require it
-    const object_id = r[0]['OBJECT_ID'];
+    const object_id = r[0]['OBJECT_ID'] || r[0]['object_id'];
 
     let queryCollection = sql.collection[object_type];
     if (queryCollection) {

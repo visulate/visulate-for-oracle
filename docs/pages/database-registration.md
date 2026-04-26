@@ -3,7 +3,7 @@
 
 # Database Setup and Registration
 
-This guide describes how to prepare an Oracle database for use with Visulate and register it in the application catalog.
+This guide describes how to prepare Oracle and PostgreSQL databases for use with Visulate and register them in the application catalog.
 
 ## Step 1: Database Account Setup
 Visulate for Oracle needs to read the data dictionary in each registered database. Create a dedicated user with the minimum required privileges in each database you want to catalog.
@@ -24,6 +24,21 @@ grant select_catalog_role to visulate;
 - **SELECT ANY DICTIONARY**: Grants Read access on Data Dictionary tables owned by SYS (excluding sensitive password/history tables). Visulate accesses some tables directly for performance.
 - **SELECT_CATALOG_ROLE**: Required for `DBMS_METADATA` calls used by the DDL download and AI documentation features.
 
+### PostgreSQL Setup
+Create a dedicated role with access to the metadata catalogs. For PostgreSQL 14+, use the predefined `pg_read_all_data` and `pg_read_all_stats` roles.
+
+```sql
+CREATE ROLE visulate WITH LOGIN PASSWORD 'your_secure_password';
+GRANT pg_read_all_data TO visulate;
+GRANT pg_read_all_stats TO visulate;
+```
+
+For older versions, manually grant USAGE on schemas and SELECT on tables:
+```sql
+GRANT USAGE ON SCHEMA public TO visulate;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO visulate;
+```
+
 > [!IMPORTANT]
 > For security, the account must be called "VISULATE" and must not have additional privileges. The API server verifies these privileges on startup and will reject connections that are over-privileged.
 
@@ -38,15 +53,24 @@ The registration file is located at `/home/visulate/config/database.js`. It expo
 **Sample `database.js`:**
 ```javascript
 const endpoints = [
- { namespace: 'prod_db',
-    description: 'Production Database',
-    connect: { poolAlias: 'prod_db',
+ { namespace: 'prod_oracle',
+    description: 'Oracle Production',
+    connect: { poolAlias: 'prod_oracle',
+              dbType: 'oracle',
               user: 'visulate',
               password: 'YourSecurePassword',
               connectString: 'prod-scan.internal:1521/PROD',
               poolMin: 4,
-              poolMax: 4,
-              poolIncrement: 0
+              poolMax: 4
+            }
+  },
+  { namespace: 'prod_postgres',
+    description: 'Postgres Production',
+    connect: { poolAlias: 'prod_postgres',
+              dbType: 'postgres',
+              user: 'visulate',
+              password: 'YourSecurePassword',
+              connectString: 'pg-host.internal:5432/postgres'
             }
   }
 ];
@@ -79,7 +103,13 @@ To enable Natural Language to SQL (NL2SQL) and CSV export features, you must als
    ```
 2. **Add Mapping**: The key must match the `namespace` used in `database.js`.
    ```json
-   {"prod_db": "prod-scan.internal:1521/PROD"}
+   {
+     "prod_oracle": "prod-scan.internal:1521/PROD",
+     "prod_postgres": {
+       "dsn": "pg-host.internal:5432/postgres",
+       "dbType": "postgres"
+     }
+   }
    ```
 
 ---
@@ -95,6 +125,7 @@ Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing 
    { namespace: 'my_adb',
      description: 'Autonomous Database',
      connect: { poolAlias: 'my_adb',
+                dbType: 'oracle',
                 user: 'visulate',
                 password: 'YourPassword',
                 connectString: 'my_adb_high',

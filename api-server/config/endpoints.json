@@ -1,1 +1,7 @@
-{"vis24win":"visulate.goldthorp.org:1521/vis24pdb"}
+{
+  "vis24win": "visulate.goldthorp.org:1521/vis24pdb",
+  "cmbs-postgres": {
+    "dsn": "localhost:5432/cmbs",
+    "dbType": "postgres"
+  }
+}

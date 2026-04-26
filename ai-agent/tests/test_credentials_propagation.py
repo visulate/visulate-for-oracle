@@ -19,9 +19,10 @@ def test_credential_manager_db_credentials_priority():
     }
     db_credentials_var.set(db_creds)
 
-    password, source = manager.get_password("pdb23", "RNTMGR2")
+    password, source, user = manager.get_password("pdb23", "RNTMGR2")
     assert password == "correct_password"
     assert source == "ui-context"
+    assert user == "RNTMGR2"
 
 def test_credential_manager_handles_missing_db_credentials():
     """Test that it falls back to auth_token_var if db_credentials_var is empty."""
@@ -36,9 +37,10 @@ def test_credential_manager_handles_missing_db_credentials():
     }
     auth_token_var.set(json.dumps(token_creds))
 
-    password, source = manager.get_password("pdb23", "RNTMGR2")
+    password, source, user = manager.get_password("pdb23", "RNTMGR2")
     assert password == "token_password"
     assert source == "ui-context-legacy"
+    assert user == "RNTMGR2"
 
 def test_credential_manager_handles_top_level_db_credentials():
     """Test that it handles top-level username/password in db_credentials_var."""
@@ -49,6 +51,7 @@ def test_credential_manager_handles_top_level_db_credentials():
     }
     db_credentials_var.set(db_creds)
 
-    password, source = manager.get_password("pdb23", "RNTMGR2")
+    password, source, user = manager.get_password("pdb23", "RNTMGR2")
     assert password == "top_level_password"
     assert source == "ui-context"
+    assert user == "RNTMGR2"

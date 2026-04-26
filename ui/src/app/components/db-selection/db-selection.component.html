@@ -13,7 +13,10 @@
           (selectionChange)="setEndpoint($event.value)">
           @for (database of endpoints.databases; track database) {
           <mat-option [value]="database">
-            {{database.endpoint}}
+            <div class="db-option">
+              <mat-icon [title]="database.dbType">{{ database.dbType === 'postgres' ? 'dataset' : 'storage' }}</mat-icon>
+              <span>{{database.endpoint}}</span>
+            </div>
           </mat-option>
           }
         </mat-select>
