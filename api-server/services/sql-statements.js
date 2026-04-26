@@ -226,4 +226,14 @@ function loadDialect(dialect) {
 const oracle = loadDialect('oracle');
 const postgres = loadDialect('postgres');
 
-module.exports = { oracle, postgres };
+function forDialect(dialect) {
+  return dialect === 'postgres' ? postgres : oracle;
+}
+
+module.exports = {
+  oracle,
+  postgres,
+  statement: oracle.statement,
+  collection: oracle.collection,
+  forDialect
+};

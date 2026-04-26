@@ -85,7 +85,7 @@ export class MainNavComponent implements OnInit, OnDestroy {
           context.setOwner(useUpper ? schema.toUpperCase() : schema);
         }
         if (type != null) {
-          context.setObjectType(useUpper ? type.toUpperCase() : type);
+          context.setObjectType(type.toUpperCase());
         }
         if (object != null) {
           context.setObjectName(useUpper ? object.toUpperCase() : object);

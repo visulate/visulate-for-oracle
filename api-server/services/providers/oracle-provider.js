@@ -85,12 +85,14 @@ class OracleProvider extends DatabaseProvider {
     }
   }
 
-  async ping(poolAlias) {
+  async ping(poolAlias, config) {
     let connection;
     try {
-      const pool = oracledb.getPool(poolAlias);
-      connection = await pool.getConnection();
+      // Reuse getConnection to ensure pool is initialized if config is provided
+      connection = await this.getConnection(poolAlias, config);
       return true;
+    } catch (err) {
+      return false;
     } finally {
       if (connection) {
         await this.closeConnection(connection);

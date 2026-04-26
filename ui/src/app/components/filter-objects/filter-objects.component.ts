@@ -24,6 +24,7 @@ import { StateService } from '../../services/state.service';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { Router } from '@angular/router';
 
 export interface EbsPrefixes {
   name: string;
@@ -347,7 +348,7 @@ export class FilterObjectsComponent implements OnInit, OnDestroy {
     }
   }
 
-  constructor(private state: StateService) { }
+  constructor(private state: StateService, private router: Router) { }
 
   private _filteredPrefixes(value: string): EbsPrefixes[] {
     const filterValue = value.toLowerCase();
@@ -380,6 +381,11 @@ export class FilterObjectsComponent implements OnInit, OnDestroy {
       if (value !== this.currentContext.filter) {
         this.currentContext.setFilter(value);
         this.state.setCurrentContext(this.currentContext);
+        const filterParam = { filter: (value && value !== '') ? value : null };
+        this.router.navigate([], {
+          queryParams: filterParam,
+          queryParamsHandling: 'merge'
+        });
       }
 
     });

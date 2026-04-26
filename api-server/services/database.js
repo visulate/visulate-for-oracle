@@ -89,8 +89,8 @@ async function getConnection(poolAlias) {
 module.exports.getConnection = getConnection;
 
 async function pingConnection(poolAlias) {
-  const { provider } = getProvider(poolAlias);
-  const success = await provider.ping(poolAlias);
+  const { provider, endpoint } = getProvider(poolAlias);
+  const success = await provider.ping(poolAlias, endpoint.connect);
   if (!success) {
     throw new Error(`Health check failed for ${poolAlias}`);
   }

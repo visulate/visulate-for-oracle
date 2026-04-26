@@ -21,7 +21,7 @@ import { RestService } from '../../services/rest.service';
 import { MatDialog } from '@angular/material/dialog';
 import { CredentialDialogComponent } from '../../components/credential-dialog/credential-dialog.component';
 import { environment } from '../../../environments/environment';
-import { Subject } from 'rxjs';
+import { Subject, combineLatest } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SqlModel } from '../../models/sql.model';
 
@@ -47,6 +47,7 @@ export class SqlComponent implements OnInit, OnDestroy {
   public resultSet: SqlModel;
   public errorMessage: string;
   public dbUser: string;
+  public isPostgres = false;
 
 
   constructor(
@@ -71,9 +72,9 @@ export class SqlComponent implements OnInit, OnDestroy {
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
       
       const endpoint = this.endpointList?.databases?.find(d => d.endpoint === this.currentContext.endpoint);
-      const isPostgres = endpoint?.dbType === 'postgres';
+      this.isPostgres = endpoint?.dbType === 'postgres';
       
-      if (isPostgres) {
+      if (this.isPostgres) {
         this.setSql(`select * from ${this.currentContext.objectName} limit %(maxrows)s`);
       } else {
         this.setSql(`select * from ${this.currentContext.objectName} where rownum <= :maxrows`);
@@ -161,13 +162,14 @@ export class SqlComponent implements OnInit, OnDestroy {
     this.currentContext = this.state.getCurrentContext();
     this.queryUrl = `${this.queryBase}/${this.currentContext.endpoint}`;
 
-    this.state.endpoints$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(endpoints => { this.endpointList = endpoints; });
-
-    this.state.currentContext$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(context => { this.processContextChange(context); });
+    combineLatest([
+      this.state.endpoints$,
+      this.state.currentContext$
+    ]).pipe(takeUntil(this.unsubscribe$))
+      .subscribe(([endpoints, context]) => {
+        this.endpointList = endpoints;
+        this.processContextChange(context);
+      });
 
     this.state.credentialsChanged$
       .pipe(takeUntil(this.unsubscribe$))

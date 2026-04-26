@@ -47,7 +47,8 @@ statement['COUNT_DBA_OBJECTS'] = {
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE c.relkind IN ('r', 'v', 'm', 'S', 'f', 'p')
-          GROUP BY n.nspname, c.relkind, "INTERNAL"`,
+          GROUP BY 1, 2, 4
+`,
   'params': {
   }
 };
@@ -72,7 +73,8 @@ statement['COUNT_DBA_OBJECTS_FILTER'] = {
           JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE c.relname LIKE :object_name
           AND c.relkind IN ('r', 'v', 'm', 'S', 'f', 'p')
-          GROUP BY n.nspname, c.relkind, "INTERNAL"`,
+          GROUP BY 1, 2, 4
+`,
   'params': {
     object_name: { val: "%" }
   }

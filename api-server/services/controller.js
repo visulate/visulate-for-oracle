@@ -94,8 +94,11 @@ async function endpoints(filter) {
       let query = is11g ? sql.statement['COUNT_DBA_OBJECTS_11G'] : sql.statement['COUNT_DBA_OBJECTS'];
 
       if (filter && filter !== '*') {
-        query = is11g ? sql.statement['COUNT_DBA_OBJECTS_FILTER_11G'] : sql.statement['COUNT_DBA_OBJECTS_FILTER'];
-        query.params.object_name = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+        const dbType = (ep.connect && ep.connect.dbType) || 'oracle';
+        const rawQuery = is11g ? sql.statement['COUNT_DBA_OBJECTS_FILTER_11G'] : sql.statement['COUNT_DBA_OBJECTS_FILTER'];
+        query = JSON.parse(JSON.stringify(rawQuery));
+        const searchPattern = filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+        query.params.object_name.val = (dbType === 'oracle') ? searchPattern : searchPattern.toLowerCase();
       }
 
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
@@ -195,8 +198,9 @@ async function executeSearch(searchCondition) {
   for (const ep of dbConfig.endpoints) {
     try {
       const sql = getSql(ep.connect.poolAlias);
-      let query = sql.statement['FIND-DBA-OBJECTS']
-      query.params.object_name.val = searchCondition.toUpperCase();
+      const query = JSON.parse(JSON.stringify(sql.statement['FIND-DBA-OBJECTS']));
+      const dbType = (ep.connect && ep.connect.dbType) || 'oracle';
+      query.params.object_name.val = (dbType === 'oracle') ? searchCondition.toUpperCase() : searchCondition.toLowerCase();
       const result = await dbService.simpleExecute(ep.connect.poolAlias, query.sql, query.params);
       if (result) {
         rows.push({ database: ep.namespace, objects: result });
@@ -296,10 +300,14 @@ async function getSchemaDetails(req, res, next) {
 
     // Queries that support object_name filters
     const filter = req.query.filter;
+    const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === poolAlias);
+    const dbType = (endpoint && endpoint.connect.dbType) || 'oracle';
     queryCollection = sql.collection['SCHEMA-FILTERED'];
-    for (let c of queryCollection.ownerNameQueries) {
+    for (let rawQuery of queryCollection.ownerNameQueries) {
+      const c = JSON.parse(JSON.stringify(rawQuery));
       c.params.owner.val = req.params.owner;
-      c.params.object_name.val = (filter) ? filter.toString().toUpperCase().replace('*', '%').replace('_', '\_') : '%';
+      const searchPattern = (filter) ? filter.toString().toUpperCase().replace('*', '%').replace('_', '\\_') : '%';
+      c.params.object_name.val = (dbType === 'oracle') ? searchPattern : searchPattern.toLowerCase();
       const cResult = await dbService.query(connection, c.sql, c.params);
       result.push({ title: c.title, description: c.description, display: c.display, link: c.link, rows: cResult });
     }
@@ -330,9 +338,11 @@ async function getObjectList(connection, owner, type, name, status, queryName) {
     throw new Error('Database connection poolAlias is required to determine the SQL dialect');
   }
   const sql = getSql(connection.poolAlias);
-  // Get the list of object types
-  const query = sql.statement[queryName];
-  const filtered_name = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+  const query = JSON.parse(JSON.stringify(sql.statement[queryName]));
+  const endpoint = dbConfig.endpoints.find(e => e.connect.poolAlias === connection.poolAlias);
+  const dbType = (endpoint && endpoint.connect.dbType) || 'oracle';
+  const searchPattern = name.toString().toUpperCase().replace('*', '%').replace('_', '\\_');
+  const filtered_name = (dbType === 'oracle') ? searchPattern : searchPattern.toLowerCase();
   const filtered_type = type.toString().replace('*', '%');
   let filtered_status = status.toString().toUpperCase();
   if (filtered_status !== 'VALID' &&

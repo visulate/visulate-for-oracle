@@ -94,20 +94,17 @@ class PostgresProvider extends DatabaseProvider {
     }
   }
 
-  async ping(poolAlias) {
+  async ping(poolAlias, config) {
     let connection;
     try {
-      // Note: This requires config to be available or pool to be pre-created
-      // For now, assume pool exists
-      const pool = this.pools.get(poolAlias);
-      if (!pool) return false;
-      connection = await pool.connect();
+      // Reuse getConnection to ensure pool is initialized if config is provided
+      connection = await this.getConnection(poolAlias, config);
       return true;
     } catch (err) {
       return false;
     } finally {
       if (connection) {
-        connection.release();
+        await this.closeConnection(connection);
       }
     }
   }

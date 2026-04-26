@@ -92,7 +92,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   setDdlLink(endpoint: string, owner: string, type: string, name: string) {
     const dbType = this.endpointList?.databases.find(d => d.endpoint === endpoint)?.dbType || 'oracle';
     const internalList = environment.internalSchemas[dbType] || [];
-    if (internalList.includes(owner)) {
+    if (internalList.includes(owner) || dbType === 'postgres') {
       this.ddlLink = '';
     } else {
       this.ddlLink = `${environment.ddlGenBase}/${endpoint}/${owner}/${type}/${name}/*`;
@@ -193,6 +193,8 @@ export class DbContentComponent implements OnInit, OnDestroy {
         (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
+    } else {
+      this.ddlLink = '';
     }
   }
 

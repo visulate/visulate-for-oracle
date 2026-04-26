@@ -134,6 +134,15 @@ def pipe_results_as_csv(connection, cursor, start_time, download_lobs):
         except Exception as e:
             current_app.logger.error(f"Error during CSV streaming: {str(e)}")
             yield f"ERROR: {str(e)}"
+        finally:
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                connection.close()
+            except:
+                pass
 
     return Response(generate(download_lobs), mimetype='text/csv')
 
@@ -174,14 +183,21 @@ def pipe_results_as_json(connection, cursor, start_time, download_lobs):
 
                 yield(json.dumps(row_dict, default=str))
 
-            cursor.close()
-            connection.close()
             yield('\n],')
             yield(f'"executionTime":{json.dumps(time.time() - start_time)} \n')
             yield('}')
         except Exception as e:
             current_app.logger.error(f"Error during JSON streaming: {str(e)}")
             yield(f'{{"error": "Internal Server Error: {str(e)}"}}')
+        finally:
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                connection.close()
+            except:
+                pass
 
     return Response(generate(download_lobs), mimetype='application/json')
 
@@ -305,9 +321,30 @@ def run_sql(endpoint=None):
     options = validate_options(request.json.get('options'))
     
     # Validate SQL - only SELECT allowed
-    sql_upper = sql.strip().upper()
-    if not (sql_upper.startswith('SELECT') or sql_upper.startswith('WITH')):
-        fail_request(403, description="SQL statement is not of type SELECT")
+    parsed = sqlparse.parse(sql)
+    if not parsed:
+        fail_request(400, description="Invalid SQL statement")
+    
+    main_stmt = parsed[0]
+    stmt_type = main_stmt.get_type()
+    
+    if stmt_type != 'SELECT':
+        # Check if it's a WITH statement that is actually a SELECT
+        is_with_select = False
+        if stmt_type == 'UNKNOWN':
+            sql_upper = sql.strip().upper()
+            if sql_upper.startswith('WITH'):
+                # Crude check: does it contain SELECT?
+                # A more robust way is needed but for now let's be strict
+                # Actually sqlparse should identify WITH ... SELECT as SELECT in some versions
+                # but if it's UNKNOWN we need to be careful.
+                if 'SELECT' in sql_upper:
+                    # Final check: does it contain DELETE, INSERT, UPDATE?
+                    if not any(x in sql_upper for x in ['DELETE', 'INSERT', 'UPDATE', 'DROP', 'ALTER']):
+                        is_with_select = True
+        
+        if not is_with_select:
+            fail_request(403, description="SQL statement is not of type SELECT")
 
     # Validate binds
     binds = request.json.get('binds')
@@ -319,7 +356,7 @@ def run_sql(endpoint=None):
         elif not isinstance(binds, dict):
             fail_request(400, description="Bind variables must be a simple array or object")
 
-    download_lobs = get_option('downloadLobs', 'N')
+    download_lobs = get_option('download_lobs', 'N')
     
     # Determine output format
     output_format = get_option('format', None)

@@ -65,7 +65,8 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   }
 
   setDdlLink() {
-    if (this.currentContext && this.currentSchema && !this.currentSchema.internal) {
+    this.ddlLink = '';
+    if (this.currentContext && this.currentSchema && !this.currentSchema.internal && this.currentEndpoint?.dbType !== 'postgres') {
       const filter = (this.currentContext.filter === '') ? '*' : this.currentContext.filter;
       if (this.currentObjectType && this.currentObjectType.count > 0) {
         this.ddlLink = (this.currentObjectType && this.currentSchema && this.currentEndpoint && this.currentObjectType.count > 0) ?
