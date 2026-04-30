@@ -137,6 +137,14 @@ export class MainNavComponent implements OnInit, OnDestroy {
     }
   }
 
+  expandAll() {
+    this.state.setAccordionsState(true);
+  }
+
+  collapseAll() {
+    this.state.setAccordionsState(false);
+  }
+
   ngOnDestroy(): void {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();

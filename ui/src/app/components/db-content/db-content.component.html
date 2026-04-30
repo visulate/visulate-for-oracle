@@ -63,6 +63,61 @@
   </mat-expansion-panel>
 </mat-accordion>
 }
+
+@if (!currentContext.endpoint && endpointList && endpointList.databases) {
+<mat-accordion>
+  <mat-expansion-panel expanded="true">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        Databases
+      </mat-panel-title>
+      <mat-panel-description>
+        Available Connections
+      </mat-panel-description>
+    </mat-expansion-panel-header>
+
+    <div class="database-grid">
+      @for (db of endpointList.databases; track db.endpoint) {
+      <mat-card class="database-card clickable-card" [routerLink]="['/database', db.endpoint]">
+        <mat-card-header>
+          <div mat-card-avatar class="db-avatar" [ngClass]="db.dbType">
+            <mat-icon>{{ db.dbType === 'postgres' ? 'storage' : 'dns' }}</mat-icon>
+          </div>
+          <mat-card-title>{{ db.description || db.endpoint }}</mat-card-title>
+          <mat-card-subtitle>{{ db.dbType | uppercase }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="db-details">
+            <p><strong>Endpoint:</strong> {{ db.endpoint }}</p>
+            @if (db.version) {
+            <p><strong>Version:</strong> {{ db.version }}</p>
+            }
+          </div>
+
+          <div class="schema-stats">
+            <span><strong>User Schemas:</strong> {{ db.userSchemaCount }}</span>
+            <span><strong>Internal Schemas:</strong> {{ db.internalSchemaCount }}</span>
+          </div>
+
+          @if (db.aggregatedObjectTypes.length > 0) {
+          <div class="object-breakdown">
+            <h4>Object Breakdown</h4>
+            <div class="chip-container">
+              @for (item of db.aggregatedObjectTypes; track item.type) {
+              <span class="object-chip">
+                <strong>{{ item.type }}:</strong> {{ item.count }}
+              </span>
+              }
+            </div>
+          </div>
+          }
+        </mat-card-content>
+      </mat-card>
+      }
+    </div>
+  </mat-expansion-panel>
+</mat-accordion>
+}
 }
 
 @if (currentContext && currentContext.owner && !currentContext.objectName) {

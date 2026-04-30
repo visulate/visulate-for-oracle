@@ -15,7 +15,7 @@
  */
 
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { EndpointListModel } from '../models/endpoint.model';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../models/current-context.model';
@@ -55,6 +55,7 @@ export class StateService {
   private aiEnabledSubject = new BehaviorSubject<boolean>(false);
   private credentialsChanged = new BehaviorSubject<void>(undefined);
   private isChatFullScreen = new BehaviorSubject<boolean>(false);
+  private toggleAccordions = new Subject<boolean>();
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
@@ -62,6 +63,7 @@ export class StateService {
   aiEnabled$ = this.aiEnabledSubject.asObservable();
   credentialsChanged$ = this.credentialsChanged.asObservable();
   isChatFullScreen$ = this.isChatFullScreen.asObservable();
+  toggleAccordions$ = this.toggleAccordions.asObservable();
 
   getCurrentContext() {
     return this.getStoredContext();
@@ -258,6 +260,10 @@ export class StateService {
 
   toggleChatFullScreen() {
     this.isChatFullScreen.next(!this.isChatFullScreen.getValue());
+  }
+
+  setAccordionsState(expanded: boolean) {
+    this.toggleAccordions.next(expanded);
   }
 
 

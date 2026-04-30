@@ -44,6 +44,30 @@ export class EndpointModel implements Deserializable {
   public connectString: string;
   public ebsInstance: boolean;
   public schemas: SchemaModel[];
+  public version?: string;
+
+  public get userSchemaCount(): number {
+    return this.schemas ? this.schemas.filter(s => !s.internal).length : 0;
+  }
+
+  public get internalSchemaCount(): number {
+    return this.schemas ? this.schemas.filter(s => s.internal).length : 0;
+  }
+
+  public get aggregatedObjectTypes(): { type: string, count: number }[] {
+    if (!this.schemas) return [];
+    const summary: { [key: string]: number } = {};
+    this.schemas.forEach(s => {
+      if (s.objectTypes) {
+        s.objectTypes.forEach(o => {
+          summary[o.type] = (summary[o.type] || 0) + Number(o.count);
+        });
+      }
+    });
+    return Object.entries(summary)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
+  }
 
   deserialize(input: any): this {
     Object.assign(this, input);
