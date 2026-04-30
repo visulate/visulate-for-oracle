@@ -1,7 +1,7 @@
 <div class="step-selection-container">
   <div class="step-selection-header">
     <span class="header-spacer"></span>
-    @if (currentContext?.filter) {
+    @if (currentContext?.objectType || currentContext?.filter) {
     <app-filter-objects [currentEndpoint]="currentEndpoint"></app-filter-objects>
     }
   </div>

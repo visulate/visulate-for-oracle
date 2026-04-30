@@ -6,6 +6,12 @@
     <a routerLink="/">Visulate</a>
     <app-breadcrumbs></app-breadcrumbs>
     <span class="spacer"></span>
+    <button mat-icon-button matTooltip="Expand All" aria-label="Expand All" (click)="expandAll()">
+      <mat-icon>unfold_more</mat-icon>
+    </button>
+    <button mat-icon-button matTooltip="Collapse All" aria-label="Collapse All" (click)="collapseAll()">
+      <mat-icon>unfold_less</mat-icon>
+    </button>
     <button mat-icon-button aria-hidden="false" aria-label="search icon" (click)=toggleSearchForm()>
       <mat-icon>search</mat-icon>
     </button>
