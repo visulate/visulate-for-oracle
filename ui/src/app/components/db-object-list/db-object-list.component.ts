@@ -32,7 +32,6 @@ export class DbObjectListComponent implements OnInit, OnDestroy {
    * for current context selections
    */
   public currentContext: CurrentContextModel;
-  public currentEndpoint: any; // Using any or EndpointModel here
   public objectList: string[];
   private unsubscribe$ = new Subject<void>();
 
@@ -47,13 +46,6 @@ export class DbObjectListComponent implements OnInit, OnDestroy {
     const context = subjectContext.currentContext;
     this.currentContext = context;
     this.objectList = context.objectList;
-
-    // Refresh currentEndpoint when context changes
-    this.state.endpoints$.subscribe(endpoints => {
-      if (this.currentContext && this.currentContext.endpoint && endpoints && endpoints.databases) {
-        this.currentEndpoint = endpoints.databases.find(db => db.endpoint === this.currentContext.endpoint);
-      }
-    });
   }
 
   ngOnInit() {

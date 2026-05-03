@@ -46,16 +46,23 @@ export class EndpointModel implements Deserializable {
   public schemas: SchemaModel[];
   public version?: string;
 
-  public get userSchemaCount(): number {
-    return this.schemas ? this.schemas.filter(s => !s.internal).length : 0;
-  }
+  public userSchemaCount: number = 0;
+  public internalSchemaCount: number = 0;
+  public aggregatedObjectTypes: { type: string, count: number }[] = [];
 
-  public get internalSchemaCount(): number {
-    return this.schemas ? this.schemas.filter(s => s.internal).length : 0;
-  }
+  deserialize(input: any): this {
+    Object.assign(this, input);
+    this.dbType = input.dbType || 'oracle';
+    const convertedSchema = convertSchema(input.schemas, this.dbType);
+    this.ebsInstance = ((input.schemas && input.schemas.APPLSYS) ? true : false);
+    this.schemas = convertedSchema.map(
+      schema => new SchemaModel().deserialize(schema)
+    );
 
-  public get aggregatedObjectTypes(): { type: string, count: number }[] {
-    if (!this.schemas) return [];
+    // Compute summary properties once during deserialization
+    this.userSchemaCount = this.schemas.filter(s => !s.internal).length;
+    this.internalSchemaCount = this.schemas.filter(s => s.internal).length;
+
     const summary: { [key: string]: number } = {};
     this.schemas.forEach(s => {
       if (s.objectTypes) {
@@ -64,19 +71,10 @@ export class EndpointModel implements Deserializable {
         });
       }
     });
-    return Object.entries(summary)
+    this.aggregatedObjectTypes = Object.entries(summary)
       .map(([type, count]) => ({ type, count }))
       .sort((a, b) => b.count - a.count);
-  }
 
-  deserialize(input: any): this {
-    Object.assign(this, input);
-    this.dbType = input.dbType || 'oracle';
-    const convertedSchema = convertSchema(input.schemas, this.dbType);
-    this.ebsInstance = ((input.schemas.APPLSYS) ? true : false);
-    this.schemas = convertedSchema.map(
-      schema => new SchemaModel().deserialize(schema)
-    );
     return this;
   }
 }

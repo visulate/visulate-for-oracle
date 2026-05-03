@@ -21,7 +21,7 @@
 @if (currentContext && !currentContext.owner) {
 @if (!aiEnabled) {
 <mat-accordion>
-  <mat-expansion-panel expanded="true">
+  <mat-expansion-panel [expanded]="true">
     <mat-expansion-panel-header>
       <mat-panel-title>
         Oracle Database Catalog
@@ -66,7 +66,7 @@
 
 @if (!currentContext.endpoint && endpointList && endpointList.databases) {
 <mat-accordion>
-  <mat-expansion-panel expanded="true">
+  <mat-expansion-panel [expanded]="true">
     <mat-expansion-panel-header>
       <mat-panel-title>
         Databases
@@ -78,7 +78,7 @@
 
     <div class="database-grid">
       @for (db of endpointList.databases; track db.endpoint) {
-      <mat-card class="database-card clickable-card" [routerLink]="['/database', db.endpoint]">
+      <mat-card class="database-card clickable-card" [routerLink]="['/database', db.endpoint]" tabindex="0">
         <mat-card-header>
           <div mat-card-avatar class="db-avatar" [ngClass]="db.dbType">
             <mat-icon>{{ db.dbType === 'postgres' ? 'storage' : 'dns' }}</mat-icon>
@@ -197,7 +197,7 @@
   <mat-accordion multi="true">
     @for (property of objectDetails.objectProperties; track property) {
     @if (property.rows?.length > 0) {
-    <mat-expansion-panel expanded="true">
+    <mat-expansion-panel [expanded]="true">
       <mat-expansion-panel-header>
         <mat-panel-title>
           {{property.title}}

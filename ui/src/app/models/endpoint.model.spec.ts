@@ -20,4 +20,38 @@ describe('Endpoint', () => {
   it('should create an instance', () => {
     expect(new EndpointModel()).toBeTruthy();
   });
+
+  it('should compute schema counts and aggregate object types on deserialize', () => {
+    const mockInput = {
+      endpoint: 'test-db',
+      dbType: 'oracle',
+      schemas: {
+        'SYS': [
+          { OWNER: 'SYS', OBJECT_TYPE: 'TABLE', OBJECT_COUNT: 10, INTERNAL: 1 },
+          { OWNER: 'SYS', OBJECT_TYPE: 'VIEW', OBJECT_COUNT: 5, INTERNAL: 1 }
+        ],
+        'HR': [
+          { OWNER: 'HR', OBJECT_TYPE: 'TABLE', OBJECT_COUNT: 2, INTERNAL: 0 },
+          { OWNER: 'HR', OBJECT_TYPE: 'INDEX', OBJECT_COUNT: 4, INTERNAL: 0 }
+        ],
+        'SALES': [
+          { OWNER: 'SALES', OBJECT_TYPE: 'TABLE', OBJECT_COUNT: 8, INTERNAL: 0 }
+        ]
+      }
+    };
+
+    const endpoint = new EndpointModel().deserialize(mockInput);
+
+    // SYS is internal, HR and SALES are user schemas
+    expect(endpoint.internalSchemaCount).toBe(1);
+    expect(endpoint.userSchemaCount).toBe(2);
+
+    // TABLES: 10 + 2 + 8 = 20, VIEW: 5, INDEX: 4
+    // Should be sorted by count descending
+    expect(endpoint.aggregatedObjectTypes).toEqual([
+      { type: 'TABLE', count: 20 },
+      { type: 'VIEW', count: 5 },
+      { type: 'INDEX', count: 4 }
+    ]);
+  });
 });
