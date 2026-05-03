@@ -147,3 +147,127 @@ mat-expansion-panel {
   overflow: hidden !important;
   /* Fix potential overlap/containment */
 }
+
+
+
+.database-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.database-card {
+  background-color: var(--app-card-bg) !important;
+  color: var(--app-text-color) !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--app-border-color) !important;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.clickable-card {
+  cursor: pointer;
+}
+
+.clickable-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-color: var(--app-link-color) !important;
+}
+
+.db-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(147, 161, 161, 0.1);
+  width: 40px;
+  height: 40px;
+}
+
+.db-avatar.postgres {
+  color: var(--app-link-color);
+  background: rgba(38, 139, 210, 0.1);
+}
+
+.db-avatar.oracle {
+  color: #d33682;
+  background: rgba(211, 54, 130, 0.1);
+}
+
+.db-details {
+  margin-top: 16px;
+}
+
+.db-details p {
+  margin: 8px 0;
+  font-size: 0.9rem;
+  color: var(--app-text-color);
+  word-break: break-word;
+}
+
+.db-details p strong {
+  color: var(--app-heading-color);
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.schema-stats {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+  padding: 12px;
+  background: var(--app-sidebar-bg);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid var(--app-border-color);
+}
+
+.schema-stats strong {
+  color: var(--app-heading-color);
+}
+
+.object-breakdown h4 {
+  margin: 20px 0 12px 0;
+  font-size: 0.95rem;
+  color: var(--app-heading-color);
+  font-weight: 500;
+  border-bottom: 1px solid var(--app-border-color);
+  padding-bottom: 8px;
+}
+
+.chip-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.chip-container::-webkit-scrollbar {
+  width: 4px;
+}
+.chip-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chip-container::-webkit-scrollbar-thumb {
+  background: var(--app-border-color);
+  border-radius: 2px;
+}
+
+.object-chip {
+  background: var(--app-sidebar-bg);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: var(--app-text-color);
+  border: 1px solid var(--app-border-color);
+  transition: background 0.2s ease;
+}
+
+.object-chip:hover {
+  background: var(--app-active-bg);
+  color: var(--app-active-text);
+}

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChildren, QueryList } from '@angular/core';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
@@ -25,6 +25,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { hbsTemplates } from '../../../environments/hbs-templates';
+import { MatExpansionPanel } from '@angular/material/expansion';
 
 
 @Component({
@@ -38,6 +39,7 @@ import { hbsTemplates } from '../../../environments/hbs-templates';
  * Content to display in main body
  */
 export class DbContentComponent implements OnInit, OnDestroy {
+  @ViewChildren(MatExpansionPanel) panels: QueryList<MatExpansionPanel>;
   public endpointList: EndpointListModel;
   public currentContext: CurrentContextModel;
   public objectDetails: DatabaseObjectModel;
@@ -212,6 +214,20 @@ export class DbContentComponent implements OnInit, OnDestroy {
     this.state.aiEnabled$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(aiEnabled => { this.aiEnabled = aiEnabled; });
+
+    this.state.toggleAccordions$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(expanded => {
+        if (this.panels) {
+          this.panels.forEach(panel => {
+            if (expanded) {
+              panel.open();
+            } else {
+              panel.close();
+            }
+          });
+        }
+      });
 
     this.checkAiEnabled();
   }

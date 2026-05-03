@@ -11,6 +11,14 @@
       <mat-form-field>
         <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
           (selectionChange)="setEndpoint($event.value)">
+          <mat-select-trigger>
+            @if (currentEndpoint) {
+            <div class="db-option">
+              <mat-icon [title]="currentEndpoint.dbType">{{ currentEndpoint.dbType === 'postgres' ? 'dataset' : 'storage' }}</mat-icon>
+              <span>{{currentEndpoint.endpoint}}</span>
+            </div>
+            }
+          </mat-select-trigger>
           @for (database of endpoints.databases; track database) {
           <mat-option [value]="database">
             <div class="db-option">
