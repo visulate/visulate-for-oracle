@@ -4,7 +4,7 @@ systemctl start docker
 
 # Image repository and version
 IMAGE_REPO="gcr.io/visulate-llc-public"
-VERSION="2.5"
+VERSION="2.6"
 
 # Pull the Docker container images
 # These may fail if the VM has no public IP, but the script will continue

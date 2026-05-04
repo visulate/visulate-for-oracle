@@ -1,7 +1,7 @@
 # GKE Deployment Reference (Deprecated)
 
 > [!IMPORTANT]
-> This documentation is for historical reference. The GKE deployment for Visulate for Oracle has been deprecated in favor of the Virtual Machine (VM) deployment.
+> This documentation is for historical reference. The GKE deployment for Visulate has been deprecated in favor of the Virtual Machine (VM) deployment.
 
 ## GKE Architecture
 
@@ -15,7 +15,7 @@ Database registration is performed using a Secret.  The Secret manifest delivers
 
 The UI and API Server deployment manifests include sidecar containers to support Google Cloud Platform (GCP) integration. The UI and API Server manifests use sidecar containers to make log file contents available to Cloud Logging. The API Server manifest creates 2 additional sidecars to support GCP Marketplace. The SQL Query Engine sends its logs to stderr and stdout instead of writing to a file. This avoids the need for a sidecar to populate Cloud Logging
 
-Visulate for Oracle on GKE uses a Kubernetes-native architecture with separate deployments for UI, API, and SQL Query Engine components.
+Visulate on GKE uses a Kubernetes-native architecture with separate deployments for UI, API, and SQL Query Engine components.
 
 ## GKE Quickstart
 

@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM oraclelinux:7-slim
+FROM oraclelinux:9-slim
 
 ARG release=19
-ARG update=16
+ARG update=30
 
-RUN  yum -y install oracle-release-el7 && yum-config-manager --enable ol7_oracle_instantclient && \
-     yum -y install oracle-instantclient${release}.${update}-basic oracle-instantclient${release}.${update}-devel oracle-instantclient${release}.${update}-sqlplus && \
-     yum -y install iputils && \
-     yum -y install nmap && \
-     rm -rf /var/cache/yum
+RUN microdnf -y install oraclelinux-release-el9 && \
+     microdnf -y install oracle-instantclient${release}.${update}-basic oracle-instantclient${release}.${update}-devel oracle-instantclient${release}.${update}-sqlplus && \
+     microdnf -y install iputils && \
+     microdnf -y install nmap && \
+     microdnf clean all
 
 CMD /bin/bash

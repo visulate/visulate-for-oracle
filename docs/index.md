@@ -3,10 +3,10 @@
 <section id="banner">
   <div class="content">
     <header>
-      <h1>Agentic AI for Oracle</h1>
-      <p>Your Oracle database, now with Gemini intelligence</p>
+      <h1>Agentic AI for Databases</h1>
+      <p>Your Oracle and Postgres databases, now with Gemini intelligence</p>
     </header>
-    <p><b>Visulate for Oracle</b> transforms how you interact with your database. By integrating <b>Google Gemini AI</b> with a deep understanding of the Oracle Data Dictionary, Visulate provides a suite of <b>autonomous AI agents</b> that can analyze schema footprints, generate optimized code, create ERD diagrams, and document complex PL/SQL—all within a secure, conversation-driven interface.</p>
+    <p><b>Visulate</b> transforms how you interact with your database. By integrating <b>Google Gemini AI</b> with a deep understanding of the Database Data Dictionary, Visulate provides a suite of <b>autonomous AI agents</b> that can analyze schema footprints, generate optimized code, create ERD diagrams, and document complex business logic—all within a secure, conversation-driven interface.</p>
 
     <ul class="actions">
       <li><a href="https://console.cloud.google.com/marketplace/product/visulate-llc-public/visulate-vm">
@@ -44,7 +44,7 @@
         <span class="icon solid fa-file-code"></span>
         <div class="content">
           <h3>Intelligent Code Documentation</h3>
-          <p>Breathe life into legacy code. The AI analyzes PL/SQL packages and generates meaningful comments and DDL documentation in bulk.</p>
+          <p>Breathe life into legacy code. The AI analyzes stored procedures and packages and generates meaningful comments and DDL documentation in bulk.</p>
         </div>
       </article>
       <article>
@@ -63,7 +63,7 @@
   </header>
 </div>
 
-Visulate ensures secure data flows from on-premises Oracle databases, Oracle Cloud Infrastructure (OCI), and Google Cloud Platform (GCP) into Google Gemini AI. The application operates as a private proxy, ensuring that your data dictionary remains under your control while leveraging the power of modern LLMs.
+Visulate ensures secure data flows from on-premises databases, Oracle Cloud Infrastructure (OCI), and Google Cloud Platform (GCP) into Google Gemini AI. The application operates as a private proxy, ensuring that your data dictionary remains under your control while leveraging the power of modern LLMs.
 
 ### Key AI Capabilities
 
@@ -75,10 +75,10 @@ Visulate ensures secure data flows from on-premises Oracle databases, Oracle Clo
 ### Benefits for Developers and Enterprises
 
 - **Accelerate Migrations:** Understand source database complexity in minutes instead of weeks using AI-driven schema analysis.
-- **Modernize Legacy Apps:** Automatically translate Oracle logic into modern programming patterns (Python, Java, JavaScript).
+- **Modernize Legacy Apps:** Automatically translate database logic into modern programming patterns (Python, Java, JavaScript).
 - **Boost Developer Productivity:** Eliminate the repetitive work of writing boilerplate SQL and documenting schemas.
 - **High Security and Reliability:** Enterprise-grade security with no data storage in the cloud—just secure, transient AI processing.
 
-With **Visulate**, you're not just viewing metadata; you're putting it to work. Unlock the potential of your Oracle data with **Agentic AI**—empowering your team to innovate faster than ever before.
+With **Visulate**, you're not just viewing metadata; you're putting it to work. Unlock the potential of your data with **Agentic AI**—empowering your team to innovate faster than ever before.
 
-**Visulate: Where Oracle Metadata Meets Google AI.**
+**Visulate: Where Database Metadata Meets Google AI.**

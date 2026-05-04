@@ -1,8 +1,8 @@
-# Visulate for Oracle
+# Visulate
 
-Visulate for Oracle is a comprehensive Oracle data dictionary browsing service and AI-powered analysis framework. It helps data engineers, developers, and architects understand complex database structures, dependencies, and business logic through an intuitive UI and intelligent AI agents.
+Visulate is a comprehensive database data dictionary browsing service and AI-powered analysis framework. It helps data engineers, developers, and architects understand complex database structures, dependencies, and business logic through an intuitive UI and intelligent AI agents.
 
-![Visulate for Oracle AI Assistant](docs/images/object-ai.png?raw=true)
+![Visulate AI Assistant](docs/images/object-ai.png?raw=true)
 
 ## Key Features
 
@@ -10,23 +10,24 @@ Visulate for Oracle is a comprehensive Oracle data dictionary browsing service a
 - **Dependency Analysis**: Visualize relationships between objects, including line-level references in stored procedures.
 - **AI-Powered Insights**: Generate documentation, analyze schema differences, and generate test data using integrated AI agents.
 - **MCP (Model Context Protocol) Support**: Exposes database metadata and SQL execution capabilities to AI agents via secure MCP endpoints.
+- **Multi-Database Support**: Native support for Oracle and Postgres databases.
 - **DDL Generation**: Generate DDL for individual objects or entire schemas.
 
-![Visulate for Oracle database object selection](docs/images/object-selection.png?raw=true)
+![Visulate database object selection](docs/images/object-selection.png?raw=true)
 
 Detailed documentation is available at [docs.visulate.net](https://docs.visulate.net) and in the [Visulate Code Wiki](https://codewiki.google/github.com/visulate/visulate-for-oracle).
 
 ## Architecture
 
-Visulate for Oracle is built as a microservices architecture consisting of the following components:
+Visulate is built as a microservices architecture consisting of the following components:
 
-- **API Server (Node.js/Express)**: Provides REST and MCP endpoints for data dictionary metadata. Uses `node-oracledb` to connect to Oracle.
+- **API Server (Node.js/Express)**: Provides REST and MCP endpoints for data dictionary metadata. Supports Oracle and Postgres.
 - **Query Engine (Python/Flask)**: Provides secure SQL execution via MCP-SQL endpoints.
 - **AI Agents (Python/Google ADK)**: A suite of intelligent agents for specialized tasks like documentation generation and schema analysis.
 - **UI (Angular)**: A web-based interface for browsing and interacting with the system.
 - **Reverse Proxy (Nginx)**: Routes requests to the appropriate backend services.
 
-![Visulate for Oracle object details](docs/images/object-details.png?raw=true)
+![Visulate object details](docs/images/object-details.png?raw=true)
 
 
 ## Setup and Deployment
@@ -88,7 +89,7 @@ The project includes test suites for each major component:
 For a comprehensive test run, you can use the `run-all-tests.sh` script in the root directory.
 
 > [!IMPORTANT]
-> **Database Dependencies**: Some tests in the API Server and Query Engine suites require active Oracle database connections and a specific sample schema (`RNTMGR2`). These tests may fail if the databases defined in `api-server/config/database.js` or `query-engine/tests/conftest.json` are unreachable.
+> **Database Dependencies**: Some tests in the API Server and Query Engine suites require active database connections and a specific sample schema (`RNTMGR2`). These tests may fail if the databases defined in `api-server/config/database.js` or `query-engine/tests/conftest.json` are unreachable.
 >
 > **Workaround**:
 > - **Configure Connections**: Update the configuration files mentioned above with your own database details.

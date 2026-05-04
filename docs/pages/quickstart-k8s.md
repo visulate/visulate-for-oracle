@@ -1,15 +1,15 @@
 * TOC
 {:toc id="toc"}
 
-# Visulate for Oracle GKE quickstart
-This page shows you how to create a Visulate for Oracle instance and connect it to an Oracle database on Google Kubernetes Engine (GKE).
+# Visulate GKE quickstart
+This page shows you how to create a Visulate instance and connect it to an Oracle database on Google Kubernetes Engine (GKE).
 
 Allow around 60 minutes to complete this tutorial.
 
 
 ## Kubernetes Deployment
 
-How to create a Visulate for Oracle instance on Google Cloud Platform (GCP) and connect it to an Oracle database.
+How to create a Visulate instance on Google Cloud Platform (GCP) and connect it to an Oracle database.
 
 
 ### Before you begin
@@ -51,7 +51,7 @@ Visulate creates an Nginx proxy service which exposes a network endpoint group (
 
 ### Verify the instance
 
-Click on the Load balancer IP address to open the Visulate for Oracle UI. Rewrite rules should append "/database" to the ip address as shown in the screenshot below.
+Click on the Load balancer IP address to open the Visulate UI. Rewrite rules should append "/database" to the ip address as shown in the screenshot below.
 
 ![UI Homepage](/images/ui-screen.png){: class="screenshot" tabindex="0" }
 
@@ -63,7 +63,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
 
 ![Swagger UI](/images/swagger.png){: class="screenshot" tabindex="0" }
 
-At this point you have a Visulate for Oracle instance running. Now we need to connect it to an Oracle database.
+At this point you have a Visulate instance running. Now we need to connect it to an Oracle database.
 
 ### Create a database user in the database you want to document
 
@@ -129,7 +129,7 @@ Press the `Save` button and wait for a new pod to deploy replacing the previous 
 Note: See the [database registration guide](/pages/database-registration.html) for additional details on this step.
 
 ### Review your database and its data model
-Open the Visulate for Oracle UI (using the load balancer IP address assigned by the Ingress). Click on the Database dropdown list. You should see an entry called "vis13". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
+Open the Visulate UI (using the load balancer IP address assigned by the Ingress). Click on the Database dropdown list. You should see an entry called "vis13". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
@@ -161,7 +161,7 @@ Click on one of the results to see its definition report.
 
 ![Search result](/images/search-result.png){: class="screenshot" tabindex="0" }
 
-Click on the "Visulate for Oracle" title at the top (center) of the screen to return to the homepage. Notice the Object Filter field has been populated with DBA_OBJECTS (the last search condition). Change this value to DBA_* and then select a database and schema. Notice the navigation lists are now filtered using this wildcard.
+Click on the "Visulate" title at the top (center) of the screen to return to the homepage. Notice the Object Filter field has been populated with DBA_OBJECTS (the last search condition). Change this value to DBA_* and then select a database and schema. Notice the navigation lists are now filtered using this wildcard.
 
 ![Filter condition](/images/filter.png){: class="screenshot" tabindex="0" }
 
@@ -195,7 +195,7 @@ Follow the steps outlined in the [database registration](#register-your-database
 
 ### Generate a CSV file
 
-Open the Visulate for Oracle UI and navigate to a database table. A query editor region is included at the top of the page. It contains an HTML form with username, password, sql query, bind variables and query option fields. Most of the fields are populated with default values.
+Open the Visulate UI and navigate to a database table. A query editor region is included at the top of the page. It contains an HTML form with username, password, sql query, bind variables and query option fields. Most of the fields are populated with default values.
 
 ![Query screen](/images/sql2csv.png){: class="screenshot" tabindex="0" }
 
@@ -236,7 +236,7 @@ A curl command appears below the results. Cut and paste this into a console wind
 4. Navigate to a database table screen and start asking questions
 
 
-    ![Visulate for Oracle Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
+    ![Visulate Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
 
 
 
@@ -244,7 +244,7 @@ A curl command appears below the results. Cut and paste this into a console wind
 
 - Use the Kubernetes Engine -> Applications screen to delete the instance. Select the check box next to the application name then press the `Delete` button at the top of the screen
 
-![Delete Visulate for Oracle](/images/mp-delete-app.png){: class="screenshot" tabindex="0" }
+![Delete Visulate](/images/mp-delete-app.png){: class="screenshot" tabindex="0" }
 
 - Delete the GKE Cluster if it is no longer required.
 - Drop the visulate user from the database. Login to SQL*Plus as SYSTEM and run `drop user visulate cascade;`

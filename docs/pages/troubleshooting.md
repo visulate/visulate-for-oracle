@@ -33,7 +33,7 @@ docker exec -it visapi head -n 50 /visulate-server/logs/combined.log
 Use the network tab to examine the request to the `/api/` endpoint. The response should match the expected list of databases. Make sure the **Object Filter** field in the UI is empty, as it adds a wildcard filter to the results which could exclude databases.
 
 ### Check the username, password and connect string
-Verify the contents of `config/database.js` on the VM. This file holds the credentials that the API server reads on startup to establish connection pools. 
+Verify the contents of `config/database.js` on the VM. This file holds the credentials that the API server reads on startup to establish connection pools.
 
 ```bash
 cd /home/visulate/config
@@ -41,10 +41,27 @@ cat database.js
 ```
 
 ### Test your firewall rules
-Ensure the Visulate VM can reach the database server and port. Use SQL*Plus inside the container for a definitive test:
+
+Use netcat to test the connection to the database port from the Visulate VM. For example:
+
+```bash
+nc -zv db_host <db_port>
+```
+
+### Test connectivity from the Visulate VM to the database server
+
+Use SQL*Plus or psql, as appropriate, on the VM or inside the container for a definitive test:
+
+Oracle:
 ```bash
 docker exec -it visapi sqlplus visulate@db_host:1521/service_name
 ```
+
+Postgres:
+```bash
+docker run -it --rm postgres:alpine psql -h <db_ip_address> -p <db_port> -U visulate -d <db_name>
+```
+
 See the [Network and Security guide](/pages/network-security.html) for detailed troubleshooting steps.
 
 ### Check the Visulate account permissions
@@ -56,7 +73,7 @@ The `VISULATE` account must have exactly `CREATE SESSION`, `SELECT_CATALOG_ROLE`
 ---
 
 ## Query Editor is not displayed in the UI
-The Query Editor display is controlled by values in the `config/endpoints.json` file. 
+The Query Editor display is controlled by values in the `config/endpoints.json` file.
 
 1. **Verify matching entries**: The `namespace` in `database.js` must match the key in `endpoints.json`, and the `connectString` must match exactly.
 2. **Restart Services**: If you modify these files, you must restart the containers:
