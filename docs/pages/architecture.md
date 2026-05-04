@@ -3,16 +3,16 @@
 
 # Platform Architecture and Design
 
-Visulate for Oracle is an enterprise-grade platform that combines traditional database metadata analysis with modern Agentic AI to transform how Oracle database environments are documented, analyzed, and modernized.
+Visulate is an enterprise-grade platform that combines traditional database metadata analysis with modern Agentic AI to transform how database environments are documented, analyzed, and modernized.
 
 ---
 ## Application Architecture
 
 ![Architecture diagram](/images/database-connections.png)
 
-Visulate for Oracle creates 3 docker containers to deliver a browser UI and REST endpoints for one or more Oracle databases. The UI Container exposes an Angular UI which makes API calls to REST endpoints exposed by the API Server Container and the SQL Query Engine Container.
+Visulate creates 3 docker containers to deliver a browser UI and REST endpoints for one or more databases. The UI Container exposes an Angular UI which makes API calls to REST endpoints exposed by the API Server Container and the SQL Query Engine Container.
 
-The API Server is an [Express JS](https://expressjs.com/) instance.  It connects to one or more registered databases using [node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#intro). Database connections are registered by adding an entry to a configuration file that the API Server reads during initialization. It creates a [connection pool](https://oracle.github.io/node-oracledb/doc/api.html#connpooling) for each entry in the config file.
+The API Server is an [Express JS](https://expressjs.com/) instance. It connects to one or more registered databases using [node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#intro) for Oracle and [pg](https://node-postgres.com/) for Postgres. Database connections are registered by adding an entry to a configuration file that the API Server reads during initialization. It creates a connection pool for each entry in the config file.
 
 
 ## Technical Architecture
@@ -24,7 +24,7 @@ Visulate is delivered as a set of Docker containers orchestrated by Docker Compo
 ### Core Components
 
 1.  **API Server (Node.js/Express)**:
-    - Parses Oracle Data Dictionary metadata.
+    - Parses Data Dictionary metadata for Oracle and Postgres.
     - Orchestrates interactions with Google Gemini LLMs.
     - Grounds AI prompts with real-time schema context.
     - Manages connection pools for multiple registered databases.
@@ -47,7 +47,7 @@ Visulate operates as a private proxy. Database credentials and schema metadata r
 
 ## Design Philosophy: Metadata Meets AI
 
-Visulate was designed specifically to solve the challenges of legacy Oracle systems: lack of documentation, complex dependencies, and the high cost of modernization.
+Visulate was designed specifically to solve the challenges of complex database systems: lack of documentation, complex dependencies, and the high cost of modernization. While it has a long history of supporting Oracle systems, version 2.6 introduces support for Postgres databases.
 
 ### Automated Schema Understanding
 By querying the database's dependency model, Visulate identifies precisely how objects interact (e.g., which views depend on which tables). This grounding data allows the Gemini LLM to provide architectural insights that are accurate and contextually relevant.
@@ -56,7 +56,7 @@ By querying the database's dependency model, Visulate identifies precisely how o
 Visulate accelerates database projects by:
 - **Reducing Errors**: Automated code documentation and ERD generation eliminate manual research.
 - **Increasing Productivity**: Developers spend less time navigating foreign keys and more time building value.
-- **Enabling AI Potential**: Seamlessly integrates on-premise Oracle data with Google Cloud's AI/ML ecosystem.
+- **Enabling AI Potential**: Seamlessly integrates on-premise data with Google Cloud's AI/ML ecosystem.
 
 ---
 
@@ -64,8 +64,8 @@ Visulate accelerates database projects by:
 
 Beyond the product platform, Visulate provides professional services to assist with complex modernization journeys:
 
-- **Database Analysis**: Expert support for analyzing Oracle database schemas and dependencies.
-- **AI Integration Design**: Custom solutions that leverage Gemini to automate business workflows using Oracle data.
-- **Modernization Strategy**: Comprehensive audits of Oracle footprints to identify cost-saving opportunities and architectural bottlenecks.
+- **Database Analysis**: Expert support for analyzing database schemas and dependencies.
+- **AI Integration Design**: Custom solutions that leverage Gemini to automate business workflows using database data.
+- **Modernization Strategy**: Comprehensive audits of database footprints to identify cost-saving opportunities and architectural bottlenecks.
 
 Visit our [Professional Services](https://console.cloud.google.com/marketplace/product/visulate-llc-public/technical-design) listing on Google Cloud Marketplace to learn more.

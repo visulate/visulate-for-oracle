@@ -5,7 +5,7 @@
 
 The first step in an Oracle database migration is to analyze the source database's complexity. Much of the information required to do this can be obtained by querying the Oracle data dictionary. The Oracle database dictionary is a set of system catalog views which contain metadata about the database. This metadata includes the number and type of different schema objects used, the source code for stored procedures, the server configuration and more.
 
-Visulate for Oracle includes a series of predefined database analysis queries. They run automatically when the database or schema selection changes in the UI.
+Visulate includes a series of predefined database analysis queries. They run automatically when the database or schema selection changes in the UI.
 
 ## Database Analysis
 
@@ -219,7 +219,7 @@ order by index_name, index_type
 ```
 
 ## PL/SQL Analysis
-Visulate for Oracle generates documentation for every object in an Oracle database including all PL/SQL packages, procedures and package bodies.
+Visulate generates documentation for every object in an Oracle database including all PL/SQL packages, procedures and package bodies.
 
 ### Review the structure of a PL/SQL object
 Selecting an object opens a report showing its source code, extracted SQL statements, and dependencies. Each dependency includes a reference to the line number in the source code where the dependency appears.
@@ -233,7 +233,7 @@ You can use the AI chatbot to explain business logic, generate test cases, or tr
 - **Code Conversion**: Ask *"Convert this procedure into a Python function using cx_Oracle."*
 
 ## Dependency Analysis
-Every Oracle database maintains a record of the dependencies between its objects in the `SYS.DEPENDENCY$` table. Visulate for Oracle identifies these dependencies to help you understand the impact of changes or plan partial migrations.
+Every Oracle database maintains a record of the dependencies between its objects in the `SYS.DEPENDENCY$` table. Visulate identifies these dependencies to help you understand the impact of changes or plan partial migrations.
 
 ### Using the UI
 Dependency reports are included at the bottom of each database object report.

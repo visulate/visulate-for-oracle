@@ -2,7 +2,7 @@
 {:toc id="toc"}
 # Install a TLS Certificate
 
-Visulate for Oracle creates a temporary TLS certificate for the application. You need to replace this if you want to support https requests.
+Visulate creates a temporary TLS certificate for the application. You need to replace this if you want to support https requests.
 
 ## Replacing the temporary cert with a self signed certificate
 

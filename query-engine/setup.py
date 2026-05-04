@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 setup(
     name="sql2csv",
-    version="2.0.0",
+    version="2.6.2",
     url="https://github.com/yourusername/sql2csv",
     packages=find_packages(include=['sql2csv', 'sql2csv.*']),
     install_requires=[

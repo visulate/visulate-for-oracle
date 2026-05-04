@@ -1,18 +1,18 @@
 * TOC
 {:toc id="toc"}
 
-# Visulate for Oracle Installation
+# Visulate Installation
 
 ## Architecture
 ![K8S Architecture](/images/k8s.png){: width="720px"}
 
-Visulate for Oracle comprises UI, API and SQL deployments exposed to an ingress via NodePorts. Web users connect to the application via the Ingress resource. Http path rules in the ingress spec route requests to the UI, API or SQL Service as required.
+Visulate comprises UI, API and SQL deployments exposed to an ingress via NodePorts. Web users connect to the application via the Ingress resource. Http path rules in the ingress spec route requests to the UI, API or SQL Service as required.
 
 Database and SQL endpoint registration is performed using Secrets. The Secret manifest delivers the database.js configuration file that the API server reads during initialization as part of the API Server deployment. A separate manifest delivers the endpoints.json manifest for the SQL Query Engine.
 
 ## Quick install with Google Cloud Marketplace
 
-Get up and running with a few clicks! Install the Visulate for Oracle app to a Google
+Get up and running with a few clicks! Install the Visulate app to a Google
 Kubernetes Engine cluster using Google Cloud Marketplace. Follow the
 [on-screen instructions](https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-for-oracle) and the [quickstart guide](/pages/quickstart.html)
 
@@ -53,7 +53,7 @@ Configure `kubectl` to connect to the new cluster.
 gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE"
 ```
 
-**Note:** Visulate for Oracle required GKE version 1.16 or later.
+**Note:** Visulate required GKE version 1.16 or later.
 
 #### Clone this repo
 
@@ -85,7 +85,7 @@ community. The source code can be found on
 
 #### Generate and apply a license key
 
-Open the Visulate for Oracle [configuration screen](https://console.cloud.google.com/marketplace/kubernetes/config/visulate-llc-public/visulate-for-oracle) and click on the `Deploy via command line` link.
+Open the Visulate [configuration screen](https://console.cloud.google.com/marketplace/kubernetes/config/visulate-llc-public/visulate-for-oracle) and click on the `Deploy via command line` link.
 
 ![Generate license key](/images/generate-license-key.png){: class="screenshot" tabindex="0" }
 

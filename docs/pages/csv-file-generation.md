@@ -2,7 +2,7 @@
 {:toc id="toc"}
 # Generate CSV from SQL
 
-Visulate for Oracle allows users to run ad-hoc queries via the UI or API calls. The UI exposes a query editor when the user selects a schema in a registered database. The query editor region is collapsed by default unless the user has navigated to a table or view. Clicking on the title area of the region toggles its visibility.
+Visulate allows users to run ad-hoc queries via the UI or API calls. The UI exposes a query editor when the user selects a schema in a registered database. The query editor region is collapsed by default unless the user has navigated to a table or view. Clicking on the title area of the region toggles its visibility.
 
 ![Query editor collapsed](/images/query-editor-collapsed.png){: class="screenshot" tabindex="0" }
 

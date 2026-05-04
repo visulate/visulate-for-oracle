@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 # 1. Set the working directory
 WORKDIR /visulate-client

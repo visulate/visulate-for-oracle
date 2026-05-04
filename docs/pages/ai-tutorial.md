@@ -3,10 +3,10 @@
 
 # AI Capabilities Tutorial
 
-Welcome to the Visulate for Oracle AI Tutorial! This guide will walk you through the system's core Agentic AI features. By the end of this tutorial, you will understand how to use autonomous agents to explore, visualize, and document your Oracle database.
+Welcome to the Visulate AI Tutorial! This guide will walk you through the system's core Agentic AI features. By the end of this tutorial, you will understand how to use autonomous agents to explore, visualize, and document your Oracle database.
 
 ## Prerequisites
-- A running Visulate for Oracle instance.
+- A running Visulate instance.
 - A connected Oracle database.
 - Google Gemini AI enabled (see [Quickstart](/pages/quickstart.html#enable-google-gemini-ai)).
 

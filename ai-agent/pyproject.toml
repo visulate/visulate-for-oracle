@@ -1,6 +1,6 @@
 [project]
 name = "visulate-ai-agent"
-version = "2.1.0"
+version = "2.6.2"
 description = "AI Agent for Oracle database interactions using Visulate"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,7 +21,8 @@ classifiers = [
 ]
 dependencies = [
     "a2a-sdk==0.3.3",
-    "fastmcp==3.2.0",
+    "fastmcp==3.2.4",
+    "cryptography>=46.0.7",
     "google-adk==1.28.1",
     "google-genai>=1.17.0",
     "python-dotenv>=1.1.0",

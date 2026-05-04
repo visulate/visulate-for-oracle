@@ -19,7 +19,7 @@ Our service engagement follows a proven, three-phased approach to ensure a seaml
    * Work with you to define clear and measurable requirements for your modernized database solution, including AI integration if desired.
 2. **Existing System Evaluation**
    * Our Oracle experts perform a deep dive into your existing database schema, codebase, and infrastructure.
-   * Leverage advanced tools and techniques, including Visulate for Oracle and Google Cloud's AI capabilities, to generate dynamic documentation and insights.
+   * Leverage advanced tools and techniques, including Visulate and Google Cloud's AI capabilities, to generate dynamic documentation and insights.
    * Identify potential compatibility issues, security vulnerabilities, and performance bottlenecks.
 3. **Technical Design**
    * Based on the requirements and evaluation findings, design a tailored modernization roadmap and architecture.

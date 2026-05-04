@@ -49,6 +49,8 @@ x-google-marketplace:
       v2.5.15 Dependabot security updates.
       v2.5.16 Address CVE's found by Artifact Registry.
       v2.6.0 Add support for Postgres + UI enhancements
+      v2.6.1 Security updates for axios, FastMCP, and cryptography (CVE-2025-62718, CVE-2026-32871, CVE-2026-39892)
+      v2.6.2 Security remediation for minimatch, glob, tar, cross-spawn, brace-expansion, diff, pip, and setuptools
   images:
     '':
       properties:

@@ -5,7 +5,7 @@
 
 ![Architecture diagram](/images/database-connections.png)
 
-Visulate for Oracle creates 3 docker containers to deliver a browser UI and REST endpoints for one or more Oracle databases. The UI Container exposes an Angular UI which makes API calls to REST endpoints exposed by the API Server Container and the SQL Query Engine Container.
+Visulate creates 3 docker containers to deliver a browser UI and REST endpoints for one or more Oracle databases. The UI Container exposes an Angular UI which makes API calls to REST endpoints exposed by the API Server Container and the SQL Query Engine Container.
 
 The API Server is an [Express JS](https://expressjs.com/) instance.  It connects to one or more registered databases using [node-oracledb](https://oracle.github.io/node-oracledb/doc/api.html#intro). Database connections are registered by adding an entry to a configuration file that the API Server reads during initialization. It creates a [connection pool](https://oracle.github.io/node-oracledb/doc/api.html#connpooling) for each entry in the config file.
 
@@ -60,7 +60,7 @@ The endpoints.json file populates a Python dictionary of endpoint:connect string
 
 ## Deployment
 
-Visulate for Oracle is deployed as a series of Docker containers on a Google Compute Engine (GCE) virtual machine using Docker Compose. This deployment model provides a balance of performance, ease of management, and scalability for most database documentation and analysis tasks.
+Visulate is deployed as a series of Docker containers on a Google Compute Engine (GCE) virtual machine using Docker Compose. This deployment model provides a balance of performance, ease of management, and scalability for most database documentation and analysis tasks.
 
 ### Architecture
 

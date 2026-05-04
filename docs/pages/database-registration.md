@@ -6,7 +6,7 @@
 This guide describes how to prepare Oracle and PostgreSQL databases for use with Visulate and register them in the application catalog.
 
 ## Step 1: Database Account Setup
-Visulate for Oracle needs to read the data dictionary in each registered database. Create a dedicated user with the minimum required privileges in each database you want to catalog.
+Visulate needs to read the data dictionary in each registered database. Create a dedicated user with the minimum required privileges in each database you want to catalog.
 
 ### Create the VISULATE user
 Login to SQL*Plus as SYSTEM and create a database user called "VISULATE" and grant CREATE SESSION, SELECT_CATALOG_ROLE and SELECT ANY DICTIONARY privileges:

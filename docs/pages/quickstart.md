@@ -2,12 +2,13 @@
 {:toc id="toc"}
 # Quickstart Guide
 
-Running Visulate for Oracle on a Virtual Machine.
+Running Visulate on a Virtual Machine.
 
 ## Before you begin
 
-1. Create an Oracle 23 Free database in GCP for testing. Follow the instructions on the [Create a Test Database](/pages/create-test-db.html) page
-2. Install Visulate from the Google Cloud Marketplace Console
+1. Identify an existing database that you want to publish or [create an Oracle 23 Free database in GCP](/pages/create-test-db.html) for testing. **Note:** the database may be visible from the public internet during this tutorial if you do not have a private connection to GCP (e.g via an Interconnect or VPN). A follow up activity will show you how to limit this visibility.
+2. [Create a Visulate account](/pages/database-registration.html) in the database. Skip this step if you followed the [Oracle 23 Free database instructions](/pages/create-test-db.html).
+3. Install Visulate from the [Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-vm).
 
 <ul class="actions">
   <li><a href="https://console.cloud.google.com/marketplace/details/visulate-llc-public/visulate-vm" class="button big">Go to Google Cloud Marketplace</a></li>
@@ -59,7 +60,7 @@ Running Visulate for Oracle on a Virtual Machine.
 
 ## Start Visulate
 
-The visulate code is delivered as a series of docker containers using a docker compose file located in the `/home/visulate` directory. Navigate to that directory and run `docker-compose up -d` to start the application.
+The Visulate code is delivered as a series of docker containers using a docker compose file located in the `/home/visulate` directory. Navigate to that directory and run `docker-compose up -d` to start the application.
 
 ```
 cd /home/visulate
@@ -187,7 +188,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
 
 
 ### Review your database and its data model
-Open the Visulate for Oracle UI. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
+Open the Visulate UI. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
@@ -216,14 +217,14 @@ Click on one of the results to see its definition report.
 
 ![Search result](/images/search-result.png){: class="screenshot" tabindex="0" }
 
-Click on the "Visulate for Oracle" title at the top (center) of the screen to return to the homepage. Notice the Object Filter field has been populated with DBA_OBJECTS (the last search condition). Change this value to DBA_* and then select a database and schema. Notice the navigation lists are now filtered using this wildcard.
+Click on the "Visulate" title at the top (center) of the screen to return to the homepage. Notice the Object Filter field has been populated with DBA_OBJECTS (the last search condition). Change this value to DBA_* and then select a database and schema. Notice the navigation lists are now filtered using this wildcard.
 
 ![Filter condition](/images/filter.png){: class="screenshot" tabindex="0" }
 
 
 ### Generate a CSV file
 
-Open the Visulate for Oracle UI and navigate to a database table. A query editor region is included at the top of the page. It contains an HTML form with username, password, sql query, bind variables and query option fields. Most of the fields are populated with default values.
+Open the Visulate UI and navigate to a database table. A query editor region is included at the top of the page. It contains an HTML form with username, password, sql query, bind variables and query option fields. Most of the fields are populated with default values.
 
 ![Query screen](/images/sql2csv.png){: class="screenshot" tabindex="0" }
 
@@ -252,15 +253,17 @@ A curl command appears below the results. Cut and paste this into a console wind
 4. Navigate to a database table screen and start asking questions
 
 
-    ![Visulate for Oracle Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
+    ![Visulate Gen AI](/images/gen-ai.png){: class="screenshot" tabindex="0" }
 
     Click the expand icon at the top right of the chat window to expand to full screen
 
 
-    ![Visulate for Oracle Gen AI](/images/gen-ai-fullscreen.png){: class="screenshot" tabindex="0" }
+    ![Visulate Gen AI](/images/gen-ai-fullscreen.png){: class="screenshot" tabindex="0" }
 
 
 ## Next Steps
 
 - [Configure Network Security and IAP](/pages/network-security.html) to control access and protect your instance
 - [Register additional databases](/pages/database-registration.html) to expand your AI-powered catalog
+- Delete the VM when you're done with the tutorial to avoid incurring further charges.
+- If you created an Oracle 23 Free VM, remember to delete it as well.

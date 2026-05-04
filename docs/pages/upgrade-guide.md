@@ -1,8 +1,8 @@
 * TOC
 {:toc id="toc"}
-# Updating Visulate for Oracle
+# Updating Visulate
 
-This page describes the process to update a live instance of Visulate for Oracle when a new version is released.
+This page describes the process to update a live instance of Visulate when a new version is released.
 
 ## VM Upgrade Process
 

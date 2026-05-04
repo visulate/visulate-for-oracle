@@ -41,19 +41,19 @@ Overcoming these challenges requires a multi-faceted approach:
 * **User Feedback and Refinement:** Incorporating user feedback loops can help LLMs learn from their mistakes and improve their code generation capabilities over time.
 * **Enhanced Training Data:** LLMs need to be trained on a diverse range of database schemas and query patterns to improve their understanding of database structures and business logic.
 
-Visulate for Oracle supports each of these approaches.
+Visulate supports each of these approaches.
 
 ## The Path Forward using Visulate
 
-Visulate for Oracle is an Oracle data dictionary browser and documentation tool. It provides a mechanism to catalog Oracle data dictionary content for registered databases. Visulate maintains a read-only Oracle database connection for each registration. These databases may be in multiple locations. For example, a Google Cloud deployment could document databases running in Google Compute Engine, GCVE or BMS as well as On-Premise, OCI, Azure and AWS.
+Visulate is an Oracle data dictionary browser and documentation tool. It provides a mechanism to catalog Oracle data dictionary content for registered databases. Visulate maintains a read-only Oracle database connection for each registration. These databases may be in multiple locations. For example, a Google Cloud deployment could document databases running in Google Compute Engine, GCVE or BMS as well as On-Premise, OCI, Azure and AWS.
 
 
 ![Multiple database connections](/images/ai-datamodel-connections.png){: class="screenshot" tabindex="0" }
 
 
-### Visulate for Oracle's Database Query Capabilities
+### Visulate's Database Query Capabilities
 
-Visulate for Oracle includes a powerful query engine that allows users to examine the structure of each database in detail. For example, Visulate generates custom reports for each object type, such as tables, views, indexes, packages and package bodies.
+Visulate includes a powerful query engine that allows users to examine the structure of each database in detail. For example, Visulate generates custom reports for each object type, such as tables, views, indexes, packages and package bodies.
 
 One of the key strengths of Visulate's query engine is its ability to understand the relationships between database objects. These could be tables with foreign key constraints, views that select from one or more tables or package bodies that reference a package spec. This enables Visulate to generate queries that accurately reflect the interconnectedness of data within the database.
 

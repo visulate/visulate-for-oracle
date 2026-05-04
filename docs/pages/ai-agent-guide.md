@@ -3,7 +3,7 @@
 
 # Agentic AI How-to Guide
 
-Visulate for Oracle integrates **Google Gemini AI** to provide autonomous agents that assist with database analysis, query generation, and documentation.
+Visulate integrates **Google Gemini AI** to provide autonomous agents that assist with database analysis, query generation, and documentation.
 
 ## Chatbot Interface
 The primary way to interact with Visulate's AI is through the chat window.
