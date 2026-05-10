@@ -94,7 +94,7 @@ Navigate to the public IP address of the Visulate VM in a browser window
 
 ![UI Homepage](/images/ui-screen.png){: class="screenshot" tabindex="0" }
 
-Edit the url changing "/database" to "/api/". This should make a call to the API server. **Tip:** make sure you include the trailing slash "/" in "/api/"
+Edit the url changing "/database" to "/api/". This should make a call to the API server.  This calls the visulate API Server to request a summary of every registered database. We don't have any at the moment so the call returns an empty list. 
 
 ![Empty API Response](/images/empty-api-response.png){: class="screenshot" tabindex="0" }
 
@@ -188,7 +188,7 @@ Change "/api/" to "/api-docs/" to review the API documentation.
 
 
 ### Review your database and its data model
-Open the Visulate UI. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
+Open the Visulate UI. Try re-running the `/api/` call you made earlier. It should return a schema object summary for your database. Click on the Database dropdown list. You should see an entry called "testdb". Select the value and wait for the database report to run (may take a couple of seconds). The results will appear below the selection form. Scroll down the page to review.
 
 ![Visulate Opening Screen](/images/opening-screen.png){: class="screenshot" tabindex="0" }
 
