@@ -271,3 +271,21 @@ mat-expansion-panel {
   background: var(--app-active-bg);
   color: var(--app-active-text);
 }
+.db-avatar.registration {
+  background: rgba(38, 139, 210, 0.1);
+  color: var(--app-link-color);
+}
+
+.registration-tile {
+  border: 2px dashed var(--app-border-color) !important;
+  background-color: transparent !important;
+}
+
+.registration-tile:hover {
+  border-color: var(--app-link-color) !important;
+  background-color: var(--app-active-bg) !important;
+}
+
+.registration-container {
+  margin-top: 24px;
+}

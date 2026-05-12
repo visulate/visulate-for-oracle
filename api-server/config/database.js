@@ -65,6 +65,19 @@ const endpoints = [
         }
     },
     {
+      namespace: 'vis25adb_tp',
+      description: 'vis25adb_tp Database',
+      connect: { poolAlias: 'vis25adb_tp',
+                 dbType: 'oracle',
+                 user: 'visulate',
+                 password: 'visLand32754',
+                 connectString: '(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=tryngjlosd4mgon_vis25adb_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))',
+                 poolMin: 4,
+                 poolMax: 4,
+                 poolIncrement: 0
+               }
+    },	
+    {
         namespace: 'cmbs-postgres',
         description: 'CMBS Postgres Database',
         connect: {

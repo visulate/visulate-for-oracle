@@ -12,10 +12,16 @@
         <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
           (selectionChange)="setEndpoint($event.value)">
           <mat-select-trigger>
-            @if (currentEndpoint) {
+            @if (currentEndpoint && currentEndpoint !== 'NEW') {
             <div class="db-option">
               <mat-icon [title]="currentEndpoint.dbType">{{ currentEndpoint.dbType === 'postgres' ? 'dataset' : 'storage' }}</mat-icon>
               <span>{{currentEndpoint.endpoint}}</span>
+            </div>
+            }
+            @if (currentEndpoint === 'NEW') {
+            <div class="db-option">
+              <mat-icon>add</mat-icon>
+              <span>New Database...</span>
             </div>
             }
           </mat-select-trigger>
@@ -27,6 +33,13 @@
             </div>
           </mat-option>
           }
+          <mat-divider></mat-divider>
+          <mat-option value="NEW">
+            <div class="db-option">
+              <mat-icon>add</mat-icon>
+              <span>New Database...</span>
+            </div>
+          </mat-option>
         </mat-select>
       </mat-form-field>
 

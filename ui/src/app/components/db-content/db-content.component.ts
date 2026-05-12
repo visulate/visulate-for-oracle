@@ -15,6 +15,7 @@
  */
 
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChildren, QueryList } from '@angular/core';
+import { Router } from '@angular/router';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
@@ -65,6 +66,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   constructor(
     private restService: RestService,
     private state: StateService,
+    public router: Router,
     media: MediaMatcher,
     changeDetectorRef: ChangeDetectorRef) {
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
@@ -247,6 +249,10 @@ export class DbContentComponent implements OnInit, OnDestroy {
         this.errorMessage = error.message;
       }
     );
+  }
+
+  public isNewRoute(): boolean {
+    return this.router.url.includes('/database/new');
   }
 
 }

@@ -116,19 +116,22 @@ To enable Natural Language to SQL (NL2SQL) and CSV export features, you must als
 
 ## Specialized Environments
 
-### Oracle Autonomous Database (ADB)
+### Oracle DEV Sandbox 1 (ADB)
 Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing (ATP) can be created with or without a wallet. For connections that require a client credentials wallet, use the following configuration.
 
 1. **Upload Wallet**: Place the unzipped wallet files in a directory on the VM (e.g., `/home/visulate/wallets/mydb`).
 2. **Update `database.js`**:
    ```javascript
-   { namespace: 'my_adb',
-     description: 'Autonomous Database',
-     connect: { poolAlias: 'my_adb',
+   { namespace: 'sbdev01',
+     description: 'DEV Sandbox 1',
+     connect: { poolAlias: 'sbdev01',
                 dbType: 'oracle',
                 user: 'visulate',
                 password: 'YourPassword',
-                connectString: 'my_adb_high',
+                connectString: '(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)(host=c4kxe2oq.adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=ge4d606ad2861e1_sbdev01_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=no)))',
+                poolMin: 4,
+                poolMax: 4,
+                poolIncrement: 0,
                 externalAuth: false
               },
      tnsAdmin: '/visulate-server/config/wallets/mydb'
@@ -139,8 +142,8 @@ Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing 
 3. **Update `endpoints.json` for NL2SQL**:
    ```json
    {
-     "my_adb": {
-         "dsn": "my_adb_high",
+     "sbdev01": {
+         "dsn": "sbdev01_high",
          "wallet_location": "/opt/oracle/network/admin"
      }
    }
