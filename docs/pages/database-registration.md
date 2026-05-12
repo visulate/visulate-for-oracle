@@ -128,7 +128,10 @@ Connections to Oracle Autonomous Data Warehouse (ADW) or Transaction Processing 
                 dbType: 'oracle',
                 user: 'visulate',
                 password: 'YourPassword',
-                connectString: 'my_adb_high',
+                connectString: '(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)(host=c4kxe2oq.adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=ge4d606ad2861e1_my_adb_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=no)))',
+                poolMin: 4,
+                poolMax: 4,
+                poolIncrement: 0,
                 externalAuth: false
               },
      tnsAdmin: '/visulate-server/config/wallets/mydb'

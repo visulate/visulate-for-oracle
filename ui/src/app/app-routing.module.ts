@@ -19,6 +19,7 @@ import { Routes, RouterModule } from '@angular/router';
 import { MainNavComponent } from './components/main-nav/main-nav.component';
 
 const routes: Routes = [
+  { path: 'database/new', component: MainNavComponent },
   { path: 'database', component: MainNavComponent },
   { path: 'database/:db', component: MainNavComponent },
   { path: 'database/:db/:schema', component: MainNavComponent },

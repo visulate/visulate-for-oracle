@@ -18,7 +18,9 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
+import { MatDialog } from '@angular/material/dialog';
 import { EndpointListModel, EndpointModel, SchemaModel, ObjectTypeListItem } from '../../models/endpoint.model';
+import { RegistrationHelperComponent } from '../registration-helper/registration-helper.component';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -40,7 +42,7 @@ import { environment } from '../../../environments/environment';
  */
 export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
-  public currentEndpoint: EndpointModel;
+  public currentEndpoint: EndpointModel | null;
   public currentSchema: SchemaModel;
   public currentObjectType: ObjectTypeListItem;
   public currentContext: CurrentContextModel;
@@ -54,9 +56,17 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
   constructor(
     private state: StateService,
     private router: Router,
-    private restService: RestService) { }
+    private restService: RestService,
+    private dialog: MatDialog) { }
 
   selectedOption = ''; // To store the selected option
+
+  openRegistrationDialog() {
+    this.dialog.open(RegistrationHelperComponent, {
+      width: '800px',
+      maxHeight: '90vh'
+    });
+  }
 
   download() {
     if (this.selectedOption) {
@@ -111,7 +121,11 @@ export class DbSelectionComponent implements OnInit, OnDestroy {
     }
   }
 
-  setEndpoint(endpoint: EndpointModel) {
+  setEndpoint(endpoint: any) {
+    if (endpoint === 'NEW') {
+      this.openRegistrationDialog();
+      return;
+    }
     this.currentEndpoint = endpoint;
     if (this.currentContext.filter !== '') {
       this.router.navigate([`/database/${endpoint.endpoint}`],

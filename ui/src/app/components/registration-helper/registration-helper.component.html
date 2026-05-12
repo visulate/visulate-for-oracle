@@ -1,0 +1,100 @@
+@if (isTile) {
+  <mat-card class="registration-card registration-tile" 
+    role="button" tabindex="0"
+    (click)="openDialog()" 
+    (keydown.enter)="openDialog()"
+    (keydown.space)="$event.preventDefault(); openDialog()">
+    <div class="clickable-tile">
+      <mat-card-header>
+        <div mat-card-avatar class="db-avatar registration">
+          <mat-icon>add_circle</mat-icon>
+        </div>
+        <mat-card-title>Register New Database</mat-card-title>
+        <mat-card-subtitle>Setup and Registration</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p>Generate SQL scripts and configuration snippets to register a new database in the Visulate catalog.</p>
+      </mat-card-content>
+    </div>
+  </mat-card>
+} @else {
+  <h2 mat-dialog-title>Register a New Database</h2>
+  <mat-dialog-content class="registration-dialog-content">
+    <p class="subtitle">Generate setup instructions for your database.
+      <a href="https://docs.visulate.net/pages/database-registration.html" target="_blank" rel="noopener noreferrer" class="doc-link">
+        Online Documentation <mat-icon>open_in_new</mat-icon>
+      </a>
+    </p>
+    
+    <div class="form-container">
+      <mat-form-field appearance="outline">
+        <mat-label>Database Type</mat-label>
+        <mat-select [(ngModel)]="dbType" (selectionChange)="port = dbType === 'oracle' ? 1521 : 5432">
+          <mat-option value="oracle">Oracle</mat-option>
+          <mat-option value="postgres">PostgreSQL</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      @if (dbType === 'oracle') {
+      <div class="adb-toggle">
+        <mat-slide-toggle [(ngModel)]="useFullConnectString">Use Full Connect String (e.g. for ADB)</mat-slide-toggle>
+      </div>
+      }
+
+      @if (!useFullConnectString) {
+      <mat-form-field appearance="outline">
+        <mat-label>Host</mat-label>
+        <input matInput [(ngModel)]="host" placeholder="e.g. 10.1.1.5">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Port</mat-label>
+        <input matInput type="number" [(ngModel)]="port">
+      </mat-form-field>
+      }
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ dbType === 'oracle' ? 'Service Name' : 'Database Name' }}</mat-label>
+        <input matInput [(ngModel)]="serviceName" placeholder="e.g. orcl">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>VISULATE User Password</mat-label>
+        <input matInput type="password" [(ngModel)]="password">
+      </mat-form-field>
+
+      @if (useFullConnectString && dbType === 'oracle') {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Full Connect String</mat-label>
+        <textarea matInput [(ngModel)]="fullConnectString" rows="4" placeholder="(DESCRIPTION=(RETRY_COUNT=20)...)"></textarea>
+      </mat-form-field>
+      }
+    </div>
+
+    @if (showInstructions) {
+    <div class="instructions-container">
+      <h3>1. Database Setup</h3>
+      <p>Run the following SQL as a privileged user (e.g. SYSTEM or postgres) in your database:</p>
+      <pre><code [highlight]="dbType === 'oracle' ? oracleSql : postgresSql"></code></pre>
+
+      <h3>2. VM Configuration</h3>
+      <p>Add the following entry to <code>/home/visulate/config/database.js</code> on your Visulate VM:</p>
+      <pre><code [highlight]="databaseJs"></code></pre>
+
+      <h3>3. SQL Engine Configuration (Optional)</h3>
+      <p>To enable the SQL Query Editor, add this entry to <code>/home/visulate/config/endpoints.json</code>:</p>
+      <pre><code [highlight]="endpointsJson"></code></pre>
+
+      <p>After updating the files, restart the Visulate services:</p>
+      <pre><code>docker restart visapi visproxy</code></pre>
+    </div>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Close</button>
+    <button mat-raised-button color="primary" (click)="generateInstructions()" 
+      [disabled]="(useFullConnectString ? !fullConnectString : !host) || !serviceName || !password">
+      Generate Instructions
+    </button>
+  </mat-dialog-actions>
+}

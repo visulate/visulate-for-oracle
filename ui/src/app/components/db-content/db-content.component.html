@@ -114,9 +114,16 @@
         </mat-card-content>
       </mat-card>
       }
+      <app-registration-helper [isTile]="true"></app-registration-helper>
     </div>
   </mat-expansion-panel>
 </mat-accordion>
+}
+
+@if (!currentContext.endpoint && (!endpointList || !endpointList.databases || endpointList.databases.length === 0)) {
+  <div class="registration-container">
+    <app-registration-helper [isTile]="true"></app-registration-helper>
+  </div>
 }
 }
 
