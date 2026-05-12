@@ -4,7 +4,6 @@
   "pdb22": "192.168.1.170:1522/pdb22.goldthorp.org",
   "pdb23": "192.168.1.170:1522/pdb23.goldthorp.org",
   "vis25adb": "vis25adb_tp",
-  "vis25adb_tp": "(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=tryngjlosd4mgon_vis25adb_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))",
   "cmbs-postgres": {
     "dsn": "localhost:5432/cmbs",
     "dbType": "postgres"
