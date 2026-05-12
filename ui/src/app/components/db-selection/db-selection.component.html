@@ -9,7 +9,7 @@
     <div id="dbSelectMenu">
       <app-filter-objects></app-filter-objects>
       <mat-form-field>
-        <mat-select [(ngModel)]="currentEndpoint" [placeholder]="dbPlaceholder"
+        <mat-select [ngModel]="currentEndpoint" [placeholder]="dbPlaceholder"
           (selectionChange)="setEndpoint($event.value)">
           <mat-select-trigger>
             @if (currentEndpoint && currentEndpoint !== 'NEW') {

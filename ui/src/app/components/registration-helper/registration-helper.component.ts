@@ -1,5 +1,5 @@
-import { Component, Input, Optional } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Component, Input } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 
 @Component({
   selector: 'app-registration-helper',
@@ -13,15 +13,13 @@ export class RegistrationHelperComponent {
   public host: string = '';
   public port: number = 1521;
   public serviceName: string = '';
-  public sid: string = '';
   public useFullConnectString: boolean = false;
   public fullConnectString: string = '';
   public password: string = '';
   public showInstructions: boolean = false;
 
   constructor(
-    private dialog: MatDialog,
-    @Optional() public dialogRef: MatDialogRef<RegistrationHelperComponent>
+    private dialog: MatDialog
   ) {}
 
   public openDialog() {
@@ -36,7 +34,8 @@ export class RegistrationHelperComponent {
   }
 
   public get oracleSql(): string {
-    return `create user visulate identified by "${this.password}";
+    const escapedPassword = this.password.replace(/"/g, '""');
+    return `create user visulate identified by "${escapedPassword}";
 alter user visulate account unlock;
 grant create session to visulate;
 grant select any dictionary to visulate;
@@ -44,7 +43,8 @@ grant select_catalog_role to visulate;`;
   }
 
   public get postgresSql(): string {
-    return `CREATE ROLE visulate WITH LOGIN PASSWORD '${this.password}';
+    const escapedPassword = this.password.replace(/'/g, "''");
+    return `CREATE ROLE visulate WITH LOGIN PASSWORD '${escapedPassword}';
 GRANT pg_read_all_data TO visulate;
 GRANT pg_read_all_stats TO visulate;`;
   }

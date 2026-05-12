@@ -1,5 +1,9 @@
 @if (isTile) {
-  <mat-card class="registration-card registration-tile" (click)="openDialog()">
+  <mat-card class="registration-card registration-tile" 
+    role="button" tabindex="0"
+    (click)="openDialog()" 
+    (keydown.enter)="openDialog()"
+    (keydown.space)="$event.preventDefault(); openDialog()">
     <div class="clickable-tile">
       <mat-card-header>
         <div mat-card-avatar class="db-avatar registration">
@@ -17,7 +21,7 @@
   <h2 mat-dialog-title>Register a New Database</h2>
   <mat-dialog-content class="registration-dialog-content">
     <p class="subtitle">Generate setup instructions for your database.
-      <a href="https://docs.visulate.net/pages/database-registration.html" target="_blank" class="doc-link">
+      <a href="https://docs.visulate.net/pages/database-registration.html" target="_blank" rel="noopener noreferrer" class="doc-link">
         Online Documentation <mat-icon>open_in_new</mat-icon>
       </a>
     </p>

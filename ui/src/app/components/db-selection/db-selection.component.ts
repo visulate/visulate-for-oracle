@@ -42,7 +42,7 @@ import { environment } from '../../../environments/environment';
  */
 export class DbSelectionComponent implements OnInit, OnDestroy {
   public endpoints: EndpointListModel;
-  public currentEndpoint: EndpointModel | any;
+  public currentEndpoint: EndpointModel | null;
   public currentSchema: SchemaModel;
   public currentObjectType: ObjectTypeListItem;
   public currentContext: CurrentContextModel;

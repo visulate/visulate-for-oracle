@@ -122,7 +122,7 @@
 
 @if (!currentContext.endpoint && (!endpointList || !endpointList.databases || endpointList.databases.length === 0)) {
   <div class="registration-container">
-    <app-registration-helper></app-registration-helper>
+    <app-registration-helper [isTile]="true"></app-registration-helper>
   </div>
 }
 }
