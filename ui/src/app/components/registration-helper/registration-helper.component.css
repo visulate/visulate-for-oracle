@@ -1,0 +1,105 @@
+.registration-card {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.registration-tile {
+  cursor: pointer;
+  border: 2px dashed var(--app-border-color) !important;
+  background-color: transparent !important;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.registration-tile:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  border-color: var(--app-link-color) !important;
+  background-color: var(--app-active-bg) !important;
+}
+
+.registration-dialog-content {
+  min-width: 600px;
+  padding-top: 10px !important;
+}
+
+.subtitle {
+  color: var(--app-text-color);
+  opacity: 0.7;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.doc-link {
+  color: var(--app-link-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doc-link:hover {
+  text-decoration: underline;
+}
+
+.doc-link mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.clickable-tile {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.adb-toggle {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.instructions-container {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: var(--app-sidebar-bg, #f9f9f9);
+  border-radius: 4px;
+}
+
+pre {
+  background-color: #2d2d2d;
+  color: #ccc;
+  padding: 15px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+h3 {
+  margin-top: 25px;
+  color: var(--app-link-color, #3f51b5);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
