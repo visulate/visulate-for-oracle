@@ -30,7 +30,7 @@
     "cors": "^2.8.5",
     "diff": "9.0.0",
     "dotenv": "^16.4.5",
-    "express": "^4.22.1",
+    "express": "^4.22.2",
     "express-json-validator-middleware": "^2.1.1",
     "handlebars": "^4.7.9",
     "morgan": "^1.10.0",
