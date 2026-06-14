@@ -38,6 +38,12 @@
         <div class="message-bubble" [class.user-bubble]="msg.user === 'You'"
           [class.agent-bubble]="msg.user === 'Visulate'" (click)="handleLinkClick($event)">
           <div class="message-content" markdown>{{ msg.text }}</div>
+          <div class="msg-attachments-container" *ngIf="msg.attachments?.length">
+            <button mat-stroked-button type="button" class="msg-attachment-btn" *ngFor="let file of msg.attachments" (click)="viewFileContent(file, false); $event.stopPropagation()" matTooltip="View Content">
+              <mat-icon>insert_drive_file</mat-icon>
+              {{ file.name }}
+            </button>
+          </div>
         </div>
 
         @if (msg.user === 'You') {
@@ -61,9 +67,23 @@
     </div>
     }
 
+    <div class="attachments-preview" *ngIf="(uploadedFiles$ | async)?.length">
+      <div class="attachment-chip" *ngFor="let file of (uploadedFiles$ | async)" (click)="viewFileContent(file, true)" style="cursor: pointer;" matTooltip="Click to view content">
+        <mat-icon class="attachment-icon">insert_drive_file</mat-icon>
+        <span class="attachment-name" [matTooltip]="file.name">{{ file.name }} ({{ (file.size / 1024) | number:'1.0-1' }} KB)</span>
+        <button type="button" class="remove-attachment-btn" (click)="removeFile(file.name); $event.stopPropagation()" matTooltip="Remove attachment">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
     <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="chat-input-area">
+      <input type="file" #fileInput multiple (change)="onFileSelected($event)" style="display: none">
       <mat-form-field appearance="outline" class="chat-field">
         <mat-label>Ask Visulate...</mat-label>
+        <button mat-icon-button matPrefix type="button" (click)="fileInput.click()" [disabled]="isLoading" matTooltip="Attach Source Code Files">
+          <mat-icon>attach_file</mat-icon>
+        </button>
         <!-- Note: MatButton module and MatIcon module required -->
         <textarea matInput formControlName="message" placeholder="Type your message" cdkTextareaAutosize
           cdkAutosizeMinRows="1" cdkAutosizeMaxRows="8" (keydown)="handleKeyDown($event)"></textarea>

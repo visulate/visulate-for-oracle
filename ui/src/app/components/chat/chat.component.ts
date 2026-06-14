@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, ElementRef, ViewChild, AfterViewChecked, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, Input, ElementRef, ViewChild, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit } from '@angular/core';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { FormBuilder, FormGroup } from '@angular/forms';
@@ -8,7 +8,11 @@ import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
 import { MatDialog } from '@angular/material/dialog';
 import { CredentialDialogComponent } from '../../components/credential-dialog/credential-dialog.component';
+import { DiffDialogComponent } from '../../components/diff-dialog/diff-dialog.component';
+import { FileViewerDialogComponent } from '../../components/file-viewer-dialog/file-viewer-dialog.component';
 import { Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-chat',
@@ -16,7 +20,7 @@ import { Router } from '@angular/router';
   styleUrls: ['./chat.component.css'],
   standalone: false
 })
-export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked, AfterViewInit {
+export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
   @Input() currentContext: any;
   @Input() currentObject: any;
   @Input() agent: string;
@@ -28,6 +32,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
 
   chatForm: FormGroup;
   messages$ = this.stateService.chatHistory$;
+  uploadedFiles$ = this.stateService.uploadedFiles$;
   isLoading: boolean = false;
   isFullScreen: boolean = false;
   currentStatus: string | null = null;
@@ -48,7 +53,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
     private overlay: Overlay,
-    private viewContainerRef: ViewContainerRef
+    private viewContainerRef: ViewContainerRef,
+    private snackBar: MatSnackBar,
+    private http: HttpClient
   ) {
     this.chatForm = this.fb.group({
       message: ['']
@@ -80,8 +87,35 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
           const path = href.startsWith('/') ? href : '/' + href;
           this.router.navigateByUrl(path);
         } else if (href.startsWith('/download') || href.startsWith('http')) {
-          // Open download links and external links in a new tab
           event.preventDefault();
+          // Check if this is a download endpoint link matching an uploaded file
+          const downloadMatch = href.match(/\/download\/[^/]+\/([^/]+)/);
+          if (downloadMatch) {
+            const filename = downloadMatch[1];
+            const originalContent = this.stateService.getSessionUploadedFileContent(filename);
+            if (originalContent !== undefined) {
+              // Fetch modified content and show diff
+              this.http.get(href, { responseType: 'text' }).subscribe({
+                next: (modifiedContent: string) => {
+                  this.dialog.open(DiffDialogComponent, {
+                    data: {
+                      filename: filename,
+                      originalContent: originalContent,
+                      modifiedContent: modifiedContent
+                    },
+                    width: '90vw',
+                    maxWidth: '1200px'
+                  });
+                },
+                error: (err) => {
+                  console.error('Failed to fetch modified file content', err);
+                  this.snackBar.open(`Failed to load modified file "${filename}"`, 'Close', { duration: 5000 });
+                }
+              });
+              return;
+            }
+          }
+          // Default action: Open download links and external links in a new tab
           window.open(href, '_blank');
         }
       }
@@ -105,6 +139,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(() => {
         this.cdr.detectChanges();
+      });
+
+    this.messages$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(() => {
+        setTimeout(() => this.scrollToBottom(), 50);
       });
   }
 
@@ -192,9 +232,6 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     }
   }
 
-  ngAfterViewChecked(): void {
-    this.scrollToBottom();
-  }
 
   handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -209,8 +246,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     const userMessage = specificMessage || this.chatForm.get('message')?.value;
     if (!userMessage || !userMessage.trim()) return;
 
+    const currentAttachments = [...this.stateService.getUploadedFiles()];
     // Add user message to state
-    this.stateService.addMessage({ user: 'You', text: userMessage });
+    this.stateService.addMessage({ user: 'You', text: userMessage, attachments: currentAttachments });
     if (!specificMessage) {
       this.chatForm.reset();
     }
@@ -244,8 +282,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       // Sending history in context is safer for stateless backend.
       // Sending history in context is safer for stateless backend.
       chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1), // Exclude current empty response
-      session_id: this.stateService.getSessionId() // Include session_id from state
+      session_id: this.stateService.getSessionId(), // Include session_id from state
+      attachments: this.stateService.getUploadedFiles() // Include file attachments
     };
+
+    // Clear uploaded files after adding to context so UI resets
+    this.stateService.clearUploadedFiles();
 
     // Need to send lightweight context, Agent will use tools to get details.
 
@@ -421,5 +463,100 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     if (state === 'matched') return `Credentials active for ${this.currentContext?.endpoint}`;
     if (state === 'partial') return 'Credentials saved for other databases';
     return 'Connect to Database';
+  }
+
+  onFileSelected(event: any): void {
+    const files: FileList = event.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      this.validateAndUploadFile(files[i]);
+    }
+    // Reset file input value so the same file can be uploaded again if removed
+    event.target.value = '';
+  }
+
+  removeFile(name: string): void {
+    this.stateService.removeUploadedFile(name);
+  }
+
+  viewFileContent(file: { name: string; content: string }, canRemove = false): void {
+    this.dialog.open(FileViewerDialogComponent, {
+      data: {
+        filename: file.name,
+        content: file.content,
+        canRemove
+      },
+      maxWidth: '95vw',
+      maxHeight: '90vh'
+    });
+  }
+
+  private validateAndUploadFile(file: File): void {
+    // 1. Check size limit: 100KB (102400 bytes)
+    const MAX_SIZE = 100 * 1024;
+    if (file.size > MAX_SIZE) {
+      this.snackBar.open(`File "${file.name}" exceeds the 100KB limit (${Math.round(file.size / 1024)}KB).`, 'Close', { duration: 5000 });
+      return;
+    }
+
+    // 2. Check total files count (limit to 5)
+    if (this.stateService.getUploadedFiles().length >= 5) {
+      this.snackBar.open('Maximum of 5 files can be attached at a time.', 'Close', { duration: 5000 });
+      return;
+    }
+
+    // 3. Whitelist check
+    const whitelist = ['.txt', '.sql', '.py', '.java', '.js', '.ts', '.html', '.css', '.json', '.yaml', '.yml', '.sh', '.bash', '.pls', '.plb', '.c', '.cpp', '.h', '.hpp', '.cs', '.go', '.rs', '.php', '.rb', '.md', '.xml'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!whitelist.includes(ext)) {
+      this.snackBar.open(`File "${file.name}" has an unsupported extension (${ext}). Only source code/text files are allowed.`, 'Close', { duration: 5000 });
+      return;
+    }
+
+    // 4. Binary check (null bytes and control character ratio check)
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      const buffer = e.target.result as ArrayBuffer;
+      const arr = new Uint8Array(buffer);
+      let hasNullByte = false;
+      let controlCount = 0;
+
+      for (let i = 0; i < arr.length; i++) {
+        const charCode = arr[i];
+        if (charCode === 0) {
+          hasNullByte = true;
+          break;
+        }
+        // ASCII control chars below 32, except TAB (9), LF (10), CR (13)
+        if (charCode < 32 && charCode !== 9 && charCode !== 10 && charCode !== 13) {
+          controlCount++;
+        }
+      }
+
+      if (hasNullByte) {
+        this.snackBar.open(`File "${file.name}" appears to be binary and is not supported.`, 'Close', { duration: 5000 });
+        return;
+      }
+
+      const controlRatio = arr.length > 0 ? controlCount / arr.length : 0;
+      if (controlRatio > 0.02) {
+        this.snackBar.open(`File "${file.name}" contains too many binary/control characters and is not supported.`, 'Close', { duration: 5000 });
+        return;
+      }
+
+      // If validation succeeds, read as text and add to state
+      const textReader = new FileReader();
+      textReader.onload = (evt: any) => {
+        const content = evt.target.result as string;
+        this.stateService.addUploadedFile({
+          name: file.name,
+          content: content,
+          size: file.size
+        });
+      };
+      textReader.readAsText(file);
+    };
+    reader.readAsArrayBuffer(file);
   }
 }

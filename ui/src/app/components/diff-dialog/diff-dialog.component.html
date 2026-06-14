@@ -1,0 +1,55 @@
+<div class="diff-dialog-container">
+  <div class="diff-header">
+    <div class="diff-title-area">
+      <mat-icon class="diff-title-icon">compare</mat-icon>
+      <div class="diff-title-text">
+        <h2>Proposed Changes: <code>{{ filename }}</code></h2>
+        <p class="diff-subtitle">Review modifications before downloading to check into source control.</p>
+      </div>
+    </div>
+    <button mat-icon-button (click)="close()" class="close-btn" matTooltip="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="diff-body">
+    <div class="diff-code-wrapper">
+      <table class="diff-table">
+        <tbody>
+          <tr *ngFor="let line of diffLines" 
+              [class.line-added]="line.type === 'added'" 
+              [class.line-removed]="line.type === 'removed'" 
+              [class.line-unchanged]="line.type === 'unchanged'">
+            <td class="line-num line-num-original">
+              {{ line.originalLineNum || '' }}
+            </td>
+            <td class="line-num line-num-modified">
+              {{ line.modifiedLineNum || '' }}
+            </td>
+            <td class="line-marker">
+              <span *ngIf="line.type === 'added'">+</span>
+              <span *ngIf="line.type === 'removed'">-</span>
+              <span *ngIf="line.type === 'unchanged'">&nbsp;</span>
+            </td>
+            <td class="line-content">
+              <pre><code>{{ line.text }}</code></pre>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="diff-actions">
+    <div class="diff-legend">
+      <span class="legend-item legend-added"><span class="legend-box"></span> Added</span>
+      <span class="legend-item legend-removed"><span class="legend-box"></span> Removed</span>
+    </div>
+    <div class="action-buttons">
+      <button mat-button (click)="close()">Cancel</button>
+      <button mat-raised-button color="primary" (click)="download()">
+        <mat-icon>download</mat-icon> Download Modified File
+      </button>
+    </div>
+  </div>
+</div>

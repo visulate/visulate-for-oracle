@@ -150,14 +150,45 @@ export class StateService {
     localStorage.setItem('objectHistory', JSON.stringify(history));
   }
 
-  private chatHistory = new BehaviorSubject<{ user: string, text: string, type?: string }[]>([]);
+  private chatHistory = new BehaviorSubject<{ user: string, text: string, type?: string, attachments?: { name: string, content: string, size: number }[] }[]>([]);
   chatHistory$ = this.chatHistory.asObservable();
+
+  private uploadedFiles = new BehaviorSubject<{ name: string, content: string, size: number }[]>([]);
+  uploadedFiles$ = this.uploadedFiles.asObservable();
+
+  private sessionUploadedFiles = new Map<string, string>();
 
   getChatHistory() {
     return this.chatHistory.getValue();
   }
 
-  addMessage(message: { user: string, text: string, type?: string }) {
+  getUploadedFiles() {
+    return this.uploadedFiles.getValue();
+  }
+
+  addUploadedFile(file: { name: string, content: string, size: number }) {
+    const current = this.uploadedFiles.getValue();
+    const filtered = current.filter(f => f.name !== file.name);
+    this.uploadedFiles.next([...filtered, file]);
+    // Save original content for diff reference later
+    this.sessionUploadedFiles.set(file.name, file.content);
+  }
+
+  getSessionUploadedFileContent(name: string): string | undefined {
+    return this.sessionUploadedFiles.get(name);
+  }
+
+  removeUploadedFile(name: string) {
+    const current = this.uploadedFiles.getValue();
+    this.uploadedFiles.next(current.filter(f => f.name !== name));
+    this.sessionUploadedFiles.delete(name);
+  }
+
+  clearUploadedFiles() {
+    this.uploadedFiles.next([]);
+  }
+
+  addMessage(message: { user: string, text: string, type?: string, attachments?: { name: string, content: string, size: number }[] }) {
     const current = this.chatHistory.getValue();
     this.chatHistory.next([...current, message]);
   }
@@ -176,6 +207,8 @@ export class StateService {
   clearChatHistory() {
     this.chatHistory.next([]);
     this.clearSessionId();
+    this.clearUploadedFiles();
+    this.sessionUploadedFiles.clear();
   }
 
   getSessionId(): string {
