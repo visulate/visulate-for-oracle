@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 export interface DiffLine {
@@ -25,6 +25,7 @@ export interface SideBySideLine {
   selector: 'app-diff-dialog',
   templateUrl: './diff-dialog.component.html',
   styleUrls: ['./diff-dialog.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class DiffDialogComponent implements OnInit {

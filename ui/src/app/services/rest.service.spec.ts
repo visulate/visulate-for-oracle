@@ -19,7 +19,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 
 import { RestService } from './rest.service';
 import { environment } from '../../environments/environment';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 
 describe('RestService', () => {
   let injector;
@@ -29,7 +29,7 @@ describe('RestService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [],
-      providers: [RestService, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+      providers: [RestService, provideHttpClient(withXhr(), withInterceptorsFromDi()), provideHttpClientTesting()]
     });
     injector = getTestBed();
     service = injector.inject(RestService);

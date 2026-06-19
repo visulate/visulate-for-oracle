@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
@@ -30,6 +30,7 @@ import { environment } from '../../../environments/environment';
   selector: 'app-db-selection',
   templateUrl: './db-selection.component.html',
   styleUrls: ['./db-selection.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 

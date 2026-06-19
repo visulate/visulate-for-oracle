@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, ElementRef, ViewChild, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, Input, ElementRef, ViewChild, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { FormBuilder, FormGroup } from '@angular/forms';
@@ -19,6 +19,7 @@ import { environment } from '../../../environments/environment';
   selector: 'app-chat',
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
