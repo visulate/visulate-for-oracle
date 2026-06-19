@@ -1,0 +1,22 @@
+<div class="file-viewer-container">
+  <div class="viewer-header">
+    <div class="viewer-title-area">
+      <mat-icon class="viewer-title-icon">insert_drive_file</mat-icon>
+      <div class="viewer-title-text">
+        <h2>{{ filename }}</h2>
+      </div>
+    </div>
+    <button mat-icon-button (click)="close()" class="close-btn" matTooltip="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="viewer-body">
+    <pre class="viewer-code"><code>{{ content }}</code></pre>
+  </div>
+
+  <div class="viewer-actions">
+    <button mat-button color="warn" *ngIf="canRemove" (click)="removeFile()" style="margin-right: auto;">Remove File</button>
+    <button mat-raised-button color="primary" (click)="close()">Close</button>
+  </div>
+</div>

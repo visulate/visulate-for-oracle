@@ -82,7 +82,7 @@ async def test_heartbeat_filtering():
         result = await tool.func("test message")
 
         # Heartbeats should not appear in final response
-        assert result == "Actual result"
+        assert "Actual result" in result
         # Heartbeats should not trigger progress callbacks
         assert "Processing..." in progress_msgs
         # Only one progress message should be captured

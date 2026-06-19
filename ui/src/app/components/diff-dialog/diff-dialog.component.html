@@ -1,0 +1,107 @@
+<div class="diff-dialog-container">
+  <div class="diff-header">
+    <div class="diff-title-area">
+      <mat-icon class="diff-title-icon">compare</mat-icon>
+      <div class="diff-title-text">
+        <h2>Proposed Changes: <code>{{ filename }}</code></h2>
+        <p class="diff-subtitle">Review modifications before downloading to check into source control.</p>
+      </div>
+    </div>
+    <div class="diff-header-actions">
+      <button mat-icon-button (click)="toggleMaximize()" class="maximize-btn" [matTooltip]="isMaximized ? 'Restore' : 'Maximize'">
+        <mat-icon>{{ isMaximized ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+      </button>
+      <button mat-icon-button (click)="close()" class="close-btn" matTooltip="Close">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="diff-body">
+    <div class="diff-code-wrapper">
+      <!-- Inline View -->
+      <table class="diff-table diff-table-inline" *ngIf="viewMode === 'inline'">
+        <tbody>
+          <tr *ngFor="let line of diffLines" 
+              [class.line-added]="line.type === 'added'" 
+              [class.line-removed]="line.type === 'removed'" 
+              [class.line-unchanged]="line.type === 'unchanged'">
+            <td class="line-num line-num-original">
+              {{ line.originalLineNum || '' }}
+            </td>
+            <td class="line-num line-num-modified">
+              {{ line.modifiedLineNum || '' }}
+            </td>
+            <td class="line-marker">
+              <span *ngIf="line.type === 'added'">+</span>
+              <span *ngIf="line.type === 'removed'">-</span>
+              <span *ngIf="line.type === 'unchanged'">&nbsp;</span>
+            </td>
+            <td class="line-content">
+              <pre><code>{{ line.text }}</code></pre>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Side-by-Side View -->
+      <table class="diff-table diff-table-side-by-side" *ngIf="viewMode === 'side-by-side'">
+        <tbody>
+          <tr *ngFor="let row of sideBySideLines">
+            <!-- Left (Original) -->
+            <td class="line-num line-num-original" [class.line-removed]="row.left?.type === 'removed'">
+              {{ row.left?.lineNum || '' }}
+            </td>
+            <td class="line-content line-content-original" 
+                [class.line-removed]="row.left?.type === 'removed'"
+                [class.line-empty]="!row.left">
+              <pre><code>{{ row.left?.text || '' }}</code></pre>
+            </td>
+            <!-- Split Divider -->
+            <td class="diff-split-divider"></td>
+            <!-- Right (Modified) -->
+            <td class="line-num line-num-modified" [class.line-added]="row.right?.type === 'added'">
+              {{ row.right?.lineNum || '' }}
+            </td>
+            <td class="line-content line-content-modified" 
+                [class.line-added]="row.right?.type === 'added'"
+                [class.line-empty]="!row.right">
+              <pre><code>{{ row.right?.text || '' }}</code></pre>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="diff-actions">
+    <div class="diff-footer-left">
+      <div class="diff-view-toggle">
+        <button mat-stroked-button 
+                [color]="viewMode === 'side-by-side' ? 'primary' : ''" 
+                (click)="setViewMode('side-by-side')" 
+                class="toggle-btn left-btn" 
+                [class.active-mode]="viewMode === 'side-by-side'">
+          <mat-icon>view_week</mat-icon> Side-by-Side
+        </button>
+        <button mat-stroked-button 
+                [color]="viewMode === 'inline' ? 'primary' : ''" 
+                (click)="setViewMode('inline')" 
+                class="toggle-btn right-btn" 
+                [class.active-mode]="viewMode === 'inline'">
+          <mat-icon>wrap_text</mat-icon> Inline
+        </button>
+      </div>
+      <div class="diff-legend">
+        <span class="legend-item legend-added"><span class="legend-box"></span> Added</span>
+        <span class="legend-item legend-removed"><span class="legend-box"></span> Removed</span>
+      </div>
+    </div>
+    <div class="action-buttons">
+      <button mat-button (click)="close()">Cancel</button>
+      <button mat-raised-button color="primary" (click)="download()">
+        <mat-icon>download</mat-icon> Download Modified File
+      </button>
+    </div>
+  </div>
+</div>

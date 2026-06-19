@@ -98,7 +98,7 @@ def create_remote_delegate_tool(agent_name: str, endpoint_url: str) -> FunctionT
 
         final_result = "".join(full_response).strip()
         logger.info(f"Received final response from {agent_name} (length: {len(final_result)})")
-        return final_result
+        return f"[THE FOLLOWING RESPONSE HAS ALREADY BEEN STREAMED TO THE USER IN REAL-TIME. DO NOT REPEAT OR SUMMARIZE IT. ONLY CONFIRM COMPLETION OR ANSWER FOLLOW-UP QUESTIONS]:\n{final_result}"
 
     # Give the tool a descriptive name based on the agent it calls
     _delegate.__name__ = f"delegate_to_{agent_name}"

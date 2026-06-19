@@ -277,3 +277,140 @@
     font-size: 1.25rem;
   }
 }
+
+/* Attachments Preview Styling */
+.attachments-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--app-bg-color, #f8fafc);
+  border-top: 1px solid var(--app-border-color, #e2e8f0);
+  border-bottom: 1px solid var(--app-border-color, #e2e8f0);
+  align-items: center;
+}
+
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--app-card-bg, #ffffff);
+  border: 1px solid var(--app-border-color, #cbd5e1);
+  border-radius: 8px;
+  padding: 4px 8px 4px 10px;
+  font-size: 0.825rem;
+  color: var(--app-text-color, #334155);
+  max-width: 200px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.attachment-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  opacity: 0.7;
+}
+
+.attachment-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  font-weight: 500;
+}
+
+.remove-attachment-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  color: var(--app-text-color, #64748b);
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.remove-attachment-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+  color: #ef4444;
+}
+
+.remove-attachment-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Message Attachments Container */
+.msg-attachments-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.user-bubble .msg-attachments-container {
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.agent-bubble .msg-attachments-container {
+  border-top: 1px dashed var(--app-border-color, #e2e8f0);
+}
+
+.msg-attachment-btn {
+  font-size: 0.8rem !important;
+  line-height: 1 !important;
+  padding: 4px 8px !important;
+  height: auto !important;
+  border-radius: 6px !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.msg-attachment-btn mat-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+}
+
+.msg-attachment-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Make attachment chip feel clickable */
+.attachment-chip:hover {
+  border-color: var(--primary-color, #3b82f6) !important;
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Adjust matPrefix attachment button layout inside form field */
+.chat-field [matPrefix] {
+  margin-right: 8px;
+  color: #64748b;
+}

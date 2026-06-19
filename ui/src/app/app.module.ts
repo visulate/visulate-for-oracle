@@ -65,6 +65,8 @@ import { SqlValidatorDirective } from './components/sql/sql.directive';
 import { MarkdownModule } from 'ngx-markdown';
 import { ChatComponent } from './components/chat/chat.component';
 import { CredentialDialogComponent } from './components/credential-dialog/credential-dialog.component';
+import { DiffDialogComponent } from './components/diff-dialog/diff-dialog.component';
+import { FileViewerDialogComponent } from './components/file-viewer-dialog/file-viewer-dialog.component';
 import { StateService } from './services/state.service';
 import { RestService } from './services/rest.service';
 
@@ -84,6 +86,8 @@ import { RestService } from './services/rest.service';
     SqlValidatorDirective,
     ChatComponent,
     CredentialDialogComponent,
+    DiffDialogComponent,
+    FileViewerDialogComponent,
     BreadcrumbsComponent,
     RegistrationHelperComponent
   ],
