@@ -14,7 +14,13 @@
     "typeRoots": [
       "node_modules/@types"
     ],
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "strict": false,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "useUnknownInCatchVariables": false,
+    "ignoreDeprecations": "6.0"
   },
   "angularCompilerOptions": {
     "fullTemplateTypeCheck": true,
