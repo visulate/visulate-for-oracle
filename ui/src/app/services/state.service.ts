@@ -170,8 +170,15 @@ export class StateService {
     const current = this.uploadedFiles.getValue();
     const filtered = current.filter(f => f.name !== file.name);
     this.uploadedFiles.next([...filtered, file]);
-    // Save original content for diff reference later
+    // Save original content for diff reference later (bounded to avoid unbounded session memory growth)
     this.sessionUploadedFiles.set(file.name, file.content);
+    const MAX_SESSION_FILES = 50;
+    if (this.sessionUploadedFiles.size > MAX_SESSION_FILES) {
+      const oldestKey = this.sessionUploadedFiles.keys().next().value as string | undefined;
+      if (oldestKey) {
+        this.sessionUploadedFiles.delete(oldestKey);
+      }
+    }
   }
 
   getSessionUploadedFileContent(name: string): string | undefined {

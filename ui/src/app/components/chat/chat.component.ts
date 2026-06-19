@@ -13,6 +13,7 @@ import { FileViewerDialogComponent } from '../../components/file-viewer-dialog/f
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-chat',
@@ -88,11 +89,26 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
           this.router.navigateByUrl(path);
         } else if (href.startsWith('/download') || href.startsWith('http')) {
           event.preventDefault();
-          // Check if this is a download endpoint link matching an uploaded file
-          const downloadMatch = href.match(/\/download\/[^/]+\/([^/]+)/);
-          if (downloadMatch) {
-            const filename = downloadMatch[1];
-            const originalContent = this.stateService.getSessionUploadedFileContent(filename);
+          // Check if this is a download endpoint link matching an uploaded file or active database object
+          const downloadMatch = href.match(/\/download\/[^/]+\/([^/?#]+)/);
+          if (href.startsWith('/download') && downloadMatch) {
+            const filename = decodeURIComponent(downloadMatch[1]);
+            let originalContent = this.stateService.getSessionUploadedFileContent(filename);
+
+            if (originalContent === undefined) {
+              // Try to match current active object's Source property
+              if (this.currentContext && this.currentContext.objectName && this.currentObject) {
+                const baseFilename = filename.split('.')[0].toLowerCase();
+                const objName = this.currentContext.objectName.toLowerCase();
+                if (baseFilename === objName || filename.toLowerCase().includes(objName)) {
+                  const sourceProp = this.currentObject.objectProperties?.find((p: any) => p.title === 'Source');
+                  if (sourceProp && sourceProp.rows) {
+                    originalContent = sourceProp.rows.map((row: any) => row.Text || '').join('');
+                  }
+                }
+              }
+            }
+
             if (originalContent !== undefined) {
               // Fetch modified content and show diff
               this.http.get(href, { responseType: 'text' }).subscribe({
@@ -104,7 +120,8 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
                       modifiedContent: modifiedContent
                     },
                     width: '90vw',
-                    maxWidth: '1200px'
+                    maxWidth: '1200px',
+                    panelClass: 'visulate-diff-dialog-panel'
                   });
                 },
                 error: (err) => {
@@ -469,8 +486,16 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     const files: FileList = event.target.files;
     if (!files || files.length === 0) return;
 
+    let currentCount = this.stateService.getUploadedFiles().length;
+    const MAX_FILES = environment.maxFiles || 10;
+
     for (let i = 0; i < files.length; i++) {
-      this.validateAndUploadFile(files[i]);
+      if (currentCount >= MAX_FILES) {
+        this.snackBar.open(`Maximum of ${MAX_FILES} files can be attached at a time.`, 'Close', { duration: 5000 });
+        break;
+      }
+      this.validateAndUploadFile(files[i], MAX_FILES);
+      currentCount++;
     }
     // Reset file input value so the same file can be uploaded again if removed
     event.target.value = '';
@@ -492,7 +517,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     });
   }
 
-  private validateAndUploadFile(file: File): void {
+  private validateAndUploadFile(file: File, maxFiles = environment.maxFiles || 10): void {
     // 1. Check size limit: 100KB (102400 bytes)
     const MAX_SIZE = 100 * 1024;
     if (file.size > MAX_SIZE) {
@@ -500,14 +525,14 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
       return;
     }
 
-    // 2. Check total files count (limit to 5)
-    if (this.stateService.getUploadedFiles().length >= 5) {
-      this.snackBar.open('Maximum of 5 files can be attached at a time.', 'Close', { duration: 5000 });
+    // 2. Check total files count (limit to maxFiles)
+    if (this.stateService.getUploadedFiles().length >= maxFiles) {
+      this.snackBar.open(`Maximum of ${maxFiles} files can be attached at a time.`, 'Close', { duration: 5000 });
       return;
     }
 
     // 3. Whitelist check
-    const whitelist = ['.txt', '.sql', '.py', '.java', '.js', '.ts', '.html', '.css', '.json', '.yaml', '.yml', '.sh', '.bash', '.pls', '.plb', '.c', '.cpp', '.h', '.hpp', '.cs', '.go', '.rs', '.php', '.rb', '.md', '.xml'];
+    const whitelist = ['.txt', '.sql', '.py', '.java', '.js', '.ts', '.html', '.css', '.json', '.yaml', '.yml', '.sh', '.bash', '.pls', '.plb', '.c', '.cpp', '.h', '.hpp', '.cs', '.go', '.rs', '.php', '.rb', '.md', '.xml', '.hbs', '.handlebars'];
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
     if (!whitelist.includes(ext)) {
       this.snackBar.open(`File "${file.name}" has an unsupported extension (${ext}). Only source code/text files are allowed.`, 'Close', { duration: 5000 });

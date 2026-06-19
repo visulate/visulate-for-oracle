@@ -3,6 +3,7 @@
  */
 export const environment = {
   production: true,
+  maxFiles: 10,
   apiBase: '/api',
   findObjectBase: '/find',
   ddlGenBase: '/ddl',

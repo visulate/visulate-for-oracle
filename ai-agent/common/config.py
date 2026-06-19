@@ -43,3 +43,10 @@ def get_ai_timeout() -> int:
     Default: 240 seconds (to provide a safety buffer before GCP Load Balancer's 300s limit).
     """
     return int(os.getenv("VISULATE_AI_TIMEOUT", "240"))
+
+def get_max_attachments() -> int:
+    """
+    Get the maximum number of file attachments allowed.
+    Default: 10
+    """
+    return int(os.getenv("VISULATE_MAX_ATTACHMENTS", "10"))

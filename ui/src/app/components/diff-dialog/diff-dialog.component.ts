@@ -8,6 +8,19 @@ export interface DiffLine {
   modifiedLineNum?: number;
 }
 
+export interface SideBySideLine {
+  left?: {
+    lineNum: number;
+    text: string;
+    type: 'removed' | 'unchanged';
+  };
+  right?: {
+    lineNum: number;
+    text: string;
+    type: 'added' | 'unchanged';
+  };
+}
+
 @Component({
   selector: 'app-diff-dialog',
   templateUrl: './diff-dialog.component.html',
@@ -19,6 +32,9 @@ export class DiffDialogComponent implements OnInit {
   originalContent: string;
   modifiedContent: string;
   diffLines: DiffLine[] = [];
+  viewMode: 'inline' | 'side-by-side' = 'side-by-side';
+  sideBySideLines: SideBySideLine[] = [];
+  isMaximized = false;
 
   constructor(
     public dialogRef: MatDialogRef<DiffDialogComponent>,
@@ -49,9 +65,33 @@ export class DiffDialogComponent implements OnInit {
     this.dialogRef.close();
   }
 
+  toggleMaximize(): void {
+    this.isMaximized = !this.isMaximized;
+    if (this.isMaximized) {
+      this.dialogRef.updateSize('100vw', '100vh');
+      this.dialogRef.addPanelClass('maximized-dialog');
+    } else {
+      this.dialogRef.updateSize('90vw', '85vh');
+      this.dialogRef.removePanelClass('maximized-dialog');
+    }
+  }
+
+  setViewMode(mode: 'inline' | 'side-by-side'): void {
+    this.viewMode = mode;
+  }
+
   private computeDiff(): void {
     const oldLines = this.originalContent.split(/\r?\n/);
     const newLines = this.modifiedContent.split(/\r?\n/);
+
+    const MAX_DP_CELLS = 2_000_000;
+    if (oldLines.length * newLines.length > MAX_DP_CELLS) {
+      this.diffLines = [{
+        type: 'unchanged',
+        text: '(Diff too large to render in browser. Use Download to review the modified file.)'
+      }];
+      return;
+    }
 
     const dp: number[][] = [];
     for (let x = 0; x <= oldLines.length; x++) {
@@ -100,5 +140,46 @@ export class DiffDialogComponent implements OnInit {
     }
 
     this.diffLines = diff;
+    this.computeSideBySide();
+  }
+
+  private computeSideBySide(): void {
+    const lines: SideBySideLine[] = [];
+    let i = 0;
+    while (i < this.diffLines.length) {
+      const current = this.diffLines[i];
+      if (current.type === 'unchanged') {
+        lines.push({
+          left: { lineNum: current.originalLineNum!, text: current.text, type: 'unchanged' },
+          right: { lineNum: current.modifiedLineNum!, text: current.text, type: 'unchanged' }
+        });
+        i++;
+      } else {
+        // Collect consecutive removed and added lines
+        const removedBlock: DiffLine[] = [];
+        const addedBlock: DiffLine[] = [];
+        
+        while (i < this.diffLines.length && this.diffLines[i].type !== 'unchanged') {
+          if (this.diffLines[i].type === 'removed') {
+            removedBlock.push(this.diffLines[i]);
+          } else {
+            addedBlock.push(this.diffLines[i]);
+          }
+          i++;
+        }
+        
+        // Pair them up up to the max length of either block
+        const maxLen = Math.max(removedBlock.length, addedBlock.length);
+        for (let k = 0; k < maxLen; k++) {
+          const rem = removedBlock[k];
+          const add = addedBlock[k];
+          lines.push({
+            left: rem ? { lineNum: rem.originalLineNum!, text: rem.text, type: 'removed' } : undefined,
+            right: add ? { lineNum: add.modifiedLineNum!, text: add.text, type: 'added' } : undefined
+          });
+        }
+      }
+    }
+    this.sideBySideLines = lines;
   }
 }

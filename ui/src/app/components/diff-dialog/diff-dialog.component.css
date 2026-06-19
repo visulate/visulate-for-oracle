@@ -1,13 +1,17 @@
 .diff-dialog-container {
   display: flex;
   flex-direction: column;
-  max-height: 85vh;
+  height: 85vh;
+  width: 90vw;
   min-width: 650px;
+  min-height: 400px;
   max-width: 95vw;
+  max-height: 95vh;
   background-color: var(--app-card-bg, #ffffff);
   color: var(--app-text-color, #1e293b);
   border-radius: 12px;
   overflow: hidden;
+  resize: both;
 }
 
 .diff-header {
@@ -44,7 +48,13 @@
   color: #64748b;
 }
 
-.close-btn {
+.diff-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.maximize-btn, .close-btn {
   color: #64748b;
 }
 
@@ -54,6 +64,7 @@
   overflow-x: auto;
   background-color: var(--app-bg-color, #f8fafc);
   padding: 16px 24px;
+  min-height: 0; /* Important for flex child scrolling */
 }
 
 .diff-code-wrapper {
@@ -63,7 +74,8 @@
   overflow: auto;
   font-family: 'Roboto Mono', Consolas, Monaco, monospace;
   font-size: 0.875rem;
-  max-height: 55vh;
+  height: 100%;
+  max-height: 100%;
 }
 
 .diff-table {
@@ -76,8 +88,8 @@
 }
 
 .line-num {
-  width: 40px;
-  min-width: 40px;
+  width: 45px;
+  min-width: 45px;
   text-align: right;
   padding: 0 8px;
   user-select: none;
@@ -135,6 +147,49 @@
   color: #cbd5e1;
 }
 
+/* Side-by-side specific styling */
+.diff-table-side-by-side {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.diff-table-side-by-side td {
+  vertical-align: top;
+  overflow: hidden;
+}
+
+.diff-split-divider {
+  width: 1px;
+  min-width: 1px;
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 0;
+  user-select: none;
+}
+
+.line-content-original,
+.line-content-modified {
+  width: calc(50% - 46px);
+  padding-left: 8px;
+}
+
+.line-content-original pre,
+.line-content-modified pre {
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  font-family: inherit;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.line-empty {
+  background-color: rgba(255, 255, 255, 0.02);
+  user-select: none;
+}
+
+/* Actions footer area */
 .diff-actions {
   display: flex;
   justify-content: space-between;
@@ -142,6 +197,53 @@
   padding: 16px 24px;
   border-top: 1px solid var(--app-border-color, #e2e8f0);
   background-color: var(--app-card-bg, #ffffff);
+}
+
+.diff-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Segment control toggler */
+.diff-view-toggle {
+  display: flex;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--app-border-color, #cbd5e1);
+  padding: 2px;
+}
+
+.diff-view-toggle .toggle-btn {
+  border: none !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 0.85rem !important;
+  padding: 0 16px !important;
+  border-radius: 16px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent !important;
+  color: var(--app-text-color, #64748b) !important;
+  box-shadow: none !important;
+}
+
+.diff-view-toggle .toggle-btn mat-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+}
+
+.diff-view-toggle .toggle-btn.active-mode {
+  background-color: #3f51b5 !important;
+  color: #ffffff !important;
+}
+
+.dark-theme .diff-view-toggle .toggle-btn.active-mode {
+  background-color: #9fa8da !important;
+  color: #121212 !important;
 }
 
 .diff-legend {
@@ -176,4 +278,18 @@
 .action-buttons {
   display: flex;
   gap: 12px;
+}
+
+/* Maximized class rules */
+.maximized-dialog .diff-dialog-container {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  resize: none !important; /* Disable manual resize when maximized */
+}
+
+.maximized-dialog .diff-body {
+  height: calc(100vh - 140px) !important;
 }
