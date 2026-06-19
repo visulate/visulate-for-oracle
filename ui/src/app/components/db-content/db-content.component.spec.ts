@@ -35,7 +35,7 @@ import { DbSelectionComponent } from '../db-selection/db-selection.component';
 import { DbStepSelectionComponent } from '../db-selection/db-step-selection.component';
 import { DbObjectListComponent} from '../db-object-list/db-object-list.component';
 import { FilterObjectsComponent } from '../filter-objects/filter-objects.component';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 
 describe('DbContentComponent', () => {
   let component: DbContentComponent;
@@ -55,7 +55,7 @@ describe('DbContentComponent', () => {
         MatSelectModule, ReactiveFormsModule,
         MatAutocompleteModule, MatInputModule,
         RouterTestingModule],
-      providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
+      providers: [provideHttpClient(withXhr(), withInterceptorsFromDi()), provideHttpClientTesting()]
     })
       .compileComponents();
   }));

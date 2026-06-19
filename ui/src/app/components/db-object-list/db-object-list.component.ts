@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { StateService } from '../../services/state.service';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { Subject } from 'rxjs';
@@ -24,6 +24,7 @@ import { takeUntil } from 'rxjs/operators';
     selector: 'app-db-object-list',
     templateUrl: './db-object-list.component.html',
     styleUrls: ['./db-object-list.component.css'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class DbObjectListComponent implements OnInit, OnDestroy {

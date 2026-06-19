@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RestService } from '../../services/rest.service';
@@ -14,6 +14,7 @@ export interface DialogData {
   selector: 'app-credential-dialog',
   templateUrl: './credential-dialog.component.html',
   styleUrls: ['./credential-dialog.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class CredentialDialogComponent {

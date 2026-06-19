@@ -1,10 +1,11 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 
 @Component({
   selector: 'app-registration-helper',
   templateUrl: './registration-helper.component.html',
   styleUrls: ['./registration-helper.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class RegistrationHelperComponent {

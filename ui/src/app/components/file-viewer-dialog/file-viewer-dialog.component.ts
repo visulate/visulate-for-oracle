@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ChangeDetectionStrategy } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { StateService } from '../../services/state.service';
 
@@ -6,6 +6,7 @@ import { StateService } from '../../services/state.service';
   selector: 'app-file-viewer-dialog',
   templateUrl: './file-viewer-dialog.component.html',
   styleUrls: ['./file-viewer-dialog.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class FileViewerDialogComponent {

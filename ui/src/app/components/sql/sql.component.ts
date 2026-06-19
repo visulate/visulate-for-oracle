@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy, Pipe, PipeTransform } from '@angular/core';
+import { Component, OnInit, OnDestroy, Pipe, PipeTransform, ChangeDetectionStrategy } from '@angular/core';
 import { CurrentContextModel, ContextBehaviorSubjectModel } from '../../models/current-context.model';
 import { StateService } from '../../services/state.service';
 import { RestService } from '../../services/rest.service';
@@ -30,6 +30,7 @@ import { SqlModel } from '../../models/sql.model';
   selector: 'app-sql',
   templateUrl: './sql.component.html',
   styleUrls: ['./sql.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 export class SqlComponent implements OnInit, OnDestroy {

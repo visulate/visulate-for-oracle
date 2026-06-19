@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { DbSelectionComponent } from './db-selection.component';
 
 @Component({
     selector: 'app-db-step-selection',
     templateUrl: './db-step-selection.component.html',
     styleUrls: ['./db-step-selection.component.css'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 /**

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RestService } from 'src/app/services/rest.service';
 import { FindObjectModel, ObjectHistoryModel } from '../../models/find-object.model';
 import { Subject } from 'rxjs';
@@ -25,6 +25,7 @@ import { CurrentContextModel } from '../../models/current-context.model';
   selector: 'app-find-object',
   templateUrl: './find-object.component.html',
   styleUrls: ['./find-object.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChildren, QueryList } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChildren, QueryList, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { RestService } from '../../services/rest.service';
@@ -33,6 +33,7 @@ import { MatExpansionPanel } from '@angular/material/expansion';
   selector: 'app-db-content',
   templateUrl: './db-content.component.html',
   styleUrls: ['./db-content.component.css'],
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
 
