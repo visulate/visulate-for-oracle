@@ -15,6 +15,7 @@ from google.adk.runners import Runner
 from google.adk.sessions.database_session_service import DatabaseSessionService
 from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
+from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
 # Import from common module
 from common.config import get_mcp_urls, get_max_attachments, get_ai_timeout
@@ -45,9 +46,6 @@ def create_app() -> FastAPI:
     app = FastAPI()
 
     from common.utils import setup_session_db
-    @app.on_event("startup")
-    async def startup_event():
-        await setup_session_db()
 
     @app.get("/agent/health")
     async def health_check():
@@ -179,7 +177,7 @@ def create_app() -> FastAPI:
                         ):
                             if event.get_function_calls() or event.get_function_responses():
                                 has_tool_call = True
-                            
+
                             logger.debug(f"Root Agent Event: {type(event)}")
                             if event.content and event.content.parts:
                                 for part in event.content.parts:
@@ -301,6 +299,33 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.error(f"Error processing request: {e}", exc_info=True)
             return JSONResponse(content={"error": str(e)}, status_code=500)
+
+    a2a_host = os.getenv("A2A_HOST", "localhost")
+    a2a_port = os.getenv("A2A_PORT", "10000")
+    a2a_protocol = os.getenv("A2A_PROTOCOL", "http")
+
+    if a2a_port.isdigit():
+        a2a_port = int(a2a_port)
+
+    a2a_app = to_a2a(
+        root_agent,
+        runner=runner,
+        host=a2a_host,
+        port=a2a_port,
+        protocol=a2a_protocol
+    )
+    app.mount("/", a2a_app)
+
+    @app.on_event("startup")
+    async def startup_event():
+        await setup_session_db()
+        app.state.a2a_lifespan = a2a_app.router.lifespan_context(a2a_app)
+        await app.state.a2a_lifespan.__aenter__()
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        if hasattr(app.state, "a2a_lifespan"):
+            await app.state.a2a_lifespan.__aexit__(None, None, None)
 
     return app
 
