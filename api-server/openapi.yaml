@@ -761,13 +761,35 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                message:
-                  type: string
-                  example: "What is the structure of the users table?"
-                context:
-                  $ref: '#/components/schemas/McpContextPayload'
+              oneOf:
+                - type: object
+                  required:
+                    - message
+                    - context
+                  properties:
+                    message:
+                      type: string
+                      example: "What is the structure of the users table?"
+                    context:
+                      $ref: '#/components/schemas/McpContextPayload'
+                - type: object
+                  required:
+                    - jsonrpc
+                    - method
+                  properties:
+                    jsonrpc:
+                      type: string
+                      enum:
+                        - "2.0"
+                      example: "2.0"
+                    method:
+                      type: string
+                      example: "agent.getCapabilities"
+                    id:
+                      type: integer
+                      example: 1
+                    params:
+                      type: object
       responses:
         200:
           description: Generated text

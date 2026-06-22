@@ -145,7 +145,15 @@ async function generativeAIInternal(args, res) {
   let agentUrl;
   const agent = args.agent || 'visulate_agent';
 
-  if (agent === 'visulate_agent') {
+  if (args.jsonrpc === '2.0') {
+    const baseAgentUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate';
+    try {
+      const url = new URL(baseAgentUrl);
+      agentUrl = `${url.protocol}//${url.host}/`;
+    } catch (e) {
+      agentUrl = 'http://ai-agent:10000/';
+    }
+  } else if (agent === 'visulate_agent') {
     agentUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate';
   } else if (agent === 'comment_generator') {
     agentUrl = process.env.COMMENT_GENERATOR_URL || 'http://ai-agent:10003/agent/generate';
@@ -172,7 +180,7 @@ async function generativeAIInternal(args, res) {
     });
 
     // Disable buffering for real-time status updates (thoughts)
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Type', response.headers['content-type'] || 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader('X-Accel-Buffering', 'no');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -325,8 +333,8 @@ async function revokeToken(req, res, next) {
     const database = req.body.database || req.query.database;
 
     if (!session_id) {
-       res.status(400).send('Missing required field: session_id');
-       return;
+      res.status(400).send('Missing required field: session_id');
+      return;
     }
 
     const queryEngineUrl = process.env.QUERY_ENGINE_URL || 'http://vissql:5000/mcp-sql/call_tool';
@@ -721,7 +729,7 @@ async function getDbLinksInternal(db) {
   const poolAlias = endpoint.poolAlias;
   const registry = sqlStatements[endpoint.dbType];
   const query = registry.statement['DB-LINKS'];
-  
+
   if (!query) {
     return [];
   }
