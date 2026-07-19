@@ -77,6 +77,22 @@ const aiSchema = {
   }
 };
 
+const jsonRpcSchema = {
+  type: 'object',
+  required: ['jsonrpc', 'method'],
+  properties: {
+    jsonrpc: { type: 'string', enum: ['2.0'] },
+    method: { type: 'string' }
+  }
+};
+
+const aiBodySchema = {
+  oneOf: [
+    aiSchema,
+    jsonRpcSchema
+  ]
+};
+
 const mcpContextSchema = {
   type: 'object',
   required: ['owner', 'name', 'type'],
@@ -172,7 +188,7 @@ router.route('/api/collection/:db')
 
 router.route('/ai')
   .get(aiService.aiEnabled)
-  .post(validate({ body: aiSchema }), aiService.generativeAI);
+  .post(validate({ body: aiBodySchema }), aiService.generativeAI);
 
 router.route('/mcp')
   .get(aiService.handleMcpRequest)

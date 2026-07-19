@@ -35,6 +35,9 @@ import { DbSelectionComponent } from '../db-selection/db-selection.component';
 import { DbStepSelectionComponent } from '../db-selection/db-step-selection.component';
 import { DbObjectListComponent} from '../db-object-list/db-object-list.component';
 import { FilterObjectsComponent } from '../filter-objects/filter-objects.component';
+import { RegistrationHelperComponent } from '../registration-helper/registration-helper.component';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 
 describe('DbContentComponent', () => {
@@ -43,7 +46,7 @@ describe('DbContentComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent, FilterObjectsComponent],
+      declarations: [DbContentComponent, DbSelectionComponent, DbStepSelectionComponent, DbObjectListComponent, FilterObjectsComponent, RegistrationHelperComponent],
       imports: [MatTableModule,
         BrowserAnimationsModule,
         MatExpansionModule,
@@ -54,6 +57,8 @@ describe('DbContentComponent', () => {
         MatListModule,
         MatSelectModule, ReactiveFormsModule,
         MatAutocompleteModule, MatInputModule,
+        MatDialogModule,
+        MatIconModule,
         RouterTestingModule],
       providers: [provideHttpClient(withXhr(), withInterceptorsFromDi()), provideHttpClientTesting()]
     })

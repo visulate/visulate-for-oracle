@@ -10,6 +10,8 @@ from common.context import progress_callback_var, session_id_var
 logger = logging.getLogger(__name__)
 
 class TestDataGenerator:
+    __test__ = False
+
     def __init__(self, api_server_url: str, session_id: str):
         self.api_server_url = api_server_url.rstrip('/')
         self.session_id = session_id

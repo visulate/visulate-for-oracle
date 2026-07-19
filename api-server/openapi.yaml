@@ -761,24 +761,58 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                message:
-                  type: string
-                  example: "What is the structure of the users table?"
-                context:
-                  $ref: '#/components/schemas/McpContextPayload'
+              oneOf:
+                - type: object
+                  required:
+                    - message
+                    - context
+                  properties:
+                    message:
+                      type: string
+                      example: "What is the structure of the users table?"
+                    context:
+                      $ref: '#/components/schemas/McpContextPayload'
+                - type: object
+                  required:
+                    - jsonrpc
+                    - method
+                  properties:
+                    jsonrpc:
+                      type: string
+                      enum:
+                        - "2.0"
+                      example: "2.0"
+                    method:
+                      type: string
+                      example: "agent.getCapabilities"
+                    id:
+                      type: integer
+                      example: 1
+                    params:
+                      type: object
       responses:
         200:
-          description: Generated text
+          description: Dynamic agent response. For standard chat, this is a text/plain stream. For A2A, this is an application/json payload.
           content:
+            text/plain:
+              schema:
+                type: string
+                example: "The users table contains details of users..."
             application/json:
               schema:
                 type: object
                 properties:
-                  response:
+                  jsonrpc:
                     type: string
-                    example: "The users table contains details of users including username and email."
+                    enum: ["2.0"]
+                    example: "2.0"
+                  id:
+                    type: integer
+                    example: 1
+                  result:
+                    type: object
+                  error:
+                    type: object
         503:
           description: Service unavailable
           content:

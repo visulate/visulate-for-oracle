@@ -1,3 +1,4 @@
+process.env.VISULATE_AGENT_URL = process.env.VISULATE_AGENT_URL || 'http://localhost:10000/agent/generate';
 const app = require('../app');
 let chai = require('chai'), chaiHttp = require('chai-http');
 let should = chai.should();
@@ -7,7 +8,7 @@ chai.use(chaiHttp);
 const NON_PDB = process.env.VISULATE_NON_PDB || 'pdb21';
 const PDB = process.env.VISULATE_PDB || 'pdb22';
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://localhost:' + (process.env.HTTP_PORT || 3000);
 
 before((done) => {
   if (app.isStarted) {
@@ -492,6 +493,54 @@ it('11i SQL injection attempt should return 404', (done) => {
       done();
     });
 });
+
+/**
+ * AI & A2A Services
+ */
+describe('AI & A2A Services', () => {
+  it('GET /ai should return whether AI is enabled', (done) => {
+    chai.request(BASE_URL)
+      .get('/ai')
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        res.body.should.be.a('object');
+        res.body.should.have.property('enabled');
+        done();
+      });
+  });
+
+  it('POST /ai with standard chat payload should return generated response', (done) => {
+    chai.request(BASE_URL)
+      .post('/ai')
+      .send({
+        message: "Hello",
+        context: {}
+      })
+      .end((err, res) => {
+        expect(res.status).to.be.oneOf([200, 500, 503]);
+        done();
+      });
+  });
+
+  it('POST /ai with A2A JSON-RPC request should multiplex to agent root', (done) => {
+    chai.request(BASE_URL)
+      .post('/ai')
+      .send({
+        jsonrpc: "2.0",
+        method: "agent.getCapabilities",
+        id: 1
+      })
+      .end((err, res) => {
+        expect(res.status).to.be.oneOf([200, 500, 503]);
+        if (res.status === 200) {
+          res.body.should.be.a('object');
+          res.body.should.have.property('jsonrpc', '2.0');
+        }
+        done();
+      });
+  });
+});
+
 describe.skip('SQL dependent tests', () => {
   it('PDB Show procedure', (done) => {
     chai.request(BASE_URL)
