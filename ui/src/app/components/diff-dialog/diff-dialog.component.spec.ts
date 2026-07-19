@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 describe('DiffDialogComponent', () => {
   let component: DiffDialogComponent;
@@ -23,7 +24,8 @@ describe('DiffDialogComponent', () => {
       imports: [
         NoopAnimationsModule,
         MatIconModule,
-        MatButtonModule
+        MatButtonModule,
+        MatTooltipModule
       ],
       providers: [
         { provide: MatDialogRef, useValue: mockDialogRef },

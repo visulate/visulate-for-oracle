@@ -176,8 +176,11 @@ async function generativeAIInternal(args, res) {
       url: agentUrl,
       data: args,
       responseType: 'stream',
+      validateStatus: () => true,
       cancelToken: source.token
     });
+
+    res.status(response.status);
 
     // Disable buffering for real-time status updates (thoughts)
     res.setHeader('Content-Type', response.headers['content-type'] || 'text/plain; charset=utf-8');

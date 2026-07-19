@@ -301,11 +301,14 @@ def create_app() -> FastAPI:
             return JSONResponse(content={"error": str(e)}, status_code=500)
 
     a2a_host = os.getenv("A2A_HOST", "localhost")
-    a2a_port = os.getenv("A2A_PORT", "10000")
+    a2a_port_raw = os.getenv("A2A_PORT", "10000")
     a2a_protocol = os.getenv("A2A_PROTOCOL", "http")
 
-    if a2a_port.isdigit():
-        a2a_port = int(a2a_port)
+    try:
+        a2a_port = int(a2a_port_raw.strip())
+    except ValueError:
+        logger.warning(f"Invalid A2A_PORT '{a2a_port_raw}', falling back to 10000")
+        a2a_port = 10000
 
     a2a_app = to_a2a(
         root_agent,
