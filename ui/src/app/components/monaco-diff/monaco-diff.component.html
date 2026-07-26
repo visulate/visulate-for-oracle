@@ -1,0 +1,194 @@
+<div class="workbench-container">
+  <!-- Top Navigation & Association Header -->
+  <div class="workbench-header">
+    <div class="header-left">
+      <span class="header-title"><mat-icon>dashboard</mat-icon> Database Modernization Workbench</span>
+
+      <span class="toolbar-label"><mat-icon>storage</mat-icon> Database:</span>
+      <select class="nav-select" [(ngModel)]="selectedDbConnection" (change)="onDbOrRepoChange()">
+        <option *ngFor="let db of dbEndpoints" [value]="db.endpoint">{{ db.endpoint }} ({{ db.description }})</option>
+      </select>
+
+      <span class="toolbar-label"><mat-icon>folder_special</mat-icon> Git Repo:</span>
+      <select class="nav-select" [(ngModel)]="selectedRepoFolder" (change)="onDbOrRepoChange()">
+        <option *ngFor="let repo of localRepos" [value]="repo.folderName">{{ repo.folderName }}</option>
+      </select>
+
+      <button mat-icon-button color="primary" matTooltip="Clone remote repository into base folder" (click)="showCloneForm = !showCloneForm">
+        <mat-icon>add_link</mat-icon>
+      </button>
+    </div>
+
+    <div class="header-right">
+      <!-- Mode Switcher -->
+      <div class="mode-toggle">
+        <button mat-button [class.active-mode]="viewMode === 'editor'" (click)="toggleViewMode('editor')">
+          <mat-icon>code</mat-icon> Code Editor
+        </button>
+        <button mat-button [class.active-mode]="viewMode === 'diff'" (click)="toggleViewMode('diff')">
+          <mat-icon>difference</mat-icon> Diff View
+        </button>
+      </div>
+
+      <button mat-raised-button color="accent" class="action-btn" (click)="saveDraft()" title="Save file (Ctrl+S)">
+        <mat-icon>save</mat-icon> Save
+      </button>
+
+      <button mat-raised-button color="primary" class="action-btn" (click)="commitAndPush()" title="Commit & Push Branch">
+        <mat-icon>publish</mat-icon> Commit & Push
+      </button>
+
+      <button mat-stroked-button class="action-btn" (click)="runIndexDependencies()" title="Scan & map Oracle DB dependencies to repo">
+        <mat-icon>account_tree</mat-icon> Index DB Map
+      </button>
+    </div>
+  </div>
+
+  <!-- Inline Clone Form -->
+  <div *ngIf="showCloneForm" class="clone-bar">
+    <span class="clone-label">Base Directory: <code>{{ baseReposDir }}</code></span>
+    <input type="text" class="clone-input" placeholder="Git Remote URL (https://...)" [(ngModel)]="cloneRemoteUrl" />
+    <input type="text" class="clone-input" placeholder="Folder Name (e.g. visulate)" [(ngModel)]="cloneFolderName" />
+    <button mat-raised-button color="primary" (click)="cloneNewRepo()">Clone Repository</button>
+    <button mat-button (click)="showCloneForm = false">Cancel</button>
+  </div>
+
+  <!-- Active Loading Progress Bar -->
+  <mat-progress-bar *ngIf="isLoading" mode="indeterminate" color="primary" class="workbench-progress"></mat-progress-bar>
+
+  <!-- Status Notification Bar -->
+  <div *ngIf="statusMessage" class="status-bar" [ngClass]="{ 'status-error': isError, 'status-info': !isError }">
+    <span>{{ statusMessage }}</span>
+  </div>
+
+  <!-- Main 3-Pane Body Workspace -->
+  <div class="workbench-body">
+    
+    <!-- LEFT PANEL: Repository File Tree Explorer -->
+    <div class="sidebar-panel file-explorer">
+      <div class="panel-header">
+        <span><mat-icon>folder</mat-icon> Repository Files ({{ filteredFiles.length }})</span>
+      </div>
+
+      <div class="filter-box">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input type="text" placeholder="Filter files or DB objects..." [(ngModel)]="fileFilterQuery" (input)="applyFileFilter()" />
+      </div>
+
+      <!-- Recursive Tree Template -->
+      <ng-template #treeNodeTemplate let-nodes let-depth="depth">
+        <div *ngFor="let node of nodes">
+          <!-- Folder Row -->
+          <div *ngIf="node.type === 'folder'" 
+               class="tree-folder-row" 
+               [style.padding-left.px]="depth * 12 + 6"
+               (click)="node.expanded = !node.expanded">
+            <span class="node-icon folder-icon">{{ node.expanded ? '📂' : '📁' }}</span>
+            <span class="folder-name">{{ node.name }}</span>
+          </div>
+
+          <!-- Folder Children -->
+          <div *ngIf="node.type === 'folder' && node.expanded">
+            <ng-container *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: node.children, depth: depth + 1 }"></ng-container>
+          </div>
+
+          <!-- File Row -->
+          <div *ngIf="node.type === 'file'" 
+               class="file-item" 
+               [class.selected-file]="node.path === selectedFilePath"
+               [style.padding-left.px]="depth * 12 + 6"
+               (click)="openFile(node.path)">
+            <span class="node-icon file-icon">📄</span>
+            <span class="file-name" [title]="node.path">{{ node.name }}</span>
+
+            <!-- DB Badges -->
+            <div class="db-badges" *ngIf="node.dbBadges && node.dbBadges.length > 0">
+              <span *ngFor="let dbObj of (node.dbBadges | slice:0:2)" class="db-badge" [title]="'Mapped to DB Object: ' + dbObj">
+                {{ dbObj }}
+              </span>
+              <span *ngIf="node.dbBadges.length > 2" class="db-badge-more" [title]="'More mapped DB objects'">
+                +{{ node.dbBadges.length - 2 }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+
+      <div class="file-tree-list">
+        <ng-container *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: fileTreeNodes, depth: 0 }"></ng-container>
+      </div>
+    </div>
+
+    <!-- CENTER PANEL: Editor Viewport -->
+    <div class="editor-panel">
+      <div class="editor-header">
+        <span class="active-file-title">
+          <mat-icon>insert_drive_file</mat-icon> {{ selectedFilePath || 'Select a file to edit' }}
+        </span>
+        <span class="view-indicator" *ngIf="selectedFilePath">
+          {{ viewMode === 'editor' ? 'Single File Code Editor' : 'Side-by-Side Diff (HEAD vs Working Tree)' }}
+        </span>
+      </div>
+
+      <div class="editor-viewport">
+        <div #editorContainer class="monaco-container" [style.display]="monacoLoaded ? 'block' : 'none'"></div>
+        <textarea *ngIf="!monacoLoaded" class="fallback-textarea" [(ngModel)]="activeFileContent" (change)="saveDraft()" placeholder="Loading code editor..."></textarea>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Database Data Dictionary Context -->
+    <div class="sidebar-panel db-context-panel">
+      <div class="panel-header">
+        <span><mat-icon>storage</mat-icon> Database Context</span>
+      </div>
+
+      <div class="db-context-body">
+        <div class="context-card">
+          <div class="card-title">Connected Database</div>
+          <div class="card-value"><strong>{{ selectedDbConnection }}</strong></div>
+        </div>
+
+        <div class="context-card">
+          <div class="card-title">Referenced Oracle Objects in File</div>
+          <div *ngIf="currentFileDbObjects.length === 0" class="no-deps-text">
+            No mapped DB objects in this file.
+            <div style="margin-top: 10px;">
+              <button mat-stroked-button color="primary" class="card-action-btn" (click)="runIndexDependencies()">
+                <mat-icon>account_tree</mat-icon> Index DB Map
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="currentFileDbObjects.length > 0" class="obj-list">
+            <div *ngFor="let dbObj of currentFileDbObjects" class="obj-item" (click)="openDatabaseObject(dbObj)">
+              <mat-icon>table_chart</mat-icon>
+              <span class="obj-name">{{ dbObj }}</span>
+              <mat-icon class="open-icon" title="View Data Dictionary details in Visulate">open_in_new</mat-icon>
+            </div>
+          </div>
+        </div>
+
+        <div class="context-card">
+          <div class="card-title">Indexed Repository Summary</div>
+          <ng-container *ngIf="dbMapData; else noMapData">
+            <div class="summary-stat">
+              <span>Mapped DB Objects:</span> <strong>{{ (dbMapData.objects | keyvalue)?.length || 0 }}</strong>
+            </div>
+            <div class="summary-stat">
+              <span>Last Indexed:</span> <div>{{ dbMapData.indexedAt | date:'short' }}</div>
+            </div>
+          </ng-container>
+          <ng-template #noMapData>
+            <div class="no-deps-text">Repository dependencies not yet indexed.</div>
+          </ng-template>
+          <div style="margin-top: 10px;">
+            <button mat-raised-button color="primary" class="card-action-btn" (click)="runIndexDependencies()">
+              <mat-icon>account_tree</mat-icon> Run Dependency Indexer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

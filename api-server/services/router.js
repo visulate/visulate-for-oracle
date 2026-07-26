@@ -19,6 +19,10 @@ const router = new express.Router();
 const controller = require('./controller.js');
 const aiService = require('./ai-service.js');
 const downloadService = require('./download-service.js');
+const projectService = require('./projectService.js');
+const gitService = require('./gitService.js');
+const dependencyIndexer = require('./dependencyIndexer.js');
+const dbConfig = require('../config/database.js');
 router.use(express.json());
 
 const { Validator, ValidationError } = require('express-json-validator-middleware');
@@ -156,6 +160,140 @@ router.route('/api-docs')
 
 router.route('/find/:name')
   .get(controller.dbSearch);
+
+/* Database Connection Configs Endpoint */
+router.route('/api/database-connections')
+  .get((req, res) => {
+    try {
+      const list = (dbConfig.endpoints || []).map(ep => ({
+        endpoint: ep.namespace,
+        description: ep.description || ep.namespace,
+        dbType: ep.connect?.dbType || 'oracle',
+        connectString: ep.connect?.connectString
+      }));
+      res.json(list);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+/* Project Endpoints */
+router.route('/api/projects')
+  .get((req, res) => {
+    res.json(projectService.getProjects());
+  })
+  .post((req, res) => {
+    const project = projectService.upsertProject(req.body);
+    res.json(project);
+  });
+
+router.route('/api/projects/:id')
+  .get((req, res) => {
+    const project = projectService.getProjectById(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json(project);
+  })
+  .delete((req, res) => {
+    projectService.deleteProject(req.params.id);
+    res.json({ success: true });
+  });
+
+/* Git REST Endpoints */
+router.route('/api/git/repositories')
+  .get((req, res) => {
+    try {
+      const baseDir = gitService.getBaseReposDir();
+      const repos = gitService.listLocalRepositories();
+      res.json({ baseDir, repositories: repos });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+router.route('/api/git/clone')
+  .post(async (req, res) => {
+    try {
+      const { remoteUrl, folderName, branch } = req.body;
+      if (!remoteUrl || !folderName) {
+        return res.status(400).json({ error: 'remoteUrl and folderName are required' });
+      }
+      const result = await gitService.cloneRepoToFolder(remoteUrl, folderName, branch);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+router.route('/api/git/diff')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || 'default-project';
+      const filePath = req.query.path || '';
+      const diff = await gitService.getDiff(projectId, filePath);
+      res.json({ diff });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+router.route('/api/git/file')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || 'default-project';
+      const filePath = req.query.path || '';
+      const revision = req.query.revision || null;
+      const content = await gitService.getFileContent(projectId, filePath, revision);
+      res.json({ content, projectId, path: filePath, revision });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  })
+  .put(async (req, res) => {
+    try {
+      const { projectId = 'default-project', filePath, content } = req.body;
+      if (!filePath) {
+        return res.status(400).json({ error: 'filePath is required' });
+      }
+      const result = await gitService.saveFileContent(projectId, filePath, content);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+router.route('/api/git/files')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || 'default-project';
+      const subDir = req.query.subDir || '';
+      const files = await gitService.listProjectFiles(projectId, subDir);
+      res.json({ files, projectId });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+router.route('/api/git/commit-push')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', branchName = 'visulate/modernize', commitMessage = 'Visulate Workbench commit' } = req.body;
+      const result = await gitService.commitAndPush(projectId, branchName, commitMessage);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+router.route('/api/git/index-dependencies')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', owner } = req.body;
+      const map = await dependencyIndexer.indexProjectDependencies(projectId, owner);
+      res.json(map);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 router.route('/api/:db')
   .get(controller.getDbDetails);

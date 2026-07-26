@@ -23,6 +23,33 @@ import os
 # No monkeypatch needed. 
 
 logger = logging.getLogger(__name__)
+
+def get_okf_context(project_id: str) -> str:
+    try:
+        repos_dir = os.getenv("GIT_REPOS_DIR") or os.path.expanduser("~/visulate-repos")
+        proj_okf_dir = os.path.join(repos_dir, project_id, ".okf")
+        if not os.path.exists(proj_okf_dir):
+            return ""
+        
+        okf_text = "\nOpen Knowledge Format (OKF) Architectural Memory & Dependency Map:\n"
+        for root, dirs, files in os.walk(proj_okf_dir):
+            for file in files:
+                if file.endswith(".md") or file.endswith(".json"):
+                    rel_path = os.path.relpath(os.path.join(root, file), os.path.join(repos_dir, project_id))
+                    full_path = os.path.join(root, file)
+                    try:
+                        with open(full_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                            if len(content) > 50000:
+                                content = content[:50000] + "\n[Truncated]"
+                            okf_text += f"--- OKF FILE: {rel_path} ---\n{content}\n--- END OF OKF FILE: {rel_path} ---\n"
+                    except Exception as e:
+                        logger.warning(f"Failed reading OKF file {full_path}: {e}")
+        return okf_text
+    except Exception as err:
+        logger.warning(f"Error building OKF context: {err}")
+        return ""
+
 def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> FastAPI:
     """Creates a FastAPI app for a standalone agent."""
     app = FastAPI()
@@ -124,11 +151,16 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                     content_str = content_str[:100000] + "\n[Content truncated due to size limit]"
                                 preamble += f"--- START OF FILE: {filename} ---\n"
                                 preamble += content_str
-                                preamble += f"\n--- END OF FILE: {filename} ---\n"
+                        project_id = context_data.get("projectId") or "default-project"
+                        okf_context = get_okf_context(project_id)
+                        if okf_context:
+                            preamble += f"\n{okf_context}\n"
 
                         full_message = f"{preamble}\nUser Request: {message}"
                     else:
-                        full_message = message
+                        project_id = "default-project"
+                        okf_context = get_okf_context(project_id)
+                        full_message = f"{okf_context}\nUser Request: {message}" if okf_context else message
 
                     agent_message = types.Content(role="user", parts=[types.Part(text=full_message)])
                     run_config = RunConfig(streaming_mode=StreamingMode.SSE)

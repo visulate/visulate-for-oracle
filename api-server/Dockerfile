@@ -27,7 +27,7 @@ RUN microdnf update -y && \
     oracle-instantclient${oracleRelease}.${oracleUpdate}-devel \
     oracle-instantclient${oracleRelease}.${oracleUpdate}-sqlplus && \
     microdnf module enable nodejs:24 -y && \
-    microdnf install -y nodejs npm findutils && \
+    microdnf install -y nodejs npm findutils git openssh-clients && \
     npm install -g npm@latest && \
     microdnf clean all
 
