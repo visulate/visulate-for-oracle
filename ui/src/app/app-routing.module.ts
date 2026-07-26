@@ -17,8 +17,11 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { MainNavComponent } from './components/main-nav/main-nav.component';
+import { MonacoDiffComponent } from './components/monaco-diff/monaco-diff.component';
 
 const routes: Routes = [
+  { path: 'workbench', component: MonacoDiffComponent },
+  { path: 'workbench/:projectId', component: MonacoDiffComponent },
   { path: 'database/new', component: MainNavComponent },
   { path: 'database', component: MainNavComponent },
   { path: 'database/:db', component: MainNavComponent },

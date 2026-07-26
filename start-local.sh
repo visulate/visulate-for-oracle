@@ -44,8 +44,10 @@ if [ -n "$LOCAL_WHITELIST" ]; then
     export CORS_ORIGIN_WHITELIST="${CORS_ORIGIN_WHITELIST},${LOCAL_WHITELIST}"
 fi
 export VISULATE_DOWNLOADS=$(pwd)/downloads
+export GIT_REPOS_DIR="${GIT_REPOS_DIR:-$HOME/git}"
 export TNS_ADMIN=${TNS_ADMIN:-$(pwd)/wallet}
 mkdir -p "$TNS_ADMIN"
+mkdir -p "$GIT_REPOS_DIR"
 mkdir -p downloads/metadata
 
 # Trap to kill all background processes on exit
@@ -55,7 +57,7 @@ cleanup() {
     [ -n "$API_PID" ] && kill $API_PID 2>/dev/null
     [ -n "$QUERY_PID" ] && kill $QUERY_PID 2>/dev/null
     [ -n "$AGENTS_PID" ] && kill $AGENTS_PID 2>/dev/null
-    
+
     # Send SIGTERM to the entire process group as a fallback
     kill 0 2>/dev/null
 }

@@ -198,9 +198,46 @@ export class DbContentComponent implements OnInit, OnDestroy {
         (context.endpoint, context.owner, context.objectType, context.objectName)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
+
+      this.loadRelatedCodeFiles(context.endpoint, context.objectName);
     } else {
       this.ddlLink = '';
+      this.relatedCodeFiles = [];
     }
+  }
+
+  public relatedCodeFiles: string[] = [];
+
+  public loadRelatedCodeFiles(endpoint: string, objectName: string): void {
+    if (!endpoint || !objectName) return;
+    this.restService.getGitFile$(endpoint, '.okf/oracle-code-map.json').subscribe({
+      next: (res) => {
+        try {
+          const mapData = JSON.parse(res.content);
+          const upperName = objectName.toUpperCase();
+          if (mapData && mapData.objects && mapData.objects[upperName]) {
+            this.relatedCodeFiles = mapData.objects[upperName].files || [];
+          } else {
+            this.relatedCodeFiles = [];
+          }
+        } catch (e) {
+          this.relatedCodeFiles = [];
+        }
+      },
+      error: () => {
+        this.relatedCodeFiles = [];
+      }
+    });
+  }
+
+  public openInWorkbench(filePath: string): void {
+    if (!this.currentContext) return;
+    this.router.navigate(['/workbench'], {
+      queryParams: {
+        db: this.currentContext.endpoint,
+        file: filePath
+      }
+    });
   }
 
   ngOnInit() {

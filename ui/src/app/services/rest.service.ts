@@ -294,4 +294,53 @@ export class RestService {
     return this.http.delete<any>(apiUrl, { params });
   }
 
+  getProjects$(): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiBase}/projects`);
+  }
+
+  saveProject$(project: any): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/projects`, project);
+  }
+
+  getGitDiff$(projectId: string, path: string = ''): Observable<any> {
+    return this.http.get<any>(`${environment.apiBase}/git/diff`, { params: { projectId, path } });
+  }
+
+  getGitFile$(projectId: string, path: string, revision?: string): Observable<any> {
+    const params: any = { projectId, path };
+    if (revision) params.revision = revision;
+    return this.http.get<any>(`${environment.apiBase}/git/file`, { params });
+  }
+
+  listGitFiles$(projectId: string, subDir: string = ''): Observable<any> {
+    return this.http.get<any>(`${environment.apiBase}/git/files`, { params: { projectId, subDir } });
+  }
+
+  saveGitFile$(projectId: string, filePath: string, content: string): Observable<any> {
+    return this.http.put<any>(`${environment.apiBase}/git/file`, { projectId, filePath, content });
+  }
+
+  commitAndPush$(projectId: string, branchName: string, commitMessage: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/commit-push`, { projectId, branchName, commitMessage });
+  }
+
+  indexDependencies$(projectId: string, owner?: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/index-dependencies`, { projectId, owner });
+  }
+
+  getLocalRepositories$(): Observable<{ baseDir: string, repositories: any[] }> {
+    return this.http.get<{ baseDir: string, repositories: any[] }>(`${environment.apiBase}/git/repositories`);
+  }
+
+  cloneRepository$(remoteUrl: string, folderName: string, branch?: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/clone`, { remoteUrl, folderName, branch });
+  }
+
+  getDatabaseConnections$(): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiBase}/database-connections`);
+  }
+
+  getDbSearch$(objectName: string): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiBase}/find/${encodeURIComponent(objectName)}`);
+  }
 }
