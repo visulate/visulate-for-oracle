@@ -18,7 +18,6 @@ const fs = require('fs');
 const path = require('path');
 const gitService = require('./gitService');
 const projectService = require('./projectService');
-const controller = require('./controller');
 const logger = require('./logger');
 
 async function indexProjectDependencies(projectId, owner = null) {

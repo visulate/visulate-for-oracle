@@ -168,8 +168,7 @@ router.route('/api/database-connections')
       const list = (dbConfig.endpoints || []).map(ep => ({
         endpoint: ep.namespace,
         description: ep.description || ep.namespace,
-        dbType: ep.connect?.dbType || 'oracle',
-        connectString: ep.connect?.connectString
+        dbType: ep.connect?.dbType || 'oracle'
       }));
       res.json(list);
     } catch (err) {

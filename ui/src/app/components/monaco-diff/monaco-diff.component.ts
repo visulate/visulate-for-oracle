@@ -213,7 +213,7 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private fallbackLoadEndpoints(): void {
-    this.restService.getEndpoints$(' * ').subscribe({
+    this.restService.getEndpoints$('*').subscribe({
       next: (res) => {
         if (res && res.databases) {
           this.dbEndpoints = res.databases.map((ep: any) => ({
@@ -611,7 +611,8 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
       return 'sql';
     }
     if (filename.endsWith('.php')) return 'php';
-    if (filename.endsWith('.js') || filename.endsWith('.ts') || filename.endsWith('.jsx') || filename.endsWith('.tsx')) return 'javascript';
+    if (filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'typescript';
+    if (filename.endsWith('.js') || filename.endsWith('.jsx')) return 'javascript';
     if (filename.endsWith('.md')) return 'markdown';
     if (filename.endsWith('.json')) return 'json';
     if (filename.endsWith('.py')) return 'python';
@@ -763,19 +764,42 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public commitAndPush(): void {
     const targetId = this.selectedRepoFolder || this.projectId;
-    this.saveDraft();
+    if (!targetId) return;
 
-    this.setStatus('Committing and pushing to Git remote...', false);
+    let contentToSave = '';
+    if (this.viewMode === 'editor' && this.monacoEditor) {
+      contentToSave = this.monacoEditor.getValue();
+    } else if (this.viewMode === 'diff' && this.modifiedModel) {
+      contentToSave = this.modifiedModel.getValue();
+    }
 
-    this.restService.commitAndPush$(targetId, this.branchName, this.commitMessage).subscribe({
-      next: () => {
-        this.setStatus(`Successfully committed and pushed branch '${this.branchName}'`, false);
-        this.loadProjectFiles();
-      },
-      error: (err) => {
-        this.setStatus(`Commit/Push failed: ${err.message}`, true);
-      }
-    });
+    const executeCommit = () => {
+      this.setStatus('Committing and pushing to Git remote...', false);
+      this.restService.commitAndPush$(targetId, this.branchName, this.commitMessage).subscribe({
+        next: () => {
+          this.setStatus(`Successfully committed and pushed branch '${this.branchName}'`, false);
+          this.loadProjectFiles();
+        },
+        error: (err) => {
+          this.setStatus(`Commit/Push failed: ${err.message}`, true);
+        }
+      });
+    };
+
+    if (this.selectedFilePath && contentToSave) {
+      this.setStatus('Saving file to workspace before commit...', false);
+      this.restService.saveGitFile$(targetId, this.selectedFilePath, contentToSave).subscribe({
+        next: () => {
+          this.loadDbMapData();
+          executeCommit();
+        },
+        error: (err) => {
+          this.setStatus(`Save failed before commit: ${err.message}`, true);
+        }
+      });
+    } else {
+      executeCommit();
+    }
   }
 
   public runIndexDependencies(): void {

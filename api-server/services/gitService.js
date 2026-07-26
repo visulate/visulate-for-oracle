@@ -88,7 +88,12 @@ async function cloneRepoToFolder(remoteUrl, folderName, branch = 'main') {
     return { success: true, folderName: safeFolder, message: 'Repository already exists; fetched latest from remote.' };
   }
 
-  const cloneCmd = branch ? `git clone -b ${branch} "${remoteUrl}" "${safeFolder}"` : `git clone "${remoteUrl}" "${safeFolder}"`;
+  if (branch && !/^[0-9A-Za-z._\/-]+$/.test(branch)) {
+    throw new Error('Invalid branch name: contains unsafe characters');
+  }
+
+  const safeRemoteUrl = String(remoteUrl).replace(/"/g, '\\"');
+  const cloneCmd = branch ? `git clone -b "${branch}" "${safeRemoteUrl}" "${safeFolder}"` : `git clone "${safeRemoteUrl}" "${safeFolder}"`;
   const res = await runGitCommand(baseDir, cloneCmd);
   return {
     success: res.success,
@@ -153,6 +158,9 @@ async function getFileContent(projectId, filePath, revision = null) {
   const fullPath = path.join(repoDir, filePath);
 
   if (revision) {
+    if (!/^[0-9A-Za-z._\/-]+$/.test(revision)) {
+      throw new Error('Invalid revision: contains unsafe characters');
+    }
     const res = await runGitCommand(repoDir, `git show ${revision}:"${filePath}"`);
     if (res.success) {
       return res.stdout;

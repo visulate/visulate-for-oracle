@@ -12,18 +12,6 @@
     "repoFolder": "visulate"
   },
   {
-    "projectId": "pdb21-visulate",
-    "name": "pdb21 (visulate)",
-    "dbConnectionId": "pdb21",
-    "repoFolder": "visulate",
-    "gitRepo": {
-      "remoteUrl": "",
-      "defaultBranch": "main",
-      "activeBranch": "main",
-      "credentialsId": ""
-    }
-  },
-  {
     "projectId": "cmbs-postgres-visulate-abs",
     "name": "cmbs-postgres (visulate-abs)",
     "dbConnectionId": "cmbs-postgres",

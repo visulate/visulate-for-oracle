@@ -62,9 +62,14 @@ async def save_source_files(files: List[Dict[str, str]], description: str = "Gen
             if not filename or content is None:
                 continue
 
-            # Normalize path relative to repo_dir
+            # Sanitize & prevent path traversal outside repo_dir
             rel_path = filename.lstrip("/")
-            output_path = os.path.join(repo_dir, rel_path)
+            output_path = os.path.abspath(os.path.join(repo_dir, rel_path))
+            real_repo_dir = os.path.abspath(repo_dir)
+            if not output_path.startswith(real_repo_dir):
+                logger.warning(f"Prevented path traversal attempt for filename: {filename}")
+                continue
+
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
             with open(output_path, "w", encoding="utf-8") as f:

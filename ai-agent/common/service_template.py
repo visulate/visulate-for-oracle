@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 def get_okf_context(project_id: str) -> str:
     try:
         repos_dir = os.getenv("GIT_REPOS_DIR") or os.path.expanduser("~/visulate-repos")
-        proj_okf_dir = os.path.join(repos_dir, project_id, ".okf")
+        safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
+        proj_okf_dir = os.path.join(repos_dir, safe_project_id, ".okf")
         if not os.path.exists(proj_okf_dir):
             return ""
         
@@ -35,7 +36,7 @@ def get_okf_context(project_id: str) -> str:
         for root, dirs, files in os.walk(proj_okf_dir):
             for file in files:
                 if file.endswith(".md") or file.endswith(".json"):
-                    rel_path = os.path.relpath(os.path.join(root, file), os.path.join(repos_dir, project_id))
+                    rel_path = os.path.relpath(os.path.join(root, file), os.path.join(repos_dir, safe_project_id))
                     full_path = os.path.join(root, file)
                     try:
                         with open(full_path, "r", encoding="utf-8") as f:
