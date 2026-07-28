@@ -22,5 +22,17 @@
       "activeBranch": "main",
       "credentialsId": ""
     }
+  },
+  {
+    "projectId": "vis25adb-visulate",
+    "name": "vis25adb (visulate)",
+    "dbConnectionId": "vis25adb",
+    "repoFolder": "visulate",
+    "gitRepo": {
+      "remoteUrl": "",
+      "defaultBranch": "main",
+      "activeBranch": "main",
+      "credentialsId": ""
+    }
   }
 ]

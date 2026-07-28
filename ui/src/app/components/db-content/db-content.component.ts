@@ -200,7 +200,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
         .subscribe(result => { this.processObject(result); });
 
       this.loadRelatedCodeFiles(context.endpoint, context.objectName);
-    } else {
+    } else if (!context.objectName) {
       this.ddlLink = '';
       this.relatedCodeFiles = [];
     }
@@ -232,6 +232,11 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   public openInWorkbench(filePath: string): void {
     if (!this.currentContext) return;
+    this.state.setLastSelectedFile(filePath);
+    this.state.setLastWorkbenchQueryParams({
+      db: this.currentContext.endpoint,
+      file: filePath
+    });
     this.router.navigate(['/workbench'], {
       queryParams: {
         db: this.currentContext.endpoint,

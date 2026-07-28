@@ -44,6 +44,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTabsModule } from '@angular/material/tabs';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -67,7 +68,9 @@ import { ChatComponent } from './components/chat/chat.component';
 import { CredentialDialogComponent } from './components/credential-dialog/credential-dialog.component';
 import { DiffDialogComponent } from './components/diff-dialog/diff-dialog.component';
 import { FileViewerDialogComponent } from './components/file-viewer-dialog/file-viewer-dialog.component';
-import { MonacoDiffComponent } from './components/monaco-diff/monaco-diff.component';
+import { MonacoComponent } from './components/monaco/monaco.component';
+import { RouteReuseStrategy } from '@angular/router';
+import { CustomRouteReuseStrategy } from './custom-route-reuse-strategy';
 import { StateService } from './services/state.service';
 import { RestService } from './services/rest.service';
 
@@ -89,7 +92,7 @@ import { RestService } from './services/rest.service';
     CredentialDialogComponent,
     DiffDialogComponent,
     FileViewerDialogComponent,
-    MonacoDiffComponent,
+    MonacoComponent,
     BreadcrumbsComponent,
     RegistrationHelperComponent
   ],
@@ -123,6 +126,7 @@ import { RestService } from './services/rest.service';
     MatDialogModule,
     MatSnackBarModule,
     MatTooltipModule,
+    MatTabsModule,
     OverlayModule,
     PortalModule,
     MarkdownModule.forRoot(),
@@ -141,6 +145,7 @@ import { RestService } from './services/rest.service';
     },
     StateService,
     RestService,
+    { provide: RouteReuseStrategy, useClass: CustomRouteReuseStrategy },
     provideAnimationsAsync(),
     provideHttpClient(withXhr(), withInterceptorsFromDi())
   ],

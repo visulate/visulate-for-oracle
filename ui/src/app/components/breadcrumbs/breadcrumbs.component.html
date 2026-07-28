@@ -2,7 +2,7 @@
   @for (crumb of breadcrumbs; track crumb.url; let last = $last) {
     <span class="breadcrumb-item">
       @if (!last) {
-        <a [routerLink]="[crumb.url]" class="breadcrumb-link">{{ crumb.label }}</a>
+        <a [routerLink]="[crumb.url]" (click)="onBreadcrumbClick(crumb)" class="breadcrumb-link">{{ crumb.label }}</a>
         <mat-icon class="breadcrumb-separator" aria-hidden="true">chevron_right</mat-icon>
       } @else {
         <span class="breadcrumb-current">{{ crumb.label }}</span>

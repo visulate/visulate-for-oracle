@@ -17,8 +17,68 @@
 const fs = require('fs');
 const path = require('path');
 const gitService = require('./gitService');
+const dbConfig = require('../config/database');
+const dbService = require('./database');
 const projectService = require('./projectService');
 const logger = require('./logger');
+
+async function getValidCatalogObjects(dbConnectionId) {
+  if (!dbConnectionId) return null;
+  const ep = dbConfig.endpoints.find(e => e.namespace === dbConnectionId || e.connect.poolAlias === dbConnectionId);
+  if (!ep) return null;
+
+  const poolAlias = ep.connect.poolAlias;
+  const dbType = (ep.connect && ep.connect.dbType) || 'oracle';
+
+  try {
+    let query = '';
+    if (dbType === 'postgres') {
+      query = `
+        SELECT UPPER(table_schema) AS OWNER, UPPER(table_name) AS OBJECT_NAME, 'TABLE' AS OBJECT_TYPE 
+        FROM information_schema.tables 
+        WHERE table_schema NOT IN ('information_schema', 'pg_catalog') AND table_type = 'BASE TABLE'
+        UNION
+        SELECT UPPER(table_schema) AS OWNER, UPPER(table_name) AS OBJECT_NAME, 'VIEW' AS OBJECT_TYPE 
+        FROM information_schema.views 
+        WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+        UNION
+        SELECT UPPER(routine_schema) AS OWNER, UPPER(routine_name) AS OBJECT_NAME, UPPER(routine_type) AS OBJECT_TYPE 
+        FROM information_schema.routines 
+        WHERE routine_schema NOT IN ('information_schema', 'pg_catalog')
+      `;
+    } else {
+      query = `
+        SELECT DISTINCT UPPER(OWNER) AS OWNER, UPPER(OBJECT_NAME) AS OBJECT_NAME, UPPER(OBJECT_TYPE) AS OBJECT_TYPE 
+        FROM ALL_OBJECTS 
+        WHERE OBJECT_TYPE IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE', 'SYNONYM', 'TYPE')
+        AND OWNER NOT IN ('SYS', 'SYSTEM', 'AUDSYS', 'OUTLN', 'GSMADMIN_INTERNAL', 'DBSNMP', 'XDB', 'WMSYS', 'CTXSYS', 'ORDS_METADATA')
+      `;
+    }
+
+    const rows = await dbService.simpleExecute(poolAlias, query, []);
+    if (Array.isArray(rows) && rows.length > 0) {
+      const validObjects = new Map();
+      for (const row of rows) {
+        const name = row.OBJECT_NAME || row.object_name;
+        const owner = row.OWNER || row.owner;
+        const type = row.OBJECT_TYPE || row.object_type || 'TABLE';
+        if (name && owner) {
+          const upperName = String(name).toUpperCase();
+          validObjects.set(upperName, {
+            owner: String(owner).toUpperCase(),
+            type: String(type).toUpperCase(),
+            name: upperName
+          });
+        }
+      }
+      logger.log('info', `Fetched ${validObjects.size} valid database catalog objects for endpoint '${dbConnectionId}'`);
+      return validObjects;
+    }
+  } catch (err) {
+    logger.log('warn', `Could not fetch database catalog objects for endpoint '${dbConnectionId}': ${err.message}`);
+  }
+  return null;
+}
 
 async function indexProjectDependencies(projectId, owner = null) {
   const project = projectService.getProjectById(projectId);
@@ -28,14 +88,28 @@ async function indexProjectDependencies(projectId, owner = null) {
     await gitService.cloneOrFetchRepo(projectId, project?.gitRepo?.remoteUrl || '');
   }
 
+  const dbConnectionId = project?.dbConnectionId || '';
+  const catalogObjects = await getValidCatalogObjects(dbConnectionId);
+
   const codeFiles = await gitService.listProjectFiles(projectId);
   const mapData = {
     projectId,
     indexedAt: new Date().toISOString(),
-    dbConnectionId: project?.dbConnectionId || '',
+    dbConnectionId,
     objects: {},
     files: {}
   };
+
+  // SQL & Application language reserved words and common English words to filter out
+  const reservedWords = new Set([
+    'THE', 'A', 'AN', 'AND', 'OR', 'NOT', 'IS', 'IN', 'ON', 'OF', 'TO', 'AT', 'BY', 'FOR', 'IF', 'IT', 'DO', 'SO', 'NO', 'BE', 'AS', 'WE', 'US', 'ME', 'MY', 'HE', 'SHE',
+    'THIS', 'THAT', 'THEN', 'ELSE', 'WHEN', 'WHAT', 'HOW', 'WHY', 'ALL', 'ANY', 'NEW', 'GET', 'SET', 'PUT', 'DELETE', 'POST', 'TRY', 'CATCH', 'THROW', 'ERR', 'ERROR',
+    'LOG', 'FILE', 'DATA', 'JSON', 'PATH', 'NAME', 'TYPE', 'VALUE', 'KEY', 'LIST', 'ITEM', 'SELECT', 'INSERT', 'UPDATE', 'MERGE', 'CREATE', 'ALTER', 'DROP',
+    'TRUNCATE', 'FROM', 'JOIN', 'INTO', 'GROUP', 'ORDER', 'HAVING', 'VALUES', 'DUAL', 'TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'BODY', 'INDEX',
+    'TRIGGER', 'SEQUENCE', 'SYNONYM', 'BEGIN', 'END', 'EXCEPTION', 'RETURN', 'NULL', 'TRUE', 'FALSE', 'LOOP', 'WITH', 'EXEC', 'EXECUTE', 'CALL', 'PUBLIC',
+    'PRIVATE', 'PROTECTED', 'STATIC', 'CLASS', 'INTERFACE', 'EXTENDS', 'IMPLEMENTS', 'ARRAY', 'STRING', 'INT', 'BOOL', 'BOOLEAN', 'FLOAT', 'VOID', 'SELF',
+    'PARENT', 'CLONE', 'EVAL', 'VAR', 'LET', 'CONST', 'REQUIRE', 'MODULE', 'EXPORTS', 'DEFAULT', 'ASYNC', 'AWAIT', 'PROMISE', 'RESPONSE', 'REQUEST'
+  ]);
 
   // Scan codebase files for object names
   for (const fileRelPath of codeFiles) {
@@ -47,23 +121,10 @@ async function indexProjectDependencies(projectId, owner = null) {
       const content = await gitService.getFileContent(projectId, fileRelPath);
       mapData.files[fileRelPath] = [];
 
-      // SQL & Application language reserved words to filter out
-      const reservedWords = new Set([
-        'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CREATE', 'ALTER', 'DROP',
-        'TRUNCATE', 'FROM', 'JOIN', 'INTO', 'SET', 'WHERE', 'AND', 'OR', 'ON', 'AS',
-        'BY', 'GROUP', 'ORDER', 'HAVING', 'VALUES', 'DUAL', 'TABLE', 'VIEW', 'PACKAGE',
-        'PROCEDURE', 'FUNCTION', 'BODY', 'INDEX', 'TRIGGER', 'SEQUENCE', 'SYNONYM',
-        'TYPE', 'BEGIN', 'END', 'EXCEPTION', 'RETURN', 'NULL', 'TRUE', 'FALSE', 'IF',
-        'LOOP', 'FOR', 'IN', 'IS', 'NOT', 'OF', 'TO', 'WITH', 'EXEC', 'EXECUTE', 'CALL',
-        'PUBLIC', 'PRIVATE', 'PROTECTED', 'STATIC', 'CLASS', 'INTERFACE', 'EXTENDS',
-        'IMPLEMENTS', 'ARRAY', 'STRING', 'INT', 'BOOL', 'BOOLEAN', 'FLOAT', 'VOID',
-        'THIS', 'SELF', 'PARENT', 'NEW', 'CLONE', 'EVAL', 'VAR', 'LET', 'CONST'
-      ]);
-
       const isSqlFile = fileRelPath.endsWith('.sql') || fileRelPath.endsWith('.pks') || fileRelPath.endsWith('.pkb') || fileRelPath.endsWith('.pls');
 
       // For SQL/PLSQL files, match DDL + SQL queries.
-      // For app code files (.php, .js, .py, etc.), match SQL query clauses (FROM, JOIN, INTO, UPDATE, MERGE INTO, EXEC, CALL) but ignore app language function/method declarations.
+      // For app code files (.php, .js, .py, etc.), match SQL query clauses (FROM, JOIN, INTO, UPDATE, MERGE INTO, EXEC, CALL)
       const objectRegex = isSqlFile
         ? /(?:CREATE(?:\s+OR\s+REPLACE)?\s+(?:TABLE|VIEW|PACKAGE|PROCEDURE|FUNCTION|BODY)|FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO|EXEC|EXECUTE|CALL)\s+([a-zA-Z0-9_"\.]+)/gi
         : /(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO|EXEC|EXECUTE|CALL)\s+([a-zA-Z0-9_"\.]+)/gi;
@@ -76,9 +137,29 @@ async function indexProjectDependencies(projectId, owner = null) {
         const objectName = parts.length > 1 ? parts[parts.length - 1] : parts[0];
 
         if (objectName && objectName.length > 2 && !reservedWords.has(objectName)) {
-          if (!mapData.objects[objectName]) {
-            mapData.objects[objectName] = { files: [], dependencies: [] };
+          let dbObjectMeta = null;
+          if (catalogObjects) {
+            if (!catalogObjects.has(objectName)) {
+              continue;
+            }
+            dbObjectMeta = catalogObjects.get(objectName);
           }
+
+          if (!mapData.objects[objectName]) {
+            mapData.objects[objectName] = {
+              owner: dbObjectMeta?.owner || '',
+              type: dbObjectMeta?.type || '',
+              files: [],
+              dependencies: []
+            };
+          }
+          if (dbObjectMeta?.owner && !mapData.objects[objectName].owner) {
+            mapData.objects[objectName].owner = dbObjectMeta.owner;
+          }
+          if (dbObjectMeta?.type && !mapData.objects[objectName].type) {
+            mapData.objects[objectName].type = dbObjectMeta.type;
+          }
+
           if (!mapData.objects[objectName].files.includes(fileRelPath)) {
             mapData.objects[objectName].files.push(fileRelPath);
           }

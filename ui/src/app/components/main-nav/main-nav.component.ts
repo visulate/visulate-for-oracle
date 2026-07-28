@@ -17,7 +17,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrateg
 import { MediaMatcher } from '@angular/cdk/layout';
 import { Subject, combineLatest } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { CurrentContextModel } from 'src/app/models/current-context.model';
 
@@ -29,24 +29,19 @@ import { CurrentContextModel } from 'src/app/models/current-context.model';
   changeDetection: ChangeDetectionStrategy.Eager,
   standalone: false
 })
-/**
- * Navigation component
- * The app-routing module routes all requests to this component. It parses the route's path and query
- * parameters to extract the database, schema, object type, object name and filter then sets the
- * current context observable.
- * @remarks
- * Generated with
- * `ng generate @angular/material:materialNav --name main-nav`
- * Follows Responsive sidenav example from https://material.angular.io/components/sidenav/examples
- */
 export class MainNavComponent implements OnInit, OnDestroy {
 
   mobileQuery: MediaQueryList;
   opened: String = null;
+  public activeTab: 'database' | 'application' = 'database';
+  public currentContext: CurrentContextModel;
+  private lastDatabaseUrl: string = '';
+  private lastWorkbenchQueryParams: any = { db: 'pdb21' };
 
   constructor(
     media: MediaMatcher,
     private route: ActivatedRoute,
+    private router: Router,
     private state: StateService) {
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
   }
@@ -71,28 +66,32 @@ export class MainNavComponent implements OnInit, OnDestroy {
           (context.endpoint, context.owner, context.objectType,
             context.objectName, context.filter, context.showInternal, context.objectList);
 
-        const db = params.get('db');
+        const db = params.get('db') || queryParams.get('db');
         const schema = params.get('schema');
         const type = params.get('type');
         const object = params.get('object');
-        const filter = queryParams.get('filter');
+        const filterParam = queryParams.get('filter');
 
         const endpoint = endpoints.databases.find(d => d.endpoint === db);
         const dbType = endpoint ? endpoint.dbType : 'oracle';
         const useUpper = dbType === 'oracle';
 
-        context.setEndpoint(db);
-        if (schema != null) {
-          context.setOwner(useUpper ? schema.toUpperCase() : schema);
+        if (this.router.url === '/database' || this.router.url === '/') {
+          context.setEndpoint('');
+          context.setOwner('');
+          context.setObjectType('');
+          context.setObjectName('');
+        } else if (this.router.url.includes('/database') || params.get('db')) {
+          if (db) { context.setEndpoint(db); } else { context.setEndpoint(''); }
+          context.setOwner(schema != null ? (useUpper ? schema.toUpperCase() : schema) : '');
+          context.setObjectType(type != null ? type.toUpperCase() : '');
+          context.setObjectName(object != null ? (useUpper ? object.toUpperCase() : object) : '');
+          if (object != null) {
+            this.opened = this.mobileQuery.matches ? null : 'opened';
+          }
         }
-        if (type != null) {
-          context.setObjectType(type.toUpperCase());
-        }
-        if (object != null) {
-          context.setObjectName(useUpper ? object.toUpperCase() : object);
-          this.opened = this.mobileQuery.matches ? null : 'opened';
-        }
-        if (filter != null) { context.setFilter(filter); }
+
+        if (filterParam != null) { context.setFilter(filterParam); }
 
         // Preserve the current object list if context has not changed
         // (e.g when navigating from one object to the next)
@@ -118,11 +117,69 @@ export class MainNavComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.setContext();
 
+    const initialUrl = this.router.url;
+    if (initialUrl.includes('/workbench')) {
+      this.activeTab = 'application';
+      const tree = this.router.parseUrl(initialUrl);
+      if (tree.queryParams && Object.keys(tree.queryParams).length > 0) {
+        this.state.setLastWorkbenchQueryParams(tree.queryParams);
+      }
+    } else {
+      this.activeTab = 'database';
+      this.state.setLastDatabaseUrl(initialUrl);
+    }
+
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      takeUntil(this.unsubscribe$)
+    ).subscribe((event) => {
+      const url = event.urlAfterRedirects || event.url;
+      if (url.includes('/workbench')) {
+        this.activeTab = 'application';
+        const tree = this.router.parseUrl(url);
+        if (tree.queryParams && Object.keys(tree.queryParams).length > 0) {
+          this.state.setLastWorkbenchQueryParams(tree.queryParams);
+        } else if (this.currentContext?.endpoint) {
+          this.state.setLastWorkbenchQueryParams({ db: this.currentContext.endpoint });
+        }
+      } else if (url.includes('/database')) {
+        this.activeTab = 'database';
+        this.state.setLastDatabaseUrl(url);
+      }
+    });
+
+    this.state.currentContext$.pipe(takeUntil(this.unsubscribe$)).subscribe(ctxModel => {
+      if (ctxModel && ctxModel.currentContext) {
+        this.currentContext = ctxModel.currentContext;
+        if (ctxModel.currentContext.endpoint) {
+          this.state.setLastWorkbenchQueryParams({ db: ctxModel.currentContext.endpoint });
+        }
+      }
+    });
+
     // Check for saved theme preference
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
       this.isDarkMode = true;
       document.body.classList.add('dark-theme');
+    }
+    this.state.setDarkMode(this.isDarkMode);
+  }
+
+  public resetDatabaseSelection(): void {
+    this.state.deselectDatabase();
+    this.activeTab = 'database';
+    this.router.navigateByUrl('/database');
+  }
+
+  public selectTab(tab: 'database' | 'application'): void {
+    this.activeTab = tab;
+    if (tab === 'database') {
+      const targetUrl = this.getDatabaseRoute();
+      this.router.navigateByUrl(targetUrl);
+    } else if (tab === 'application') {
+      const queryParams = this.getWorkbenchQueryParams();
+      this.router.navigate(['/workbench'], { queryParams });
     }
   }
 
@@ -136,6 +193,32 @@ export class MainNavComponent implements OnInit, OnDestroy {
       document.body.classList.remove('dark-theme');
       localStorage.setItem('theme', 'light');
     }
+    this.state.setDarkMode(this.isDarkMode);
+  }
+
+  public getDatabaseRoute(): string {
+    const savedUrl = this.state.getLastDatabaseUrl();
+    if (savedUrl && savedUrl.startsWith('/database') && savedUrl !== '/database') {
+      return savedUrl;
+    }
+    if (!this.currentContext || !this.currentContext.endpoint) {
+      return '/database';
+    }
+    const c = this.currentContext;
+    if (c.endpoint && c.owner && c.objectType && c.objectName) {
+      return `/database/${c.endpoint}/${c.owner}/${c.objectType}/${c.objectName}`;
+    }
+    if (c.endpoint && c.owner && c.objectType) {
+      return `/database/${c.endpoint}/${c.owner}/${c.objectType}`;
+    }
+    if (c.endpoint && c.owner) {
+      return `/database/${c.endpoint}/${c.owner}`;
+    }
+    return `/database/${c.endpoint}`;
+  }
+
+  public getWorkbenchQueryParams(): any {
+    return this.state.getLastWorkbenchQueryParams();
   }
 
   expandAll() {
