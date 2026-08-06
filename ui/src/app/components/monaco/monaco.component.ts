@@ -17,8 +17,9 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RestService } from '../../services/rest.service';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { StateService } from '../../services/state.service';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
 declare var monaco: any;
 
@@ -32,16 +33,19 @@ export interface FileTreeNode {
 }
 
 @Component({
-  selector: 'app-monaco-diff',
-  templateUrl: './monaco-diff.component.html',
-  styleUrls: ['./monaco-diff.component.css'],
+  selector: 'app-monaco',
+  templateUrl: './monaco.component.html',
+  styleUrls: ['./monaco.component.css'],
   standalone: false
 })
-export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
+export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('editorContainer', { static: false }) editorContainer!: ElementRef;
 
   @Input() projectId: string = 'default-project';
   @Input() selectedFilePath: string = '';
+
+  public isDarkMode: boolean = false;
+  private destroy$ = new Subject<void>();
 
   public baseReposDir: string = '';
   public localRepos: Array<{ folderName: string; fullPath: string; isGitRepo: boolean }> = [];
@@ -86,16 +90,41 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private restService: RestService,
+    private state: StateService,
     private route: ActivatedRoute,
     private router: Router,
     private cdRef: ChangeDetectorRef
   ) { }
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       if (params['projectId']) this.projectId = params['projectId'];
-      if (params['file']) this.selectedFilePath = params['file'];
       if (params['db']) this.selectedDbConnection = params['db'];
+      if (params['file']) {
+        const fileParam = params['file'];
+        if (fileParam !== this.selectedFilePath || !this.activeFileContent) {
+          this.selectedFilePath = fileParam;
+          this.state.setLastSelectedFile(fileParam, this.selectedRepoFolder || this.projectId);
+          if (this.projectFiles && this.projectFiles.length > 0) {
+            this.openFile(fileParam);
+          }
+        }
+      }
+    });
+
+    this.state.isDarkMode$.pipe(takeUntil(this.destroy$)).subscribe(isDark => {
+      this.isDarkMode = isDark;
+      this.updateMonacoTheme();
+    });
+
+    this.state.currentContext$.pipe(takeUntil(this.destroy$)).subscribe(ctxModel => {
+      if (ctxModel && ctxModel.currentContext && ctxModel.currentContext.endpoint) {
+        const db = ctxModel.currentContext.endpoint;
+        if (db && db !== this.selectedDbConnection) {
+          this.selectedDbConnection = db;
+          this.syncProjectAssociation();
+        }
+      }
     });
 
     this.initWorkbenchData();
@@ -159,6 +188,8 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -235,9 +266,6 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         this.baseReposDir = res.baseDir || '';
         this.localRepos = res.repositories || [];
-        if (this.localRepos.length > 0 && !this.selectedRepoFolder) {
-          this.selectedRepoFolder = this.localRepos[0].folderName;
-        }
         this.syncProjectAssociation();
       },
       error: (err) => {
@@ -264,26 +292,44 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
         this.selectedDbConnection = 'pdb21';
       }
     }
-    if (!this.selectedRepoFolder) {
-      if (this.localRepos && this.localRepos.length > 0) {
-        this.selectedRepoFolder = this.localRepos[0].folderName;
-      } else {
-        this.selectedRepoFolder = 'visulate';
-      }
-    }
 
     const existing = this.projectsList.find(p => p.dbConnectionId === this.selectedDbConnection);
-    if (existing) {
-      this.selectedRepoFolder = existing.repoFolder || existing.projectId;
+    if (existing && existing.repoFolder) {
+      this.selectedRepoFolder = existing.repoFolder;
       this.projectId = existing.projectId;
-    } else if (this.selectedRepoFolder) {
-      this.projectId = `${this.selectedDbConnection}-${this.selectedRepoFolder}`;
+    } else {
+      this.selectedRepoFolder = '';
+      this.projectId = '';
     }
-    this.loadProjectFiles();
+
+    if (this.selectedRepoFolder) {
+      this.loadProjectFiles();
+    } else {
+      this.projectFiles = [];
+      this.filteredFiles = [];
+      this.fileTreeNodes = [];
+      const paramFile = this.route.snapshot.queryParams['file'];
+      if (!paramFile) {
+        this.selectedFilePath = '';
+        this.activeFileContent = '';
+      }
+      this.isLoading = false;
+    }
   }
 
   public onDbOrRepoChange(): void {
-    if (!this.selectedDbConnection || !this.selectedRepoFolder) return;
+    if (!this.selectedDbConnection) return;
+
+    if (!this.selectedRepoFolder) {
+      this.syncProjectAssociation();
+      return;
+    }
+
+    const ctx = this.state.getCurrentContext();
+    if (ctx.endpoint !== this.selectedDbConnection) {
+      ctx.setEndpoint(this.selectedDbConnection);
+      this.state.setCurrentContext(ctx);
+    }
 
     const projData = {
       projectId: `${this.selectedDbConnection}-${this.selectedRepoFolder}`,
@@ -331,18 +377,28 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public loadProjectFiles(): void {
-    const targetId = this.selectedRepoFolder || this.projectId;
-    if (!targetId) {
+    if (!this.selectedRepoFolder) {
       this.isLoading = false;
+      this.projectFiles = [];
+      this.filteredFiles = [];
+      this.fileTreeNodes = [];
+      this.selectedFilePath = '';
+      this.activeFileContent = '';
       return;
     }
+    const targetId = this.selectedRepoFolder;
 
     this.restService.listGitFiles$(targetId).subscribe({
       next: (res) => {
         this.projectFiles = res.files || [];
         this.applyFileFilter();
 
-        if (!this.selectedFilePath && this.projectFiles.length > 0) {
+        const paramFile = this.route.snapshot.queryParams['file'];
+        if (paramFile && this.projectFiles.includes(paramFile)) {
+          this.selectedFilePath = paramFile;
+        } else if (this.selectedFilePath && this.projectFiles.includes(this.selectedFilePath)) {
+          // Keep existing selectedFilePath
+        } else if (this.projectFiles.length > 0) {
           this.selectedFilePath = this.projectFiles[0];
         }
 
@@ -475,8 +531,19 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public openFile(filePath: string): void {
     this.selectedFilePath = filePath;
+    this.state.setLastSelectedFile(filePath, this.selectedRepoFolder || this.projectId);
     this.updateCurrentFileDbObjects();
     this.loadFileContent();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        db: this.selectedDbConnection,
+        file: filePath,
+        projectId: this.selectedRepoFolder || this.projectId
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   public updateCurrentFileDbObjects(): void {
@@ -622,23 +689,68 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
     return 'plaintext';
   }
 
+  private registerCustomThemes(): void {
+    if (typeof monaco === 'undefined' || !monaco.editor) return;
+
+    try {
+      monaco.editor.defineTheme('visulate-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [],
+        colors: {
+          'editor.background': '#fdf6e3',
+          'editorGutter.background': '#eee8d5',
+          'minimap.background': '#fdf6e3',
+          'diffEditor.insertedTextBackground': 'rgba(108, 153, 0, 0.15)',
+          'diffEditor.removedTextBackground': 'rgba(220, 50, 47, 0.15)'
+        }
+      });
+
+      monaco.editor.defineTheme('visulate-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {
+          'editor.background': '#121212',
+          'editorGutter.background': '#1e1e1e',
+          'minimap.background': '#121212'
+        }
+      });
+    } catch (e) {
+      console.warn('Could not define custom monaco themes:', e);
+    }
+  }
+
+  private updateMonacoTheme(): void {
+    if (typeof monaco !== 'undefined' && monaco && monaco.editor) {
+      this.registerCustomThemes();
+      monaco.editor.setTheme(this.isDarkMode ? 'visulate-dark' : 'visulate-light');
+    }
+  }
+
   private setupMonacoEditor(): void {
     if (!this.editorContainer || !this.editorContainer.nativeElement) return;
 
+    this.registerCustomThemes();
+
     if (this.viewMode === 'editor' && this.monacoEditor) {
       this.updateSingleEditorModel();
+      this.updateMonacoTheme();
       return;
     }
     if (this.viewMode === 'diff' && this.diffEditor) {
       this.updateDiffEditorModels();
+      this.updateMonacoTheme();
       return;
     }
 
     this.disposeEditors();
 
+    const currentTheme = this.isDarkMode ? 'visulate-dark' : 'visulate-light';
+
     if (this.viewMode === 'editor') {
       this.monacoEditor = monaco.editor.create(this.editorContainer.nativeElement, {
-        theme: 'vs-dark',
+        theme: currentTheme,
         automaticLayout: true,
         minimap: { enabled: true },
         scrollBeyondLastLine: false
@@ -651,7 +763,7 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     } else {
       this.diffEditor = monaco.editor.createDiffEditor(this.editorContainer.nativeElement, {
-        theme: 'vs-dark',
+        theme: currentTheme,
         automaticLayout: true,
         originalEditable: false,
         readOnly: false
@@ -819,7 +931,24 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
   public openDatabaseObject(objName: string): void {
     if (!this.selectedDbConnection || !objName) return;
 
-    // Guess type from common Oracle naming conventions as fallback
+    if (this.dbMapData && this.dbMapData.objects && this.dbMapData.objects[objName]) {
+      const objInfo = this.dbMapData.objects[objName];
+      if (objInfo.owner && objInfo.type) {
+        this.router.navigate(['/database', this.selectedDbConnection, objInfo.owner, objInfo.type, objName]);
+        return;
+      }
+    }
+
+    const ctx = this.state.getCurrentContext();
+    let currentSchema = (ctx && ctx.endpoint === this.selectedDbConnection && ctx.owner) ? ctx.owner : '';
+
+    const ep = this.dbEndpoints?.find(e => e.endpoint === this.selectedDbConnection);
+    const isPostgres = (ep && ep.description && ep.description.toLowerCase().includes('postgres')) || this.selectedDbConnection.toLowerCase().includes('postgres');
+
+    if (!currentSchema) {
+      currentSchema = isPostgres ? 'public' : '';
+    }
+
     let guessedType = 'TABLE';
     const upper = objName.toUpperCase();
     if (upper.endsWith('_V') || upper.endsWith('_VW') || upper.endsWith('_VIEW')) {
@@ -830,22 +959,29 @@ export class MonacoDiffComponent implements OnInit, AfterViewInit, OnDestroy {
       guessedType = 'SEQUENCE';
     }
 
-    // Call Visulate database catalog search API /find/:name
     this.restService.getDbSearch$(objName).subscribe({
       next: (searchResults: any) => {
         if (Array.isArray(searchResults) && searchResults.length > 0) {
-          // Find match for current database connection
-          const match = searchResults.find((r: any) => r.endpoint === this.selectedDbConnection) || searchResults[0];
+          const match = searchResults.find((r: any) => r.endpoint === this.selectedDbConnection);
           if (match && match.owner && match.object_type) {
-            this.router.navigate(['/database', match.endpoint || this.selectedDbConnection, match.owner, match.object_type, match.object_name || objName]);
+            this.router.navigate(['/database', this.selectedDbConnection, match.owner, match.object_type, match.object_name || objName]);
             return;
           }
         }
-        // Fallback if search returns no exact match
-        this.router.navigate(['/database', this.selectedDbConnection, 'RNTMGR2', guessedType, objName]);
+        const targetSchema = currentSchema || (isPostgres ? 'public' : '');
+        if (targetSchema) {
+          this.router.navigate(['/database', this.selectedDbConnection, targetSchema, guessedType, objName]);
+        } else {
+          this.router.navigate(['/database', this.selectedDbConnection]);
+        }
       },
       error: () => {
-        this.router.navigate(['/database', this.selectedDbConnection, 'RNTMGR2', guessedType, objName]);
+        const targetSchema = currentSchema || (isPostgres ? 'public' : '');
+        if (targetSchema) {
+          this.router.navigate(['/database', this.selectedDbConnection, targetSchema, guessedType, objName]);
+        } else {
+          this.router.navigate(['/database', this.selectedDbConnection]);
+        }
       }
     });
   }

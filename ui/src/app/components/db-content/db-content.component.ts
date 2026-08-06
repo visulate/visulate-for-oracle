@@ -48,6 +48,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public showLineNumbers = true;
   public schemaColumns: string[] = ['type', 'count'];
   public ddlBase = environment.ddlGenBase;
+  public enableGitIntegration = environment.enableGitIntegration;
   public ddlLink: string;
   public downloadOptions = [];
   public connectString: string;
@@ -200,7 +201,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
         .subscribe(result => { this.processObject(result); });
 
       this.loadRelatedCodeFiles(context.endpoint, context.objectName);
-    } else {
+    } else if (!context.objectName) {
       this.ddlLink = '';
       this.relatedCodeFiles = [];
     }
@@ -209,7 +210,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public relatedCodeFiles: string[] = [];
 
   public loadRelatedCodeFiles(endpoint: string, objectName: string): void {
-    if (!endpoint || !objectName) return;
+    if (!this.enableGitIntegration || !endpoint || !objectName) return;
     this.restService.getGitFile$(endpoint, '.okf/oracle-code-map.json').subscribe({
       next: (res) => {
         try {
@@ -232,6 +233,11 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   public openInWorkbench(filePath: string): void {
     if (!this.currentContext) return;
+    this.state.setLastSelectedFile(filePath);
+    this.state.setLastWorkbenchQueryParams({
+      db: this.currentContext.endpoint,
+      file: filePath
+    });
     this.router.navigate(['/workbench'], {
       queryParams: {
         db: this.currentContext.endpoint,

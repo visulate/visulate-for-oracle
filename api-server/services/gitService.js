@@ -28,7 +28,7 @@ function getBaseReposDir() {
 }
 
 function getProjectRepoDir(identifier) {
-  if (!identifier) return getBaseReposDir();
+  if (!identifier) return null;
   const baseDir = getBaseReposDir();
   
   // Check if identifier matches a registered project
@@ -243,7 +243,15 @@ async function getDiff(projectId, filePath = '') {
 }
 
 async function listProjectFiles(projectId, subDir = '') {
-  const repoDir = await ensureRepoInitialized(projectId);
+  if (!projectId) return [];
+  const project = projectService.getProjectById(projectId) || projectService.getProjectByDbConnection(projectId);
+  const repoDir = project
+    ? await ensureRepoInitialized(projectId, project.gitRepo?.remoteUrl || '', project.gitRepo?.activeBranch || 'main')
+    : getProjectRepoDir(projectId);
+
+  if (!repoDir || !fs.existsSync(repoDir)) {
+    return [];
+  }
   const targetDir = path.join(repoDir, subDir);
   
   if (!fs.existsSync(targetDir)) {

@@ -16,21 +16,28 @@
   </mat-form-field>
   }
 
-  @if (relatedCodeFiles && relatedCodeFiles.length > 0) {
-  <div class="related-code-card">
-    <div class="card-header">
-      <mat-icon>code</mat-icon> <strong>Related Repository Code Files</strong>
-    </div>
-    <div class="code-files-list">
-      <div *ngFor="let file of relatedCodeFiles" class="code-file-item" (click)="openInWorkbench(file)">
-        <mat-icon class="file-icon">description</mat-icon>
-        <span class="file-path">{{ file }}</span>
-        <button mat-stroked-button color="primary" class="open-btn">
-          <mat-icon>edit</mat-icon> Open in Workbench
-        </button>
+  @if (enableGitIntegration && relatedCodeFiles && relatedCodeFiles.length > 0) {
+  <mat-accordion>
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          Related Repository Code Files
+        </mat-panel-title>
+        <mat-panel-description>
+          Mapped codebase files ({{ relatedCodeFiles.length }})
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <div class="code-files-list">
+        <div *ngFor="let file of relatedCodeFiles" class="code-file-item" (click)="openInWorkbench(file)">
+          <mat-icon class="file-icon">description</mat-icon>
+          <span class="file-path">{{ file }}</span>
+          <button mat-stroked-button color="primary" class="open-btn">
+            <mat-icon>edit</mat-icon> Open in Workbench
+          </button>
+        </div>
       </div>
-    </div>
-  </div>
+    </mat-expansion-panel>
+  </mat-accordion>
   }
 
   <ng-container *ngTemplateOutlet="queryResults"></ng-container>

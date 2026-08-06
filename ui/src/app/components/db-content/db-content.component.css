@@ -276,11 +276,12 @@ mat-expansion-panel {
 }
 
 .related-code-card {
-  background: var(--app-sidebar-bg, #252526);
-  border: 1px solid var(--app-border-color, #333333);
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 16px;
   margin: 16px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .related-code-card .card-header {
@@ -288,34 +289,42 @@ mat-expansion-panel {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  margin-bottom: 10px;
-  color: var(--app-text-color, #ffffff);
+  margin-bottom: 12px;
+  color: var(--app-heading-color);
+}
+
+.related-code-card .card-header mat-icon {
+  color: var(--app-link-color);
 }
 
 .code-files-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 12px;
+  padding-bottom: 8px;
 }
 
 .code-file-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  background-color: var(--app-bg, #1e1e1e);
-  border: 1px solid var(--app-border-color, #333333);
+  padding: 10px 14px;
+  background-color: var(--app-sidebar-bg);
+  border: 1px solid var(--app-border-color);
   border-radius: 6px;
   cursor: pointer;
-  transition: border-color 0.2s;
+  color: var(--app-text-color);
+  transition: all 0.2s ease-in-out;
 }
 
 .code-file-item:hover {
-  border-color: #007acc;
+  background-color: var(--app-active-bg);
+  border-color: var(--app-link-color);
 }
 
 .code-file-item .file-icon {
-  color: #007acc;
+  color: var(--app-link-color);
 }
 
 .code-file-item .file-path {
@@ -323,6 +332,7 @@ mat-expansion-panel {
   font-size: 13px;
   font-weight: 500;
   font-family: monospace;
+  color: var(--app-text-color);
 }
 
 .code-file-item .open-btn {

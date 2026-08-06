@@ -11,9 +11,9 @@
 
       <span class="toolbar-label"><mat-icon>folder_special</mat-icon> Git Repo:</span>
       <select class="nav-select" [(ngModel)]="selectedRepoFolder" (change)="onDbOrRepoChange()">
+        <option value="">-- Select Repository --</option>
         <option *ngFor="let repo of localRepos" [value]="repo.folderName">{{ repo.folderName }}</option>
       </select>
-
       <button mat-icon-button color="primary" matTooltip="Clone remote repository into base folder" (click)="showCloneForm = !showCloneForm">
         <mat-icon>add_link</mat-icon>
       </button>
@@ -115,7 +115,16 @@
       </ng-template>
 
       <div class="file-tree-list">
-        <ng-container *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: fileTreeNodes, depth: 0 }"></ng-container>
+        <ng-container *ngIf="selectedRepoFolder; else selectRepoPrompt">
+          <ng-container *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: fileTreeNodes, depth: 0 }"></ng-container>
+        </ng-container>
+        <ng-template #selectRepoPrompt>
+          <div class="no-repo-prompt">
+            <mat-icon class="prompt-icon">folder_open</mat-icon>
+            <p class="prompt-title">No Repository Selected</p>
+            <p class="prompt-text">Select a Git repository from the drop-down menu above or clone a new repository to view codebase files.</p>
+          </div>
+        </ng-template>
       </div>
     </div>
 

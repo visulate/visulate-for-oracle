@@ -22,5 +22,29 @@
       "activeBranch": "main",
       "credentialsId": ""
     }
+  },
+  {
+    "projectId": "vis25adb-visulate",
+    "name": "vis25adb (visulate)",
+    "dbConnectionId": "vis25adb",
+    "repoFolder": "visulate",
+    "gitRepo": {
+      "remoteUrl": "",
+      "defaultBranch": "main",
+      "activeBranch": "main",
+      "credentialsId": ""
+    }
+  },
+  {
+    "projectId": "odoo-odoo",
+    "name": "odoo (odoo)",
+    "dbConnectionId": "odoo",
+    "repoFolder": "odoo",
+    "gitRepo": {
+      "remoteUrl": "",
+      "defaultBranch": "main",
+      "activeBranch": "main",
+      "credentialsId": ""
+    }
   }
 ]

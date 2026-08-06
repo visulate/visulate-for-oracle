@@ -3,12 +3,19 @@
     <button mat-icon-button type="button" aria-label="Toggle sidenav" (click)="snav.toggle()"> <mat-icon
         aria-label="Side nav toggle icon">menu</mat-icon>
     </button>
-    <a routerLink="/">Visulate</a>
+    <a routerLink="/database" (click)="resetDatabaseSelection()">Visulate</a>
     <app-breadcrumbs></app-breadcrumbs>
+    <div class="nav-tabs-container">
+      <button mat-button class="nav-tab-btn" [class.active-tab]="activeTab === 'database'" (click)="selectTab('database')" matTooltip="Database Catalog">
+        <mat-icon>storage</mat-icon> Database
+      </button>
+      @if (enableGitIntegration) {
+      <button mat-button class="nav-tab-btn" [class.active-tab]="activeTab === 'application'" (click)="selectTab('application')" matTooltip="Application Workbench">
+        <mat-icon>code</mat-icon> Application
+      </button>
+      }
+    </div>
     <span class="spacer"></span>
-    <a mat-button routerLink="/workbench" matTooltip="Git Workbench & Editor" style="color: white; margin-right: 8px;">
-      <mat-icon>code</mat-icon> Workbench
-    </a>
     <button mat-icon-button matTooltip="Expand All" aria-label="Expand All" (click)="expandAll()">
       <mat-icon>unfold_more</mat-icon>
     </button>
@@ -22,23 +29,28 @@
       <mat-icon>{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</mat-icon>
     </button>
   </mat-toolbar>
-  @if (!snav.opened) {
+  @if (!snav.opened && activeTab === 'database') {
   <app-db-step-selection></app-db-step-selection>
   }
 
   <mat-sidenav-container class="app-sidenav-container">
     <mat-sidenav #snav [mode]="mobileQuery.matches ? 'over' : 'side'" class="app-sidebar"
-      [fixedInViewport]="mobileQuery.matches" [opened]="opened">
+      [fixedInViewport]="mobileQuery.matches" [opened]="activeTab === 'database' ? opened : null">
       <app-db-selection></app-db-selection>
       <app-db-object-list></app-db-object-list>
-
-
     </mat-sidenav>
     <mat-sidenav-content>
       @if (displaySearchForm) {
       <app-find-object (cancelSearchForm)="hideSearchForm()"></app-find-object>
       }
-      <app-db-content></app-db-content>
+      <div [hidden]="activeTab !== 'database'">
+        <app-db-content></app-db-content>
+      </div>
+      @if (enableGitIntegration && hasActivatedApplicationTab) {
+      <div [hidden]="activeTab !== 'application'" style="height: 100%;">
+        <app-monaco></app-monaco>
+      </div>
+      }
     </mat-sidenav-content>
   </mat-sidenav-container>
 </div>

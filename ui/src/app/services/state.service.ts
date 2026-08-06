@@ -55,6 +55,7 @@ export class StateService {
   private aiEnabledSubject = new BehaviorSubject<boolean>(false);
   private credentialsChanged = new BehaviorSubject<void>(undefined);
   private isChatFullScreen = new BehaviorSubject<boolean>(false);
+  private isDarkModeSubject = new BehaviorSubject<boolean>(localStorage.getItem('theme') === 'dark');
   private toggleAccordions = new Subject<boolean>();
 
   endpoints$ = this.endpointList.asObservable();
@@ -64,6 +65,69 @@ export class StateService {
   credentialsChanged$ = this.credentialsChanged.asObservable();
   isChatFullScreen$ = this.isChatFullScreen.asObservable();
   toggleAccordions$ = this.toggleAccordions.asObservable();
+  isDarkMode$ = this.isDarkModeSubject.asObservable();
+
+  setDarkMode(isDark: boolean): void {
+    this.isDarkModeSubject.next(isDark);
+  }
+
+  getIsDarkMode(): boolean {
+    return this.isDarkModeSubject.getValue();
+  }
+
+  private lastDatabaseUrl: string = '/database';
+  private lastSelectedFilePath: string = '';
+  private lastSelectedRepoFolder: string = '';
+  private lastWorkbenchQueryParams: any = { db: 'pdb21' };
+
+  public setLastDatabaseUrl(url: string): void {
+    if (url && url.startsWith('/database')) {
+      this.lastDatabaseUrl = url;
+    }
+  }
+
+  public getLastDatabaseUrl(): string {
+    return this.lastDatabaseUrl || '/database';
+  }
+
+  public setLastSelectedFile(file: string, repoFolder?: string): void {
+    if (file) {
+      this.lastSelectedFilePath = file;
+      this.lastWorkbenchQueryParams = {
+        ...this.lastWorkbenchQueryParams,
+        file: file
+      };
+    }
+    if (repoFolder) {
+      this.lastSelectedRepoFolder = repoFolder;
+      this.lastWorkbenchQueryParams = {
+        ...this.lastWorkbenchQueryParams,
+        projectId: repoFolder
+      };
+    }
+  }
+
+  public getLastSelectedFile(): string {
+    return this.lastSelectedFilePath;
+  }
+
+  public setLastWorkbenchQueryParams(params: any): void {
+    if (params && Object.keys(params).length > 0) {
+      this.lastWorkbenchQueryParams = { ...this.lastWorkbenchQueryParams, ...params };
+    }
+  }
+
+  public deselectDatabase(): void {
+    const emptyContext = new CurrentContextModel('', '', '', '', '', false, []);
+    this.setCurrentContext(emptyContext);
+    this.lastDatabaseUrl = '/database';
+    this.lastWorkbenchQueryParams = {};
+    this.lastSelectedFilePath = '';
+  }
+
+  public getLastWorkbenchQueryParams(): any {
+    return this.lastWorkbenchQueryParams || { db: this.subjectContext.value?.currentContext?.endpoint || 'pdb21' };
+  }
 
   getCurrentContext() {
     return this.getStoredContext();

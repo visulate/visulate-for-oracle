@@ -57,6 +57,12 @@ export class BreadcrumbsComponent implements OnInit, OnDestroy {
     this.breadcrumbs = items;
   }
 
+  onBreadcrumbClick(crumb: Breadcrumb): void {
+    if (crumb.url === '/database') {
+      this.state.deselectDatabase();
+    }
+  }
+
   ngOnDestroy(): void {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
