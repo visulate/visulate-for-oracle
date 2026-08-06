@@ -74,6 +74,16 @@ const endpoints = [
             password: 'visLand32754',
             connectString: 'localhost:5432/cmbs'
         }
-    }
+    },
+   {
+        namespace: 'odoo',
+        description: 'odoo Database',
+        connect: { poolAlias: 'odoo',
+                    dbType: 'postgres',
+                    user: 'visulate',
+                    password: 'visLand32754',
+                    connectString: 'localhost:5432/odoo'
+                }
+        }
 ];
 module.exports.endpoints = endpoints;

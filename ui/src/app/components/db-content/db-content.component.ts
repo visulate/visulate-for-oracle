@@ -48,6 +48,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public showLineNumbers = true;
   public schemaColumns: string[] = ['type', 'count'];
   public ddlBase = environment.ddlGenBase;
+  public enableGitIntegration = environment.enableGitIntegration;
   public ddlLink: string;
   public downloadOptions = [];
   public connectString: string;
@@ -209,7 +210,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public relatedCodeFiles: string[] = [];
 
   public loadRelatedCodeFiles(endpoint: string, objectName: string): void {
-    if (!endpoint || !objectName) return;
+    if (!this.enableGitIntegration || !endpoint || !objectName) return;
     this.restService.getGitFile$(endpoint, '.okf/oracle-code-map.json').subscribe({
       next: (res) => {
         try {

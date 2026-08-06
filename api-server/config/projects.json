@@ -34,5 +34,17 @@
       "activeBranch": "main",
       "credentialsId": ""
     }
+  },
+  {
+    "projectId": "odoo-odoo",
+    "name": "odoo (odoo)",
+    "dbConnectionId": "odoo",
+    "repoFolder": "odoo",
+    "gitRepo": {
+      "remoteUrl": "",
+      "defaultBranch": "main",
+      "activeBranch": "main",
+      "credentialsId": ""
+    }
   }
 ]

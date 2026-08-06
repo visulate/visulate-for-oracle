@@ -20,6 +20,7 @@ import { takeUntil, filter } from 'rxjs/operators';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { StateService } from '../../services/state.service';
 import { CurrentContextModel } from 'src/app/models/current-context.model';
+import { environment } from '../../../environments/environment';
 
 
 @Component({
@@ -35,8 +36,8 @@ export class MainNavComponent implements OnInit, OnDestroy {
   opened: String = null;
   public activeTab: 'database' | 'application' = 'database';
   public currentContext: CurrentContextModel;
-  private lastDatabaseUrl: string = '';
-  private lastWorkbenchQueryParams: any = { db: 'pdb21' };
+  public hasActivatedApplicationTab = false;
+  public enableGitIntegration = environment.enableGitIntegration;
 
   constructor(
     media: MediaMatcher,
@@ -118,8 +119,9 @@ export class MainNavComponent implements OnInit, OnDestroy {
     this.setContext();
 
     const initialUrl = this.router.url;
-    if (initialUrl.includes('/workbench')) {
+    if (initialUrl.includes('/workbench') && this.enableGitIntegration) {
       this.activeTab = 'application';
+      this.hasActivatedApplicationTab = true;
       const tree = this.router.parseUrl(initialUrl);
       if (tree.queryParams && Object.keys(tree.queryParams).length > 0) {
         this.state.setLastWorkbenchQueryParams(tree.queryParams);
@@ -134,8 +136,9 @@ export class MainNavComponent implements OnInit, OnDestroy {
       takeUntil(this.unsubscribe$)
     ).subscribe((event) => {
       const url = event.urlAfterRedirects || event.url;
-      if (url.includes('/workbench')) {
+      if (url.includes('/workbench') && this.enableGitIntegration) {
         this.activeTab = 'application';
+        this.hasActivatedApplicationTab = true;
         const tree = this.router.parseUrl(url);
         if (tree.queryParams && Object.keys(tree.queryParams).length > 0) {
           this.state.setLastWorkbenchQueryParams(tree.queryParams);
@@ -173,11 +176,15 @@ export class MainNavComponent implements OnInit, OnDestroy {
   }
 
   public selectTab(tab: 'database' | 'application'): void {
+    if (tab === 'application' && !this.enableGitIntegration) {
+      return;
+    }
     this.activeTab = tab;
     if (tab === 'database') {
       const targetUrl = this.getDatabaseRoute();
       this.router.navigateByUrl(targetUrl);
     } else if (tab === 'application') {
+      this.hasActivatedApplicationTab = true;
       const queryParams = this.getWorkbenchQueryParams();
       this.router.navigate(['/workbench'], { queryParams });
     }

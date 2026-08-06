@@ -9,9 +9,11 @@
       <button mat-button class="nav-tab-btn" [class.active-tab]="activeTab === 'database'" (click)="selectTab('database')" matTooltip="Database Catalog">
         <mat-icon>storage</mat-icon> Database
       </button>
+      @if (enableGitIntegration) {
       <button mat-button class="nav-tab-btn" [class.active-tab]="activeTab === 'application'" (click)="selectTab('application')" matTooltip="Application Workbench">
         <mat-icon>code</mat-icon> Application
       </button>
+      }
     </div>
     <span class="spacer"></span>
     <button mat-icon-button matTooltip="Expand All" aria-label="Expand All" (click)="expandAll()">
@@ -44,9 +46,11 @@
       <div [hidden]="activeTab !== 'database'">
         <app-db-content></app-db-content>
       </div>
+      @if (enableGitIntegration && hasActivatedApplicationTab) {
       <div [hidden]="activeTab !== 'application'" style="height: 100%;">
         <app-monaco></app-monaco>
       </div>
+      }
     </mat-sidenav-content>
   </mat-sidenav-container>
 </div>

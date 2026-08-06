@@ -54,6 +54,7 @@ x-google-marketplace:
       v2.6.3 Support for file uploads
       v2.6.4 Upgrade UI to Angular 22.
       v2.6.5 Add A2A agent discovery support.
+      v3.0.0 Git integration plus code editor.
   images:
     '':
       properties:

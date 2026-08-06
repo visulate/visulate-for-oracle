@@ -244,7 +244,11 @@ async function getDiff(projectId, filePath = '') {
 
 async function listProjectFiles(projectId, subDir = '') {
   if (!projectId) return [];
-  const repoDir = getProjectRepoDir(projectId);
+  const project = projectService.getProjectById(projectId) || projectService.getProjectByDbConnection(projectId);
+  const repoDir = project
+    ? await ensureRepoInitialized(projectId, project.gitRepo?.remoteUrl || '', project.gitRepo?.activeBranch || 'main')
+    : getProjectRepoDir(projectId);
+
   if (!repoDir || !fs.existsSync(repoDir)) {
     return [];
   }

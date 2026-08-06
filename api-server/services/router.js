@@ -176,6 +176,18 @@ router.route('/api/database-connections')
     }
   });
 
+/* Feature Flag Middleware for Git Integration and File Editing */
+const checkGitFeatureEnabled = (req, res, next) => {
+  const isEnabled = process.env.ENABLE_GIT_INTEGRATION === 'true';
+  if (!isEnabled) {
+    return res.status(403).json({ error: 'Git integration and file editing features are disabled.' });
+  }
+  next();
+};
+
+router.use('/api/projects', checkGitFeatureEnabled);
+router.use('/api/git', checkGitFeatureEnabled);
+
 /* Project Endpoints */
 router.route('/api/projects')
   .get((req, res) => {

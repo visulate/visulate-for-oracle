@@ -17,10 +17,11 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { MainNavComponent } from './components/main-nav/main-nav.component';
+import { gitFeatureGuard } from './guards/git-feature.guard';
 
 const routes: Routes = [
-  { path: 'workbench', component: MainNavComponent },
-  { path: 'workbench/:projectId', component: MainNavComponent },
+  { path: 'workbench', component: MainNavComponent, canActivate: [gitFeatureGuard] },
+  { path: 'workbench/:projectId', component: MainNavComponent, canActivate: [gitFeatureGuard] },
   { path: 'database/new', component: MainNavComponent },
   { path: 'database', component: MainNavComponent },
   { path: 'database/:db', component: MainNavComponent },
