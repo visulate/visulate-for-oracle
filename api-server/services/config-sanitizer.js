@@ -92,6 +92,7 @@ function isTcpPortReachable(host, port, timeoutMs) {
     } catch (_) {
       if (!settled) {
         settled = true;
+        socket.destroy();
         resolve(false);
       }
     }
