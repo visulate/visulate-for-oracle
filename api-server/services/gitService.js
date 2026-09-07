@@ -16,9 +16,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const util = require('util');
-const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 const logger = require('./logger');
 
 /**
@@ -49,6 +49,53 @@ function getProjectRepoDir(identifier, userContext = null) {
   const baseDir = getBaseReposDir(userContext);
   const safeName = identifier.replace(/[^a-zA-Z0-9._-]/g, '_');
   return path.join(baseDir, safeName);
+}
+
+/**
+ * Validates that a path is canonically contained within a repository directory,
+ * preventing directory traversal attacks (../) and symlink escapes.
+ */
+function resolveSafePath(repoDir, relativePath = '', mustExist = false) {
+  if (!repoDir || !fs.existsSync(repoDir)) {
+    throw new Error('Repository directory does not exist');
+  }
+  const realRepoDir = fs.realpathSync(repoDir);
+  const normalizedRel = (relativePath || '').replace(/^[\\\/]+/, '');
+  const resolved = path.resolve(realRepoDir, normalizedRel);
+
+  if (mustExist) {
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`Path does not exist: ${relativePath}`);
+    }
+    const realTarget = fs.realpathSync(resolved);
+    if (!realTarget.startsWith(realRepoDir + path.sep) && realTarget !== realRepoDir) {
+      throw new Error(`Path escapes repository boundary: ${relativePath}`);
+    }
+    return realTarget;
+  } else {
+    // For file creation/saving: check canonical path of existing ancestor directory
+    let checkDir = path.dirname(resolved);
+    while (!fs.existsSync(checkDir) && checkDir !== path.dirname(checkDir)) {
+      checkDir = path.dirname(checkDir);
+    }
+    if (fs.existsSync(checkDir)) {
+      const realCheckDir = fs.realpathSync(checkDir);
+      if (!realCheckDir.startsWith(realRepoDir + path.sep) && realCheckDir !== realRepoDir) {
+        throw new Error(`Path escapes repository boundary: ${relativePath}`);
+      }
+    }
+    if (!resolved.startsWith(realRepoDir + path.sep) && resolved !== realRepoDir) {
+      throw new Error(`Path escapes repository boundary: ${relativePath}`);
+    }
+    // Prevent overwriting through an existing symlink
+    if (fs.existsSync(resolved)) {
+      const stat = fs.lstatSync(resolved);
+      if (stat.isSymbolicLink()) {
+        throw new Error(`Cannot write to symbolic link: ${relativePath}`);
+      }
+    }
+    return resolved;
+  }
 }
 
 /**
@@ -83,20 +130,21 @@ function listLocalRepositories(userContext = null) {
 }
 
 /**
- * Executes a Git command with optional HTTPS token authentication.
- * Never writes secrets to repository .git/config.
+ * Executes Git directly via execFile with an argument array.
+ * Never executes through a shell and never writes secrets to repository .git/config.
  */
-async function runGitCommand(repoDir, command, options = {}) {
+async function runGitCommand(repoDir, args, options = {}) {
   const { logError = true } = options;
   const env = { ...process.env };
+  const gitArgs = Array.isArray(args) ? args : args.split(' ').filter(Boolean);
 
   try {
-    const { stdout, stderr } = await execAsync(command, { cwd: repoDir, env });
-    return { success: true, stdout: stdout.trim(), stderr: stderr.trim() };
+    const { stdout, stderr } = await execFileAsync('git', gitArgs, { cwd: repoDir, env });
+    return { success: true, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() };
   } catch (error) {
     if (logError) {
       // Sanitize potential token from log output
-      const cleanMsg = error.message.replace(/([a-zA-Z0-9_-]{20,})/g, '***');
+      const cleanMsg = (error.message || '').replace(/([a-zA-Z0-9_-]{20,})/g, '***');
       logger.log('warn', `Git command error: ${cleanMsg}`);
     }
     return { success: false, error: error.message, stderr: error.stderr ? error.stderr.trim() : '' };
@@ -125,18 +173,21 @@ async function cloneRepoToFolder(remoteUrl, folderName, branch = null, userConte
     throw new Error('Invalid branch name: contains unsafe characters');
   }
 
-  // Inject token dynamically for HTTPS if provided
-  let safeRemoteUrl = String(remoteUrl).trim();
-  let extraArgs = '';
+  const safeRemoteUrl = String(remoteUrl).trim();
+  const gitArgs = [];
 
-  if (authContext.token && safeRemoteUrl.startsWith('https://')) {
-    extraArgs = `-c http.extraHeader="Authorization: Bearer ${authContext.token}"`;
+  // Inject token dynamically for HTTPS if provided
+  if (authContext && authContext.token && safeRemoteUrl.startsWith('https://')) {
+    gitArgs.push('-c', `http.extraHeader=Authorization: Bearer ${authContext.token}`);
   }
 
-  const branchArg = branch ? `-b "${branch}"` : '';
-  const cloneCmd = `git ${extraArgs} clone --depth 1 ${branchArg} "${safeRemoteUrl.replace(/"/g, '\\"')}" "${safeFolder}"`;
-  
-  const res = await runGitCommand(baseDir, cloneCmd, { authContext });
+  gitArgs.push('clone', '--depth', '1');
+  if (branch) {
+    gitArgs.push('-b', branch);
+  }
+  gitArgs.push(safeRemoteUrl, safeFolder);
+
+  const res = await runGitCommand(baseDir, gitArgs, { authContext });
   return {
     success: res.success,
     folderName: safeFolder,
@@ -154,18 +205,18 @@ async function pullRepo(identifier, branch = null, authContext = {}, userContext
   }
 
   const currentBranch = branch || await getCurrentBranch(repoDir);
-  let extraArgs = '';
+  const gitArgs = [];
   if (authContext && authContext.token) {
-    extraArgs = `-c http.extraHeader="Authorization: Bearer ${authContext.token}"`;
+    gitArgs.push('-c', `http.extraHeader=Authorization: Bearer ${authContext.token}`);
   }
 
   // Check if remote exists
-  const remoteCheck = await runGitCommand(repoDir, 'git remote');
+  const remoteCheck = await runGitCommand(repoDir, ['remote']);
   const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
   const targetRemote = remotes.includes(remote) ? remote : (remotes[0] || 'origin');
 
-  const pullCmd = `git ${extraArgs} pull --prune ${targetRemote} "${currentBranch}"`;
-  const res = await runGitCommand(repoDir, pullCmd);
+  gitArgs.push('pull', '--prune', targetRemote, currentBranch);
+  const res = await runGitCommand(repoDir, gitArgs);
   if (!res.success) {
     if (res.stderr && res.stderr.includes("couldn't find remote ref")) {
       throw new Error(`Branch '${currentBranch}' does not exist on remote '${targetRemote}'. Use Commit & Push to publish it first.`);
@@ -188,7 +239,7 @@ async function ensureRepoInitialized(identifier, userContext = null) {
   const gitDir = path.join(repoDir, '.git');
   if (!fs.existsSync(gitDir)) {
     logger.log('info', `Initializing git repository at ${repoDir}`);
-    await runGitCommand(repoDir, 'git init');
+    await runGitCommand(repoDir, ['init']);
   }
   return repoDir;
 }
@@ -196,13 +247,13 @@ async function ensureRepoInitialized(identifier, userContext = null) {
 async function getFileContent(identifier, filePath, revision = null, userContext = null) {
   const repoDir = getProjectRepoDir(identifier, userContext);
   if (!repoDir || !fs.existsSync(repoDir)) return '';
-  const fullPath = path.join(repoDir, filePath);
+  const fullPath = resolveSafePath(repoDir, filePath, false);
 
   if (revision) {
     if (!/^[0-9A-Za-z._\/-]+$/.test(revision)) {
       throw new Error('Invalid revision: contains unsafe characters');
     }
-    const res = await runGitCommand(repoDir, `git show ${revision}:"${filePath}"`);
+    const res = await runGitCommand(repoDir, ['show', `${revision}:${filePath}`]);
     if (res.success) {
       return res.stdout;
     }
@@ -210,14 +261,18 @@ async function getFileContent(identifier, filePath, revision = null, userContext
   }
 
   if (fs.existsSync(fullPath)) {
-    return fs.readFileSync(fullPath, 'utf8');
+    const canonical = fs.realpathSync(fullPath);
+    const canonicalRoot = fs.realpathSync(repoDir);
+    if (canonical.startsWith(canonicalRoot + path.sep)) {
+      return fs.readFileSync(canonical, 'utf8');
+    }
   }
   return '';
 }
 
 async function saveFileContent(identifier, filePath, content, userContext = null) {
   const repoDir = await ensureRepoInitialized(identifier, userContext);
-  const fullPath = path.join(repoDir, filePath);
+  const fullPath = resolveSafePath(repoDir, filePath, false);
   const dir = path.dirname(fullPath);
   
   if (!fs.existsSync(dir)) {
@@ -231,11 +286,11 @@ async function saveFileContent(identifier, filePath, content, userContext = null
 
 async function createAndCheckoutBranch(identifier, branchName, userContext = null) {
   const repoDir = await ensureRepoInitialized(identifier, userContext);
-  const checkRes = await runGitCommand(repoDir, `git rev-parse --verify "${branchName}"`, { logError: false });
+  const checkRes = await runGitCommand(repoDir, ['rev-parse', '--verify', branchName], { logError: false });
   if (checkRes.success) {
-    return await runGitCommand(repoDir, `git checkout "${branchName}"`);
+    return await runGitCommand(repoDir, ['checkout', branchName]);
   } else {
-    return await runGitCommand(repoDir, `git checkout -b "${branchName}"`);
+    return await runGitCommand(repoDir, ['checkout', '-b', branchName]);
   }
 }
 
@@ -246,29 +301,36 @@ async function commitAndPush(identifier, branchName, commitMessage = 'Visulate W
   const repoDir = await ensureRepoInitialized(identifier, userContext);
   
   if (branchName) {
-    await createAndCheckoutBranch(identifier, branchName, userContext);
+    const branchRes = await createAndCheckoutBranch(identifier, branchName, userContext);
+    if (!branchRes.success) {
+      throw new Error(branchRes.stderr || branchRes.error || `Failed to switch to branch ${branchName}`);
+    }
   }
 
-  const authorName = authContext.authorName || 'Visulate Workbench';
-  const authorEmail = authContext.authorEmail || 'workbench@visulate.com';
+  const authorName = (authContext && authContext.authorName) || 'Visulate Workbench';
+  const authorEmail = (authContext && authContext.authorEmail) || 'workbench@visulate.com';
 
-  await runGitCommand(repoDir, 'git add -A');
-  const safeMessage = commitMessage.replace(/"/g, '\\"');
-  const commitCmd = `git -c user.name="${authorName.replace(/"/g, '')}" -c user.email="${authorEmail.replace(/"/g, '')}" commit -m "${safeMessage}"`;
-  const commitRes = await runGitCommand(repoDir, commitCmd);
+  await runGitCommand(repoDir, ['add', '-A']);
+  const commitArgs = [
+    '-c', `user.name=${authorName}`,
+    '-c', `user.email=${authorEmail}`,
+    'commit',
+    '-m', commitMessage
+  ];
+  const commitRes = await runGitCommand(repoDir, commitArgs);
   
   // Try pushing if remote origin exists
-  const remoteCheck = await runGitCommand(repoDir, 'git remote');
+  const remoteCheck = await runGitCommand(repoDir, ['remote']);
   let pushRes = { success: true, stdout: 'No remote origin configured' };
 
   if (remoteCheck.success && remoteCheck.stdout.includes('origin')) {
     const currentBranch = branchName || await getCurrentBranch(repoDir);
-    let extraArgs = '';
-    if (authContext.token) {
-      extraArgs = `-c http.extraHeader="Authorization: Bearer ${authContext.token}"`;
+    const pushArgs = [];
+    if (authContext && authContext.token) {
+      pushArgs.push('-c', `http.extraHeader=Authorization: Bearer ${authContext.token}`);
     }
-    const pushCmd = `git ${extraArgs} push origin "${currentBranch}"`;
-    pushRes = await runGitCommand(repoDir, pushCmd, { authContext });
+    pushArgs.push('push', 'origin', currentBranch);
+    pushRes = await runGitCommand(repoDir, pushArgs, { authContext });
   }
 
   return {
@@ -280,7 +342,7 @@ async function commitAndPush(identifier, branchName, commitMessage = 'Visulate W
 
 async function getCurrentBranch(repoDir) {
   try {
-    const res = await runGitCommand(repoDir, 'git rev-parse --abbrev-ref HEAD', { logError: false });
+    const res = await runGitCommand(repoDir, ['rev-parse', '--abbrev-ref', 'HEAD'], { logError: false });
     if (res.success && res.stdout && res.stdout !== 'HEAD') {
       return res.stdout;
     }
@@ -297,11 +359,14 @@ async function getCurrentBranch(repoDir) {
 }
 
 async function getRepoBranches(identifier, userContext = null) {
-  const repoDir = await ensureRepoInitialized(identifier, userContext);
+  const repoDir = getProjectRepoDir(identifier, userContext);
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    throw new Error(`Repository folder '${identifier}' does not exist or is not a git repository.`);
+  }
   const currentBranch = await getCurrentBranch(repoDir);
 
   // List only actual local branches that exist in the repository
-  const res = await runGitCommand(repoDir, 'git branch --no-color', { logError: false });
+  const res = await runGitCommand(repoDir, ['branch', '--no-color'], { logError: false });
   const branches = new Set();
   if (currentBranch) {
     branches.add(currentBranch);
@@ -327,13 +392,20 @@ async function switchBranch(identifier, branchName, createIfMissing = false, use
   if (!branchName || !/^[0-9A-Za-z._\/-]+$/.test(branchName)) {
     throw new Error('Invalid branch name: contains unsafe characters');
   }
-  const repoDir = await ensureRepoInitialized(identifier, userContext);
-
-  if (createIfMissing) {
-    return await createAndCheckoutBranch(identifier, branchName, userContext);
+  const repoDir = getProjectRepoDir(identifier, userContext);
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    throw new Error(`Repository folder '${identifier}' does not exist or is not a git repository.`);
   }
 
-  const res = await runGitCommand(repoDir, `git checkout "${branchName}"`);
+  if (createIfMissing) {
+    const result = await createAndCheckoutBranch(identifier, branchName, userContext);
+    if (!result.success) {
+      throw new Error(result.stderr || result.error || `Failed to create branch ${branchName}`);
+    }
+    return { success: true, branch: branchName };
+  }
+
+  const res = await runGitCommand(repoDir, ['checkout', branchName]);
   if (!res.success) {
     throw new Error(res.stderr || res.error || `Failed to checkout branch ${branchName}`);
   }
@@ -342,13 +414,17 @@ async function switchBranch(identifier, branchName, createIfMissing = false, use
 }
 
 async function getDiff(identifier, filePath = '', userContext = null) {
-  const repoDir = await ensureRepoInitialized(identifier, userContext);
-  const cmd = filePath ? `git diff HEAD -- "${filePath}"` : `git diff HEAD`;
-  const res = await runGitCommand(repoDir, cmd);
+  const repoDir = getProjectRepoDir(identifier, userContext);
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    return '';
+  }
+  const diffArgs = filePath ? ['diff', 'HEAD', '--', filePath] : ['diff', 'HEAD'];
+  const res = await runGitCommand(repoDir, diffArgs);
   if (res.success) {
     return res.stdout;
   }
-  const fallback = await runGitCommand(repoDir, filePath ? `git diff -- "${filePath}"` : `git diff`);
+  const fallbackArgs = filePath ? ['diff', '--', filePath] : ['diff'];
+  const fallback = await runGitCommand(repoDir, fallbackArgs);
   return fallback.stdout || '';
 }
 
@@ -357,8 +433,7 @@ async function listProjectFiles(identifier, subDir = '', userContext = null) {
   const repoDir = getProjectRepoDir(identifier, userContext);
   if (!repoDir || !fs.existsSync(repoDir)) return [];
 
-  const targetDir = path.join(repoDir, subDir);
-  if (!fs.existsSync(targetDir)) return [];
+  const targetDir = resolveSafePath(repoDir, subDir, true);
 
   function scan(dir, baseRel = '') {
     let results = [];
@@ -371,7 +446,11 @@ async function listProjectFiles(identifier, subDir = '', userContext = null) {
         const full = path.join(dir, entry.name);
         const rel = baseRel ? `${baseRel}/${entry.name}` : entry.name;
         try {
-          const stat = fs.statSync(full);
+          const stat = fs.lstatSync(full);
+          // Never recurse through symlinks to prevent directory escape
+          if (stat.isSymbolicLink()) {
+            continue;
+          }
           if (stat.isDirectory()) {
             results = results.concat(scan(full, rel));
           } else if (stat.isFile()) {
@@ -393,6 +472,7 @@ async function listProjectFiles(identifier, subDir = '', userContext = null) {
 module.exports = {
   getBaseReposDir,
   getProjectRepoDir,
+  resolveSafePath,
   listLocalRepositories,
   cloneRepoToFolder,
   pullRepo,

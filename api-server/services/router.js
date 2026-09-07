@@ -188,13 +188,29 @@ router.use('/api/git', checkGitFeatureEnabled);
 
 /* Git Session & User Context Middleware */
 router.use('/api/git', (req, res, next) => {
-  const username = req.headers['x-git-user'] || req.headers['x-user'] || null;
-  const token = req.headers['x-git-token'] || null;
+  const gitMode = (process.env.GIT_MODE || 'local').toLowerCase();
 
-  req.userContext = { username };
+  // Trusted authenticated principal (from session middleware or authenticating reverse proxy)
+  const principal = req.user?.username || req.user?.id || req.user?.sub
+    || req.headers['x-authenticated-user']
+    || req.headers['x-forwarded-user']
+    || req.headers['remote-user']
+    || req.headers['x-user']
+    || null;
+
+  if (gitMode === 'server') {
+    if (!principal) {
+      return res.status(401).json({ error: 'Authentication required for server-mode git operations' });
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(principal)) {
+      return res.status(400).json({ error: 'Invalid authenticated user identity' });
+    }
+  }
+
+  req.userContext = { username: principal };
   req.authContext = {
-    username,
-    token,
+    username: req.headers['x-git-user'] || null,
+    token: req.headers['x-git-token'] || null,
     authorName: req.headers['x-git-author-name'] || null,
     authorEmail: req.headers['x-git-author-email'] || null
   };
@@ -220,7 +236,7 @@ router.route('/api/git/clone')
       if (!remoteUrl || !folderName) {
         return res.status(400).json({ error: 'remoteUrl and folderName are required' });
       }
-      const result = await gitService.cloneRepoToFolder(remoteUrl, folderName, branch, req.authContext, req.userContext);
+      const result = await gitService.cloneRepoToFolder(remoteUrl, folderName, branch, req.userContext, req.authContext);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -305,7 +321,7 @@ router.route('/api/git/commit-push')
   .post(async (req, res) => {
     try {
       const { projectId = 'default-project', branchName, commitMessage = 'Visulate Workbench commit' } = req.body;
-      const result = await gitService.commitAndPush(projectId, branchName, commitMessage, req.authContext, req.userContext);
+      const result = await gitService.commitAndPush(projectId, branchName, commitMessage, req.userContext, req.authContext);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -337,11 +353,11 @@ router.route('/api/git/index-dependencies')
 router.route('/api/git/code-dependencies')
   .get(async (req, res) => {
     try {
-      const { db, name, repo } = req.query;
+      const { db, name, repo, owner } = req.query;
       if (!db || !name) {
         return res.status(400).json({ error: 'db and name query parameters are required' });
       }
-      const result = await dependencyIndexer.getObjectCodeDependencies(db, name, req.userContext, repo);
+      const result = await dependencyIndexer.getObjectCodeDependencies(db, name, req.userContext, repo, owner);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });

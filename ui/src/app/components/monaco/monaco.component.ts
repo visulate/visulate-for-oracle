@@ -342,11 +342,27 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const associations = this.getDbRepoAssociations();
     if (this.isCurrentPairAssociated) {
+      const priorRepo = associations.dbToRepo[this.selectedDbConnection];
+      if (priorRepo) delete associations.repoToDb[priorRepo];
       delete associations.dbToRepo[this.selectedDbConnection];
+
+      const priorDb = associations.repoToDb[this.selectedRepoFolder];
+      if (priorDb) delete associations.dbToRepo[priorDb];
       delete associations.repoToDb[this.selectedRepoFolder];
+
       this.saveDbRepoAssociations(associations);
       this.setStatus(`Unlinked database '${this.selectedDbConnection}' from repository '${this.selectedRepoFolder}'`, false);
     } else {
+      // Remove prior inverse mappings before recording new pair
+      const priorRepoForDb = associations.dbToRepo[this.selectedDbConnection];
+      if (priorRepoForDb) {
+        delete associations.repoToDb[priorRepoForDb];
+      }
+      const priorDbForRepo = associations.repoToDb[this.selectedRepoFolder];
+      if (priorDbForRepo) {
+        delete associations.dbToRepo[priorDbForRepo];
+      }
+
       associations.dbToRepo[this.selectedDbConnection] = this.selectedRepoFolder;
       associations.repoToDb[this.selectedRepoFolder] = this.selectedDbConnection;
       this.saveDbRepoAssociations(associations);

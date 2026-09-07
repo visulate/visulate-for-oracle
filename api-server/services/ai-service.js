@@ -453,7 +453,7 @@ module.exports.searchObjects = searchObjects;
  * @param {object} args - The arguments from the MCP request
  */
 async function getContextInternal(args) {
-  const { db, owner, type, name, relationship_types } = args;
+  const { db, owner, type, name, relationship_types, userContext } = args;
   const endpoint = endpointList[db];
   if (!endpoint) {
     throw new Error("Requested database was not found");
@@ -535,7 +535,7 @@ async function getContextInternal(args) {
 
   try {
     const dependencyIndexer = require('./dependencyIndexer');
-    const codeDeps = await dependencyIndexer.getObjectCodeDependencies(db, name, null);
+    const codeDeps = await dependencyIndexer.getObjectCodeDependencies(db, name, userContext, null, owner);
     if (codeDeps && codeDeps.found) {
       contextPayload.codebaseDependencies = codeDeps.files || [];
       contextPayload.associatedRepo = codeDeps.repoFolder || null;
@@ -933,7 +933,7 @@ module.exports.getSchemaRelationships = getSchemaRelationships;
    */
 async function getContext(req, res, next) {
   try {
-    const result = await getContextInternal({ ...req.params, ...req.body });
+    const result = await getContextInternal({ ...req.params, ...req.body, userContext: req.userContext });
     if (req.query.template) {
       try {
         const templateResult = await templateEngine.applyTemplate('context', result, req);
@@ -1615,7 +1615,7 @@ function createMcpServer() {
     async ({ db, name, owner, repo }) => {
       try {
         const dependencyIndexer = require('./dependencyIndexer');
-        const result = await dependencyIndexer.getObjectCodeDependencies(db, name, null, repo);
+        const result = await dependencyIndexer.getObjectCodeDependencies(db, name, null, repo, owner);
         return {
           content: [
             { type: 'text', text: JSON.stringify(result, null, 2) }

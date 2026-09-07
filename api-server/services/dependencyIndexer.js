@@ -29,22 +29,33 @@ async function getValidCatalogObjects(dbConnectionId, targetOwner = null) {
   const poolAlias = ep.connect.poolAlias;
   const dbType = (ep.connect && ep.connect.dbType) || 'oracle';
 
+  let cleanOwner = null;
+  if (targetOwner) {
+    if (!/^[A-Za-z0-9_#$]+$/.test(targetOwner)) {
+      throw new Error('Invalid target owner: contains unsafe characters');
+    }
+    cleanOwner = targetOwner.trim();
+  }
+
+  const binds = cleanOwner ? { targetOwner: cleanOwner } : {};
+
   try {
     let query = '';
     if (dbType === 'postgres') {
-      const ownerClause = targetOwner ? `AND table_schema = '${targetOwner.toLowerCase()}'` : `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
+      const ownerTablesClause = cleanOwner ? `AND table_schema = LOWER(:targetOwner)` : `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
+      const ownerRoutinesClause = cleanOwner ? `AND routine_schema = LOWER(:targetOwner)` : `AND routine_schema NOT IN ('information_schema', 'pg_catalog')`;
       query = `
         SELECT UPPER(table_schema) AS OWNER, UPPER(table_name) AS OBJECT_NAME, 'TABLE' AS OBJECT_TYPE 
         FROM information_schema.tables 
-        WHERE table_type = 'BASE TABLE' ${ownerClause}
+        WHERE table_type = 'BASE TABLE' ${ownerTablesClause}
         UNION
         SELECT UPPER(table_schema) AS OWNER, UPPER(table_name) AS OBJECT_NAME, 'VIEW' AS OBJECT_TYPE 
         FROM information_schema.views 
-        WHERE 1=1 ${ownerClause}
+        WHERE 1=1 ${ownerTablesClause}
         UNION
         SELECT UPPER(routine_schema) AS OWNER, UPPER(routine_name) AS OBJECT_NAME, UPPER(routine_type) AS OBJECT_TYPE 
         FROM information_schema.routines 
-        WHERE 1=1 ${ownerClause}
+        WHERE 1=1 ${ownerRoutinesClause}
       `;
     } else {
       const systemSchemas = [
@@ -55,7 +66,7 @@ async function getValidCatalogObjects(dbConnectionId, targetOwner = null) {
         'REMOTE_SCHEDULER_AGENT', 'DBSFWUSER', 'ORACLE_OCM'
       ];
       const excludedList = systemSchemas.map(s => `'${s}'`).join(', ');
-      const ownerClause = targetOwner ? `AND OWNER = UPPER('${targetOwner}')` : `AND OWNER NOT IN (${excludedList})`;
+      const ownerClause = cleanOwner ? `AND OWNER = UPPER(:targetOwner)` : `AND OWNER NOT IN (${excludedList})`;
 
       // Try DBA_OBJECTS first (shows full schema catalog regardless of direct grants)
       query = `
@@ -68,7 +79,7 @@ async function getValidCatalogObjects(dbConnectionId, targetOwner = null) {
 
     let rows;
     try {
-      rows = await dbService.simpleExecute(poolAlias, query, []);
+      rows = await dbService.simpleExecute(poolAlias, query, binds);
     } catch (oracleErr) {
       if (dbType === 'oracle') {
         logger.log('info', `DBA_OBJECTS query failed (${oracleErr.message}), falling back to ALL_OBJECTS`);
@@ -80,14 +91,14 @@ async function getValidCatalogObjects(dbConnectionId, targetOwner = null) {
           'REMOTE_SCHEDULER_AGENT', 'DBSFWUSER', 'ORACLE_OCM'
         ];
         const excludedList = systemSchemas.map(s => `'${s}'`).join(', ');
-        const ownerClause = targetOwner ? `AND OWNER = UPPER('${targetOwner}')` : `AND OWNER NOT IN (${excludedList})`;
+        const ownerClause = cleanOwner ? `AND OWNER = UPPER(:targetOwner)` : `AND OWNER NOT IN (${excludedList})`;
         const fallbackQuery = `
           SELECT DISTINCT UPPER(OWNER) AS OWNER, UPPER(OBJECT_NAME) AS OBJECT_NAME, UPPER(OBJECT_TYPE) AS OBJECT_TYPE 
           FROM ALL_OBJECTS 
           WHERE OBJECT_TYPE IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE', 'TYPE')
           ${ownerClause}
         `;
-        rows = await dbService.simpleExecute(poolAlias, fallbackQuery, []);
+        rows = await dbService.simpleExecute(poolAlias, fallbackQuery, binds);
       } else {
         throw oracleErr;
       }
@@ -267,14 +278,16 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
  * @param {string} db - The database endpoint/connection identifier (e.g. 'pdb21')
  * @param {string} objectName - Name of the database object (e.g. 'PR_PROPERTIES')
  * @param {object} userContext - Optional user context
- * @param {string} repoFolder - Optional specific repository folder to inspect first
+ * @param {string} repoFolder - Optional specific repository folder to inspect (restricts search if provided)
+ * @param {string} owner - Optional schema owner to disambiguate object matches
  */
-async function getObjectCodeDependencies(db, objectName, userContext = null, repoFolder = null) {
+async function getObjectCodeDependencies(db, objectName, userContext = null, repoFolder = null, owner = null) {
   if (!db || !objectName) {
     return { found: false, files: [], message: 'db and objectName are required' };
   }
 
   const targetObject = objectName.toUpperCase().trim();
+  const targetOwner = owner ? owner.toUpperCase().trim() : null;
   const normalizedDb = db.toLowerCase().trim();
   const repos = gitService.listLocalRepositories(userContext);
 
@@ -307,12 +320,16 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
       const mapData = JSON.parse(raw);
       const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
 
-      const isDbMatch = repoDb === normalizedDb;
-      const isExplicitRepo = repoFolder && repo.folderName === repoFolder;
+      // When repoFolder is explicitly supplied, inspect ONLY that repository
+      const shouldInspect = repoFolder ? (repo.folderName === repoFolder) : (repoDb === normalizedDb);
 
-      if (isDbMatch || isExplicitRepo) {
+      if (shouldInspect) {
         if (mapData.objects && mapData.objects[targetObject]) {
           const info = mapData.objects[targetObject];
+          // If schema owner was specified, verify it matches
+          if (targetOwner && info.owner && info.owner.toUpperCase().trim() !== targetOwner) {
+            continue;
+          }
           const repoFiles = info.files || [];
           if (!primaryRepo) {
             primaryRepo = repo.folderName;
@@ -341,7 +358,7 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
     repoFolder: primaryRepo || repoFolder,
     dbConnectionId: db,
     objectName: targetObject,
-    owner: primaryOwner,
+    owner: primaryOwner || targetOwner,
     type: primaryType,
     files: Array.from(allFiles),
     dependencies: Array.from(allDependencies),
