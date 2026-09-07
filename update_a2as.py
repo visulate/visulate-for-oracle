@@ -62,13 +62,7 @@ if 'progress_tool' in data['tools']:
     if 'agent.create_schema_comparison_agent' not in data['tools']['progress_tool']['agents']:
         data['tools']['progress_tool']['agents'].append('agent.create_schema_comparison_agent')
 
-import copy
-
 # Update models to include new agent
-if 'gemini-2.5-flash' not in data['models']:
-    data['models']['gemini-2.5-flash'] = copy.deepcopy(data['models']['gemini-flash-latest'])
-if 'agent.create_schema_comparison_agent' not in data['models']['gemini-2.5-flash']['agents']:
-    data['models']['gemini-2.5-flash']['agents'].append('agent.create_schema_comparison_agent')
 if 'agent.create_schema_comparison_agent' not in data['models']['gemini-flash-latest']['agents']:
     data['models']['gemini-flash-latest']['agents'].append('agent.create_schema_comparison_agent')
 

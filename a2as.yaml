@@ -608,17 +608,7 @@ models:
       - agent.create_nl2sql_agent
       - agent.create_app_developer_agent
       - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
-      - agent.create_schema_comparison_agent
   gemini-1.5-pro:
-    type: literal
-    agents: *id001
-  gemini-2.5-flash:
     type: literal
     agents: *id001
 tools:

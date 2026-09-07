@@ -81,17 +81,25 @@ class OracleProvider extends DatabaseProvider {
       const pool = oracledb.getPool(poolAlias);
       await pool.close(0);
     } catch (err) {
-      logger.log('error', `Failed to close Oracle pool ${poolAlias}: ${err.message}`);
+      if (!err.message || !err.message.startsWith('NJS-047')) {
+        logger.log('error', `Failed to close Oracle pool ${poolAlias}: ${err.message}`);
+      }
     }
   }
 
-  async ping(poolAlias, config) {
+  async ping(poolAlias, config, timeoutMs = 2000) {
     let connection;
     try {
-      // Reuse getConnection to ensure pool is initialized if config is provided
-      connection = await this.getConnection(poolAlias, config);
+      // Clone config and set driver-level connection timeout if supported
+      const pingConfig = {
+        ...config,
+        // connectTimeout in seconds for node-oracledb connection string if easy connect
+        connectTimeout: Math.max(1, Math.ceil(timeoutMs / 1000))
+      };
+      connection = await this.getConnection(poolAlias, pingConfig);
       return true;
     } catch (err) {
+      await this.closePool(poolAlias);
       return false;
     } finally {
       if (connection) {
