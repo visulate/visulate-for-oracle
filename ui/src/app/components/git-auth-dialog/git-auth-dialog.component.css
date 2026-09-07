@@ -1,0 +1,71 @@
+.git-auth-dialog-content {
+  min-width: 520px;
+  max-width: 650px;
+  padding-top: 8px;
+}
+
+.dialog-icon {
+  vertical-align: middle;
+  margin-right: 8px;
+  color: #1976d2;
+}
+
+.auth-hint {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.4;
+  margin-bottom: 16px;
+  background-color: #e8f4fd;
+  border-left: 4px solid #1976d2;
+  padding: 8px 12px;
+  border-radius: 2px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.6);
+  margin-top: 4px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.half-width {
+  flex: 1;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.auth-tabs {
+  margin-top: 12px;
+}
+
+.tab-body {
+  padding-top: 16px;
+}
+
+.tab-hint {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 12px;
+}
+
+
+.dialog-actions {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.clear-btn {
+  margin-right: auto;
+}

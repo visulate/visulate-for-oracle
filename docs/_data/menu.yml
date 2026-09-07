@@ -29,6 +29,9 @@ sections:
       - title: "Code Generation"
         href: "/pages/code-generation.html"
         description: "Generate modern application code from Oracle metadata."
+      - title: "Application Workbench"
+        href: "/pages/workbench-git-integration.html"
+        description: "Git integration, Monaco code editor, and database-to-code mapping."
 
   - name: Administration
     items:

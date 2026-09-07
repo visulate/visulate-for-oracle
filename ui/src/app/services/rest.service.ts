@@ -23,10 +23,16 @@ import { DatabaseObjectModel } from '../models/database-object.model';
 import { FindObjectModel } from '../models/find-object.model';
 import { environment } from '../../environments/environment';
 
+export interface GitAuthSession {
+  username?: string;
+  token?: string;
+  authorName?: string;
+  authorEmail?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
-
 export class RestService {
   private cache = new Map<string, unknown>();
   private readonly MAX_CACHE_SIZE = 50;
@@ -294,46 +300,138 @@ export class RestService {
     return this.http.delete<any>(apiUrl, { params });
   }
 
+  getGitAuth(): GitAuthSession | null {
+    try {
+      const data = sessionStorage.getItem('visulate_git_auth');
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  setGitAuth(auth: GitAuthSession): void {
+    try {
+      sessionStorage.setItem('visulate_git_auth', JSON.stringify(auth));
+    } catch (e) {
+      console.error('Failed to save git auth in sessionStorage', e);
+    }
+  }
+
+  clearGitAuth(): void {
+    try {
+      sessionStorage.removeItem('visulate_git_auth');
+    } catch (e) {
+      console.error('Failed to clear git auth in sessionStorage', e);
+    }
+  }
+
+  private getGitHeaders(): HttpHeaders {
+    let headers = new HttpHeaders();
+    const auth = this.getGitAuth();
+    if (auth) {
+      if (auth.username) {
+        headers = headers.set('X-Git-User', auth.username);
+      }
+      if (auth.token) {
+        headers = headers.set('X-Git-Token', auth.token);
+      }
+      if (auth.authorName) {
+        headers = headers.set('X-Git-Author-Name', auth.authorName);
+      }
+      if (auth.authorEmail) {
+        headers = headers.set('X-Git-Author-Email', auth.authorEmail);
+      }
+    }
+    return headers;
+  }
+
   getProjects$(): Observable<any[]> {
-    return this.http.get<any[]>(`${environment.apiBase}/projects`);
+    return of([]);
   }
 
   saveProject$(project: any): Observable<any> {
-    return this.http.post<any>(`${environment.apiBase}/projects`, project);
+    return of(project);
   }
 
   getGitDiff$(projectId: string, path: string = ''): Observable<any> {
-    return this.http.get<any>(`${environment.apiBase}/git/diff`, { params: { projectId, path } });
+    return this.http.get<any>(`${environment.apiBase}/git/diff`, {
+      headers: this.getGitHeaders(),
+      params: { projectId, path }
+    });
   }
 
   getGitFile$(projectId: string, path: string, revision?: string): Observable<any> {
     const params: any = { projectId, path };
     if (revision) params.revision = revision;
-    return this.http.get<any>(`${environment.apiBase}/git/file`, { params });
+    return this.http.get<any>(`${environment.apiBase}/git/file`, {
+      headers: this.getGitHeaders(),
+      params
+    });
   }
 
   listGitFiles$(projectId: string, subDir: string = ''): Observable<any> {
-    return this.http.get<any>(`${environment.apiBase}/git/files`, { params: { projectId, subDir } });
+    return this.http.get<any>(`${environment.apiBase}/git/files`, {
+      headers: this.getGitHeaders(),
+      params: { projectId, subDir }
+    });
   }
 
   saveGitFile$(projectId: string, filePath: string, content: string): Observable<any> {
-    return this.http.put<any>(`${environment.apiBase}/git/file`, { projectId, filePath, content });
+    return this.http.put<any>(`${environment.apiBase}/git/file`, { projectId, filePath, content }, {
+      headers: this.getGitHeaders()
+    });
   }
 
   commitAndPush$(projectId: string, branchName: string, commitMessage: string): Observable<any> {
-    return this.http.post<any>(`${environment.apiBase}/git/commit-push`, { projectId, branchName, commitMessage });
+    return this.http.post<any>(`${environment.apiBase}/git/commit-push`, { projectId, branchName, commitMessage }, {
+      headers: this.getGitHeaders()
+    });
   }
 
-  indexDependencies$(projectId: string, owner?: string): Observable<any> {
-    return this.http.post<any>(`${environment.apiBase}/git/index-dependencies`, { projectId, owner });
+  pullRepository$(projectId: string, branchName?: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/pull`, { projectId, branchName }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  indexDependencies$(projectId: string, owner?: string, dbConnectionId?: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/index-dependencies`, { projectId, owner, dbConnectionId }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  getObjectCodeDependencies$(db: string, name: string, repo?: string): Observable<any> {
+    const params: any = { db, name };
+    if (repo) params.repo = repo;
+    return this.http.get<any>(`${environment.apiBase}/git/code-dependencies`, {
+      headers: this.getGitHeaders(),
+      params
+    });
+  }
+
+  getGitBranches$(projectId: string): Observable<{ currentBranch: string, branches: string[] }> {
+    return this.http.get<{ currentBranch: string, branches: string[] }>(`${environment.apiBase}/git/branches`, {
+      headers: this.getGitHeaders(),
+      params: { projectId }
+    });
+  }
+
+  switchGitBranch$(projectId: string, branchName: string, createIfMissing: boolean = false): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/checkout`, { projectId, branchName, createIfMissing }, {
+      headers: this.getGitHeaders()
+    });
   }
 
   getLocalRepositories$(): Observable<{ baseDir: string, repositories: any[] }> {
-    return this.http.get<{ baseDir: string, repositories: any[] }>(`${environment.apiBase}/git/repositories`);
+    return this.http.get<{ baseDir: string, repositories: any[] }>(`${environment.apiBase}/git/repositories`, {
+      headers: this.getGitHeaders()
+    });
   }
 
   cloneRepository$(remoteUrl: string, folderName: string, branch?: string): Observable<any> {
-    return this.http.post<any>(`${environment.apiBase}/git/clone`, { remoteUrl, folderName, branch });
+    return this.http.post<any>(`${environment.apiBase}/git/clone`, { remoteUrl, folderName, branch }, {
+      headers: this.getGitHeaders()
+    });
   }
 
   getDatabaseConnections$(): Observable<any[]> {

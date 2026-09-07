@@ -4,7 +4,7 @@
 
 export const environment = {
   production: false,
-  enableGitIntegration: false,
+  enableGitIntegration: true,
   maxFiles: 10,
   apiBase: window.location.protocol + '//' + window.location.hostname + ':3000/api',
   findObjectBase: window.location.protocol + '//' + window.location.hostname + ':3000/find',
