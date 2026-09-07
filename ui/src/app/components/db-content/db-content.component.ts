@@ -128,9 +128,10 @@ export class DbContentComponent implements OnInit, OnDestroy {
     this.sqlEnabled = this.state.getSqlEnabled();
 
     // Call the Endpoints API on startup and when the object filter changes
-    if (subjectContext.priorContext.endpoint === '' ||
-      subjectContext.changeSummary.filterDiff ||
-      subjectContext.currentContext.endpoint === '') {
+    const endpointsNotLoaded = !this.endpointList ||
+      (!this.endpointList.databases?.length && !this.endpointList.errorMessage);
+
+    if (endpointsNotLoaded || subjectContext.changeSummary.filterDiff) {
       this.restService.getEndpoints$(context.filter)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(endpoints => {

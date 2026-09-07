@@ -21,9 +21,10 @@ if (!util.isDate) {
   };
 }
 
+const configSanitizer = require('./services/config-sanitizer.js');
+const dbConfig = configSanitizer.sanitizeDatabaseConfig();
 const httpServer = require('./services/http-server.js');
 const database = require('./services/database.js');
-const dbConfig = require('./config/database.js');
 const logger = require('./services/logger.js');
 const defaultThreadPoolSize = 4;
 
@@ -34,8 +35,8 @@ module.exports.eventEmitter = eventEmitter;
 
 // Increase thread pool size by poolMax
 let threadRequirement = 0;
-dbConfig.endpoints.forEach(endpoint => {
-  threadRequirement += endpoint.connect.poolMax || 0;
+(dbConfig.endpoints || []).forEach(endpoint => {
+  threadRequirement += endpoint.connect?.poolMax || 0;
 });
 logger.log('info', '===============================================================')
 logger.log('info', `Oracle connection pool thread requirement = ${threadRequirement}`)
@@ -45,6 +46,9 @@ logger.log('info', `UV_THREADPOOL_SIZE set to ${process.env.UV_THREADPOOL_SIZE}`
 async function startup() {
   logger.log('info', 'Starting application');
   try {
+    logger.log('info', 'Validating database connect strings...');
+    await configSanitizer.filterInvalidEndpoints(dbConfig, 2000);
+
     logger.log('info', 'Initializing http server module');
     await httpServer.initialize();
     module.exports.isStarted = true;
