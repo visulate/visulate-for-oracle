@@ -22,7 +22,7 @@ class DatabaseProvider {
     throw new Error('closePool not implemented');
   }
 
-  async ping(poolAlias) {
+  async ping(poolAlias, config, timeoutMs) {
     throw new Error('ping not implemented');
   }
 }

@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
 const logger = require('./logger.js');
 const OracleProvider = require('./providers/oracle-provider');
 const PostgresProvider = require('./providers/postgres-provider');
@@ -24,6 +25,78 @@ const providers = {
   oracle: new OracleProvider(),
   postgres: new PostgresProvider()
 };
+
+/**
+ * Extracts host and port from an Oracle or Postgres connect string.
+ * Supports Easy Connect ('host:port/service'), standard host/db ('host/db'), and TNS descriptors.
+ */
+function extractHostAndPort(connectString, defaultPort = 1521) {
+  if (!connectString || typeof connectString !== 'string') return null;
+  const str = connectString.trim();
+
+  // TNS descriptor: e.g. (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=sales)(PORT=1521))...)
+  if (str.includes('(')) {
+    const hostMatch = str.match(/HOST\s*=\s*([^)\s]+)/i);
+    const portMatch = str.match(/PORT\s*=\s*([^)\s]+)/i);
+    if (hostMatch) {
+      return { host: hostMatch[1], port: parseInt(portMatch ? portMatch[1] : defaultPort, 10) };
+    }
+    return null;
+  }
+
+  // Easy Connect or standard URL: host:port/service or //host:port/service or host/db
+  const m = str.match(/(?:^|\/\/)([^:/]+)(?::(\d+))?(?:\/|$)/);
+  if (m) {
+    return { host: m[1], port: parseInt(m[2] || defaultPort, 10) };
+  }
+  return null;
+}
+
+/**
+ * Performs a lightweight TCP connection check with a strict timeout before handing over to the C-driver.
+ * This prevents the ODPI-C native driver from hanging or segfaulting in the background when the host is unreachable.
+ */
+function isTcpPortReachable(host, port, timeoutMs) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let settled = false;
+
+    socket.setTimeout(timeoutMs);
+
+    socket.on('connect', () => {
+      if (!settled) {
+        settled = true;
+        socket.destroy();
+        resolve(true);
+      }
+    });
+
+    socket.on('timeout', () => {
+      if (!settled) {
+        settled = true;
+        socket.destroy();
+        resolve(false);
+      }
+    });
+
+    socket.on('error', () => {
+      if (!settled) {
+        settled = true;
+        socket.destroy();
+        resolve(false);
+      }
+    });
+
+    try {
+      socket.connect(port, host);
+    } catch (_) {
+      if (!settled) {
+        settled = true;
+        resolve(false);
+      }
+    }
+  });
+}
 
 /**
  * Validates whether an endpoint's connect string is structurally valid and can be reached.
@@ -49,6 +122,18 @@ async function validateConnectString(endpoint, timeoutMs = 2000) {
     return false;
   }
 
+  // Pre-flight TCP reachability check: if host/port can't be reached within timeoutMs,
+  // do not invoke the native driver (avoids native ODPI-C background worker thread segfaults on exit).
+  const defaultPort = dbType === 'postgres' ? 5432 : 1521;
+  const hostInfo = extractHostAndPort(connect.connectString, defaultPort);
+  if (hostInfo) {
+    const isReachable = await isTcpPortReachable(hostInfo.host, hostInfo.port, timeoutMs);
+    if (!isReachable) {
+      logger.log('warn', `Endpoint ${endpoint.namespace} connectString verification failed: Host ${hostInfo.host}:${hostInfo.port} is unreachable`);
+      return false;
+    }
+  }
+
   const poolAlias = connect.poolAlias || endpoint.namespace;
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
@@ -57,12 +142,18 @@ async function validateConnectString(endpoint, timeoutMs = 2000) {
 
   try {
     const success = await Promise.race([
-      provider.ping(poolAlias, connect),
+      provider.ping(poolAlias, connect, timeoutMs),
       timeoutPromise
     ]);
     return Boolean(success);
   } catch (err) {
     logger.log('warn', `Endpoint ${endpoint.namespace} connectString verification failed: ${err.message}`);
+    // If the timeout won the race or an error occurred, clean up any lingering pool
+    try {
+      await provider.closePool(poolAlias);
+    } catch (_) {
+      // Ignore closePool errors
+    }
     return false;
   } finally {
     clearTimeout(timer);
