@@ -145,12 +145,11 @@ async function runGitCommand(repoDir, args, options = {}) {
     const { stdout, stderr } = await execFileAsync('git', gitArgs, { cwd: repoDir, env });
     return { success: true, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() };
   } catch (error) {
+    const sanitize = (value) => String(value || '').replace(/(Authorization:\s*Bearer\s+)\S+/gi, '$1***');
     if (logError) {
-      // Sanitize potential token from log output
-      const cleanMsg = (error.message || '').replace(/([a-zA-Z0-9_-]{20,})/g, '***');
-      logger.log('warn', `Git command error: ${cleanMsg}`);
+      logger.log('warn', `Git command error: ${sanitize(error.message)}`);
     }
-    return { success: false, error: error.message, stderr: error.stderr ? error.stderr.trim() : '' };
+    return { success: false, error: sanitize(error.message), stderr: sanitize(error.stderr).trim() };
   }
 }
 
