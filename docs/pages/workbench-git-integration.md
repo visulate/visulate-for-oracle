@@ -177,7 +177,7 @@ When the Workbench is active, the top toolbar provides full repository control:
 
 ### 2. Branch Viewing & Switching
 
-* **Active Branch Display**: The toolbar detects the checked-out branch directly from `.git/HEAD` (e.g. `main`, `master`, `feature/x`) and displays all local and remote branches.
+* **Active Branch Display**: The toolbar detects the checked-out branch directly from `.git/HEAD` (e.g. `main`, `master`, `feature/x`) and displays the available local branches.
 * **Switch Branch**: Select a branch from the dropdown to check it out immediately and reload the file explorer.
 * **Create Branch**: Click **`+`** to create and switch to a new branch.
 
