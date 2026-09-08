@@ -320,8 +320,9 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
       const mapData = JSON.parse(raw);
       const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
 
-      // When repoFolder is explicitly supplied, inspect ONLY that repository
-      const shouldInspect = repoFolder ? (repo.folderName === repoFolder) : (repoDb === normalizedDb);
+      const shouldInspect = repoFolder
+        ? repo.folderName === repoFolder && repoDb === normalizedDb
+        : repoDb === normalizedDb;
 
       if (shouldInspect) {
         if (mapData.objects && mapData.objects[targetObject]) {
