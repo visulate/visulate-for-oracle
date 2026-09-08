@@ -47,7 +47,10 @@ function getBaseReposDir(userContext = null) {
 function getProjectRepoDir(identifier, userContext = null) {
   if (!identifier) return null;
   const baseDir = getBaseReposDir(userContext);
-  const safeName = identifier.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeName = String(identifier);
+  if (!/^[a-zA-Z0-9._-]+$/.test(safeName) || safeName === '.' || safeName === '..') {
+    throw new Error('Invalid repository identifier');
+  }
   return path.join(baseDir, safeName);
 }
 
