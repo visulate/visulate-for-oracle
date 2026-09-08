@@ -442,7 +442,7 @@ async function listProjectFiles(identifier, subDir = '', userContext = null) {
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'dist') {
+        if (['.git', 'node_modules', '.venv', 'venv', '__pycache__', '.pytest_cache', '.angular', 'dist', 'build', '.DS_Store'].includes(entry.name)) {
           continue;
         }
         const full = path.join(dir, entry.name);
