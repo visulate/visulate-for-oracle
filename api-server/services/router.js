@@ -34,6 +34,18 @@ const path = require("path");
 const swaggerUi = require('swagger-ui-express');
 const swaggerDoc = YAML.load(path.resolve(__dirname, '../openapi.yaml'));
 
+function getConfiguredPrincipal(req) {
+  const principalHeader = (process.env.GIT_AUTHENTICATED_USER_HEADER || '').trim().toLowerCase();
+  if (!principalHeader || !/^[a-z0-9-]+$/.test(principalHeader)) {
+    return null;
+  }
+  const principal = req.headers[principalHeader];
+  if (Array.isArray(principal)) {
+    return principal[0] || null;
+  }
+  return typeof principal === 'string' ? principal : null;
+}
+
 const collectionSchema = {
   type: 'array',
   items: {
@@ -190,12 +202,9 @@ router.use('/api/git', checkGitFeatureEnabled);
 router.use('/api/git', (req, res, next) => {
   const gitMode = (process.env.GIT_MODE || 'local').toLowerCase();
 
-  // Trusted authenticated principal (from session middleware or authenticating reverse proxy)
+  // Trusted authenticated principal (from session middleware or an explicitly configured authenticating proxy header)
   const principal = req.user?.username || req.user?.id || req.user?.sub
-    || req.headers['x-authenticated-user']
-    || req.headers['x-forwarded-user']
-    || req.headers['remote-user']
-    || req.headers['x-user']
+    || getConfiguredPrincipal(req)
     || null;
 
   if (gitMode === 'server') {
