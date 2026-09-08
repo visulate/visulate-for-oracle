@@ -20,7 +20,7 @@ services:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
       - GIT_REPOS_DIR=/app/repos
-      - GIT_MODE=server
+      - GIT_MODE=local
       - ENABLE_GIT_INTEGRATION=true
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
