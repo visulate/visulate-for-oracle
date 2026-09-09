@@ -46,7 +46,7 @@ cd ..
 echo -e "\n${GREEN}>>> 4. Running UI Tests (Angular Headless Setup)...${NC}"
 cd ui || { echo -e "${RED}Failed to change directory to ui. Aborting test run.${NC}"; exit 1; }
 npm install || { echo -e "${RED}npm install failed in ui. Aborting test run.${NC}"; exit 1; }
-npm run test -- --watch=false --browsers=ChromeHeadless || FAILURES=$((FAILURES + 1))
+npm test || FAILURES=$((FAILURES + 1))
 cd ..
 
 # # 5. Run UI Cypress Component Tests

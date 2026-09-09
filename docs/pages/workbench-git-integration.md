@@ -45,13 +45,14 @@ The Application Workbench bridges this gap:
                      +-------------------------+--------------------------+
                                                |
                                                v
-                     +----------------------------------------------------+
-                     | Workspace Storage Volume                           |
-                     |  Server: /app/repos/users/<user>/my-app/           |
-                     |  Local:  $HOME/git/my-app/                         |
-                     |  - .okf/oracle-code-map.json                       |
-                     |  - .okf/codebase-dependencies.md                   |
-                     +----------------------------------------------------+
+                      +----------------------------------------------------+
+                      | Workspace Storage Directory / Mount                |
+                      |  Container: /app/repos/<project>/                  |
+                      |  Host bind: /home/visulate/repos/<project>/        |
+                      |  Local dev: $HOME/git/<project>/                   |
+                      |  - .okf/oracle-code-map.json                       |
+                      |  - .okf/codebase-dependencies.md                   |
+                      +----------------------------------------------------+
 ```
 
 ### How Repository & Database Relationships Are Recorded
@@ -98,11 +99,27 @@ Visulate records the relationship between source code repositories and database 
 
 Follow these step-by-step instructions to enable the Application Workbench:
 
-### Step 1: Enable the API Server Feature Flag & Set Workspace Mode
+### Step 1: Enable the API Server Feature Flag & Configure Workspace Storage
 
 In the backend API server (`api-server`), set the `ENABLE_GIT_INTEGRATION` environment variable to `true`.
 
-#### Local Development (`start-local.sh` or `api-server/.env`):
+#### How Repository Workspaces Work
+Visulate scans the directory configured by `GIT_REPOS_DIR` (by default `/app/repos` in Docker or `$HOME/git` in local development) for Git repositories. Each immediate child directory containing a `.git` folder is recognized as an available project repository:
+
+```
+/home/visulate/repos/                     <-- Host directory mounted to /app/repos
+├── openproject/                          <-- Discovered as repository "openproject"
+│   ├── .git/
+│   └── ...
+└── my-app/                               <-- Discovered as repository "my-app"
+    ├── .git/
+    └── ...
+```
+
+> [!IMPORTANT]
+> Always mount a **parent repositories directory** into `/app/repos`. Do not bind mount an individual repository folder directly as `/app/repos` (e.g. `/home/visulate/openproject:/app/repos`), because Visulate scans the mounted folder for child directories that are Git repositories.
+
+#### Option A: Local Development (`start-local.sh` or `api-server/.env`)
 In local mode, the API server runs directly as your local OS user and points to your real Git directory (`$HOME/git`) without any nested user subfolders:
 ```bash
 export ENABLE_GIT_INTEGRATION=true
@@ -110,18 +127,57 @@ export GIT_MODE=local
 export GIT_REPOS_DIR="${GIT_REPOS_DIR:-$HOME/git}"
 ```
 
-#### Server / Container Deployment (`docker-compose.yaml`):
-In server mode, each user's repository checkouts are partitioned under `/app/repos/users/<username>/`:
-```yaml
-services:
-  visapi:
-    environment:
-      - ENABLE_GIT_INTEGRATION=true
-      - GIT_MODE=server
-      - GIT_REPOS_DIR=/app/repos
-    volumes:
-      - git_workspaces:/app/repos
-```
+#### Option B: Container Deployment (`docker-compose.yaml`)
+In a container deployment, use a **host bind mount** so that repositories cloned on the host machine (or pre-existing repositories) are directly accessible to the containers:
+
+1. **Create the parent directory on the host**:
+   ```bash
+   mkdir -p /home/visulate/repos
+   chmod -R 775 /home/visulate/repos
+   ```
+
+2. **Move or clone project repositories into this directory**:
+   ```bash
+   # Move an existing clone from a personal home directory:
+   mv /home/pgoldtho/openproject /home/visulate/repos/openproject
+
+   # Or clone directly into the folder:
+   git clone https://github.com/opf/openproject.git /home/visulate/repos/openproject
+   ```
+
+3. **Configure `docker-compose.yaml`**:
+   Mount the relative `./repos` directory into `/app/repos` for **both** the `visapi` service (API server) and `ai-agent` service (AI agents), with `GIT_MODE=local`:
+   ```yaml
+   services:
+     visapi:
+       environment:
+         - ENABLE_GIT_INTEGRATION=true
+         - GIT_MODE=local
+         - GIT_REPOS_DIR=/app/repos
+       volumes:
+         - ./api-server/config:/visulate-server/config
+         - visulate-downloads:/visulate-server/downloads
+         - ./repos:/app/repos
+         - ./wallet:/opt/oracle/network/admin:ro
+
+     ai-agent:
+       environment:
+         - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
+         - GOOGLE_API_KEY=${GOOGLE_AI_KEY}
+         - GIT_REPOS_DIR=/app/repos
+         - VISULATE_BASE=http://reverseproxy
+       volumes:
+         - visulate-downloads:/app/downloads
+         - ./repos:/app/repos
+         - ./wallet:/opt/oracle/network/admin:ro
+   ```
+
+   *(Note: You can also use an absolute path such as `/home/visulate/repos:/app/repos` if your repositories directory is maintained outside the deployment folder).*
+
+> [!NOTE]
+> **Local Mode vs Server Mode:**
+> * `GIT_MODE=local` (recommended for standard and container deployments): Repositories reside directly in `/app/repos/<project>` and are shared across workbench sessions.
+> * `GIT_MODE=server` (multi-tenant mode behind an authenticating proxy): Workspaces are partitioned by authenticated username under `/app/repos/users/<username>/<project>`.
 
 ---
 

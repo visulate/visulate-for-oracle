@@ -226,6 +226,17 @@ router.use('/api/git', (req, res, next) => {
   next();
 });
 
+function handleGitError(res, err) {
+  const msg = err && err.message ? err.message : String(err || 'Unknown error');
+  if (msg.includes('Invalid') || msg.includes('required') || msg.includes('unsafe')) {
+    return res.status(400).json({ error: msg });
+  }
+  if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('not a git repository')) {
+    return res.status(404).json({ error: msg });
+  }
+  return res.status(500).json({ error: msg });
+}
+
 /* Git REST Endpoints */
 router.route('/api/git/repositories')
   .get((req, res) => {
@@ -234,7 +245,7 @@ router.route('/api/git/repositories')
       const repos = gitService.listLocalRepositories(req.userContext);
       res.json({ baseDir, repositories: repos });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -248,7 +259,7 @@ router.route('/api/git/clone')
       const result = await gitService.cloneRepoToFolder(remoteUrl, folderName, branch, req.userContext, req.authContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -260,7 +271,7 @@ router.route('/api/git/diff')
       const diff = await gitService.getDiff(projectId, filePath, req.userContext);
       res.json({ diff });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -273,7 +284,7 @@ router.route('/api/git/file')
       const content = await gitService.getFileContent(projectId, filePath, revision, req.userContext);
       res.json({ content, projectId, path: filePath, revision });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   })
   .put(async (req, res) => {
@@ -285,7 +296,7 @@ router.route('/api/git/file')
       const result = await gitService.saveFileContent(projectId, filePath, content, req.userContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -297,7 +308,7 @@ router.route('/api/git/files')
       const files = await gitService.listProjectFiles(projectId, subDir, req.userContext);
       res.json({ files, projectId });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -308,7 +319,7 @@ router.route('/api/git/branches')
       const branchInfo = await gitService.getRepoBranches(projectId, req.userContext);
       res.json(branchInfo);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -322,7 +333,7 @@ router.route('/api/git/checkout')
       const result = await gitService.switchBranch(projectId, branchName, createIfMissing, req.userContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -333,7 +344,7 @@ router.route('/api/git/commit-push')
       const result = await gitService.commitAndPush(projectId, branchName, commitMessage, req.userContext, req.authContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -344,7 +355,7 @@ router.route('/api/git/pull')
       const result = await gitService.pullRepo(projectId, branchName, req.authContext, req.userContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -355,7 +366,7 @@ router.route('/api/git/index-dependencies')
       const map = await dependencyIndexer.indexProjectDependencies(projectId, owner, req.userContext, dbConnectionId);
       res.json(map);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -369,7 +380,7 @@ router.route('/api/git/code-dependencies')
       const result = await dependencyIndexer.getObjectCodeDependencies(db, name, req.userContext, repo, owner);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
