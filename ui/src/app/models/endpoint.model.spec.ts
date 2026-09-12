@@ -90,7 +90,15 @@ describe('Endpoint', () => {
       connectString: 'postgresql://db.corp:5433/prod',
       schemas: {}
     });
-    expect(pgUriEp.cliCommand).toBe('psql "postgresql://db.corp:5433/prod"');
+    expect(pgUriEp.cliCommand).toBe('psql "postgresql://<username>@db.corp:5433/prod"');
+
+    const pgUriWithUserEp = new EndpointModel().deserialize({
+      endpoint: 'pguri2',
+      dbType: 'postgres',
+      connectString: 'postgresql://myuser@db.corp:5433/prod',
+      schemas: {}
+    });
+    expect(pgUriWithUserEp.cliCommand).toBe('psql "postgresql://myuser@db.corp:5433/prod"');
   });
 });
 

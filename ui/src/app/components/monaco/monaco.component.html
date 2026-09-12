@@ -68,6 +68,11 @@
         </button>
       </div>
 
+      <button mat-stroked-button class="action-btn" (click)="toggleNewFileInput()"
+        [disabled]="!selectedRepoFolder" title="Create new file in repository (Alt+N)">
+        <mat-icon>note_add</mat-icon> New File
+      </button>
+
       <button mat-raised-button color="accent" class="action-btn" (click)="saveDraft()"
         [disabled]="!selectedRepoFolder || !selectedFilePath" title="Save file (Ctrl+S)">
         <mat-icon>save</mat-icon> Save
@@ -115,12 +120,33 @@
     <div class="sidebar-panel file-explorer">
       <div class="panel-header">
         <span><mat-icon>folder</mat-icon> Repository Files ({{ filteredFiles.length }})</span>
+        <button mat-icon-button class="header-action-btn"
+          [disabled]="!selectedRepoFolder"
+          matTooltip="Create new file (Alt+N)"
+          (click)="toggleNewFileInput()">
+          <mat-icon>note_add</mat-icon>
+        </button>
       </div>
 
       <div class="filter-box">
         <mat-icon class="search-icon">search</mat-icon>
         <input type="text" placeholder="Filter files or DB objects..." [(ngModel)]="fileFilterQuery"
           (input)="applyFileFilter()" />
+      </div>
+
+      <!-- Inline New File Form -->
+      <div *ngIf="showNewFileInput" class="new-file-box">
+        <mat-icon class="new-file-icon">insert_drive_file</mat-icon>
+        <input #newFileInputRef type="text" placeholder="filename.sql or path/to/file.sql"
+          [(ngModel)]="newFilePath"
+          (keyup.enter)="createNewFile()"
+          (keyup.escape)="cancelNewFile()" />
+        <button mat-icon-button class="mini-icon-btn" color="primary" matTooltip="Create file (Enter)" (click)="createNewFile()" [disabled]="!newFilePath.trim()">
+          <mat-icon>check</mat-icon>
+        </button>
+        <button mat-icon-button class="mini-icon-btn" matTooltip="Cancel (Esc)" (click)="cancelNewFile()">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
 
       <!-- Recursive Tree Template -->
@@ -187,6 +213,14 @@
       </div>
 
       <div class="editor-viewport">
+        <div *ngIf="!selectedFilePath && selectedRepoFolder" class="no-file-selected-overlay">
+          <mat-icon class="no-file-icon">note_add</mat-icon>
+          <h3>No File Selected</h3>
+          <p>Select a file from the repository tree or create a new file.</p>
+          <button mat-stroked-button color="primary" (click)="toggleNewFileInput()">
+            <mat-icon>note_add</mat-icon> Create New File
+          </button>
+        </div>
         <div #editorContainer class="monaco-container" [style.display]="monacoLoaded ? 'block' : 'none'"></div>
         <textarea *ngIf="!monacoLoaded" class="fallback-textarea" [(ngModel)]="activeFileContent" (change)="saveDraft()"
           placeholder="Loading code editor..."></textarea>

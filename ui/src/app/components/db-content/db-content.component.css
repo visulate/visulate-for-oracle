@@ -15,7 +15,6 @@ table {
 }
 
 /* Allow text wrapping for long-content columns */
-.mat-column-Description,
 .mat-column-Comment,
 .mat-column-Comments,
 .mat-column-Source,
@@ -25,6 +24,16 @@ table {
   white-space: normal !important;
   word-wrap: break-word;
   max-width: 400px;
+}
+
+.mat-column-Description,
+.mat-column-When-Clause,
+.mat-column-Referencing-Names,
+[class*="mat-column-When"],
+[class*="mat-column-Referencing"] {
+  white-space: pre-wrap !important;
+  word-wrap: break-word;
+  max-width: none !important;
 }
 
 /* Allow some columns to be narrow if they contain short content */

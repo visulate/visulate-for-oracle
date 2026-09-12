@@ -56,7 +56,7 @@ def create_app(test_config=None):
         origin_list = [o.strip() for o in origin_str.split(',') if o.strip()]
     else:
         origin_list = 'false'
-    CORS(app, resources={r"/sql/*": {"origins": origin_list}, r"/mcp-sql/*": {"origins": origin_list}})
+    CORS(app, resources={r"/sql/*": {"origins": origin_list}})
     app.logger.log(10, f"CORS enabled with origins: {origin_list}")
     print(f"CORS enabled with origins: {origin_list}")
 

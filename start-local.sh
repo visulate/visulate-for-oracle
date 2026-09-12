@@ -54,25 +54,69 @@ mkdir -p downloads/metadata
 
 # Trap to kill all background processes on exit
 cleanup() {
+    trap '' INT TERM EXIT
+    echo ""
     echo "Stopping all services..."
-    # Kill background processes by PID if they exist
-    [ -n "$API_PID" ] && kill $API_PID 2>/dev/null
-    [ -n "$QUERY_PID" ] && kill $QUERY_PID 2>/dev/null
-    [ -n "$AGENTS_PID" ] && kill $AGENTS_PID 2>/dev/null
-    fuser -k 5000/tcp 2>/dev/null || true
+
+    # Collect tracked PIDs
+    local pids=""
+    [ -n "$API_PID" ] && pids="$pids $API_PID"
+    [ -n "$QUERY_PID" ] && pids="$pids $QUERY_PID"
+    [ -n "$AGENTS_PID" ] && pids="$pids $AGENTS_PID"
+
+    # Send SIGTERM to tracked background processes
+    for pid in $pids; do
+        kill -TERM "$pid" 2>/dev/null || true
+    done
 
     # Send SIGTERM to the entire process group as a fallback
-    kill 0 2>/dev/null
-}
-trap cleanup EXIT
+    kill 0 2>/dev/null || true
 
-# Clean up any stale processes on ports 3000 and 5000 before starting
-for port in 3000 5000; do
-    if fuser $port/tcp >/dev/null 2>&1; then
-        echo "Port $port is in use by a stale process. Stopping it..."
-        fuser -k -TERM $port/tcp 2>/dev/null || true
+    # Wait up to 3 seconds for background services to shut down gracefully and finish logging
+    for _ in 1 2 3; do
+        local still_running=false
+        for pid in $pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                still_running=true
+                break
+            fi
+        done
+        [ "$still_running" = "false" ] && break
         sleep 1
-        fuser -k -KILL $port/tcp 2>/dev/null || true
+    done
+
+    # Force kill any remaining child processes
+    for pid in $pids; do
+        kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true
+    done
+
+    wait 2>/dev/null || true
+    echo "All services stopped."
+    exit 0
+}
+trap cleanup INT TERM EXIT
+
+# Clean up any stale Visulate processes on ports 3000 and 5000 before starting
+for port in 3000 5000; do
+    if command -v fuser >/dev/null 2>&1 && fuser $port/tcp >/dev/null 2>&1; then
+        pids=$(fuser $port/tcp 2>/dev/null)
+        is_visulate=false
+        for pid in $pids; do
+            cmd=$(ps -p "$pid" -o cmd= 2>/dev/null || true)
+            if echo "$cmd" | grep -qE "node.*app\.js|gunicorn.*sql2csv|api-server|query-engine"; then
+                is_visulate=true
+                echo "Port $port is in use by stale Visulate process (PID $pid). Stopping it..."
+                kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done
+        if [ "$is_visulate" = "true" ]; then
+            sleep 1
+            for pid in $pids; do
+                kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true
+            done
+        else
+            echo "Warning: Port $port is in use by an external process ($pids). Startup may fail if port is occupied."
+        fi
     fi
 done
 

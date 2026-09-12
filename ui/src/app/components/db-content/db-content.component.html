@@ -300,7 +300,7 @@
           {{property.description}}
         </mat-panel-description>
       </mat-expansion-panel-header>
-      @if (property.title === 'Source') {
+      @if (property.title === 'Source' || property.title === 'Trigger Body' || property.title === 'Body') {
       <pre id="source-code">
                 @if (property.rows[0]['Line']) {
                   <mat-slide-toggle (change)="showLineNumbers = !showLineNumbers" [checked]="showLineNumbers" class="toggle">Show Line Numbers</mat-slide-toggle>
@@ -327,7 +327,7 @@
         <tr mat-row *matRowDef="let row; columns: property.display;"></tr>
       </table>
       }
-      @if (property.title !== 'Source'&& property.title !=='SQL Statements') {
+      @if (property.title !== 'Source' && property.title !== 'Trigger Body' && property.title !== 'Body' && property.title !=='SQL Statements') {
       <table mat-table [dataSource]="property.rows">
         @for (dColumn of property.display; track dColumn) {
         <ng-container matColumnDef="{{dColumn}}">

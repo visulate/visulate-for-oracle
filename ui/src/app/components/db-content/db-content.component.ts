@@ -63,28 +63,40 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
   public copyToClipboard(text: string, key: string): void {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {
-        this.fallbackCopy(text);
+      navigator.clipboard.writeText(text).then(() => {
+        this.onCopySuccess(key);
+      }).catch(() => {
+        if (this.fallbackCopy(text)) {
+          this.onCopySuccess(key);
+        }
       });
     } else {
-      this.fallbackCopy(text);
+      if (this.fallbackCopy(text)) {
+        this.onCopySuccess(key);
+      }
     }
-    this.copiedKey = key;
-    clearTimeout(this.copiedTimeout);
-    this.copiedTimeout = setTimeout(() => {
-      this.copiedKey = '';
-    }, 2000);
   }
 
-  private fallbackCopy(text: string): void {
+  private fallbackCopy(text: string): boolean {
     try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
+      const success = document.execCommand('copy');
       document.body.removeChild(textarea);
-    } catch (_) {}
+      return success;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  private onCopySuccess(key: string): void {
+    this.copiedKey = key;
+    clearTimeout(this.copiedTimeout);
+    this.copiedTimeout = setTimeout(() => {
+      this.copiedKey = '';
+    }, 2000);
   }
 
   get aiPanelExpanded(): boolean {

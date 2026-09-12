@@ -102,7 +102,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
                 const baseFilename = filename.split('.')[0].toLowerCase();
                 const objName = this.currentContext.objectName.toLowerCase();
                 if (baseFilename === objName || filename.toLowerCase().includes(objName)) {
-                  const sourceProp = this.currentObject.objectProperties?.find((p: any) => p.title === 'Source');
+                  const sourceProp = this.currentObject.objectProperties?.find((p: any) =>
+                    p.title === 'Source' || p.title === 'Trigger Body' || p.title === 'Body'
+                  );
                   if (sourceProp && sourceProp.rows) {
                     originalContent = sourceProp.rows.map((row: any) => row.Text || '').join('');
                   }

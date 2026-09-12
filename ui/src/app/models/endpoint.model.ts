@@ -85,6 +85,11 @@ export class EndpointModel implements Deserializable {
     if (!this.connectString) return '';
     if (this.dbType === 'postgres') {
       if (this.connectString.startsWith('postgresql://') || this.connectString.startsWith('postgres://')) {
+        if (!this.connectString.includes('@')) {
+          const schemeIndex = this.connectString.indexOf('://') + 3;
+          const uriWithUser = this.connectString.slice(0, schemeIndex) + '<username>@' + this.connectString.slice(schemeIndex);
+          return `psql "${uriWithUser}"`;
+        }
         return `psql "${this.connectString}"`;
       }
       const parts = this.connectString.split('/');
