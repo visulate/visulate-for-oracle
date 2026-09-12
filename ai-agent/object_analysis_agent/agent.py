@@ -39,6 +39,7 @@ When provided with a 'context' in your input, it will include:
 1. "objectDetails": details of a database object.
 2. "relatedObjects": a list of objects that are related to the objectDetails.
 3. "chatHistory": previous conversation history.
+4. "codebaseDependencies": list of application repository source files that reference or depend on this database object. Use this to explain how the database object is consumed by application code.
 
 Do not mention the JSON document structure in your response.
 Assume any questions the user asks are about the objectDetails object unless the question states otherwise.

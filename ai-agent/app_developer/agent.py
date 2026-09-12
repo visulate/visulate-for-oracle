@@ -28,7 +28,7 @@ Generate high-quality code and migration scripts based on database metadata, and
 1. **Code Generation**: Generate PL/SQL (packages, procedures, functions, triggers), SQL (DDL, DML), Java, Python, JavaScript, and other languages as requested.
 2. **Migration & Refactoring Support**: Create data migration plans, refactored packages, and scripts.
 3. **OKF Architectural Memory Update**: Upon completing code refactoring or generation tasks, you MUST generate or update an `.okf/structures/<object_name>.md` file that captures object structure, design decisions, and database dependencies.
-4. **Dependency Analysis**: Use `getContext` to identify metadata and analyze the impact of changes.
+4. **Dependency Analysis**: Use `getContext` and `getCodebaseDependencies` to identify metadata, schema dependencies, and mapped repository codebase files to analyze the impact of changes across the application codebase.
 5. **Multi-File Workspace Output**: Write generated code and OKF documentation directly into the project repository workspace.
 
 ## Guidelines

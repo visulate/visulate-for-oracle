@@ -17,7 +17,7 @@ FAILURES=0
 echo -e "\n${GREEN}>>> 1. Running API Server Tests (NodeJS/Mocha)...${NC}"
 cd api-server || { echo -e "${RED}Failed to change directory to api-server. Aborting test run.${NC}"; exit 1; }
 npm install || { echo -e "${RED}npm install failed in api-server. Aborting test run.${NC}"; exit 1; }
-npm run test || FAILURES=$((FAILURES + 1))
+HTTP_PORT="${TEST_HTTP_PORT:-3005}" npm run test || FAILURES=$((FAILURES + 1))
 cd ..
 
 # 2. Run Query Engine tests (Python/Pytest)
@@ -46,7 +46,7 @@ cd ..
 echo -e "\n${GREEN}>>> 4. Running UI Tests (Angular Headless Setup)...${NC}"
 cd ui || { echo -e "${RED}Failed to change directory to ui. Aborting test run.${NC}"; exit 1; }
 npm install || { echo -e "${RED}npm install failed in ui. Aborting test run.${NC}"; exit 1; }
-npm run test -- --watch=false --browsers=ChromeHeadless || FAILURES=$((FAILURES + 1))
+npm test || FAILURES=$((FAILURES + 1))
 cd ..
 
 # # 5. Run UI Cypress Component Tests

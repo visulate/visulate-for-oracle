@@ -87,6 +87,63 @@
   font-size: 12px;
 }
 
+.auth-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+.link-assoc-btn {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  margin: 0 4px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.link-assoc-btn mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+}
+
+.link-assoc-btn.is-linked {
+  color: #1976d2;
+}
+
+.link-assoc-btn:hover:not([disabled]) {
+  transform: scale(1.1);
+}
+
+.inline-branch-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--app-sidebar-bg);
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.inline-branch-input input {
+  background-color: var(--app-input-bg);
+  color: var(--app-text-color);
+  border: 1px solid var(--app-border-color);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  width: 140px;
+}
+
+.inline-branch-input button {
+  font-size: 11px;
+  padding: 0 6px;
+  min-height: 24px;
+  line-height: 24px;
+}
+
 .clone-bar {
   display: flex;
   align-items: center;

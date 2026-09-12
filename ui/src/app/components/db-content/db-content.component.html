@@ -24,17 +24,19 @@
           Related Repository Code Files
         </mat-panel-title>
         <mat-panel-description>
-          Mapped codebase files ({{ relatedCodeFiles.length }})
+          Mapped codebase files {{ associatedRepo ? 'in ' + associatedRepo : '' }} ({{ relatedCodeFiles.length }})
         </mat-panel-description>
       </mat-expansion-panel-header>
       <div class="code-files-list">
-        <div *ngFor="let file of relatedCodeFiles" class="code-file-item" (click)="openInWorkbench(file)">
+        @for (file of relatedCodeFiles; track file) {
+        <div class="code-file-item" (click)="openInWorkbench(file)">
           <mat-icon class="file-icon">description</mat-icon>
           <span class="file-path">{{ file }}</span>
           <button mat-stroked-button color="primary" class="open-btn">
             <mat-icon>edit</mat-icon> Open in Workbench
           </button>
         </div>
+        }
       </div>
     </mat-expansion-panel>
   </mat-accordion>

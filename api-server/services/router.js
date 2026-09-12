@@ -19,7 +19,6 @@ const router = new express.Router();
 const controller = require('./controller.js');
 const aiService = require('./ai-service.js');
 const downloadService = require('./download-service.js');
-const projectService = require('./projectService.js');
 const gitService = require('./gitService.js');
 const dependencyIndexer = require('./dependencyIndexer.js');
 const dbConfig = require('../config/database.js');
@@ -34,6 +33,18 @@ const YAML = require('yamljs');
 const path = require("path");
 const swaggerUi = require('swagger-ui-express');
 const swaggerDoc = YAML.load(path.resolve(__dirname, '../openapi.yaml'));
+
+function getConfiguredPrincipal(req) {
+  const principalHeader = (process.env.GIT_AUTHENTICATED_USER_HEADER || '').trim().toLowerCase();
+  if (!principalHeader || !/^[a-z0-9-]+$/.test(principalHeader)) {
+    return null;
+  }
+  const principal = req.headers[principalHeader];
+  if (Array.isArray(principal)) {
+    return principal[0] || null;
+  }
+  return typeof principal === 'string' ? principal : null;
+}
 
 const collectionSchema = {
   type: 'array',
@@ -185,39 +196,56 @@ const checkGitFeatureEnabled = (req, res, next) => {
   next();
 };
 
-router.use('/api/projects', checkGitFeatureEnabled);
 router.use('/api/git', checkGitFeatureEnabled);
 
-/* Project Endpoints */
-router.route('/api/projects')
-  .get((req, res) => {
-    res.json(projectService.getProjects());
-  })
-  .post((req, res) => {
-    const project = projectService.upsertProject(req.body);
-    res.json(project);
-  });
+/* Git Session & User Context Middleware */
+router.use('/api/git', (req, res, next) => {
+  const gitMode = (process.env.GIT_MODE || 'local').toLowerCase();
 
-router.route('/api/projects/:id')
-  .get((req, res) => {
-    const project = projectService.getProjectById(req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    res.json(project);
-  })
-  .delete((req, res) => {
-    projectService.deleteProject(req.params.id);
-    res.json({ success: true });
-  });
+  // Trusted authenticated principal (from session middleware or an explicitly configured authenticating proxy header)
+  const principal = req.user?.username || req.user?.id || req.user?.sub
+    || getConfiguredPrincipal(req)
+    || null;
+
+  if (gitMode === 'server') {
+    if (!principal) {
+      return res.status(401).json({ error: 'Authentication required for server-mode git operations' });
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(principal)) {
+      return res.status(400).json({ error: 'Invalid authenticated user identity' });
+    }
+  }
+
+  req.userContext = { username: principal };
+  req.authContext = {
+    username: req.headers['x-git-user'] || null,
+    token: req.headers['x-git-token'] || null,
+    authorName: req.headers['x-git-author-name'] || null,
+    authorEmail: req.headers['x-git-author-email'] || null
+  };
+  next();
+});
+
+function handleGitError(res, err) {
+  const msg = err && err.message ? err.message : String(err || 'Unknown error');
+  if (msg.includes('Invalid') || msg.includes('required') || msg.includes('unsafe')) {
+    return res.status(400).json({ error: msg });
+  }
+  if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('not a git repository')) {
+    return res.status(404).json({ error: msg });
+  }
+  return res.status(500).json({ error: msg });
+}
 
 /* Git REST Endpoints */
 router.route('/api/git/repositories')
   .get((req, res) => {
     try {
-      const baseDir = gitService.getBaseReposDir();
-      const repos = gitService.listLocalRepositories();
+      const baseDir = gitService.getBaseReposDir(req.userContext);
+      const repos = gitService.listLocalRepositories(req.userContext);
       res.json({ baseDir, repositories: repos });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -228,10 +256,10 @@ router.route('/api/git/clone')
       if (!remoteUrl || !folderName) {
         return res.status(400).json({ error: 'remoteUrl and folderName are required' });
       }
-      const result = await gitService.cloneRepoToFolder(remoteUrl, folderName, branch);
+      const result = await gitService.cloneRepoToFolder(remoteUrl, folderName, branch, req.userContext, req.authContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -240,10 +268,10 @@ router.route('/api/git/diff')
     try {
       const projectId = req.query.projectId || 'default-project';
       const filePath = req.query.path || '';
-      const diff = await gitService.getDiff(projectId, filePath);
+      const diff = await gitService.getDiff(projectId, filePath, req.userContext);
       res.json({ diff });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -253,10 +281,10 @@ router.route('/api/git/file')
       const projectId = req.query.projectId || 'default-project';
       const filePath = req.query.path || '';
       const revision = req.query.revision || null;
-      const content = await gitService.getFileContent(projectId, filePath, revision);
+      const content = await gitService.getFileContent(projectId, filePath, revision, req.userContext);
       res.json({ content, projectId, path: filePath, revision });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   })
   .put(async (req, res) => {
@@ -265,10 +293,10 @@ router.route('/api/git/file')
       if (!filePath) {
         return res.status(400).json({ error: 'filePath is required' });
       }
-      const result = await gitService.saveFileContent(projectId, filePath, content);
+      const result = await gitService.saveFileContent(projectId, filePath, content, req.userContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
     }
   });
 
@@ -277,32 +305,82 @@ router.route('/api/git/files')
     try {
       const projectId = req.query.projectId || 'default-project';
       const subDir = req.query.subDir || '';
-      const files = await gitService.listProjectFiles(projectId, subDir);
+      const files = await gitService.listProjectFiles(projectId, subDir, req.userContext);
       res.json({ files, projectId });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/branches')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || 'default-project';
+      const branchInfo = await gitService.getRepoBranches(projectId, req.userContext);
+      res.json(branchInfo);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/checkout')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', branchName, createIfMissing = false } = req.body;
+      if (!branchName) {
+        return res.status(400).json({ error: 'branchName is required' });
+      }
+      const result = await gitService.switchBranch(projectId, branchName, createIfMissing, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
     }
   });
 
 router.route('/api/git/commit-push')
   .post(async (req, res) => {
     try {
-      const { projectId = 'default-project', branchName = 'visulate/modernize', commitMessage = 'Visulate Workbench commit' } = req.body;
-      const result = await gitService.commitAndPush(projectId, branchName, commitMessage);
+      const { projectId = 'default-project', branchName, commitMessage = 'Visulate Workbench commit' } = req.body;
+      const result = await gitService.commitAndPush(projectId, branchName, commitMessage, req.userContext, req.authContext);
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/pull')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', branchName } = req.body;
+      const result = await gitService.pullRepo(projectId, branchName, req.authContext, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
     }
   });
 
 router.route('/api/git/index-dependencies')
   .post(async (req, res) => {
     try {
-      const { projectId = 'default-project', owner } = req.body;
-      const map = await dependencyIndexer.indexProjectDependencies(projectId, owner);
+      const { projectId = 'default-project', owner, dbConnectionId } = req.body;
+      const map = await dependencyIndexer.indexProjectDependencies(projectId, owner, req.userContext, dbConnectionId);
       res.json(map);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/code-dependencies')
+  .get(async (req, res) => {
+    try {
+      const { db, name, repo, owner } = req.query;
+      if (!db || !name) {
+        return res.status(400).json({ error: 'db and name query parameters are required' });
+      }
+      const result = await dependencyIndexer.getObjectCodeDependencies(db, name, req.userContext, repo, owner);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
     }
   });
 

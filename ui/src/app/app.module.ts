@@ -68,6 +68,7 @@ import { ChatComponent } from './components/chat/chat.component';
 import { CredentialDialogComponent } from './components/credential-dialog/credential-dialog.component';
 import { DiffDialogComponent } from './components/diff-dialog/diff-dialog.component';
 import { FileViewerDialogComponent } from './components/file-viewer-dialog/file-viewer-dialog.component';
+import { GitAuthDialogComponent } from './components/git-auth-dialog/git-auth-dialog.component';
 import { MonacoComponent } from './components/monaco/monaco.component';
 import { RouteReuseStrategy } from '@angular/router';
 import { CustomRouteReuseStrategy } from './custom-route-reuse-strategy';
@@ -92,6 +93,7 @@ import { RestService } from './services/rest.service';
     CredentialDialogComponent,
     DiffDialogComponent,
     FileViewerDialogComponent,
+    GitAuthDialogComponent,
     MonacoComponent,
     BreadcrumbsComponent,
     RegistrationHelperComponent

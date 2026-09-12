@@ -3,7 +3,7 @@
  */
 export const environment = {
   production: true,
-  enableGitIntegration: false,
+  enableGitIntegration: true,
   maxFiles: 10,
   apiBase: '/api',
   findObjectBase: '/find',

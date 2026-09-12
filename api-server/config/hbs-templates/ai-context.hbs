@@ -154,4 +154,14 @@ null
 }{{#unless @last}},{{/unless}}
 {{/each}}
 ]
+{{#if results.codebaseDependencies}},
+"codebaseDependencies": {
+"repository": {{{json results.associatedRepo}}},
+"files": [
+{{#each results.codebaseDependencies}}
+{{{json this}}}{{#unless @last}},{{/unless}}
+{{/each}}
+]
+}
+{{/if}}
 }

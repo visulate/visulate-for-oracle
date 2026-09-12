@@ -205,45 +205,55 @@ export class DbContentComponent implements OnInit, OnDestroy {
     } else if (!context.objectName) {
       this.ddlLink = '';
       this.relatedCodeFiles = [];
+      this.associatedRepo = '';
     }
   }
 
   public relatedCodeFiles: string[] = [];
+  public associatedRepo: string = '';
 
   public loadRelatedCodeFiles(endpoint: string, objectName: string): void {
     if (!this.enableGitIntegration || !endpoint || !objectName) return;
-    this.restService.getGitFile$(endpoint, '.okf/oracle-code-map.json').subscribe({
+
+    let linkedRepo: string | undefined;
+    try {
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        linkedRepo = parsed.dbToRepo?.[endpoint];
+      }
+    } catch (_) {}
+
+    this.restService.getObjectCodeDependencies$(endpoint, objectName, linkedRepo).subscribe({
       next: (res) => {
-        try {
-          const mapData = JSON.parse(res.content);
-          const upperName = objectName.toUpperCase();
-          if (mapData && mapData.objects && mapData.objects[upperName]) {
-            this.relatedCodeFiles = mapData.objects[upperName].files || [];
-          } else {
-            this.relatedCodeFiles = [];
-          }
-        } catch (e) {
+        if (res && res.found && Array.isArray(res.files)) {
+          this.relatedCodeFiles = res.files;
+          this.associatedRepo = res.repoFolder || linkedRepo || '';
+        } else {
           this.relatedCodeFiles = [];
+          this.associatedRepo = linkedRepo || '';
         }
       },
       error: () => {
         this.relatedCodeFiles = [];
+        this.associatedRepo = '';
       }
     });
   }
 
   public openInWorkbench(filePath: string): void {
     if (!this.currentContext) return;
-    this.state.setLastSelectedFile(filePath);
-    this.state.setLastWorkbenchQueryParams({
+    const queryParams: any = {
       db: this.currentContext.endpoint,
       file: filePath
-    });
+    };
+    if (this.associatedRepo) {
+      queryParams.projectId = this.associatedRepo;
+    }
+    this.state.setLastSelectedFile(filePath, this.associatedRepo || undefined);
+    this.state.setLastWorkbenchQueryParams(queryParams);
     this.router.navigate(['/workbench'], {
-      queryParams: {
-        db: this.currentContext.endpoint,
-        file: filePath
-      }
+      queryParams
     });
   }
 

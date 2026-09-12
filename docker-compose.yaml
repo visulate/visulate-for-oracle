@@ -14,12 +14,14 @@ services:
     volumes:
       - ./api-server/config:/visulate-server/config
       - visulate-downloads:/visulate-server/downloads
-      - git_workspaces:/app/repos
+      - ./repos:/app/repos
       - ./wallet:/opt/oracle/network/admin:ro
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=${CORS_ORIGIN_WHITELIST}
       - GIT_REPOS_DIR=/app/repos
+      - GIT_MODE=local
+      - ENABLE_GIT_INTEGRATION=true
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
       - INVALID_OBJECTS_URL=http://ai-agent:10006/agent/generate
@@ -54,7 +56,7 @@ services:
       - "10000-10009:10000-10009"
     volumes:
       - visulate-downloads:/app/downloads
-      - git_workspaces:/app/repos
+      - ./repos:/app/repos
       - ./wallet:/opt/oracle/network/admin:ro
     environment:
       - GOOGLE_AI_KEY=${GOOGLE_AI_KEY}
@@ -64,4 +66,3 @@ services:
 
 volumes:
   visulate-downloads:
-  git_workspaces:

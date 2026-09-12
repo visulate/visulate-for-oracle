@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
+import { MatDialog } from '@angular/material/dialog';
+import { GitAuthDialogComponent } from '../git-auth-dialog/git-auth-dialog.component';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
@@ -30,6 +32,7 @@ export interface FileTreeNode {
   children?: FileTreeNode[];
   expanded?: boolean;
   dbBadges?: string[];
+  extraBadgeCount?: number;
 }
 
 @Component({
@@ -50,7 +53,6 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public baseReposDir: string = '';
   public localRepos: Array<{ folderName: string; fullPath: string; isGitRepo: boolean }> = [];
   public dbEndpoints: Array<{ endpoint: string; description: string }> = [];
-  public projectsList: any[] = [];
 
   public selectedDbConnection: string = 'pdb21';
   public selectedRepoFolder: string = '';
@@ -70,6 +72,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public modifiedContent: string = '';
 
   public branchName: string = 'visulate/modernize';
+  public currentBranch: string = '';
+  public availableBranches: string[] = [];
+  public newBranchName: string = '';
+  public showNewBranchInput: boolean = false;
   public commitMessage: string = 'Update codebase and OKF memory documentation';
   public statusMessage: string = '';
   public isError: boolean = false;
@@ -93,8 +99,31 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     private state: StateService,
     private route: ActivatedRoute,
     private router: Router,
-    private cdRef: ChangeDetectorRef
+    private cdRef: ChangeDetectorRef,
+    private dialog: MatDialog
   ) { }
+
+  get isGitAuthenticated(): boolean {
+    const auth = this.restService.getGitAuth();
+    return !!(auth && (auth.token || auth.username));
+  }
+
+  public openGitAuthDialog(): void {
+    const dialogRef = this.dialog.open(GitAuthDialogComponent, {
+      width: '620px',
+      disableClose: false
+    });
+
+    dialogRef.afterClosed().subscribe(res => {
+      if (res?.saved) {
+        this.setStatus('Git session credentials saved for this browser session.', false);
+        this.loadLocalRepos();
+      } else if (res?.cleared) {
+        this.setStatus('Git session credentials cleared.', false);
+        this.loadLocalRepos();
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
@@ -102,7 +131,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       if (params['db']) this.selectedDbConnection = params['db'];
       if (params['file']) {
         const fileParam = params['file'];
-        if (fileParam !== this.selectedFilePath || !this.activeFileContent) {
+        if (fileParam !== this.selectedFilePath) {
           this.selectedFilePath = fileParam;
           this.state.setLastSelectedFile(fileParam, this.selectedRepoFolder || this.projectId);
           if (this.projectFiles && this.projectFiles.length > 0) {
@@ -136,10 +165,9 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     forkJoin({
       endpoints: this.restService.getDatabaseConnections$().pipe(catchError(() => of([]))),
-      repos: this.restService.getLocalRepositories$().pipe(catchError(() => of({ baseDir: '', repositories: [] }))),
-      projects: this.restService.getProjects$().pipe(catchError(() => of([])))
+      repos: this.restService.getLocalRepositories$().pipe(catchError(() => of({ baseDir: '', repositories: [] })))
     }).subscribe({
-      next: ({ endpoints, repos, projects }) => {
+      next: ({ endpoints, repos }) => {
         if (Array.isArray(endpoints) && endpoints.length > 0) {
           this.dbEndpoints = endpoints.map((ep: any) => ({
             endpoint: ep.endpoint,
@@ -150,13 +178,12 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
           this.baseReposDir = repos.baseDir || '';
           this.localRepos = repos.repositories || [];
         }
-        this.projectsList = projects || [];
 
-        if (!this.selectedDbConnection && this.dbEndpoints.length > 0) {
-          this.selectedDbConnection = this.dbEndpoints[0].endpoint;
-        }
-        if (!this.selectedRepoFolder && this.localRepos.length > 0) {
+        if (this.projectId && this.localRepos.some(r => r.folderName === this.projectId)) {
+          this.selectedRepoFolder = this.projectId;
+        } else if (!this.selectedRepoFolder && this.localRepos.length > 0) {
           this.selectedRepoFolder = this.localRepos[0].folderName;
+          this.projectId = this.selectedRepoFolder;
         }
 
         this.syncProjectAssociation();
@@ -266,6 +293,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         this.baseReposDir = res.baseDir || '';
         this.localRepos = res.repositories || [];
+        if (!this.selectedRepoFolder && this.localRepos.length > 0) {
+          this.selectedRepoFolder = this.localRepos[0].folderName;
+          this.projectId = this.selectedRepoFolder;
+        }
         this.syncProjectAssociation();
       },
       error: (err) => {
@@ -274,36 +305,103 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  public loadProjects(): void {
-    this.restService.getProjects$().subscribe({
-      next: (projects) => {
-        this.projectsList = projects || [];
-        this.syncProjectAssociation();
-      },
-      error: (err) => console.warn('Error loading projects:', err)
-    });
+  private getDbRepoAssociations(): { dbToRepo: Record<string, string>; repoToDb: Record<string, string> } {
+    try {
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          dbToRepo: parsed.dbToRepo || {},
+          repoToDb: parsed.repoToDb || {}
+        };
+      }
+    } catch (_) {}
+    return { dbToRepo: {}, repoToDb: {} };
+  }
+
+  private saveDbRepoAssociations(associations: { dbToRepo: Record<string, string>; repoToDb: Record<string, string> }): void {
+    try {
+      localStorage.setItem('visulate_db_repo_associations', JSON.stringify(associations));
+    } catch (e) {
+      console.warn('Failed to save associations in localStorage', e);
+    }
+  }
+
+  public get isCurrentPairAssociated(): boolean {
+    if (!this.selectedDbConnection || !this.selectedRepoFolder) return false;
+    const associations = this.getDbRepoAssociations();
+    return associations.dbToRepo[this.selectedDbConnection] === this.selectedRepoFolder ||
+           associations.repoToDb[this.selectedRepoFolder] === this.selectedDbConnection;
+  }
+
+  public toggleDbRepoAssociation(): void {
+    if (!this.selectedDbConnection || !this.selectedRepoFolder) {
+      this.setStatus('Please select both a Database and a Git Repository before linking.', true);
+      return;
+    }
+
+    const associations = this.getDbRepoAssociations();
+    if (this.isCurrentPairAssociated) {
+      const priorRepo = associations.dbToRepo[this.selectedDbConnection];
+      if (priorRepo) delete associations.repoToDb[priorRepo];
+      delete associations.dbToRepo[this.selectedDbConnection];
+
+      const priorDb = associations.repoToDb[this.selectedRepoFolder];
+      if (priorDb) delete associations.dbToRepo[priorDb];
+      delete associations.repoToDb[this.selectedRepoFolder];
+
+      this.saveDbRepoAssociations(associations);
+      this.setStatus(`Unlinked database '${this.selectedDbConnection}' from repository '${this.selectedRepoFolder}'`, false);
+    } else {
+      // Remove prior inverse mappings before recording new pair
+      const priorRepoForDb = associations.dbToRepo[this.selectedDbConnection];
+      if (priorRepoForDb) {
+        delete associations.repoToDb[priorRepoForDb];
+      }
+      const priorDbForRepo = associations.repoToDb[this.selectedRepoFolder];
+      if (priorDbForRepo) {
+        delete associations.dbToRepo[priorDbForRepo];
+      }
+
+      associations.dbToRepo[this.selectedDbConnection] = this.selectedRepoFolder;
+      associations.repoToDb[this.selectedRepoFolder] = this.selectedDbConnection;
+      this.saveDbRepoAssociations(associations);
+      this.setStatus(`Linked database '${this.selectedDbConnection}' with repository '${this.selectedRepoFolder}'`, false);
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcut(event: KeyboardEvent): void {
+    if (event.altKey && event.key.toLowerCase() === 'l') {
+      event.preventDefault();
+      this.toggleDbRepoAssociation();
+    }
   }
 
   public syncProjectAssociation(): void {
-    if (!this.selectedDbConnection) {
-      if (this.dbEndpoints && this.dbEndpoints.length > 0) {
-        this.selectedDbConnection = this.dbEndpoints[0].endpoint;
-      } else {
-        this.selectedDbConnection = 'pdb21';
-      }
-    }
-
-    const existing = this.projectsList.find(p => p.dbConnectionId === this.selectedDbConnection);
-    if (existing && existing.repoFolder) {
-      this.selectedRepoFolder = existing.repoFolder;
-      this.projectId = existing.projectId;
-    } else {
-      this.selectedRepoFolder = '';
-      this.projectId = '';
-    }
+    const associations = this.getDbRepoAssociations();
 
     if (this.selectedRepoFolder) {
+      this.projectId = this.selectedRepoFolder;
+      const linkedDb = associations.repoToDb[this.selectedRepoFolder];
+      if (linkedDb && this.dbEndpoints.some(e => e.endpoint === linkedDb)) {
+        this.selectedDbConnection = linkedDb;
+      } else if (!this.selectedDbConnection && this.dbEndpoints.length > 0) {
+        this.selectedDbConnection = this.dbEndpoints[0].endpoint;
+      }
       this.loadProjectFiles();
+    } else if (this.selectedDbConnection) {
+      const linkedRepo = associations.dbToRepo[this.selectedDbConnection];
+      if (linkedRepo && this.localRepos.some(r => r.folderName === linkedRepo)) {
+        this.selectedRepoFolder = linkedRepo;
+        this.projectId = linkedRepo;
+        this.loadProjectFiles();
+        return;
+      }
+      this.projectFiles = [];
+      this.filteredFiles = [];
+      this.fileTreeNodes = [];
+      this.isLoading = false;
     } else {
       this.projectFiles = [];
       this.filteredFiles = [];
@@ -317,12 +415,18 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  public onDbOrRepoChange(): void {
+  public onDbChange(): void {
     if (!this.selectedDbConnection) return;
 
-    if (!this.selectedRepoFolder) {
-      this.syncProjectAssociation();
-      return;
+    const associations = this.getDbRepoAssociations();
+    const associatedRepo = associations.dbToRepo[this.selectedDbConnection];
+
+    if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
+      if (this.selectedRepoFolder !== associatedRepo) {
+        this.selectedRepoFolder = associatedRepo;
+        this.projectId = associatedRepo;
+        this.setStatus(`Switched to linked repository '${associatedRepo}' for database '${this.selectedDbConnection}'`, false);
+      }
     }
 
     const ctx = this.state.getCurrentContext();
@@ -331,21 +435,56 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       this.state.setCurrentContext(ctx);
     }
 
-    const projData = {
-      projectId: `${this.selectedDbConnection}-${this.selectedRepoFolder}`,
-      name: `${this.selectedDbConnection} (${this.selectedRepoFolder})`,
-      dbConnectionId: this.selectedDbConnection,
-      repoFolder: this.selectedRepoFolder
-    };
+    if (this.selectedRepoFolder) {
+      this.loadProjectFiles();
+    }
+  }
 
-    this.restService.saveProject$(projData).subscribe({
-      next: (savedProj) => {
-        this.projectId = savedProj.projectId;
-        this.setStatus(`Associated database '${this.selectedDbConnection}' with repository '${this.selectedRepoFolder}'`, false);
+  public onRepoChange(): void {
+    if (!this.selectedRepoFolder) {
+      this.syncProjectAssociation();
+      return;
+    }
+
+    this.projectId = this.selectedRepoFolder;
+
+    const associations = this.getDbRepoAssociations();
+    const associatedDb = associations.repoToDb[this.selectedRepoFolder];
+
+    if (associatedDb && this.dbEndpoints.some(e => e.endpoint === associatedDb)) {
+      if (this.selectedDbConnection !== associatedDb) {
+        this.selectedDbConnection = associatedDb;
+        this.setStatus(`Switched to linked database '${associatedDb}' for repository '${this.selectedRepoFolder}'`, false);
+      }
+    }
+
+    const ctx = this.state.getCurrentContext();
+    if (ctx.endpoint !== this.selectedDbConnection) {
+      ctx.setEndpoint(this.selectedDbConnection);
+      this.state.setCurrentContext(ctx);
+    }
+
+    this.loadProjectFiles();
+  }
+
+  public pullRepo(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    this.setStatus(`Pulling latest changes for branch '${this.currentBranch || this.branchName}'...`, false);
+    this.isLoading = true;
+    this.restService.pullRepository$(targetId, this.currentBranch || this.branchName).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.setStatus(`Git pull completed: ${res.summary || 'up to date'}`, false);
         this.loadProjectFiles();
+        if (this.selectedFilePath) {
+          this.loadFileContent();
+        }
       },
       error: (err) => {
-        this.setStatus(`Failed to associate project: ${err.message}`, true);
+        this.isLoading = false;
+        this.setStatus(`Git pull failed: ${err.error?.error || err.message}`, true);
       }
     });
   }
@@ -403,6 +542,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.loadDbMapData();
+        this.loadBranches();
         if (this.selectedFilePath) {
           this.openFile(this.selectedFilePath);
         } else {
@@ -412,6 +552,64 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => {
         this.setStatus(`Error loading files for repository '${targetId}': ${err.message}`, true);
         this.isLoading = false;
+      }
+    });
+  }
+
+  public loadBranches(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    this.restService.getGitBranches$(targetId).subscribe({
+      next: (res) => {
+        this.currentBranch = res.currentBranch || 'main';
+        this.availableBranches = res.branches || [this.currentBranch];
+        // Default the commit modal branchName to currentBranch
+        this.branchName = this.currentBranch;
+      },
+      error: (err) => {
+        logger: console.warn('Could not load branches:', err.message);
+      }
+    });
+  }
+
+  public onBranchChange(newBranch: string): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId || !newBranch || newBranch === this.currentBranch) return;
+
+    this.setStatus(`Switching to branch '${newBranch}'...`, false);
+    this.restService.switchGitBranch$(targetId, newBranch).subscribe({
+      next: () => {
+        this.currentBranch = newBranch;
+        this.branchName = newBranch;
+        this.setStatus(`Switched to branch '${newBranch}'`, false);
+        this.loadBranches();
+        this.loadProjectFiles();
+      },
+      error: (err) => {
+        this.setStatus(`Failed to switch branch: ${err.message}`, true);
+      }
+    });
+  }
+
+  public createNewBranch(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId || !this.newBranchName.trim()) return;
+
+    const branch = this.newBranchName.trim();
+    this.setStatus(`Creating and switching to branch '${branch}'...`, false);
+    this.restService.switchGitBranch$(targetId, branch, true).subscribe({
+      next: () => {
+        this.currentBranch = branch;
+        this.branchName = branch;
+        this.newBranchName = '';
+        this.showNewBranchInput = false;
+        this.setStatus(`Created and checked out new branch '${branch}'`, false);
+        this.loadBranches();
+        this.loadProjectFiles();
+      },
+      error: (err) => {
+        this.setStatus(`Failed to create branch: ${err.message}`, true);
       }
     });
   }
@@ -476,13 +674,16 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
         if (!existingNode) {
           const badges = isFile && this.dbMapData?.files?.[currentPath] ? this.dbMapData.files[currentPath] : undefined;
+          const displayBadges = badges && badges.length > 0 ? badges.slice(0, 2) : undefined;
+          const extraCount = badges && badges.length > 2 ? badges.length - 2 : 0;
           existingNode = {
             name: part,
             path: currentPath,
             type: isFile ? 'file' : 'folder',
             expanded: isFiltering,
             children: isFile ? undefined : [],
-            dbBadges: badges
+            dbBadges: displayBadges,
+            extraBadgeCount: extraCount
           };
           currentLevel.push(existingNode);
         }
@@ -530,20 +731,26 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public openFile(filePath: string): void {
+    if (!filePath) return;
     this.selectedFilePath = filePath;
     this.state.setLastSelectedFile(filePath, this.selectedRepoFolder || this.projectId);
     this.updateCurrentFileDbObjects();
     this.loadFileContent();
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        db: this.selectedDbConnection,
-        file: filePath,
-        projectId: this.selectedRepoFolder || this.projectId
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
+
+    const targetProject = this.selectedRepoFolder || this.projectId;
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['file'] !== filePath || currentParams['projectId'] !== targetProject || currentParams['db'] !== this.selectedDbConnection) {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {
+          db: this.selectedDbConnection,
+          file: filePath,
+          projectId: targetProject
+        },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    }
   }
 
   public updateCurrentFileDbObjects(): void {
@@ -571,7 +778,11 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       this.restService.getGitFile$(targetId, this.selectedFilePath).subscribe({
         next: (res) => {
           this.activeFileContent = res.content || '';
-          this.updateSingleEditorModel();
+          try {
+            this.updateSingleEditorModel();
+          } catch (e) {
+            console.error('Error setting editor model:', e);
+          }
           this.isLoading = false;
           this.setStatus(`Loaded ${this.selectedFilePath}`, false);
         },
@@ -588,13 +799,21 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
           this.restService.getGitFile$(targetId, this.selectedFilePath).subscribe({
             next: (modRes) => {
               this.modifiedContent = modRes.content || '';
-              this.updateDiffEditorModels();
+              try {
+                this.updateDiffEditorModels();
+              } catch (e) {
+                console.error('Error setting diff models:', e);
+              }
               this.isLoading = false;
               this.setStatus(`Loaded diff for ${this.selectedFilePath}`, false);
             },
             error: () => {
               this.modifiedContent = this.originalContent;
-              this.updateDiffEditorModels();
+              try {
+                this.updateDiffEditorModels();
+              } catch (e) {
+                console.error('Error setting diff models:', e);
+              }
               this.isLoading = false;
             }
           });
@@ -604,7 +823,14 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
             next: (modRes) => {
               this.originalContent = '';
               this.modifiedContent = modRes.content || '';
-              this.updateDiffEditorModels();
+              try {
+                this.updateDiffEditorModels();
+              } catch (e) {
+                console.error('Error setting diff models:', e);
+              }
+              this.isLoading = false;
+            },
+            error: () => {
               this.isLoading = false;
             }
           });
@@ -917,7 +1143,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public runIndexDependencies(): void {
     const targetId = this.selectedRepoFolder || this.projectId;
     this.setStatus('Indexing database-to-code dependencies...', false);
-    this.restService.indexDependencies$(targetId, this.selectedDbConnection).subscribe({
+    this.restService.indexDependencies$(targetId, undefined, this.selectedDbConnection).subscribe({
       next: () => {
         this.setStatus('Dependency mapping completed. Saved to .okf/oracle-code-map.json', false);
         this.loadProjectFiles();
@@ -1008,5 +1234,25 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         } catch (e) {}
       }, 3000);
     }
+  }
+
+  get mappedObjectCount(): number {
+    return this.dbMapData?.objects ? Object.keys(this.dbMapData.objects).length : 0;
+  }
+
+  public trackByNodePath(index: number, node: FileTreeNode): string {
+    return node ? node.path : String(index);
+  }
+
+  public trackByString(index: number, item: string): string {
+    return item;
+  }
+
+  public trackByDbEndpoint(index: number, db: { endpoint: string; description: string }): string {
+    return db ? db.endpoint : String(index);
+  }
+
+  public trackByRepoFolder(index: number, repo: { folderName: string }): string {
+    return repo ? repo.folderName : String(index);
   }
 }

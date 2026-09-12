@@ -1,0 +1,60 @@
+<h2 mat-dialog-title>
+  <mat-icon class="dialog-icon">security</mat-icon>
+  Git Session Credentials
+</h2>
+
+<mat-dialog-content class="git-auth-dialog-content">
+  <p class="auth-hint">
+    Git credentials are kept in your browser's <strong>session storage</strong> only. They are sent per-request to authenticate Git operations (clone, pull, push) and are never written to server configuration or disk.
+  </p>
+
+  <form [formGroup]="form">
+    <div class="form-section">
+      <h3 class="section-title">Git Account (HTTPS / Personal Access Token)</h3>
+      <p class="tab-hint">
+        Use a Personal Access Token from GitHub (<code>ghp_...</code>) or GitLab (<code>glpat-...</code>) with repository access.
+      </p>
+
+      <mat-form-field appearance="fill" class="full-width">
+        <mat-label>Git Username</mat-label>
+        <input matInput formControlName="username" placeholder="e.g. GitHub or GitLab username">
+        <mat-icon matSuffix>account_circle</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="full-width">
+        <mat-label>Personal Access Token (PAT)</mat-label>
+        <input matInput [type]="hideToken ? 'password' : 'text'" formControlName="token" placeholder="ghp_... or glpat-...">
+        <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button" [attr.aria-label]="'Toggle token visibility'">
+          <mat-icon>{{hideToken ? 'visibility_off' : 'visibility'}}</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
+    <div class="form-section">
+      <h3 class="section-title">Git Author Identity</h3>
+      <div class="row">
+        <mat-form-field appearance="fill" class="half-width">
+          <mat-label>Author Name</mat-label>
+          <input matInput formControlName="authorName" placeholder="e.g. Jane Doe">
+          <mat-icon matSuffix>person</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="half-width">
+          <mat-label>Author Email</mat-label>
+          <input matInput formControlName="authorEmail" placeholder="e.g. jane@example.com">
+          <mat-icon matSuffix>email</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-stroked-button color="warn" *ngIf="hasExistingAuth" (click)="onClear()" type="button" class="clear-btn">
+    Clear Session Auth
+  </button>
+  <button mat-button (click)="onCancel()" type="button">Cancel</button>
+  <button mat-raised-button color="primary" (click)="onSave()" type="button">
+    Save Session Credentials
+  </button>
+</mat-dialog-actions>

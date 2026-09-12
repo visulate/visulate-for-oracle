@@ -45,6 +45,8 @@ if [ -n "$LOCAL_WHITELIST" ]; then
 fi
 export VISULATE_DOWNLOADS=$(pwd)/downloads
 export GIT_REPOS_DIR="${GIT_REPOS_DIR:-$HOME/git}"
+export GIT_MODE="${GIT_MODE:-local}"
+export ENABLE_GIT_INTEGRATION="${ENABLE_GIT_INTEGRATION:-true}"
 export TNS_ADMIN=${TNS_ADMIN:-$(pwd)/wallet}
 mkdir -p "$TNS_ADMIN"
 mkdir -p "$GIT_REPOS_DIR"

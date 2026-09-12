@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+require('dotenv').config();
+
 const util = require('util');
 if (!util.isDate) {
   util.isDate = function (d) {

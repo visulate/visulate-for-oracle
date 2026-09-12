@@ -453,7 +453,7 @@ module.exports.searchObjects = searchObjects;
  * @param {object} args - The arguments from the MCP request
  */
 async function getContextInternal(args) {
-  const { db, owner, type, name, relationship_types } = args;
+  const { db, owner, type, name, relationship_types, userContext } = args;
   const endpoint = endpointList[db];
   if (!endpoint) {
     throw new Error("Requested database was not found");
@@ -532,6 +532,18 @@ async function getContextInternal(args) {
     relatedObjects: relatedObjectsMap,
     chatHistory: []
   };
+
+  try {
+    const dependencyIndexer = require('./dependencyIndexer');
+    const codeDeps = await dependencyIndexer.getObjectCodeDependencies(db, name, userContext, null, owner);
+    if (codeDeps && codeDeps.found) {
+      contextPayload.codebaseDependencies = codeDeps.files || [];
+      contextPayload.associatedRepo = codeDeps.repoFolder || null;
+    }
+  } catch (depErr) {
+    logger.log('warn', `Failed to get codebase dependencies for ${db}/${name}: ${depErr.message}`);
+  }
+
   return contextPayload;
 }
 
@@ -921,7 +933,7 @@ module.exports.getSchemaRelationships = getSchemaRelationships;
    */
 async function getContext(req, res, next) {
   try {
-    const result = await getContextInternal({ ...req.params, ...req.body });
+    const result = await getContextInternal({ ...req.params, ...req.body, userContext: req.userContext });
     if (req.query.template) {
       try {
         const templateResult = await templateEngine.applyTemplate('context', result, req);
@@ -1589,6 +1601,35 @@ function createMcpServer() {
         };
       }
     },
+  );
+
+  server.tool(
+    'getCodebaseDependencies',
+    'Get codebase files and repository dependencies for a given database object. Returns matching source code files that reference or depend on the database object across repositories associated with the database.',
+    {
+      db: z.string().describe("The database where the object resides."),
+      name: z.string().describe("The name of the database object (e.g. table, package, view)."),
+      owner: z.string().optional().describe("Optional schema owner."),
+      repo: z.string().optional().describe("Optional specific repository folder name.")
+    },
+    async ({ db, name, owner, repo }) => {
+      try {
+        const dependencyIndexer = require('./dependencyIndexer');
+        const result = await dependencyIndexer.getObjectCodeDependencies(db, name, null, repo, owner);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result, null, 2) }
+          ]
+        };
+      } catch (error) {
+        logger.log('error', `MCP getCodebaseDependencies tool failed: ${error.message}`);
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ error: error.message, found: false }, null, 2) }
+          ]
+        };
+      }
+    }
   );
 
   return server;
