@@ -1,0 +1,7 @@
+{
+  "venvPath": "query-engine",
+  "venv": "venv",
+  "extraPaths": [
+    "query-engine"
+  ]
+}

@@ -8,6 +8,8 @@ if [ -d "/dev/shm/mcp_credentials" ]; then
     echo "Clearing credential cache in /dev/shm..."
     rm -rf /dev/shm/mcp_credentials/*
 fi
+
+export CORS_ORIGIN_WHITELIST="${CORS_ORIGIN_WHITELIST:-http://localhost:3000,http://localhost:4200}"
 gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --bind 0.0.0.0:5000 "sql2csv:create_app()" &
 QUERY_ENGINE_PID=$!
 

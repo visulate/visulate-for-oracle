@@ -289,11 +289,11 @@ router.route('/api/git/file')
   })
   .put(async (req, res) => {
     try {
-      const { projectId = 'default-project', filePath, content } = req.body;
+      const { projectId = 'default-project', filePath, content = '' } = req.body;
       if (!filePath) {
         return res.status(400).json({ error: 'filePath is required' });
       }
-      const result = await gitService.saveFileContent(projectId, filePath, content, req.userContext);
+      const result = await gitService.saveFileContent(projectId, filePath, content ?? '', req.userContext);
       res.json(result);
     } catch (err) {
       handleGitError(res, err);

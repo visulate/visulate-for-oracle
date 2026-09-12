@@ -24,4 +24,23 @@ describe('StateService', () => {
     const service: StateService = TestBed.inject(StateService);
     expect(service).toBeTruthy();
   });
+
+  it('should have aiPanelExpanded default to false', () => {
+    const service: StateService = TestBed.inject(StateService);
+    expect(service.getAiPanelExpanded()).toBe(false);
+  });
+
+  it('should update and emit aiPanelExpanded when set', () => {
+    const service: StateService = TestBed.inject(StateService);
+    let emittedValue: boolean | undefined;
+    service.aiPanelExpanded$.subscribe(val => emittedValue = val);
+
+    service.setAiPanelExpanded(true);
+    expect(service.getAiPanelExpanded()).toBe(true);
+    expect(emittedValue).toBe(true);
+
+    service.setAiPanelExpanded(false);
+    expect(service.getAiPanelExpanded()).toBe(false);
+    expect(emittedValue).toBe(false);
+  });
 });

@@ -65,15 +65,17 @@ export class SqlComponent implements OnInit, OnDestroy {
   processContextChange(subjectContext: ContextBehaviorSubjectModel) {
     const context = subjectContext.currentContext;
     this.currentContext = context;
-    this.dbUser = this.currentContext.owner ? this.currentContext.owner : 'VISULATE';
+    if (this.currentContext?.endpoint) {
+      this.queryUrl = `${this.queryBase}/${this.currentContext.endpoint}`;
+    }
+
+    const endpoint = this.endpointList?.databases?.find(d => d.endpoint === this.currentContext?.endpoint);
+    this.isPostgres = endpoint?.dbType === 'postgres';
 
     if (this.currentContext.objectName &&
       (this.currentContext.objectType === 'TABLE' ||
         this.currentContext.objectType === 'VIEW' ||
         this.currentContext.objectType === 'MATERIALIZED VIEW')) {
-      
-      const endpoint = this.endpointList?.databases?.find(d => d.endpoint === this.currentContext.endpoint);
-      this.isPostgres = endpoint?.dbType === 'postgres';
       
       if (this.isPostgres) {
         this.setSql(`select * from ${this.currentContext.objectName} limit %(maxrows)s`);
@@ -95,13 +97,22 @@ export class SqlComponent implements OnInit, OnDestroy {
   }
 
 
+  public processUser(username: string) {
+    this.dbUser = username;
+    if (this.currentContext?.endpoint) {
+      this.dbCredentials = btoa(`${this.dbUser}/${this.password || ''}@${this.currentContext.endpoint}`);
+    }
+  }
+
   /**
    * Generate basic auth header for request
    * @param password - database password for current user
    */
   public processPassword(password: string) {
     this.password = password;
-    this.dbCredentials = btoa(`${this.dbUser}/${password}@${this.currentContext.endpoint}`);
+    if (this.currentContext?.endpoint) {
+      this.dbCredentials = btoa(`${this.dbUser || ''}/${this.password}@${this.currentContext.endpoint}`);
+    }
   }
 
   /**
@@ -126,7 +137,11 @@ export class SqlComponent implements OnInit, OnDestroy {
       }
     }
     // Default/Reset state if no credentials found
-    this.dbUser = this.currentContext.owner ? this.currentContext.owner : 'VISULATE';
+    if (this.isPostgres) {
+      this.dbUser = 'postgres';
+    } else {
+      this.dbUser = this.currentContext.owner ? this.currentContext.owner : 'VISULATE';
+    }
     this.password = '';
     this.dbCredentials = '';
   }

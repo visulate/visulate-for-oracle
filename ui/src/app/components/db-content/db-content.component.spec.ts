@@ -23,7 +23,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { FormsModule, ReactiveFormsModule} from '@angular/forms';
 import { MatListModule} from '@angular/material/list';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { HighlightModule} from 'ngx-highlightjs';
+import { HighlightModule, HIGHLIGHT_OPTIONS } from 'ngx-highlightjs';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatInputModule} from '@angular/material/input';
 
@@ -39,6 +39,8 @@ import { RegistrationHelperComponent } from '../registration-helper/registration
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
+import { StateService } from '../../services/state.service';
+import { CurrentContextModel } from '../../models/current-context.model';
 
 describe('DbContentComponent', () => {
   let component: DbContentComponent;
@@ -60,7 +62,20 @@ describe('DbContentComponent', () => {
         MatDialogModule,
         MatIconModule,
         RouterTestingModule],
-      providers: [provideHttpClient(withXhr(), withInterceptorsFromDi()), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(withXhr(), withInterceptorsFromDi()),
+        provideHttpClientTesting(),
+        {
+          provide: HIGHLIGHT_OPTIONS,
+          useValue: {
+            coreLibraryLoader: () => import('highlight.js/lib/core'),
+            languages: {
+              pgsql: () => import('highlight.js/lib/languages/pgsql'),
+              sql: () => import('highlight.js/lib/languages/sql')
+            }
+          }
+        }
+      ]
     })
       .compileComponents();
   }));
@@ -74,4 +89,177 @@ describe('DbContentComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('should have aiPanelExpanded default to false', () => {
+    expect(component.aiPanelExpanded).toBe(false);
+  });
+
+  it('should expand only the first property with rows on processObject', () => {
+    const mockDetails = {
+      objectProperties: [
+        { title: 'Empty Section', description: 'No rows', display: [], link: '', rows: [] },
+        { title: 'Columns', description: 'Table columns', display: ['name'], link: '', rows: [{ name: 'ID' }, { name: 'NAME' }] },
+        { title: 'Constraints', description: 'Table constraints', display: ['name'], link: '', rows: [{ name: 'PK_EMP' }] },
+        { title: 'Indexes', description: 'Table indexes', display: ['name'], link: '', rows: [{ name: 'IDX_EMP' }] }
+      ]
+    } as any;
+
+    component.processObject(mockDetails);
+
+    expect(mockDetails.objectProperties[0].expanded).toBe(false);
+    expect(mockDetails.objectProperties[1].expanded).toBe(true);
+    expect(mockDetails.objectProperties[2].expanded).toBe(false);
+    expect(mockDetails.objectProperties[3].expanded).toBe(false);
+  });
+
+  it('should preserve aiPanelExpanded state during navigation / subsequent processObject calls', () => {
+    expect(component.aiPanelExpanded).toBe(false);
+
+    // User expands Agentic AI tile
+    component.aiPanelExpanded = true;
+    expect(component.aiPanelExpanded).toBe(true);
+
+    // User navigates to a new page (processObject called with new details)
+    const page1Details = {
+      objectProperties: [
+        { title: 'Columns', description: '', display: [], link: '', rows: [{ a: 1 }] },
+        { title: 'Constraints', description: '', display: [], link: '', rows: [{ b: 2 }] }
+      ]
+    } as any;
+    component.processObject(page1Details);
+
+    // Agentic AI remains open during navigation
+    expect(component.aiPanelExpanded).toBe(true);
+    // Only the first property on the new page is open
+    expect(page1Details.objectProperties[0].expanded).toBe(true);
+    expect(page1Details.objectProperties[1].expanded).toBe(false);
+
+    // User closes Agentic AI tile
+    component.aiPanelExpanded = false;
+
+    // User navigates to another page
+    const page2Details = {
+      objectProperties: [
+        { title: 'Tables', description: '', display: [], link: '', rows: [{ c: 3 }] },
+        { title: 'Views', description: '', display: [], link: '', rows: [{ d: 4 }] }
+      ]
+    } as any;
+    component.processObject(page2Details);
+
+    // Agentic AI remains closed
+    expect(component.aiPanelExpanded).toBe(false);
+    expect(page2Details.objectProperties[0].expanded).toBe(true);
+    expect(page2Details.objectProperties[1].expanded).toBe(false);
+  });
+
+  it('should clear objectDetails, ddlLink, and relatedCodeFiles when navigating to home page with no endpoint', () => {
+    component.objectDetails = {
+      objectProperties: [
+        { title: 'Columns', description: '', display: [], link: '', rows: [{ a: 1 }] }
+      ]
+    } as any;
+    component.ddlLink = 'http://some-ddl';
+    component.relatedCodeFiles = ['file1.sql'];
+    component.associatedRepo = 'my-repo';
+
+    const homeContext = {
+      currentContext: {
+        endpoint: '',
+        owner: '',
+        objectType: '',
+        objectName: '',
+        filter: '',
+        showInternal: false,
+        objectList: []
+      },
+      changeSummary: {
+        endpointDiff: true,
+        ownerDiff: true,
+        objectTypeDiff: true,
+        objectNameDiff: true,
+        filterDiff: false,
+        showInternalDiff: false
+      }
+    } as any;
+
+    component.processContextChange(homeContext);
+
+    expect(component.objectDetails).toBeUndefined();
+    expect(component.ddlLink).toBe('');
+    expect(component.relatedCodeFiles.length).toBe(0);
+    expect(component.associatedRepo).toBe('');
+  });
+
+  it('should copy text to clipboard and track copiedKey on success', async () => {
+    if (navigator.clipboard) {
+      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+    }
+    spyOn(document, 'execCommand').and.callFake(() => true);
+    component.copyToClipboard('psql -h localhost', 'ep1-cli');
+    await Promise.resolve();
+    expect(component.copiedKey).toBe('ep1-cli');
+  });
+
+  it('should not set copiedKey when copy fails', async () => {
+    if (navigator.clipboard) {
+      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.reject('error'));
+    }
+    spyOn(document, 'execCommand').and.callFake(() => false);
+    component.copyToClipboard('psql -h localhost', 'ep1-cli');
+    await Promise.resolve();
+    expect(component.copiedKey).toBe('');
+  });
+
+  it('should render Trigger Body in #source-code with line numbers', async () => {
+    const triggerDetails = {
+      objectProperties: [
+        {
+          title: 'Trigger Details',
+          description: '',
+          display: ['Table Name'],
+          rows: [{ 'Table Name': 'EMPLOYEES' }]
+        },
+        {
+          title: 'Referencing Names',
+          description: '',
+          display: ['Referencing Names'],
+          rows: [{ 'Referencing Names': 'REFERENCING NEW AS NEW OLD AS OLD' }]
+        },
+        {
+          title: 'Trigger Body',
+          description: 'PL/SQL trigger body',
+          display: ['Line', 'Text'],
+          expanded: true,
+          rows: [
+            { Line: 1, Text: 'TRIGGER secure_employees\n' },
+            { Line: 2, Text: 'BEGIN\n' },
+            { Line: 3, Text: '  secure_dml;\n' },
+            { Line: 4, Text: 'END;' }
+          ]
+        }
+      ]
+    } as any;
+
+    fixture.destroy();
+
+    const stateService = TestBed.inject(StateService);
+    stateService.setCurrentContext(new CurrentContextModel('pdb22', 'HR', 'TRIGGER', 'SECURE_EMPLOYEES', '', false, []));
+
+    const localFixture = TestBed.createComponent(DbContentComponent);
+    const localComponent = localFixture.componentInstance;
+    spyOn(localComponent, 'processContextChange').and.callFake(() => {});
+    localComponent.ngOnInit();
+    localComponent.aiEnabled = false;
+    localComponent.objectDetails = triggerDetails;
+    localFixture.detectChanges();
+
+    const compiled = localFixture.nativeElement as HTMLElement;
+    const sourceCodePre = compiled.querySelector('#source-code');
+    expect(sourceCodePre).toBeTruthy();
+    const lines = sourceCodePre?.querySelectorAll('.line');
+    expect(lines?.length).toBe(4);
+    expect(lines?.[0].textContent?.trim()).toBe('1');
+    expect(lines?.[3].textContent?.trim()).toBe('4');
+  });
 });
+

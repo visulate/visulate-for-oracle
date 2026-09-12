@@ -58,7 +58,53 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public aiEnabled: boolean;
   public errorMessage: string;
   public isChatFullScreen$ = this.state.isChatFullScreen$;
-  public aiPanelExpanded: boolean = true;
+  public copiedKey: string = '';
+  private copiedTimeout: any;
+
+  public copyToClipboard(text: string, key: string): void {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.onCopySuccess(key);
+      }).catch(() => {
+        if (this.fallbackCopy(text)) {
+          this.onCopySuccess(key);
+        }
+      });
+    } else {
+      if (this.fallbackCopy(text)) {
+        this.onCopySuccess(key);
+      }
+    }
+  }
+
+  private fallbackCopy(text: string): boolean {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return success;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  private onCopySuccess(key: string): void {
+    this.copiedKey = key;
+    clearTimeout(this.copiedTimeout);
+    this.copiedTimeout = setTimeout(() => {
+      this.copiedKey = '';
+    }, 2000);
+  }
+
+  get aiPanelExpanded(): boolean {
+    return this.state.getAiPanelExpanded();
+  }
+  set aiPanelExpanded(value: boolean) {
+    this.state.setAiPanelExpanded(value);
+  }
   mobileQuery: MediaQueryList;
   private _mobileQueryListener: () => void;
 
@@ -85,6 +131,17 @@ export class DbContentComponent implements OnInit, OnDestroy {
   }
 
   processObject(objectDetails: DatabaseObjectModel) {
+    if (objectDetails && objectDetails.objectProperties) {
+      let firstFound = false;
+      for (const prop of objectDetails.objectProperties) {
+        if (!firstFound && prop.rows && prop.rows.length > 0) {
+          prop.expanded = true;
+          firstFound = true;
+        } else {
+          prop.expanded = false;
+        }
+      }
+    }
     this.objectDetails = objectDetails;
   }
 
@@ -153,6 +210,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
     // Call the database summary API when the user selects an endpoint
     if (context.endpoint && (!context.owner) && (!context.objectName)
       && (subjectContext.changeSummary.endpointDiff || subjectContext.changeSummary.ownerDiff)) {
+      this.objectDetails = undefined as any;
       this.restService.getDatabaseProperties$(context.endpoint)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
@@ -163,6 +221,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
       && (subjectContext.changeSummary.ownerDiff || 
           subjectContext.changeSummary.filterDiff ||
           subjectContext.changeSummary.objectNameDiff)) {
+      this.objectDetails = undefined as any;
       this.restService.getSchemaProperties$(context.endpoint, context.owner, context.filter)
         .pipe(takeUntil(this.unsubscribe$))
         .subscribe(result => { this.processObject(result); });
@@ -188,6 +247,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
       && (subjectContext.changeSummary.objectNameDiff ||
         subjectContext.changeSummary.objectTypeDiff && !subjectContext.changeSummary.objectNameDiff)) {
 
+      this.objectDetails = undefined as any;
       this.setDdlLink(context.endpoint, context.owner, context.objectType, context.objectName);
       // Un-comment the following lines to expand the query panel when a table, view or materialized view is selected
       // if ( context.objectType === 'TABLE' ||
@@ -203,6 +263,13 @@ export class DbContentComponent implements OnInit, OnDestroy {
 
       this.loadRelatedCodeFiles(context.endpoint, context.objectName);
     } else if (!context.objectName) {
+      this.ddlLink = '';
+      this.relatedCodeFiles = [];
+      this.associatedRepo = '';
+    }
+
+    if (!context.endpoint) {
+      this.objectDetails = undefined as any;
       this.ddlLink = '';
       this.relatedCodeFiles = [];
       this.associatedRepo = '';
@@ -275,6 +342,10 @@ export class DbContentComponent implements OnInit, OnDestroy {
     this.state.toggleAccordions$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(expanded => {
+        this.aiPanelExpanded = expanded;
+        if (this.objectDetails && this.objectDetails.objectProperties) {
+          this.objectDetails.objectProperties.forEach(prop => prop.expanded = expanded);
+        }
         if (this.panels) {
           this.panels.forEach(panel => {
             if (expanded) {
@@ -290,6 +361,7 @@ export class DbContentComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    clearTimeout(this.copiedTimeout);
     this.mobileQuery.removeEventListener('change', this._mobileQueryListener);
     this.unsubscribe$.next();
     this.unsubscribe$.complete();

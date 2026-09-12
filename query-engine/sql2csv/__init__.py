@@ -53,7 +53,7 @@ def create_app(test_config=None):
 
     origin_str = os.getenv('CORS_ORIGIN_WHITELIST')
     if origin_str is not None:
-        origin_list = origin_str.split(',')
+        origin_list = [o.strip() for o in origin_str.split(',') if o.strip()]
     else:
         origin_list = 'false'
     CORS(app, resources={r"/sql/*": {"origins": origin_list}})

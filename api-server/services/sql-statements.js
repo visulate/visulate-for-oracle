@@ -151,10 +151,15 @@ function loadDialect(dialect) {
 
   collection['TRIGGER'] = {
     objectNameQueries: [
-      statement['TRIGGER-DETAILS']
+      statement['TRIGGER-DETAILS'],
+      statement['TRIGGER-REFERENCING-NAMES'],
+      statement['TRIGGER-WHEN-CLAUSE'],
+      statement['TRIGGER-DESCRIPTION']
     ].filter(s => s !== undefined),
     objectIdQueries: [],
-    objectTypeQueries: []
+    objectTypeQueries: [
+      statement['TRIGGER-BODY']
+    ].filter(s => s !== undefined)
   };
 
   collection['INDEX'] = {

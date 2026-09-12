@@ -76,6 +76,9 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public availableBranches: string[] = [];
   public newBranchName: string = '';
   public showNewBranchInput: boolean = false;
+  public newFilePath: string = '';
+  public showNewFileInput: boolean = false;
+  @ViewChild('newFileInputRef', { static: false }) newFileInputRef?: ElementRef<HTMLInputElement>;
   public commitMessage: string = 'Update codebase and OKF memory documentation';
   public statusMessage: string = '';
   public isError: boolean = false;
@@ -376,6 +379,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       event.preventDefault();
       this.toggleDbRepoAssociation();
     }
+    if (event.altKey && event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      this.toggleNewFileInput();
+    }
   }
 
   public syncProjectAssociation(): void {
@@ -610,6 +617,83 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         this.setStatus(`Failed to create branch: ${err.message}`, true);
+      }
+    });
+  }
+
+  public toggleNewFileInput(): void {
+    if (!this.selectedRepoFolder) {
+      this.setStatus('Please select a repository first', true);
+      return;
+    }
+    this.showNewFileInput = !this.showNewFileInput;
+    if (this.showNewFileInput) {
+      setTimeout(() => {
+        this.newFileInputRef?.nativeElement?.focus();
+      }, 50);
+    }
+  }
+
+  public cancelNewFile(): void {
+    this.showNewFileInput = false;
+    this.newFilePath = '';
+  }
+
+  public createNewFile(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) {
+      this.setStatus('Please select a repository first', true);
+      return;
+    }
+
+    let filePath = (this.newFilePath || '').trim();
+    if (!filePath) {
+      this.setStatus('Please enter a valid file path', true);
+      return;
+    }
+
+    // Normalize path separators and remove leading slashes
+    filePath = filePath.replace(/\\/g, '/').replace(/^\/+/, '');
+
+    if (filePath.includes('..')) {
+      this.setStatus("File path cannot contain '..'", true);
+      return;
+    }
+
+    // If file already exists in project, simply open it
+    if (this.projectFiles.includes(filePath)) {
+      this.setStatus(`File '${filePath}' already exists. Opening existing file.`, false);
+      this.cancelNewFile();
+      this.openFile(filePath);
+      return;
+    }
+
+    this.setStatus(`Creating file '${filePath}'...`, false);
+    this.isLoading = true;
+
+    this.restService.saveGitFile$(targetId, filePath, '').subscribe({
+      next: () => {
+        this.setStatus(`Successfully created '${filePath}'`, false);
+        this.cancelNewFile();
+        this.restService.listGitFiles$(targetId).subscribe({
+          next: (res) => {
+            this.isLoading = false;
+            this.projectFiles = res.files || [];
+            this.applyFileFilter();
+            this.openFile(filePath);
+            setTimeout(() => {
+              this.monacoEditor?.focus();
+            }, 200);
+          },
+          error: (err) => {
+            this.isLoading = false;
+            this.setStatus(`File created, but failed to reload file list: ${err.message}`, true);
+          }
+        });
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.setStatus(`Failed to create file '${filePath}': ${err.message}`, true);
       }
     });
   }

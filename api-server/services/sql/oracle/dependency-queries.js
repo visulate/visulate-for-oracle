@@ -43,7 +43,7 @@ statement['SOURCE-LINE-DEPENDENCY'] = {
 
 statement['USED-BY-OBJECTS'] = {
   'title': 'Used By',
-  'description': 'Dependencies other objects have on this one',
+  'description': 'Dependencies other database objects have on this one',
   'display': ["Object Name", "Object Type", "Line"],
   'link': 'Object Name',
   'sql' : `select d.d_obj# object_id
@@ -68,7 +68,7 @@ statement['USED-BY-OBJECTS'] = {
 };
 statement['USES-OBJECTS'] = {
   'title': 'Uses',
-  'description': 'Dependencies this object has on others',
+  'description': 'Dependencies this object has on other database objects',
   'display': ["Object Name", "Object Type", "Line"],
   'link': 'Object Name',
   'sql' : `select d.p_obj#
@@ -106,7 +106,7 @@ statement['USED-BY-OBJECTS-NOLINE'] = {
 };
 statement['USES-OBJECTS-NOLINE'] = {
   'title': 'Uses',
-  'description': 'Dependencies this object has on others',
+  'description': 'Dependencies this object has on other database objects',
   'display': ["Object Name", "Object Type"],
   'link': 'Object Name',
   'sql' : `select p_obj# as object_id
@@ -134,7 +134,7 @@ statement['USES-OBJECTS-NOLINE'] = {
 
 statement['USED-BY-ADB'] = {
   'title': 'Used By',
-  'description': 'Dependencies other objects have on this one',
+  'description': 'Dependencies other database objects have on this one',
   'display': ["Object Name", "Object Type"],
   'link': 'Object Name',
   'sql' : `select name as "Object Name"
@@ -155,7 +155,7 @@ statement['USED-BY-ADB'] = {
 
 statement['USES-ADB'] = {
   'title': 'Uses',
-  'description': 'Dependencies this object has on others',
+  'description': 'Dependencies this object has on other database objects',
   'display': ["Object Name", "Object Type"],
   'link': 'Object Name',
   'sql' : `select referenced_name as "Object Name"
@@ -177,7 +177,7 @@ statement['USES-ADB'] = {
 // used by collections query
 statement['DEPENDS-ON'] = {
   'title': 'Depends On',
-  'description': 'Dependencies this object has on others',
+  'description': 'Dependencies this object has on other database objects',
   'display': ["Object Name", "Object Type"],
   'link': 'Object Name',
   'sql' : `select p_obj# as object_id

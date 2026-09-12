@@ -21,7 +21,7 @@ python -m schema_comparison_agent.main &
 python -m root_agent.main &
 
 # Trap to kill all background processes on exit
-trap 'kill $(jobs -p) 2>/dev/null' EXIT
+trap 'kill $(jobs -p) 2>/dev/null; wait 2>/dev/null; exit 0' INT TERM EXIT
 
 echo "Agents started:"
 echo "- Root Agent: http://localhost:10000"

@@ -87,7 +87,7 @@ export class MainNavComponent implements OnInit, OnDestroy {
           context.setOwner(schema != null ? (useUpper ? schema.toUpperCase() : schema) : '');
           context.setObjectType(type != null ? type.toUpperCase() : '');
           context.setObjectName(object != null ? (useUpper ? object.toUpperCase() : object) : '');
-          if (object != null) {
+          if (object != null || type != null) {
             this.opened = this.mobileQuery.matches ? null : 'opened';
           }
         }

@@ -57,6 +57,7 @@ export class StateService {
   private isChatFullScreen = new BehaviorSubject<boolean>(false);
   private isDarkModeSubject = new BehaviorSubject<boolean>(localStorage.getItem('theme') === 'dark');
   private toggleAccordions = new Subject<boolean>();
+  private aiPanelExpandedSubject = new BehaviorSubject<boolean>(false);
 
   endpoints$ = this.endpointList.asObservable();
   currentContext$ = this.subjectContext.asObservable();
@@ -66,6 +67,7 @@ export class StateService {
   isChatFullScreen$ = this.isChatFullScreen.asObservable();
   toggleAccordions$ = this.toggleAccordions.asObservable();
   isDarkMode$ = this.isDarkModeSubject.asObservable();
+  aiPanelExpanded$ = this.aiPanelExpandedSubject.asObservable();
 
   setDarkMode(isDark: boolean): void {
     this.isDarkModeSubject.next(isDark);
@@ -370,5 +372,12 @@ export class StateService {
     this.toggleAccordions.next(expanded);
   }
 
+  getAiPanelExpanded(): boolean {
+    return this.aiPanelExpandedSubject.getValue();
+  }
+
+  setAiPanelExpanded(expanded: boolean): void {
+    this.aiPanelExpandedSubject.next(expanded);
+  }
 
 }

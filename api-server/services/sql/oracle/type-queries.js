@@ -87,17 +87,14 @@ statement['TRIGGER-DETAILS'] = {
   'title': 'Trigger Details',
   'description': '',
   'display': ["Table Owner", "Base Object Type", "Table Name",
-              "Column", "Referencing Names", "When Clause",
-              "Description", "Action Type", "Body"],
+              "Column", "Trigger Type", "Triggering Event", "Action Type"],
   'sql' : `select table_owner as "Table Owner"
            ,      base_object_type as "Base Object Type"
            ,      table_name as "Table Name"
            ,      column_name as "Column"
-           ,      referencing_names as "Referencing Names"
-           ,      when_clause as "When Clause"
-           ,      description as "Description"
+           ,      trigger_type as "Trigger Type"
+           ,      triggering_event as "Triggering Event"
            ,      action_type as "Action Type"
-           ,      trigger_body as "Body"
            from dba_triggers
            where owner = :owner
            and   trigger_name = :object_name`,
@@ -105,6 +102,66 @@ statement['TRIGGER-DETAILS'] = {
     owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
     object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
   }
+};
+statement['TRIGGER-REFERENCING-NAMES'] = {
+  'title': 'Referencing Names',
+  'description': '',
+  'display': ["Referencing Names"],
+  'sql' : `select referencing_names as "Referencing Names"
+           from dba_triggers
+           where owner = :owner
+           and   trigger_name = :object_name
+           and   referencing_names is not null`,
+  'params' : {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+statement['TRIGGER-WHEN-CLAUSE'] = {
+  'title': 'When Clause',
+  'description': '',
+  'display': ["When Clause"],
+  'sql' : `select when_clause as "When Clause"
+           from dba_triggers
+           where owner = :owner
+           and   trigger_name = :object_name
+           and   when_clause is not null`,
+  'params' : {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+statement['TRIGGER-DESCRIPTION'] = {
+  'title': 'Description',
+  'description': 'Trigger description and header',
+  'display': ["Description"],
+  'sql' : `select description as "Description"
+           from dba_triggers
+           where owner = :owner
+           and   trigger_name = :object_name
+           and   description is not null`,
+  'params' : {
+    owner : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name : { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  }
+};
+statement['TRIGGER-BODY'] = {
+  'title': 'Trigger Body',
+  'description': 'PL/SQL trigger body',
+  'display': ["Line", "Text"],
+  'sql' : `select distinct line as "Line"
+           ,      text as "Text"
+           from dba_source
+           where owner = :owner
+           and type = :object_type
+           and name = :object_name
+           order by line`,
+  'params' : {
+    owner: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_type: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" },
+    object_name: { dir: oracledb.BIND_IN, type:oracledb.STRING, val: "" }
+  },
+  'then': 'extractSqlStatements'
 };
 statement['DECODE-SYNONYM'] = {
   'title': 'Synonym for',

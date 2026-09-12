@@ -265,7 +265,6 @@ statement['SCHEMA-SUMMARY'] = {
               WHEN 'r' THEN 'TABLE'
               WHEN 'v' THEN 'VIEW'
               WHEN 'm' THEN 'MATERIALIZED VIEW'
-              WHEN 'S' THEN 'SEQUENCE'
               WHEN 'f' THEN 'FOREIGN TABLE'
               WHEN 'p' THEN 'PARTITIONED TABLE'
             END as "Type",
@@ -274,14 +273,13 @@ statement['SCHEMA-SUMMARY'] = {
                                    WHEN 'r' THEN 'TABLE'
                                    WHEN 'v' THEN 'VIEW'
                                    WHEN 'm' THEN 'MATERIALIZED VIEW'
-                                   WHEN 'S' THEN 'SEQUENCE'
                                    WHEN 'f' THEN 'FOREIGN TABLE'
                                    WHEN 'p' THEN 'PARTITIONED TABLE'
                                  END) || '/' || c.relname as link
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE n.nspname = LOWER(:owner)
-          AND c.relkind IN ('r', 'v', 'm', 'S', 'f', 'p')
+          AND c.relkind IN ('r', 'v', 'm', 'f', 'p')
           ORDER BY 2, 1`,
   'params': {
     owner: { val: "" }

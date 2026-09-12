@@ -48,6 +48,7 @@ export class EndpointModel implements Deserializable {
 
   public userSchemaCount: number = 0;
   public internalSchemaCount: number = 0;
+  public userSchemas: SchemaModel[] = [];
   public aggregatedObjectTypes: { type: string, count: number }[] = [];
 
   deserialize(input: any): this {
@@ -63,19 +64,53 @@ export class EndpointModel implements Deserializable {
     this.userSchemaCount = this.schemas.filter(s => !s.internal).length;
     this.internalSchemaCount = this.schemas.filter(s => s.internal).length;
 
+    this.userSchemas = this.schemas
+      .filter(s => !s.internal && s.objectTypes && s.objectTypes.length > 0)
+      .sort((a, b) => a.owner.localeCompare(b.owner));
+
     const summary: { [key: string]: number } = {};
-    this.schemas.forEach(s => {
-      if (s.objectTypes) {
-        s.objectTypes.forEach(o => {
-          summary[o.type] = (summary[o.type] || 0) + Number(o.count);
-        });
-      }
+    this.userSchemas.forEach(s => {
+      s.objectTypes.forEach(o => {
+        summary[o.type] = (summary[o.type] || 0) + Number(o.count);
+      });
     });
     this.aggregatedObjectTypes = Object.entries(summary)
       .map(([type, count]) => ({ type, count }))
       .sort((a, b) => b.count - a.count);
 
     return this;
+  }
+
+  public get cliCommand(): string {
+    if (!this.connectString) return '';
+    if (this.dbType === 'postgres') {
+      if (this.connectString.startsWith('postgresql://') || this.connectString.startsWith('postgres://')) {
+        if (!this.connectString.includes('@')) {
+          const schemeIndex = this.connectString.indexOf('://') + 3;
+          const uriWithUser = this.connectString.slice(0, schemeIndex) + '<username>@' + this.connectString.slice(schemeIndex);
+          return `psql "${uriWithUser}"`;
+        }
+        return `psql "${this.connectString}"`;
+      }
+      const parts = this.connectString.split('/');
+      if (parts.length === 2) {
+        const hostPort = parts[0].split(':');
+        const host = hostPort[0];
+        const port = hostPort[1] || '5432';
+        const db = parts[1];
+        return `psql -h ${host} -p ${port} -d ${db} -U <username>`;
+      }
+      return `psql -d ${this.connectString} -U <username>`;
+    } else {
+      if (this.connectString.startsWith('(')) {
+        return `sqlplus <username>@'${this.connectString}'`;
+      }
+      return `sqlplus <username>@${this.connectString}`;
+    }
+  }
+
+  public get cliLabel(): string {
+    return this.dbType === 'postgres' ? 'psql' : 'sqlplus';
   }
 }
 
