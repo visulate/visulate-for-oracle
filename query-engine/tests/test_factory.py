@@ -112,6 +112,23 @@ def test_default_cors_false(client):
     assert response.status_code == 200
     assert response.access_control_allow_origin == 'false'
 
+def test_cors_whitelist(monkeypatch):
+    monkeypatch.setenv("CORS_ORIGIN_WHITELIST", "http://localhost:3000, http://localhost:4200")
+    app = create_app()
+    with app.test_client() as c:
+        resp = c.get(f"/sql/{validEndpoint}", headers={"Origin": "http://localhost:4200"})
+        assert resp.status_code == 200
+        assert resp.access_control_allow_origin == "http://localhost:4200"
+
+        # Test preflight OPTIONS
+        resp_options = c.options(f"/sql/{validEndpoint}", headers={
+            "Origin": "http://localhost:4200",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,x-db-credentials"
+        })
+        assert resp_options.status_code == 200
+        assert resp_options.access_control_allow_origin == "http://localhost:4200"
+
 def test_healthz(client):
     response = client.get(f"/healthz")
     assert response.data == b'healthy'

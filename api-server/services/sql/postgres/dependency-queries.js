@@ -18,7 +18,7 @@ let statement = {};
 
 statement['USED-BY-OBJECTS'] = {
   'title': 'Used By',
-  'description': 'Dependencies other objects have on this one',
+  'description': 'Dependencies other database objects have on this one',
   'display': ["Object Name", "Object Type", "Owner"],
   'link': 'Object Name',
   'sql': `WITH dependencies AS (
@@ -65,7 +65,7 @@ statement['USED-BY-OBJECTS'] = {
 
 statement['USES-OBJECTS'] = {
   'title': 'Uses',
-  'description': 'Dependencies this object has on others',
+  'description': 'Dependencies this object has on other database objects',
   'display': ["Object Name", "Object Type", "Owner"],
   'link': 'Object Name',
   'sql': `WITH dependencies AS (

@@ -16,39 +16,13 @@
   </mat-form-field>
   }
 
-  @if (enableGitIntegration && relatedCodeFiles && relatedCodeFiles.length > 0) {
-  <mat-accordion>
-    <mat-expansion-panel [expanded]="true">
-      <mat-expansion-panel-header>
-        <mat-panel-title>
-          Related Repository Code Files
-        </mat-panel-title>
-        <mat-panel-description>
-          Mapped codebase files {{ associatedRepo ? 'in ' + associatedRepo : '' }} ({{ relatedCodeFiles.length }})
-        </mat-panel-description>
-      </mat-expansion-panel-header>
-      <div class="code-files-list">
-        @for (file of relatedCodeFiles; track file) {
-        <div class="code-file-item" (click)="openInWorkbench(file)">
-          <mat-icon class="file-icon">description</mat-icon>
-          <span class="file-path">{{ file }}</span>
-          <button mat-stroked-button color="primary" class="open-btn">
-            <mat-icon>edit</mat-icon> Open in Workbench
-          </button>
-        </div>
-        }
-      </div>
-    </mat-expansion-panel>
-  </mat-accordion>
-  }
-
   <ng-container *ngTemplateOutlet="queryResults"></ng-container>
 </div>
 } @else {
 @if (currentContext && !currentContext.owner) {
 @if (!aiEnabled) {
 <mat-accordion>
-  <mat-expansion-panel [expanded]="true">
+  <mat-expansion-panel [expanded]="false">
     <mat-expansion-panel-header>
       <mat-panel-title>
         Oracle Database Catalog
@@ -73,7 +47,7 @@
   <mat-expansion-panel [(expanded)]="aiPanelExpanded">
     <mat-expansion-panel-header>
       <mat-panel-title>
-        Generative AI
+        Agentic AI
       </mat-panel-title>
       <mat-panel-description>
         Database Analysis
@@ -119,6 +93,52 @@
             @if (db.version) {
             <p><strong>Version:</strong> {{ db.version }}</p>
             }
+            @if (db.connectString) {
+            <div class="db-connect-box" (click)="$event.stopPropagation()">
+              <div class="connect-row">
+                <span class="connect-label">Connect:</span>
+                <input type="text"
+                       class="connect-code"
+                       readonly
+                       [value]="db.connectString"
+                       [title]="db.connectString"
+                       (click)="$event.stopPropagation()"
+                       (keydown)="$event.stopPropagation()"
+                       spellcheck="false"
+                       [attr.aria-label]="'Connect string for ' + db.endpoint">
+                <button mat-icon-button class="copy-btn"
+                        (click)="copyToClipboard(db.connectString, db.endpoint + '-cs')"
+                        [attr.aria-label]="'Copy connect string for ' + db.endpoint"
+                        [title]="copiedKey === db.endpoint + '-cs' ? 'Copied!' : 'Copy connect string'">
+                  <mat-icon class="copy-icon" [ngClass]="{'copied': copiedKey === db.endpoint + '-cs'}">
+                    {{ copiedKey === db.endpoint + '-cs' ? 'check' : 'content_copy' }}
+                  </mat-icon>
+                </button>
+              </div>
+              @if (db.cliCommand) {
+              <div class="connect-row cli-row">
+                <span class="connect-label">{{ db.cliLabel }}:</span>
+                <input type="text"
+                       class="connect-code cli-code"
+                       readonly
+                       [value]="db.cliCommand"
+                       [title]="db.cliCommand"
+                       (click)="$event.stopPropagation()"
+                       (keydown)="$event.stopPropagation()"
+                       spellcheck="false"
+                       [attr.aria-label]="db.cliLabel + ' command for ' + db.endpoint">
+                <button mat-icon-button class="copy-btn"
+                        (click)="copyToClipboard(db.cliCommand, db.endpoint + '-cli')"
+                        [attr.aria-label]="'Copy ' + db.cliLabel + ' command for ' + db.endpoint"
+                        [title]="copiedKey === db.endpoint + '-cli' ? 'Copied!' : 'Copy ' + db.cliLabel + ' command'">
+                  <mat-icon class="copy-icon" [ngClass]="{'copied': copiedKey === db.endpoint + '-cli'}">
+                    {{ copiedKey === db.endpoint + '-cli' ? 'check' : 'content_copy' }}
+                  </mat-icon>
+                </button>
+              </div>
+              }
+            </div>
+            }
           </div>
 
           <div class="schema-stats">
@@ -126,14 +146,27 @@
             <span><strong>Internal Schemas:</strong> {{ db.internalSchemaCount }}</span>
           </div>
 
-          @if (db.aggregatedObjectTypes.length > 0) {
+          @if (db.userSchemas && db.userSchemas.length > 0) {
           <div class="object-breakdown">
             <h4>Object Breakdown</h4>
-            <div class="chip-container">
-              @for (item of db.aggregatedObjectTypes; track item.type) {
-              <span class="object-chip">
-                <strong>{{ item.type }}:</strong> {{ item.count }}
-              </span>
+            <div class="schema-breakdown-list">
+              @for (schema of db.userSchemas; track schema.owner) {
+              <div class="schema-breakdown-item">
+                <a class="schema-name" [routerLink]="['/database', db.endpoint, schema.owner]" (click)="$event.stopPropagation()">
+                  <mat-icon class="schema-icon">folder</mat-icon>
+                  <span>{{ schema.owner }}</span>
+                </a>
+                <div class="chip-container">
+                  @for (item of schema.objectTypes; track item.type) {
+                  <a class="object-chip"
+                     [routerLink]="['/database', db.endpoint, schema.owner, item.type]"
+                     (click)="$event.stopPropagation()"
+                     [attr.aria-label]="schema.owner + ' ' + item.type + ' (' + item.count + ')'">
+                    <strong>{{ item.type }}:</strong> {{ item.count }}
+                  </a>
+                  }
+                </div>
+              </div>
               }
             </div>
           </div>
@@ -148,9 +181,9 @@
 }
 
 @if (!currentContext.endpoint && (!endpointList || !endpointList.databases || endpointList.databases.length === 0)) {
-  <div class="registration-container">
-    <app-registration-helper [isTile]="true"></app-registration-helper>
-  </div>
+<div class="registration-container">
+  <app-registration-helper [isTile]="true"></app-registration-helper>
+</div>
 }
 }
 
@@ -160,7 +193,7 @@
   <mat-expansion-panel [(expanded)]="aiPanelExpanded">
     <mat-expansion-panel-header>
       <mat-panel-title>
-        Generative AI
+        Agentic AI
       </mat-panel-title>
       <mat-panel-description>
         Schema Analysis & Comment Generation
@@ -178,8 +211,9 @@
 </mat-accordion>
 }
 }
-<!-- <app-db-step-selection></app-db-step-selection> -->
+@if (currentContext && currentContext.endpoint) {
 <ng-container *ngTemplateOutlet="queryResults"></ng-container>
+}
 }
 
 
@@ -192,7 +226,7 @@
     <mat-expansion-panel [(expanded)]="aiPanelExpanded">
       <mat-expansion-panel-header>
         <mat-panel-title>
-          Generative AI
+          Agentic AI
         </mat-panel-title>
         <mat-panel-description>
           Code Generation and Analysis
@@ -206,6 +240,32 @@
         }
       </mat-expansion-panel-header>
       <app-chat [currentContext]="currentContext" [currentObject]="objectDetails" agent="visulate_agent"></app-chat>
+    </mat-expansion-panel>
+  </mat-accordion>
+  }
+
+  @if (enableGitIntegration && relatedCodeFiles && relatedCodeFiles.length > 0) {
+  <mat-accordion>
+    <mat-expansion-panel [expanded]="false">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          Related Repository Code Files
+        </mat-panel-title>
+        <mat-panel-description>
+          Mapped codebase files {{ associatedRepo ? 'in ' + associatedRepo : '' }} ({{ relatedCodeFiles.length }})
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <div class="code-files-list">
+        @for (file of relatedCodeFiles; track file) {
+        <div class="code-file-item" (click)="openInWorkbench(file)">
+          <mat-icon class="file-icon">description</mat-icon>
+          <span class="file-path">{{ file }}</span>
+          <button mat-stroked-button color="primary" class="open-btn">
+            <mat-icon>edit</mat-icon> Open in Workbench
+          </button>
+        </div>
+        }
+      </div>
     </mat-expansion-panel>
   </mat-accordion>
   }
@@ -231,7 +291,7 @@
   <mat-accordion multi="true">
     @for (property of objectDetails.objectProperties; track property) {
     @if (property.rows?.length > 0) {
-    <mat-expansion-panel [expanded]="true">
+    <mat-expansion-panel [(expanded)]="property.expanded">
       <mat-expansion-panel-header>
         <mat-panel-title>
           {{property.title}}

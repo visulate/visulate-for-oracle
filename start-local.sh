@@ -59,11 +59,22 @@ cleanup() {
     [ -n "$API_PID" ] && kill $API_PID 2>/dev/null
     [ -n "$QUERY_PID" ] && kill $QUERY_PID 2>/dev/null
     [ -n "$AGENTS_PID" ] && kill $AGENTS_PID 2>/dev/null
+    fuser -k 5000/tcp 2>/dev/null || true
 
     # Send SIGTERM to the entire process group as a fallback
     kill 0 2>/dev/null
 }
 trap cleanup EXIT
+
+# Clean up any stale processes on ports 3000 and 5000 before starting
+for port in 3000 5000; do
+    if fuser $port/tcp >/dev/null 2>&1; then
+        echo "Port $port is in use by a stale process. Stopping it..."
+        fuser -k -TERM $port/tcp 2>/dev/null || true
+        sleep 1
+        fuser -k -KILL $port/tcp 2>/dev/null || true
+    fi
+done
 
 # Clear credential cache from shared memory on startup
 if [ -d "/dev/shm/mcp_credentials" ]; then

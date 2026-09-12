@@ -45,13 +45,52 @@ describe('Endpoint', () => {
     // SYS is internal, HR and SALES are user schemas
     expect(endpoint.internalSchemaCount).toBe(1);
     expect(endpoint.userSchemaCount).toBe(2);
+    expect(endpoint.userSchemas.length).toBe(2);
+    expect(endpoint.userSchemas[0].owner).toBe('HR');
+    expect(endpoint.userSchemas[1].owner).toBe('SALES');
 
-    // TABLES: 10 + 2 + 8 = 20, VIEW: 5, INDEX: 4
-    // Should be sorted by count descending
+    // Only user schemas are aggregated: HR (TABLE: 2, INDEX: 4) + SALES (TABLE: 8)
+    // TABLES: 2 + 8 = 10, INDEX: 4 (SYS's TABLE: 10 and VIEW: 5 are excluded)
     expect(endpoint.aggregatedObjectTypes).toEqual([
-      { type: 'TABLE', count: 20 },
-      { type: 'VIEW', count: 5 },
+      { type: 'TABLE', count: 10 },
       { type: 'INDEX', count: 4 }
     ]);
   });
+
+  it('should generate appropriate cliCommand and cliLabel for Oracle and Postgres', () => {
+    const oracleEp = new EndpointModel().deserialize({
+      endpoint: 'pdb21',
+      dbType: 'oracle',
+      connectString: '192.168.1.170:1522/pdb21.goldthorp.org',
+      schemas: {}
+    });
+    expect(oracleEp.cliLabel).toBe('sqlplus');
+    expect(oracleEp.cliCommand).toBe('sqlplus <username>@192.168.1.170:1522/pdb21.goldthorp.org');
+
+    const oracleDescEp = new EndpointModel().deserialize({
+      endpoint: 'vis25adb',
+      dbType: 'oracle',
+      connectString: '(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=host)(PORT=1521)))',
+      schemas: {}
+    });
+    expect(oracleDescEp.cliCommand).toBe("sqlplus <username>@'(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=host)(PORT=1521)))'");
+
+    const pgEp = new EndpointModel().deserialize({
+      endpoint: 'cmbs',
+      dbType: 'postgres',
+      connectString: 'localhost:5432/cmbs',
+      schemas: {}
+    });
+    expect(pgEp.cliLabel).toBe('psql');
+    expect(pgEp.cliCommand).toBe('psql -h localhost -p 5432 -d cmbs -U <username>');
+
+    const pgUriEp = new EndpointModel().deserialize({
+      endpoint: 'pguri',
+      dbType: 'postgres',
+      connectString: 'postgresql://db.corp:5433/prod',
+      schemas: {}
+    });
+    expect(pgUriEp.cliCommand).toBe('psql "postgresql://db.corp:5433/prod"');
+  });
 });
+

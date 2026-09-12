@@ -484,6 +484,13 @@ module.exports.generateDDL = generateDDL;
 // Show object details
 ////////////////////////////////////////////////////////////////////////////////
 
+function formatDescription(desc, objectName) {
+  if (!desc || !objectName) return desc;
+  return desc
+    .replace(/\bthis one\b/gi, objectName)
+    .replace(/\bthis object\b/gi, objectName);
+}
+
 async function getDependencies(connection, sql, dbService, owner, object_type, object_name, object_id) {
   let result = [];
   const query = JSON.parse(JSON.stringify(sql.statement['ADB-YN']));
@@ -498,7 +505,7 @@ async function getDependencies(connection, sql, dbService, owner, object_type, o
       query.params.object_type.val = object_type;
       query.params.object_name.val = object_name;
       const cResult = await dbService.query(connection, query.sql, query.params);
-      result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
+      result.push({ title: query.title, description: formatDescription(query.description, object_name), display: query.display, link: query.link, rows: cResult });
     }
   } else { // Query dependency$ table
     /**
@@ -512,13 +519,13 @@ async function getDependencies(connection, sql, dbService, owner, object_type, o
       query.params.object_id.val = object_id;
       query.params.object_name.val = object_name;
       const cResult = await dbService.query(connection, query.sql, query.params);
-      result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
+      result.push({ title: query.title, description: formatDescription(query.description, object_name), display: query.display, link: query.link, rows: cResult });
     }
     for (let c of queryCollection.objectIdQueries) {
       let query = JSON.parse(JSON.stringify(c));
       query.params.object_id.val = object_id;
       const cResult = await dbService.query(connection, query.sql, query.params);
-      result.push({ title: query.title, description: query.description, display: query.display, link: query.link, rows: cResult });
+      result.push({ title: query.title, description: formatDescription(query.description, object_name), display: query.display, link: query.link, rows: cResult });
     }
   }
 

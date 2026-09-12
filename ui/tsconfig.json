@@ -20,8 +20,18 @@
     "noImplicitAny": false,
     "strictNullChecks": false,
     "useUnknownInCatchVariables": false,
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
+    "types": [
+      "jasmine",
+      "node"
+    ]
   },
+  "exclude": [
+    "cypress",
+    "cypress.config.ts",
+    "**/*.cy.ts",
+    "e2e"
+  ],
   "angularCompilerOptions": {
     "fullTemplateTypeCheck": true,
     "strictInjectionParameters": true

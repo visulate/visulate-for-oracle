@@ -34,6 +34,7 @@ export class ObjectPropertyModel implements Deserializable {
   public display: string[];
   public link: string;
   public rows: any[];
+  public expanded?: boolean;
 
   deserialize(input: any): this {
     Object.assign(this, input);
