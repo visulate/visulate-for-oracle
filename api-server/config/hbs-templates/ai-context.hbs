@@ -87,7 +87,7 @@ null
 ],
 "code": [
 {{#each results.objectDetails}}
-{{#ifAppearsIn title "Source,Source (Body),View Source,Materialized View Details,Trigger Details,Trigger Body,Body"}}
+{{#ifAppearsIn title "Source,Source (Body),View Source,Materialized View Details,Trigger Body,Body"}}
 {
 "title": {{{json title}}},
 "content": {{#ifEquals title "Trigger Details"}}{{{json rows.[0].Body}}}{{else}}[
