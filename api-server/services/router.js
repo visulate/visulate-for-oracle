@@ -428,7 +428,14 @@ router.route('/api/collection/:db')
 
 router.route('/ai')
   .get(aiService.aiEnabled)
-  .post(validate({ body: aiBodySchema }), aiService.generativeAI);
+  .post(validate({ body: aiBodySchema }), (req, res, next) => {
+    const principal = req.user?.username || req.user?.id || req.user?.sub
+      || getConfiguredPrincipal(req)
+      || req.headers['x-git-user']
+      || null;
+    req.userContext = { username: principal };
+    aiService.generativeAI(req, res, next);
+  });
 
 router.route('/mcp')
   .get(aiService.handleMcpRequest)

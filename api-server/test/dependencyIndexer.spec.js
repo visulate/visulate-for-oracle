@@ -117,5 +117,23 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     } catch (err) {
       expect(err.message).to.be.a('string');
     }
+
+    try {
+      // Should reject deleting directory (e.g. '.' or subfolder)
+      await gitService.deleteFile(repoName, '.');
+      expect.fail('Should have rejected directory deletion');
+    } catch (err) {
+      expect(err.message).to.include('Only file deletions are permitted');
+    }
+  });
+
+  it('should reject invalid dbConnectionId attempting directory traversal', async () => {
+    try {
+      await dependencyIndexer.indexProjectDependencies(repoName, null, null, '../../evil-dir');
+      expect.fail('Should have rejected invalid dbConnectionId');
+    } catch (err) {
+      expect(err.message).to.include('Invalid database connection identifier');
+    }
   });
 });
+

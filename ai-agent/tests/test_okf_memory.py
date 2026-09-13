@@ -145,3 +145,25 @@ def test_get_okf_context_tiered_priority_and_budget(temp_repo_dir):
     assert "Additional Available Memory Records (query via read_memory_record tool):" in result
     assert "customers.md" in result or "schema_sales_summary.md" in result
     assert "read_memory_record" in result
+
+
+def test_get_okf_context_server_mode_tenant(temp_repo_dir, monkeypatch):
+    monkeypatch.setenv("GIT_MODE", "server")
+    user_repo = os.path.join(temp_repo_dir, "users", "tenant_user", "tenant-project", ".visulate", "dev", "memories")
+    os.makedirs(user_repo, exist_ok=True)
+
+    with open(os.path.join(user_repo, "tenant_rules.md"), "w", encoding="utf-8") as f:
+        f.write("# Tenant Specific Rules\nMust use tenant partitioned storage.")
+
+    # 1. Calling without tenant username returns empty (not found)
+    res_no_tenant = get_okf_context("tenant-project", "dev")
+    assert res_no_tenant == ""
+
+    # 2. Calling with correct tenant username finds and loads the context
+    res_tenant = get_okf_context("tenant-project", "dev", username="tenant_user")
+    assert "Must use tenant partitioned storage" in res_tenant
+
+    # 3. Calling with a different user does not load tenant_user's repo
+    res_other = get_okf_context("tenant-project", "dev", username="other_user")
+    assert res_other == ""
+

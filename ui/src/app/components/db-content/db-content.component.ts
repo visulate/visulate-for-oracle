@@ -183,6 +183,8 @@ export class DbContentComponent implements OnInit, OnDestroy {
     const context = subjectContext.currentContext;
     this.currentContext = context;
     this.sqlEnabled = this.state.getSqlEnabled();
+    this.updateAssociatedRepo();
+
 
     // Call the Endpoints API on startup and when the object filter changes
     const endpointsNotLoaded = !this.endpointList ||
@@ -359,6 +361,13 @@ export class DbContentComponent implements OnInit, OnDestroy {
     });
   }
 
+  public updateAssociatedRepo(): void {
+    if (!this.currentContext?.endpoint) {
+      this.associatedRepo = '';
+    } else {
+      this.associatedRepo = this.state.getAssociatedRepo(this.currentContext.endpoint);
+    }
+  }
 
   ngOnInit() {
     this.currentContext = this.state.getCurrentContext();
@@ -374,15 +383,13 @@ export class DbContentComponent implements OnInit, OnDestroy {
     this.state.aiEnabled$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(aiEnabled => { this.aiEnabled = aiEnabled; });
-    this.state.selectedRepo$
+    this.updateAssociatedRepo();
+    this.state.repoAssociation$
       .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(repo => {
-        if (!this.currentContext?.endpoint) {
-          this.associatedRepo = '';
-        } else if (repo) {
-          this.associatedRepo = repo;
-        }
+      .subscribe(() => {
+        this.updateAssociatedRepo();
       });
+
 
     this.state.toggleAccordions$
       .pipe(takeUntil(this.unsubscribe$))

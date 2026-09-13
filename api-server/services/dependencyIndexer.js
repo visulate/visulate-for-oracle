@@ -231,16 +231,28 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
     }
   }
 
-  // Target directory: if dbConnectionId is provided, write to .visulate/<dbConnectionId>/, else .visulate/
-  const targetDir = dbConnectionId
-    ? path.join(visulateDir, dbConnectionId.toLowerCase().trim())
+  let safeDbId = null;
+  if (dbConnectionId) {
+    const rawDb = String(dbConnectionId).trim().toLowerCase();
+    if (!/^[a-zA-Z0-9._-]+$/.test(rawDb) || rawDb === '.' || rawDb === '..') {
+      throw new Error('Invalid database connection identifier');
+    }
+    safeDbId = rawDb;
+  }
+
+  // Target directory: if safeDbId is provided, write to .visulate/<safeDbId>/, else .visulate/
+  const targetDir = safeDbId
+    ? path.join(visulateDir, safeDbId)
     : visulateDir;
+
+  gitService.resolveSafePath(repoDir, path.relative(repoDir, targetDir), false);
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
   const mapPath = path.join(targetDir, 'oracle-code-map.json');
+  gitService.resolveSafePath(repoDir, path.relative(repoDir, mapPath), false);
   fs.writeFileSync(mapPath, JSON.stringify(mapData, null, 2), 'utf8');
 
   // Also generate OKF Markdown document (.visulate/<db>/codebase-dependencies.md)
@@ -272,12 +284,15 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   }
 
   const mdPath = path.join(targetDir, 'codebase-dependencies.md');
+  gitService.resolveSafePath(repoDir, path.relative(repoDir, mdPath), false);
   fs.writeFileSync(mdPath, mdContent, 'utf8');
+
 
   logger.log('info', `Successfully generated oracle-code-map.json and codebase-dependencies.md for project ${projectId} in ${targetDir}`);
 
   return mapData;
 }
+
 
 /**
  * Resolves repository codebase files that reference or depend on a given database object.
@@ -297,7 +312,14 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
   const targetObject = objectName.toUpperCase().trim();
   const targetOwner = owner ? owner.toUpperCase().trim() : null;
   const normalizedDb = db.toLowerCase().trim();
+  if (!/^[a-zA-Z0-9._-]+$/.test(normalizedDb) || normalizedDb === '.' || normalizedDb === '..') {
+    throw new Error('Invalid database connection identifier');
+  }
+  if (repoFolder && (!/^[a-zA-Z0-9._-]+$/.test(repoFolder) || repoFolder === '.' || repoFolder === '..')) {
+    throw new Error('Invalid repository identifier');
+  }
   const repos = gitService.listLocalRepositories(userContext);
+
 
   if (!repos || repos.length === 0) {
     return { found: false, files: [], objectName: targetObject, dbConnectionId: db };

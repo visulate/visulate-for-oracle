@@ -50,8 +50,8 @@ The Application Workbench bridges this gap:
                       |  Container: /app/repos/<project>/                  |
                       |  Host bind: /home/visulate/repos/<project>/        |
                       |  Local dev: $HOME/git/<project>/                   |
-                      |  - .okf/<db>/oracle-code-map.json                  |
-                      |  - .okf/<db>/codebase-dependencies.md              |
+                      |  - .visulate/<db>/oracle-code-map.json             |
+                      |  - .visulate/<db>/codebase-dependencies.md         |
                       +----------------------------------------------------+
 ```
 
@@ -59,8 +59,8 @@ The Application Workbench bridges this gap:
 
 Visulate records the relationship between source code repositories and database schemas without mutable server-side registries:
 
-1. **Schema Object-to-Code Mapping (`.okf/<db>/oracle-code-map.json`)**:
-   Stored inside the `.okf/<db>/` subdirectory of each repository (where `<db>` is the database endpoint identifier, e.g. `pdb21`, `dev`, `uat`, `prod`), this file records the associated database connection (`dbConnectionId`) along with bi-directional mappings between database catalog objects and specific code files:
+1. **Schema Object-to-Code Mapping (`.visulate/<db>/oracle-code-map.json`)**:
+   Stored inside the `.visulate/<db>/` subdirectory of each repository (where `<db>` is the database endpoint identifier, e.g. `pdb21`, `dev`, `uat`, `prod` — with fallback to legacy `.okf/<db>/` if present), this file records the associated database connection (`dbConnectionId`) along with bi-directional mappings between database catalog objects and specific code files:
    ```json
    {
      "projectId": "visulate",
@@ -84,14 +84,14 @@ Visulate records the relationship between source code repositories and database 
      }
    }
    ```
-2. **Open Knowledge Format (OKF) Architectural Memory (`.okf/<db>/codebase-dependencies.md`)**:
+2. **Open Knowledge Format (OKF) Architectural Memory (`.visulate/<db>/codebase-dependencies.md`)**:
    In addition to JSON data, the indexer generates a structured Markdown document summarizing mapped database objects, referencing code files, and schema dependencies for each target database environment.
 3. **Multi-Database Support in a Single Repository**:
-   Because a single repository may hold the source for multiple database environments (e.g. Dev, UAT, and Prod), dependencies are stored per-database in `.okf/<db>/`, allowing distinct mappings for each database without collision.
+   Because a single repository may hold the source for multiple database environments (e.g. Dev, UAT, and Prod), dependencies are stored per-database in `.visulate/<db>/`, allowing distinct mappings for each database without collision.
 4. **Dynamic Live Git State**:
    Active branches, remotes, and diffs are queried live from the Git repositories on disk rather than cached in static files.
 5. **Committed With Code**:
-   Because `.okf/<db>/oracle-code-map.json` and `.okf/<db>/codebase-dependencies.md` live inside the repository, database relationships and entity indexes travel with the Git repository across branches and team checkouts.
+   Because `.visulate/<db>/oracle-code-map.json` and `.visulate/<db>/codebase-dependencies.md` live inside the repository, database relationships and entity indexes travel with the Git repository across branches and team checkouts.
 6. **Browser Storage Association**:
    Users can link any Database and Git Repository directly from the top toolbar using the **Link** icon button or keyboard shortcut (`Alt+L`). Associations are maintained in browser `localStorage`. Once linked, selecting a database automatically selects its associated repository. Clicking the button again breaks the association.
 
@@ -239,7 +239,7 @@ When the Workbench is active, the top toolbar provides full repository control:
 * **Switch Branch**: Select a branch from the dropdown to check it out immediately and reload the file explorer.
 * **Create Branch**: Click **`+`** to create and switch to a new branch.
 
-### 3. Dependency Indexing (`.okf/<db>/oracle-code-map.json` & `.okf/<db>/codebase-dependencies.md`)
+### 3. Dependency Indexing (`.visulate/<db>/oracle-code-map.json` & `.visulate/<db>/codebase-dependencies.md`)
 
 The indexing engine analyzes the relationship between the active database connection and the repository source code:
 
@@ -247,11 +247,11 @@ The indexing engine analyzes the relationship between the active database connec
 2. The API calls `POST /api/git/index-dependencies`:
    - Queries the database catalog using `DBA_OBJECTS` (with fallback to `ALL_OBJECTS` in Oracle or `information_schema` in Postgres) for all valid user-defined tables, views, packages, procedures, functions, sequences, and types. System schemas (`SYS`, `SYSTEM`, etc.) and `PUBLIC` synonyms are excluded so that application schemas are discovered comprehensively.
    - Recursively scans the project files for references to these catalog objects across DDL statements, SQL query clauses (`FROM`, `JOIN`, `INTO`, `UPDATE`, `EXEC`, `CALL`, etc.), and application code.
-   - Writes the cross-reference index to `.okf/<db>/oracle-code-map.json` and human-readable Markdown to `.okf/<db>/codebase-dependencies.md` in the repository (where `<db>` is the database connection name, e.g. `pdb21`).
+   - Writes the cross-reference index to `.visulate/<db>/oracle-code-map.json` and human-readable Markdown to `.visulate/<db>/codebase-dependencies.md` in the repository (where `<db>` is the database connection name, e.g. `pdb21`).
 
 ### 4. Bi-Directional Database-to-Code Navigation
 
-Once `.okf/<db>/oracle-code-map.json` exists:
+Once `.visulate/<db>/oracle-code-map.json` exists:
 
 * **From the Database View**: Navigating to an object in the Visulate Catalog (e.g., `/database/pdb21/RNTMGR2/TABLE/PR_PROPERTIES`) displays an accordion panel: **Related Repository Code Files** with **"Mapped codebase files in {repo} ({count})"**.
 * **One-Click Navigation**: Clicking **Open in Workbench** on any referenced file navigates directly to `/workbench?db=:db&projectId=:repo&file=:file`, auto-selecting the repository in the Workbench and opening the file in Monaco Editor.
@@ -289,5 +289,5 @@ Within the Monaco editor:
 | `/api/git/file` | `PUT` | Saves modified file content to disk. |
 | `/api/git/diff` | `GET` | Generates a `git diff` against `HEAD` or unstaged changes. |
 | `/api/git/commit-push` | `POST` | Stages, commits (with session author), and pushes to remote. |
-| `/api/git/index-dependencies` | `POST` | Scans files and builds `.okf/oracle-code-map.json` and `.okf/codebase-dependencies.md`. |
+| `/api/git/index-dependencies` | `POST` | Scans files and builds `.visulate/<db>/oracle-code-map.json` and `.visulate/<db>/codebase-dependencies.md` (with legacy `.okf/<db>/` fallback). |
 | `/api/git/code-dependencies` | `GET` | Queries codebase files referencing a database object (`?db=:db&name=:name[&repo=:repo]`). |

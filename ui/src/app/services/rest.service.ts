@@ -231,6 +231,22 @@ export class RestService {
     signal?: AbortSignal
   ): Promise<void> {
     const apiUrl = `${environment.aiBase}/`;
+    const auth = this.getGitAuth();
+    if (auth && auth.username && typeof context === 'object' && context !== null && !context.username) {
+      context.username = auth.username;
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/plain'
+    };
+    if (auth && auth.username) {
+      headers['X-Git-User'] = auth.username;
+    }
+    if (auth && auth.token) {
+      headers['X-Git-Token'] = auth.token;
+    }
+
     const payload = {
       message,
       context,
@@ -241,10 +257,7 @@ export class RestService {
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/plain'
-        },
+        headers,
         body: JSON.stringify(payload),
         signal
       });

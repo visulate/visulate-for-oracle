@@ -1112,7 +1112,13 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
   /api/database-connections:
+
     get:
       summary: Database connection configs
       description: Returns a list of configured database connection endpoints and their database types (e.g. Oracle, PostgreSQL).
@@ -1527,8 +1533,9 @@ paths:
   /api/git/index-dependencies:
     post:
       summary: Index codebase object dependencies
-      description: Scans project source files for references to database objects and cross-database dependencies. Saves results to `.okf/<db>/oracle-code-map.json` and `.okf/<db>/codebase-dependencies.md` (or `.okf/` if no database is specified).
+      description: Scans project source files for references to database objects and cross-database dependencies. Saves results to `.visulate/<db>/oracle-code-map.json` and `.visulate/<db>/codebase-dependencies.md` (or `.visulate/` if no database is specified).
       requestBody:
+
         required: false
         content:
           application/json:

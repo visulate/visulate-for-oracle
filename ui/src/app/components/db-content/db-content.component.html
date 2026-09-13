@@ -57,10 +57,12 @@
            [matTooltip]="'Open repository ' + associatedRepo + ' in Application Workbench'"
            role="button"
            tabindex="0"
-           (keydown.enter)="openRepoInWorkbench($event)">
+           (keydown.enter)="openRepoInWorkbench($event)"
+           (keydown.space)="openRepoInWorkbench($event); $event.preventDefault()">
           <mat-icon class="repo-badge-icon">folder</mat-icon>{{ associatedRepo }}
         </a>
         }
+
 
       </mat-panel-description>
       @if (!mobileQuery.matches) {

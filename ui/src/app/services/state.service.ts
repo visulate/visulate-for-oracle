@@ -83,6 +83,27 @@ export class StateService {
   private lastWorkbenchQueryParams: any = { db: 'pdb21' };
   private selectedRepoSubject = new BehaviorSubject<string>('');
   selectedRepo$ = this.selectedRepoSubject.asObservable();
+  private repoAssociationSubject = new BehaviorSubject<void>(undefined);
+  repoAssociation$ = this.repoAssociationSubject.asObservable();
+
+  public notifyRepoAssociationChanged(): void {
+    this.repoAssociationSubject.next();
+  }
+
+  public getAssociatedRepo(endpoint?: string): string {
+    const currentDb = endpoint || this._endpoint || this.subjectContext.value?.currentContext?.endpoint;
+    if (!currentDb) return '';
+    try {
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.dbToRepo?.[currentDb]) {
+          return parsed.dbToRepo[currentDb];
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
 
   public setSelectedRepo(repo: string): void {
     this.lastSelectedRepoFolder = repo;
@@ -95,24 +116,16 @@ export class StateService {
     const currentSubject = this.selectedRepoSubject.getValue();
     if (currentSubject) return currentSubject;
 
-    const currentDb = this._endpoint || this.subjectContext.value?.currentContext?.endpoint;
-    if (currentDb) {
-      try {
-        const stored = localStorage.getItem('visulate_db_repo_associations');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.dbToRepo?.[currentDb]) {
-            return parsed.dbToRepo[currentDb];
-          }
-        }
-      } catch (_) {}
-    }
+    const associated = this.getAssociatedRepo();
+    if (associated) return associated;
+
     return this.lastSelectedRepoFolder || '';
   }
 
   public getLastSelectedRepoFolder(): string {
     return this.getSelectedRepo();
   }
+
 
   public setLastDatabaseUrl(url: string): void {
     if (url && url.startsWith('/database')) {

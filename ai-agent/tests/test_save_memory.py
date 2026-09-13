@@ -132,3 +132,49 @@ async def test_read_memory_record(temp_repo):
         # Read non-existent
         missing = await read_tool.func("non_existent.md")
         assert "not found" in missing
+
+@pytest.mark.asyncio
+async def test_save_and_read_memory_record_server_mode_tenant():
+    from common.tools import create_read_memory_tool
+    temp_dir = tempfile.mkdtemp()
+    try:
+        user_repo_dir = os.path.join(temp_dir, "users", "alice", "tenant-repo")
+        os.makedirs(user_repo_dir, exist_ok=True)
+        save_tool = create_save_memory_tool()
+        read_tool = create_read_memory_tool()
+
+        ui_ctx = {
+            "projectId": "tenant-repo",
+            "endpoint": "pdb21",
+            "username": "alice"
+        }
+
+        with patch.dict(os.environ, {"GIT_REPOS_DIR": temp_dir, "GIT_MODE": "server"}):
+            ui_context_var.set(ui_ctx)
+
+            # 1. Save in server mode under users/alice/
+            res = await save_tool.func(
+                content="# Alice's Private Notes\nTenant isolated memory.",
+                filename="alice_notes.md",
+                category="memories",
+                description="Alice Notes"
+            )
+            assert "Successfully saved" in res
+            expected_file = os.path.join(user_repo_dir, ".visulate", "pdb21", "memories", "alice_notes.md")
+            assert os.path.exists(expected_file)
+
+            # 2. Read back in server mode
+            content = await read_tool.func("alice_notes.md")
+            assert "Alice's Private Notes" in content
+
+            # 3. Another user cannot see alice's repo
+            ui_context_var.set({
+                "projectId": "tenant-repo",
+                "endpoint": "pdb21",
+                "username": "bob"
+            })
+            bob_content = await read_tool.func("alice_notes.md")
+            assert "not found" in bob_content
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+

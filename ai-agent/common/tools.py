@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from google.adk.tools import BaseTool
 from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from google.adk.tools.function_tool import FunctionTool
-from common.config import get_mcp_urls
+from common.config import get_mcp_urls, resolve_repo_path
 from common.credentials import CredentialManager
 from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data, call_mcp_tool_rest, format_mcp_text_response
 from common.context import session_id_var, auth_token_var, progress_callback_var, ui_context_var, browser_session_id_var
@@ -131,17 +131,15 @@ def create_save_memory_tool() -> FunctionTool:
 
             project_id = ui_ctx.get("projectId")
             endpoint = ui_ctx.get("endpoint")
+            username = ui_ctx.get("username")
 
             if not project_id:
                 return "No active Git repository linked in the current context. Memory record could not be written to repository."
 
-            repos_dir = os.getenv("GIT_REPOS_DIR") or (
-                os.path.expanduser("~/git") if os.path.exists(os.path.expanduser("~/git")) else os.path.expanduser("~/visulate-repos")
-            )
             safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
-            repo_path = os.path.join(repos_dir, safe_project_id)
-            if not os.path.exists(repo_path):
-                return f"Repository '{safe_project_id}' not found in '{repos_dir}'. Memory record could not be saved."
+            repo_path = resolve_repo_path(project_id, username)
+            if not repo_path or not os.path.exists(repo_path):
+                return f"Repository '{safe_project_id}' not found. Memory record could not be saved."
 
             safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(endpoint)]).strip("_").lower() if endpoint else "global"
             clean_category = "structures" if category == "structures" else "memories"
@@ -200,17 +198,15 @@ def create_read_memory_tool() -> FunctionTool:
 
             project_id = ui_ctx.get("projectId")
             endpoint = ui_ctx.get("endpoint")
+            username = ui_ctx.get("username")
 
             if not project_id:
                 return "No active Git repository linked in the current context."
 
-            repos_dir = os.getenv("GIT_REPOS_DIR") or (
-                os.path.expanduser("~/git") if os.path.exists(os.path.expanduser("~/git")) else os.path.expanduser("~/visulate-repos")
-            )
             safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
-            repo_path = os.path.join(repos_dir, safe_project_id)
-            if not os.path.exists(repo_path):
-                return f"Repository '{safe_project_id}' not found in '{repos_dir}'."
+            repo_path = resolve_repo_path(project_id, username)
+            if not repo_path or not os.path.exists(repo_path):
+                return f"Repository '{safe_project_id}' not found."
 
             clean_name = os.path.basename(name_or_path.strip())
             if not clean_name.endswith(".md") and not clean_name.endswith(".json"):

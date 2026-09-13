@@ -65,6 +65,10 @@ def create_app() -> FastAPI:
                 except Exception as e:
                     logger.warning(f"Failed to parse context string: {e}")
 
+            username = data.get("username")
+            if username and isinstance(context, dict) and not context.get("username"):
+                context["username"] = username
+
             auth_token = None
             db_credentials = None
             if isinstance(context, dict):
@@ -106,11 +110,13 @@ def create_app() -> FastAPI:
                 project_id = context.get("projectId")
                 if project_id:
                     preamble += f"- Selected Repository: {project_id}\n"
+                    tenant_user = context.get("username")
                     okf_context = get_okf_context(
                         project_id,
                         context.get("endpoint"),
                         context.get("owner"),
-                        context.get("objectName")
+                        context.get("objectName"),
+                        username=tenant_user
                     )
                     if okf_context:
                         preamble += f"\n{okf_context}\n"

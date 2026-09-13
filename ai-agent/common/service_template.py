@@ -22,6 +22,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+from common.config import resolve_repo_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,15 +32,13 @@ def get_okf_context(
     db_endpoint: str = None,
     active_owner: str = None,
     active_object: str = None,
-    max_budget_bytes: int = 35000
+    max_budget_bytes: int = 35000,
+    username: str = None
 ) -> str:
     try:
-        repos_dir = os.getenv("GIT_REPOS_DIR") or (
-            os.path.expanduser("~/git") if os.path.exists(os.path.expanduser("~/git")) else os.path.expanduser("~/visulate-repos")
-        )
         safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
-        repo_path = os.path.join(repos_dir, safe_project_id)
-        if not os.path.exists(repo_path):
+        repo_path = resolve_repo_path(project_id, username)
+        if not repo_path or not os.path.exists(repo_path):
             return ""
 
         visulate_dir = os.path.join(repo_path, ".visulate")
@@ -195,8 +195,16 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
         data = await request.json()
         message = data.get("message", "")
         context_data = data.get("context", {})
-        auth_token = context_data.get("authToken")
-        db_credentials = context_data.get("dbCredentials")
+        if isinstance(context_data, str) and context_data.strip():
+            try:
+                context_data = json.loads(context_data)
+            except Exception as e:
+                logger.warning(f"Failed to parse context string: {e}")
+        username = data.get("username")
+        if username and isinstance(context_data, dict) and not context_data.get("username"):
+            context_data["username"] = username
+        auth_token = context_data.get("authToken") if isinstance(context_data, dict) else None
+        db_credentials = context_data.get("dbCredentials") if isinstance(context_data, dict) else None
         session_id = data.get("session_id", "default")
         browser_session_id = data.get("browser_session_id")
 
@@ -277,11 +285,13 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                 preamble += content_str
                         project_id = context_data.get("projectId") or "default-project"
                         endpoint = context_data.get("endpoint")
+                        user_tenant = context_data.get("username")
                         okf_context = get_okf_context(
                             project_id,
                             endpoint,
                             context_data.get("owner"),
-                            context_data.get("objectName")
+                            context_data.get("objectName"),
+                            username=user_tenant
                         )
                         if okf_context:
                             preamble += f"\n{okf_context}\n"
@@ -289,7 +299,8 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                         full_message = f"{preamble}\nUser Request: {message}"
                     else:
                         project_id = "default-project"
-                        okf_context = get_okf_context(project_id)
+                        user_tenant = data.get("username")
+                        okf_context = get_okf_context(project_id, username=user_tenant)
                         full_message = f"{okf_context}\nUser Request: {message}" if okf_context else message
 
                     agent_message = types.Content(role="user", parts=[types.Part(text=full_message)])

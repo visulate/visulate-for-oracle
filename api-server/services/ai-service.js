@@ -255,6 +255,17 @@ async function generativeAIInternal(args, res) {
  */
 async function generativeAI(req, res, next) {
   try {
+    const userContext = req.userContext || (req.user ? { username: req.user.username || req.user.id || req.user.sub || req.user } : null);
+    if (userContext && userContext.username) {
+      if (typeof req.body.context === 'object' && req.body.context !== null && !Array.isArray(req.body.context)) {
+        if (!req.body.context.username) {
+          req.body.context.username = userContext.username;
+        }
+      }
+      if (!req.body.username) {
+        req.body.username = userContext.username;
+      }
+    }
     await generativeAIInternal(req.body, res);
     // Response handled by piping in internal function
   } catch (err) {

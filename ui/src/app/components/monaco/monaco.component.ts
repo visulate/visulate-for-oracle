@@ -420,13 +420,16 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isCurrentPairAssociated) {
       delete associations.dbToRepo[this.selectedDbConnection];
       this.saveDbRepoAssociations(associations);
+      this.state.notifyRepoAssociationChanged();
       this.setStatus(`Unlinked database '${this.selectedDbConnection}' from repository '${this.selectedRepoFolder}'`, false);
     } else {
       associations.dbToRepo[this.selectedDbConnection] = this.selectedRepoFolder;
       this.saveDbRepoAssociations(associations);
+      this.state.notifyRepoAssociationChanged();
       this.setStatus(`Linked database '${this.selectedDbConnection}' with repository '${this.selectedRepoFolder}'`, false);
     }
   }
+
 
   @HostListener('window:keydown', ['$event'])
   handleKeyboardShortcut(event: KeyboardEvent): void {

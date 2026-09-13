@@ -36,7 +36,8 @@ describe('MonacoComponent - New File Creation', () => {
       'setLastSelectedFile',
       'setCurrentContext',
       'setSelectedRepo',
-      'getSelectedRepo'
+      'getSelectedRepo',
+      'notifyRepoAssociationChanged'
     ]);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
     mockDialog = jasmine.createSpyObj('MatDialog', ['open']);

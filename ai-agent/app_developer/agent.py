@@ -6,6 +6,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
+from common.config import resolve_repo_path
 from common.context import session_id_var, progress_callback_var, ui_context_var
 
 logger = logging.getLogger(__name__)
@@ -55,11 +56,11 @@ async def save_source_files(files: List[Dict[str, str]], description: str = "Gen
         session_id = session_id_var.get()
         ui_ctx = ui_context_var.get() if ui_context_var else {}
         project_id = ui_ctx.get("projectId") if isinstance(ui_ctx, dict) else "default-project"
+        username = ui_ctx.get("username") if isinstance(ui_ctx, dict) else None
 
-        git_base = os.getenv("GIT_REPOS_DIR") or (
-            os.path.expanduser("~/git") if os.path.exists(os.path.expanduser("~/git")) else os.path.expanduser("~/visulate-repos")
-        )
-        repo_dir = os.path.join(git_base, project_id)
+        repo_dir = resolve_repo_path(project_id, username)
+        if not repo_dir:
+            return f"Invalid repository '{project_id}'."
         os.makedirs(repo_dir, exist_ok=True)
 
         saved_files = []
