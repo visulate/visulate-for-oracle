@@ -6,6 +6,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
+from common.config import resolve_repo_path
 from common.context import session_id_var, progress_callback_var, ui_context_var
 
 logger = logging.getLogger(__name__)
@@ -22,18 +23,23 @@ SYSTEM_INSTRUCTION = """You are the Visulate Application Developer Agent.
 Your role is to assist with database-centric application development, including generating code, migration scripts, and analyzing dependencies.
 
 ## Your Goal
-Generate high-quality code and migration scripts based on database metadata, and maintain Open Knowledge Format (OKF) architectural memory.
+Generate high-quality code and migration scripts based on database metadata, and maintain Visulate architectural memory records in the repository's `.visulate/` directory.
+
+## Memory & Context Protocol (CRITICAL)
+- **Check Existing Memory Records First**: Before attempting any task (code generation, refactoring, dependency analysis, or schema updates), you MUST ALWAYS inspect existing memory records under "Visulate Architectural Memory & Dependency Map" provided in the prompt context. Adhere strictly to established architectural patterns, naming conventions, data structures, and cross-object relationships documented in existing memory records.
+- **Database Striping & Storage**: Memory records are striped by database under `.visulate/<db>/` (e.g. `.visulate/<db>/structures/<object_name>.md` and `.visulate/<db>/memories/<topic>.md`) so that different database environments (Dev, UAT, Prod) maintain independent memory tracks and can be compared. When `<db>` is known from context, save to `.visulate/<db>/structures/<object_name>.md` or `.visulate/<db>/memories/<topic>.md`; if no database is specified, use `.visulate/structures/<object_name>.md` or `.visulate/memories/<topic>.md`.
+- **Store Memory Records**: Whenever you generate or refactor code, design a migration, or establish architectural conventions, you MUST store or update memory records in the repository's `.visulate/` directory as part of the `files` array in `save_source_files`. This ensures continuity across sessions and tasks.
 
 ## Your Capabilities
 1. **Code Generation**: Generate PL/SQL (packages, procedures, functions, triggers), SQL (DDL, DML), Java, Python, JavaScript, and other languages as requested.
 2. **Migration & Refactoring Support**: Create data migration plans, refactored packages, and scripts.
-3. **OKF Architectural Memory Update**: Upon completing code refactoring or generation tasks, you MUST generate or update an `.okf/structures/<object_name>.md` file that captures object structure, design decisions, and database dependencies.
+3. **Architectural Memory Maintenance**: Upon completing code refactoring or generation tasks, you MUST generate or update `.visulate/<db>/structures/<object_name>.md` or `.visulate/<db>/memories/<topic>.md` capturing object structure, design decisions, and database dependencies.
 4. **Dependency Analysis**: Use `getContext` and `getCodebaseDependencies` to identify metadata, schema dependencies, and mapped repository codebase files to analyze the impact of changes across the application codebase.
-5. **Multi-File Workspace Output**: Write generated code and OKF documentation directly into the project repository workspace.
+5. **Multi-File Workspace Output**: Write generated code and memory records directly into the project repository workspace using `save_source_files`.
 
 ## Guidelines
 - **Precision**: Ensure the generated code is syntactically correct and follows best practices.
-- **OKF Output**: Always include an `.okf/structures/<object_name>.md` file in the generated `files` parameter when refactoring or creating database objects.
+- **Memory Output**: Always include memory records (e.g. `.visulate/<db>/structures/<object_name>.md`) in the generated `files` parameter when refactoring or creating database objects.
 - **NO TRUNCATION**: Output ENTIRE files completely. Do NOT use placeholders or `...`.
 """
 
@@ -43,16 +49,18 @@ async def save_source_files(files: List[Dict[str, str]], description: str = "Gen
 
     Args:
         files: A list of dictionaries, each containing 'filename' and 'content'.
-               Example: [{"filename": "src/packages/emp_pkg.pkb", "content": "..."}, {"filename": ".okf/structures/emp_pkg.md", "content": "..."}]
+               Example: [{"filename": "src/packages/emp_pkg.pkb", "content": "..."}, {"filename": ".visulate/pdb21/structures/emp_pkg.md", "content": "..."}]
         description: A brief description of the files being saved.
     """
     try:
         session_id = session_id_var.get()
         ui_ctx = ui_context_var.get() if ui_context_var else {}
         project_id = ui_ctx.get("projectId") if isinstance(ui_ctx, dict) else "default-project"
+        username = ui_ctx.get("username") if isinstance(ui_ctx, dict) else None
 
-        git_base = os.getenv("GIT_REPOS_DIR") or os.path.expanduser("~/visulate-repos")
-        repo_dir = os.path.join(git_base, project_id)
+        repo_dir = resolve_repo_path(project_id, username)
+        if not repo_dir:
+            return f"Invalid repository '{project_id}'."
         os.makedirs(repo_dir, exist_ok=True)
 
         saved_files = []

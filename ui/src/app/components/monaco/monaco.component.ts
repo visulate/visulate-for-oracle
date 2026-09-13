@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, Input, OnDestroy, OnInit, TemplateRef, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
@@ -79,6 +79,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public newFilePath: string = '';
   public showNewFileInput: boolean = false;
   @ViewChild('newFileInputRef', { static: false }) newFileInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('confirmDeleteDialog', { static: false }) confirmDeleteDialog?: TemplateRef<any>;
   public commitMessage: string = 'Update codebase and OKF memory documentation';
   public statusMessage: string = '';
   public isError: boolean = false;
@@ -130,8 +131,31 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      if (params['projectId']) this.projectId = params['projectId'];
-      if (params['db']) this.selectedDbConnection = params['db'];
+      const url = this.router.url || '';
+      if (!url.includes('/workbench')) {
+        return;
+      }
+
+      let dbParam = params['db'];
+      let projectParam = params['projectId'];
+
+      if (dbParam) {
+        this.selectedDbConnection = dbParam;
+      }
+      if (projectParam) {
+        this.projectId = projectParam;
+        this.selectedRepoFolder = projectParam;
+      }
+
+      if (this.selectedDbConnection) {
+        const associations = this.getDbRepoAssociations();
+        const associatedRepo = associations.dbToRepo[this.selectedDbConnection];
+        if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
+          this.selectedRepoFolder = associatedRepo;
+          this.projectId = associatedRepo;
+        }
+      }
+
       if (params['file']) {
         const fileParam = params['file'];
         if (fileParam !== this.selectedFilePath) {
@@ -142,6 +166,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         }
       }
+
+      if (this.localRepos.length > 0) {
+        this.syncProjectAssociation();
+      }
     });
 
     this.state.isDarkMode$.pipe(takeUntil(this.destroy$)).subscribe(isDark => {
@@ -150,11 +178,23 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.state.currentContext$.pipe(takeUntil(this.destroy$)).subscribe(ctxModel => {
-      if (ctxModel && ctxModel.currentContext && ctxModel.currentContext.endpoint) {
+      if (ctxModel && ctxModel.currentContext) {
         const db = ctxModel.currentContext.endpoint;
-        if (db && db !== this.selectedDbConnection) {
+        if (!db) {
+          return;
+        }
+        if (db !== this.selectedDbConnection) {
           this.selectedDbConnection = db;
-          this.syncProjectAssociation();
+          const associations = this.getDbRepoAssociations();
+          const associatedRepo = associations.dbToRepo[db];
+          if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
+            this.selectedRepoFolder = associatedRepo;
+            this.projectId = associatedRepo;
+            this.setStatus(`Switched to linked repository '${associatedRepo}' for database '${db}'`, false);
+          }
+          if ((this.router.url || '').includes('/workbench')) {
+            this.syncProjectAssociation();
+          }
         }
       }
     });
@@ -182,9 +222,28 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
           this.localRepos = repos.repositories || [];
         }
 
-        if (this.projectId && this.localRepos.some(r => r.folderName === this.projectId)) {
+        // 1. Resolve active database connection
+        const currentCtxDb = this.state.getCurrentContext()?.endpoint;
+        if (!this.selectedDbConnection) {
+          if (currentCtxDb && this.dbEndpoints.some(e => e.endpoint === currentCtxDb)) {
+            this.selectedDbConnection = currentCtxDb;
+          } else if (this.dbEndpoints.length > 0) {
+            this.selectedDbConnection = this.dbEndpoints[0].endpoint;
+          }
+        }
+
+        // 2. Check dbToRepo association for the selected database
+        const associations = this.getDbRepoAssociations();
+        const associatedRepo = this.selectedDbConnection ? associations.dbToRepo[this.selectedDbConnection] : null;
+
+        if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
+          this.selectedRepoFolder = associatedRepo;
+          this.projectId = associatedRepo;
+        } else if (this.projectId && this.localRepos.some(r => r.folderName === this.projectId)) {
           this.selectedRepoFolder = this.projectId;
-        } else if (!this.selectedRepoFolder && this.localRepos.length > 0) {
+        } else if (this.selectedRepoFolder && this.localRepos.some(r => r.folderName === this.selectedRepoFolder)) {
+          this.projectId = this.selectedRepoFolder;
+        } else if (this.localRepos.length > 0) {
           this.selectedRepoFolder = this.localRepos[0].folderName;
           this.projectId = this.selectedRepoFolder;
         }
@@ -262,7 +321,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
             description: ep.description || ep.endpoint
           }));
           if (this.dbEndpoints.length > 0 && !this.selectedDbConnection) {
-            this.selectedDbConnection = this.dbEndpoints[0].endpoint;
+            const ctxDb = this.state.getCurrentContext()?.endpoint;
+            this.selectedDbConnection = (ctxDb && this.dbEndpoints.some(e => e.endpoint === ctxDb))
+              ? ctxDb
+              : this.dbEndpoints[0].endpoint;
           }
           this.syncProjectAssociation();
         } else {
@@ -282,7 +344,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
             description: ep.description || ep.endpoint
           }));
           if (this.dbEndpoints.length > 0 && !this.selectedDbConnection) {
-            this.selectedDbConnection = this.dbEndpoints[0].endpoint;
+            const ctxDb = this.state.getCurrentContext()?.endpoint;
+            this.selectedDbConnection = (ctxDb && this.dbEndpoints.some(e => e.endpoint === ctxDb))
+              ? ctxDb
+              : this.dbEndpoints[0].endpoint;
           }
           this.syncProjectAssociation();
         }
@@ -296,7 +361,13 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         this.baseReposDir = res.baseDir || '';
         this.localRepos = res.repositories || [];
-        if (!this.selectedRepoFolder && this.localRepos.length > 0) {
+        const associations = this.getDbRepoAssociations();
+        const associatedRepo = this.selectedDbConnection ? associations.dbToRepo[this.selectedDbConnection] : null;
+
+        if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
+          this.selectedRepoFolder = associatedRepo;
+          this.projectId = associatedRepo;
+        } else if (!this.selectedRepoFolder && this.localRepos.length > 0) {
           this.selectedRepoFolder = this.localRepos[0].folderName;
           this.projectId = this.selectedRepoFolder;
         }
@@ -308,23 +379,26 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private getDbRepoAssociations(): { dbToRepo: Record<string, string>; repoToDb: Record<string, string> } {
+  private getDbRepoAssociations(): { dbToRepo: Record<string, string> } {
     try {
       const stored = localStorage.getItem('visulate_db_repo_associations');
       if (stored) {
         const parsed = JSON.parse(stored);
         return {
-          dbToRepo: parsed.dbToRepo || {},
-          repoToDb: parsed.repoToDb || {}
+          dbToRepo: parsed.dbToRepo || {}
         };
       }
     } catch (_) {}
-    return { dbToRepo: {}, repoToDb: {} };
+    return { dbToRepo: {} };
   }
 
-  private saveDbRepoAssociations(associations: { dbToRepo: Record<string, string>; repoToDb: Record<string, string> }): void {
+  private saveDbRepoAssociations(associations: { dbToRepo: Record<string, string> }): void {
     try {
-      localStorage.setItem('visulate_db_repo_associations', JSON.stringify(associations));
+      // Ensure only dbToRepo is saved in localStorage, removing any legacy repoToDb
+      const toSave = {
+        dbToRepo: associations.dbToRepo || {}
+      };
+      localStorage.setItem('visulate_db_repo_associations', JSON.stringify(toSave));
     } catch (e) {
       console.warn('Failed to save associations in localStorage', e);
     }
@@ -333,8 +407,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public get isCurrentPairAssociated(): boolean {
     if (!this.selectedDbConnection || !this.selectedRepoFolder) return false;
     const associations = this.getDbRepoAssociations();
-    return associations.dbToRepo[this.selectedDbConnection] === this.selectedRepoFolder ||
-           associations.repoToDb[this.selectedRepoFolder] === this.selectedDbConnection;
+    return associations.dbToRepo[this.selectedDbConnection] === this.selectedRepoFolder;
   }
 
   public toggleDbRepoAssociation(): void {
@@ -345,33 +418,18 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const associations = this.getDbRepoAssociations();
     if (this.isCurrentPairAssociated) {
-      const priorRepo = associations.dbToRepo[this.selectedDbConnection];
-      if (priorRepo) delete associations.repoToDb[priorRepo];
       delete associations.dbToRepo[this.selectedDbConnection];
-
-      const priorDb = associations.repoToDb[this.selectedRepoFolder];
-      if (priorDb) delete associations.dbToRepo[priorDb];
-      delete associations.repoToDb[this.selectedRepoFolder];
-
       this.saveDbRepoAssociations(associations);
+      this.state.notifyRepoAssociationChanged();
       this.setStatus(`Unlinked database '${this.selectedDbConnection}' from repository '${this.selectedRepoFolder}'`, false);
     } else {
-      // Remove prior inverse mappings before recording new pair
-      const priorRepoForDb = associations.dbToRepo[this.selectedDbConnection];
-      if (priorRepoForDb) {
-        delete associations.repoToDb[priorRepoForDb];
-      }
-      const priorDbForRepo = associations.repoToDb[this.selectedRepoFolder];
-      if (priorDbForRepo) {
-        delete associations.dbToRepo[priorDbForRepo];
-      }
-
       associations.dbToRepo[this.selectedDbConnection] = this.selectedRepoFolder;
-      associations.repoToDb[this.selectedRepoFolder] = this.selectedDbConnection;
       this.saveDbRepoAssociations(associations);
+      this.state.notifyRepoAssociationChanged();
       this.setStatus(`Linked database '${this.selectedDbConnection}' with repository '${this.selectedRepoFolder}'`, false);
     }
   }
+
 
   @HostListener('window:keydown', ['$event'])
   handleKeyboardShortcut(event: KeyboardEvent): void {
@@ -388,27 +446,25 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public syncProjectAssociation(): void {
     const associations = this.getDbRepoAssociations();
 
+    if (this.selectedDbConnection) {
+      const associatedRepo = associations.dbToRepo[this.selectedDbConnection];
+      if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
+        if (this.selectedRepoFolder !== associatedRepo) {
+          this.selectedRepoFolder = associatedRepo;
+          this.projectId = associatedRepo;
+        }
+      }
+    }
+
     if (this.selectedRepoFolder) {
       this.projectId = this.selectedRepoFolder;
-      const linkedDb = associations.repoToDb[this.selectedRepoFolder];
-      if (linkedDb && this.dbEndpoints.some(e => e.endpoint === linkedDb)) {
-        this.selectedDbConnection = linkedDb;
-      } else if (!this.selectedDbConnection && this.dbEndpoints.length > 0) {
-        this.selectedDbConnection = this.dbEndpoints[0].endpoint;
-      }
+      this.state.setSelectedRepo(this.selectedRepoFolder);
       this.loadProjectFiles();
-    } else if (this.selectedDbConnection) {
-      const linkedRepo = associations.dbToRepo[this.selectedDbConnection];
-      if (linkedRepo && this.localRepos.some(r => r.folderName === linkedRepo)) {
-        this.selectedRepoFolder = linkedRepo;
-        this.projectId = linkedRepo;
-        this.loadProjectFiles();
-        return;
-      }
-      this.projectFiles = [];
-      this.filteredFiles = [];
-      this.fileTreeNodes = [];
-      this.isLoading = false;
+    } else if (this.localRepos.length > 0) {
+      this.selectedRepoFolder = this.localRepos[0].folderName;
+      this.projectId = this.selectedRepoFolder;
+      this.state.setSelectedRepo(this.selectedRepoFolder);
+      this.loadProjectFiles();
     } else {
       this.projectFiles = [];
       this.filteredFiles = [];
@@ -432,6 +488,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.selectedRepoFolder !== associatedRepo) {
         this.selectedRepoFolder = associatedRepo;
         this.projectId = associatedRepo;
+        this.state.setSelectedRepo(associatedRepo);
         this.setStatus(`Switched to linked repository '${associatedRepo}' for database '${this.selectedDbConnection}'`, false);
       }
     }
@@ -454,23 +511,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.projectId = this.selectedRepoFolder;
-
-    const associations = this.getDbRepoAssociations();
-    const associatedDb = associations.repoToDb[this.selectedRepoFolder];
-
-    if (associatedDb && this.dbEndpoints.some(e => e.endpoint === associatedDb)) {
-      if (this.selectedDbConnection !== associatedDb) {
-        this.selectedDbConnection = associatedDb;
-        this.setStatus(`Switched to linked database '${associatedDb}' for repository '${this.selectedRepoFolder}'`, false);
-      }
-    }
-
-    const ctx = this.state.getCurrentContext();
-    if (ctx.endpoint !== this.selectedDbConnection) {
-      ctx.setEndpoint(this.selectedDbConnection);
-      this.state.setCurrentContext(ctx);
-    }
-
+    this.state.setSelectedRepo(this.selectedRepoFolder);
     this.loadProjectFiles();
   }
 
@@ -698,6 +739,75 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  public confirmDeleteFile(filePath: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!filePath) return;
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) {
+      this.setStatus('Please select a repository first', true);
+      return;
+    }
+
+    if (this.confirmDeleteDialog) {
+      const dialogRef = this.dialog.open(this.confirmDeleteDialog, {
+        data: { filePath },
+        width: '420px'
+      });
+
+      dialogRef.afterClosed().subscribe(confirmed => {
+        if (confirmed) {
+          this.executeDeleteFile(filePath);
+        }
+      });
+    } else {
+      if (confirm(`Are you sure you want to delete '${filePath}' from repository '${targetId}'?`)) {
+        this.executeDeleteFile(filePath);
+      }
+    }
+  }
+
+  public executeDeleteFile(filePath: string): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    this.setStatus(`Deleting '${filePath}'...`, false);
+    this.isLoading = true;
+
+    this.restService.deleteGitFile$(targetId, filePath).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.setStatus(`Deleted '${filePath}' successfully`, false);
+
+        if (this.selectedFilePath === filePath) {
+          this.selectedFilePath = '';
+          this.activeFileContent = '';
+          this.originalContent = '';
+          this.modifiedContent = '';
+          if (this.monacoEditor) {
+            this.monacoEditor.setValue('');
+          }
+          if ((this.router.url || '').includes('/workbench')) {
+            const currentParams = { ...this.route.snapshot.queryParams };
+            delete currentParams['file'];
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: currentParams,
+              replaceUrl: true
+            });
+          }
+        }
+
+        this.loadProjectFiles();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.setStatus(`Failed to delete '${filePath}': ${err.error?.error || err.message}`, true);
+      }
+    });
+  }
+
   public applyFileFilter(): void {
     if (!this.fileFilterQuery) {
       this.filteredFiles = [...this.projectFiles];
@@ -796,22 +906,87 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public loadDbMapData(): void {
     const targetId = this.selectedRepoFolder || this.projectId;
-    this.restService.getGitFile$(targetId, '.okf/oracle-code-map.json').subscribe({
-      next: (res) => {
-        try {
-          this.dbMapData = JSON.parse(res.content);
-          this.updateCurrentFileDbObjects();
-          this.rebuildFileTree();
-        } catch (e) {
+    if (!targetId) {
+      this.dbMapData = null;
+      this.rebuildFileTree();
+      return;
+    }
+
+    const loadLegacy = () => {
+      this.restService.getGitFile$(targetId, '.visulate/oracle-code-map.json').subscribe({
+        next: (res) => {
+          try {
+            this.dbMapData = JSON.parse(res.content);
+            this.updateCurrentFileDbObjects();
+            this.rebuildFileTree();
+          } catch (e) {
+            loadOkfLegacy();
+          }
+        },
+        error: () => {
+          loadOkfLegacy();
+        }
+      });
+    };
+
+    const loadOkfLegacy = () => {
+      this.restService.getGitFile$(targetId, '.okf/oracle-code-map.json').subscribe({
+        next: (res) => {
+          try {
+            this.dbMapData = JSON.parse(res.content);
+            this.updateCurrentFileDbObjects();
+            this.rebuildFileTree();
+          } catch (e) {
+            this.dbMapData = null;
+            this.rebuildFileTree();
+          }
+        },
+        error: () => {
           this.dbMapData = null;
           this.rebuildFileTree();
         }
-      },
-      error: () => {
-        this.dbMapData = null;
-        this.rebuildFileTree();
-      }
-    });
+      });
+    };
+
+    if (this.selectedDbConnection) {
+      const db = this.selectedDbConnection.toLowerCase().trim();
+      const visulateDbPath = `.visulate/${db}/oracle-code-map.json`;
+      const okfDbPath = `.okf/${db}/oracle-code-map.json`;
+
+      const loadOkfDb = () => {
+        this.restService.getGitFile$(targetId, okfDbPath).subscribe({
+          next: (res) => {
+            try {
+              this.dbMapData = JSON.parse(res.content);
+              this.updateCurrentFileDbObjects();
+              this.rebuildFileTree();
+            } catch (e) {
+              loadLegacy();
+            }
+          },
+          error: () => {
+            loadLegacy();
+          }
+        });
+      };
+
+      this.restService.getGitFile$(targetId, visulateDbPath).subscribe({
+        next: (res) => {
+          try {
+            this.dbMapData = JSON.parse(res.content);
+            this.updateCurrentFileDbObjects();
+            this.rebuildFileTree();
+          } catch (e) {
+            loadOkfDb();
+          }
+        },
+        error: () => {
+          loadOkfDb();
+        }
+      });
+    } else {
+      loadLegacy();
+    }
   }
 
   public openFile(filePath: string): void {
@@ -820,6 +995,11 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     this.state.setLastSelectedFile(filePath, this.selectedRepoFolder || this.projectId);
     this.updateCurrentFileDbObjects();
     this.loadFileContent();
+
+    const url = this.router.url || '';
+    if (!url.includes('/workbench')) {
+      return;
+    }
 
     const targetProject = this.selectedRepoFolder || this.projectId;
     const currentParams = this.route.snapshot.queryParams;
@@ -1229,7 +1409,9 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     this.setStatus('Indexing database-to-code dependencies...', false);
     this.restService.indexDependencies$(targetId, undefined, this.selectedDbConnection).subscribe({
       next: () => {
-        this.setStatus('Dependency mapping completed. Saved to .okf/oracle-code-map.json', false);
+        const targetDb = this.selectedDbConnection ? this.selectedDbConnection.toLowerCase().trim() : '';
+        const savedLoc = targetDb ? `.visulate/${targetDb}/` : '.visulate/';
+        this.setStatus(`Dependency mapping completed. Saved to ${savedLoc}oracle-code-map.json & codebase-dependencies.md`, false);
         this.loadProjectFiles();
       },
       error: (err) => {

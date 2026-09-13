@@ -7,6 +7,21 @@
     </button>
     }
 
+    @if (currentRepo) {
+    <div class="chat-repo-indicator chat-repo-link"
+         (click)="openRepoInWorkbench()"
+         [matTooltip]="'Open repository ' + currentRepo + ' in Application Workbench (Memory records and generated code will be stored in ' + currentRepo + '/.visulate/)'"
+         role="button"
+         tabindex="0"
+         (keydown.enter)="openRepoInWorkbench()"
+         (keydown.space)="openRepoInWorkbench(); $event.preventDefault()">
+      <mat-icon class="repo-indicator-icon">folder_special</mat-icon>
+      <span class="repo-indicator-label">Repository:</span>
+      <span class="repo-indicator-name">{{ currentRepo }}</span>
+    </div>
+    }
+
+
 
     <div class="messages" #messageContainer>
       @if ((messages$ | async)?.length === 0 && !isLoading) {

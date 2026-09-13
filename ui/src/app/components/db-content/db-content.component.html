@@ -51,6 +51,19 @@
       </mat-panel-title>
       <mat-panel-description>
         Database Analysis
+        @if (associatedRepo) {
+        <a class="repo-badge repo-badge-link"
+           (click)="openRepoInWorkbench($event)"
+           [matTooltip]="'Open repository ' + associatedRepo + ' in Application Workbench'"
+           role="button"
+           tabindex="0"
+           (keydown.enter)="openRepoInWorkbench($event)"
+           (keydown.space)="openRepoInWorkbench($event); $event.preventDefault()">
+          <mat-icon class="repo-badge-icon">folder</mat-icon>{{ associatedRepo }}
+        </a>
+        }
+
+
       </mat-panel-description>
       @if (!mobileQuery.matches) {
       <button mat-icon-button (click)="toggleChatFullScreen($event)"
@@ -197,6 +210,11 @@
       </mat-panel-title>
       <mat-panel-description>
         Schema Analysis & Comment Generation
+        @if (associatedRepo) {
+        <span class="repo-badge" [matTooltip]="'Linked repository: ' + associatedRepo">
+          <mat-icon class="repo-badge-icon">folder</mat-icon>{{ associatedRepo }}
+        </span>
+        }
       </mat-panel-description>
       @if (!mobileQuery.matches) {
       <button mat-icon-button (click)="toggleChatFullScreen($event)"
@@ -230,6 +248,11 @@
         </mat-panel-title>
         <mat-panel-description>
           Code Generation and Analysis
+          @if (associatedRepo) {
+          <span class="repo-badge" [matTooltip]="'Linked repository: ' + associatedRepo">
+            <mat-icon class="repo-badge-icon">folder</mat-icon>{{ associatedRepo }}
+          </span>
+          }
         </mat-panel-description>
         @if (!mobileQuery.matches) {
         <button mat-icon-button (click)="toggleChatFullScreen($event)"

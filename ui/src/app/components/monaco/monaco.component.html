@@ -181,6 +181,12 @@
                 +{{ node.extraBadgeCount }}
               </span>
             </div>
+
+            <!-- Delete Button on File Row -->
+            <button mat-icon-button class="tree-delete-btn" matTooltip="Delete file"
+              (click)="confirmDeleteFile(node.path, $event)">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
           </div>
         </div>
       </ng-template>
@@ -210,6 +216,11 @@
         <span class="view-indicator" *ngIf="selectedFilePath">
           {{ viewMode === 'editor' ? 'Single File Code Editor' : 'Side-by-Side Diff (HEAD vs Working Tree)' }}
         </span>
+        <span class="editor-header-spacer"></span>
+        <button *ngIf="selectedFilePath" mat-icon-button class="header-delete-btn" color="warn" matTooltip="Delete current file"
+          (click)="confirmDeleteFile(selectedFilePath)">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
       </div>
 
       <div class="editor-viewport">
@@ -279,4 +290,23 @@
     </div>
 
   </div>
+
+  <!-- Confirm Delete Dialog Template -->
+  <ng-template #confirmDeleteDialog let-data>
+    <div class="delete-dialog-container">
+      <h2 mat-dialog-title class="delete-dialog-title">
+        <mat-icon color="warn">warning</mat-icon> Delete File
+      </h2>
+      <mat-dialog-content class="delete-dialog-content">
+        <p>Are you sure you want to delete <code class="file-path-code">{{ data.filePath }}</code> from repository <strong>{{ selectedRepoFolder }}</strong>?</p>
+        <p class="delete-warning-subtext">This action will delete the file from the working tree. Any uncommitted changes in this file will be permanently lost.</p>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end" class="delete-dialog-actions">
+        <button mat-button mat-dialog-close>Cancel</button>
+        <button mat-raised-button color="warn" [mat-dialog-close]="true">
+          <mat-icon>delete</mat-icon> Delete
+        </button>
+      </mat-dialog-actions>
+    </div>
+  </ng-template>
 </div>

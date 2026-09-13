@@ -26,6 +26,7 @@ describe('MonacoComponent - New File Creation', () => {
       'getLocalRepositories$',
       'listGitFiles$',
       'saveGitFile$',
+      'deleteGitFile$',
       'getGitFile$',
       'getGitBranches$',
       'getEndpoints$'
@@ -33,7 +34,10 @@ describe('MonacoComponent - New File Creation', () => {
     mockStateService = jasmine.createSpyObj('StateService', [
       'getCurrentContext',
       'setLastSelectedFile',
-      'setCurrentContext'
+      'setCurrentContext',
+      'setSelectedRepo',
+      'getSelectedRepo',
+      'notifyRepoAssociationChanged'
     ]);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
     mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
@@ -150,4 +154,249 @@ describe('MonacoComponent - New File Creation', () => {
     expect(component.openFile).toHaveBeenCalledWith('queries/new-query.sql');
     expect(component.showNewFileInput).toBe(false);
   }));
+
+  describe('Database and Repository Associations (dbToRepo)', () => {
+    beforeEach(() => {
+      localStorage.removeItem('visulate_db_repo_associations');
+    });
+
+    afterEach(() => {
+      localStorage.removeItem('visulate_db_repo_associations');
+    });
+
+    it('should link selected database to selected repository and save only dbToRepo without repoToDb', () => {
+      component.selectedDbConnection = 'db_prod';
+      component.selectedRepoFolder = 'my-prod-repo';
+
+      expect(component.isCurrentPairAssociated).toBe(false);
+
+      component.toggleDbRepoAssociation();
+
+      expect(component.isCurrentPairAssociated).toBe(true);
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      expect(stored).toBeTruthy();
+      const parsed = JSON.parse(stored!);
+      expect(parsed.dbToRepo).toEqual({ db_prod: 'my-prod-repo' });
+      expect(parsed.repoToDb).toBeUndefined();
+    });
+
+    it('should unlink selected database and update localStorage', () => {
+      localStorage.setItem('visulate_db_repo_associations', JSON.stringify({
+        dbToRepo: { db_prod: 'my-prod-repo' },
+        repoToDb: { 'my-prod-repo': 'db_prod' } // legacy data
+      }));
+
+      component.selectedDbConnection = 'db_prod';
+      component.selectedRepoFolder = 'my-prod-repo';
+
+      expect(component.isCurrentPairAssociated).toBe(true);
+
+      component.toggleDbRepoAssociation();
+
+      expect(component.isCurrentPairAssociated).toBe(false);
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      const parsed = JSON.parse(stored!);
+      expect(parsed.dbToRepo).toEqual({});
+      expect(parsed.repoToDb).toBeUndefined();
+    });
+
+    it('should switch selected repository when changing database that has a dbToRepo association', () => {
+      localStorage.setItem('visulate_db_repo_associations', JSON.stringify({
+        dbToRepo: { db_alpha: 'repo-alpha', db_beta: 'repo-beta' }
+      }));
+
+      component.localRepos = [
+        { folderName: 'repo-alpha', fullPath: '/repos/repo-alpha', isGitRepo: true },
+        { folderName: 'repo-beta', fullPath: '/repos/repo-beta', isGitRepo: true }
+      ];
+      component.selectedDbConnection = 'db_alpha';
+      component.selectedRepoFolder = 'repo-alpha';
+
+      spyOn(component, 'loadProjectFiles');
+
+      // Change to db_beta which is linked to repo-beta
+      component.selectedDbConnection = 'db_beta';
+      component.onDbChange();
+
+      expect(component.selectedRepoFolder).toBe('repo-beta');
+      expect(component.projectId).toBe('repo-beta');
+      expect(component.loadProjectFiles).toHaveBeenCalled();
+    });
+
+    it('should sync associated repository when syncProjectAssociation is called', () => {
+      localStorage.setItem('visulate_db_repo_associations', JSON.stringify({
+        dbToRepo: { db_sales: 'sales-repo' }
+      }));
+
+      component.localRepos = [
+        { folderName: 'default-repo', fullPath: '/repos/default-repo', isGitRepo: true },
+        { folderName: 'sales-repo', fullPath: '/repos/sales-repo', isGitRepo: true }
+      ];
+      component.selectedDbConnection = 'db_sales';
+      component.selectedRepoFolder = 'default-repo';
+
+      spyOn(component, 'loadProjectFiles');
+
+      component.syncProjectAssociation();
+
+      expect(component.selectedRepoFolder).toBe('sales-repo');
+      expect(component.projectId).toBe('sales-repo');
+      expect(component.loadProjectFiles).toHaveBeenCalled();
+    });
+
+    it('should NOT change database connection when onRepoChange is called', () => {
+      component.selectedDbConnection = 'db_alpha';
+      component.selectedRepoFolder = 'repo-beta';
+
+      spyOn(component, 'loadProjectFiles');
+
+      component.onRepoChange();
+
+      expect(component.selectedDbConnection).toBe('db_alpha');
+      expect(component.projectId).toBe('repo-beta');
+      expect(component.loadProjectFiles).toHaveBeenCalled();
+    });
+
+    it('should NOT navigate or modify query parameters in openFile when not on /workbench', () => {
+      (mockRouter as any).url = '/database';
+      spyOn(component, 'loadFileContent');
+      component.selectedDbConnection = 'pdb23';
+      component.selectedRepoFolder = 'odoo';
+
+      component.openFile('test.sql');
+
+      expect(component.selectedFilePath).toBe('test.sql');
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
+    });
+
+    it('should navigate and update query parameters in openFile when on /workbench', () => {
+      (mockRouter as any).url = '/workbench';
+      spyOn(component, 'loadFileContent');
+      component.selectedDbConnection = 'pdb23';
+      component.selectedRepoFolder = 'odoo';
+
+      component.openFile('test.sql');
+
+      expect(component.selectedFilePath).toBe('test.sql');
+      expect(mockRouter.navigate).toHaveBeenCalledWith([], jasmine.objectContaining({
+        queryParams: {
+          db: 'pdb23',
+          file: 'test.sql',
+          projectId: 'odoo'
+        },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      }));
+    });
+
+    it('should load db-specific map .visulate/<db>/oracle-code-map.json when selectedDbConnection is set', () => {
+      component.selectedDbConnection = 'pdb23';
+      component.selectedRepoFolder = 'my-repo';
+      mockRestService.getGitFile$.and.returnValue(of({
+        content: JSON.stringify({
+          dbConnectionId: 'pdb23',
+          objects: { EMP: { owner: 'SCOTT', type: 'TABLE', files: ['emp.sql'] } },
+          files: { 'emp.sql': ['EMP'] }
+        })
+      }));
+
+      component.loadDbMapData();
+
+      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', '.visulate/pdb23/oracle-code-map.json');
+      expect(component.dbMapData).toBeTruthy();
+      expect(component.dbMapData.objects['EMP']).toBeDefined();
+    });
+
+    it('should fall back to .okf/ when .visulate/ is missing', () => {
+      component.selectedDbConnection = 'pdb23';
+      component.selectedRepoFolder = 'my-repo';
+      mockRestService.getGitFile$.and.callFake((proj, file) => {
+        if (file.startsWith('.visulate')) {
+          return throwError(() => new Error('Not found'));
+        }
+        return of({
+          content: JSON.stringify({
+            dbConnectionId: 'pdb23',
+            objects: { DEPT: { owner: 'SCOTT', type: 'TABLE', files: ['dept.sql'] } },
+            files: { 'dept.sql': ['DEPT'] }
+          })
+        });
+      });
+
+      component.loadDbMapData();
+
+      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', '.visulate/pdb23/oracle-code-map.json');
+      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', '.okf/pdb23/oracle-code-map.json');
+      expect(component.dbMapData).toBeTruthy();
+      expect(component.dbMapData.objects['DEPT']).toBeDefined();
+    });
+
+    it('should delete file and clear active editor state if deleted file was active', () => {
+      component.selectedRepoFolder = 'my-repo';
+      component.selectedFilePath = 'src/test.sql';
+      component.activeFileContent = 'SELECT 1;';
+      (mockRouter as any).url = '/workbench';
+
+      mockRestService.deleteGitFile$.and.returnValue(of({ success: true, filePath: 'src/test.sql' }));
+      spyOn(component, 'loadProjectFiles');
+
+      component.executeDeleteFile('src/test.sql');
+
+      expect(mockRestService.deleteGitFile$).toHaveBeenCalledWith('my-repo', 'src/test.sql');
+      expect(component.selectedFilePath).toBe('');
+      expect(component.activeFileContent).toBe('');
+      expect(component.loadProjectFiles).toHaveBeenCalled();
+      expect(component.statusMessage).toContain('Deleted \'src/test.sql\' successfully');
+    });
+
+    it('should delete file without clearing active editor state if a different file was deleted', () => {
+      component.selectedRepoFolder = 'my-repo';
+      component.selectedFilePath = 'src/active.sql';
+      component.activeFileContent = 'SELECT 2;';
+
+      mockRestService.deleteGitFile$.and.returnValue(of({ success: true, filePath: 'src/other.sql' }));
+      spyOn(component, 'loadProjectFiles');
+
+      component.executeDeleteFile('src/other.sql');
+
+      expect(mockRestService.deleteGitFile$).toHaveBeenCalledWith('my-repo', 'src/other.sql');
+      expect(component.selectedFilePath).toBe('src/active.sql');
+      expect(component.activeFileContent).toBe('SELECT 2;');
+      expect(component.loadProjectFiles).toHaveBeenCalled();
+    });
+
+    it('should open confirmation dialog and execute delete when confirmed', () => {
+      component.selectedRepoFolder = 'my-repo';
+      component.confirmDeleteDialog = {} as any;
+
+      mockDialog.open.and.returnValue({
+        afterClosed: () => of(true)
+      } as any);
+
+      spyOn(component, 'executeDeleteFile');
+
+      component.confirmDeleteFile('src/delete-me.sql');
+
+      expect(mockDialog.open).toHaveBeenCalledWith(component.confirmDeleteDialog, jasmine.objectContaining({
+        data: { filePath: 'src/delete-me.sql' }
+      }));
+      expect(component.executeDeleteFile).toHaveBeenCalledWith('src/delete-me.sql');
+    });
+
+    it('should not execute delete if confirmation dialog is cancelled', () => {
+      component.selectedRepoFolder = 'my-repo';
+      component.confirmDeleteDialog = {} as any;
+
+      mockDialog.open.and.returnValue({
+        afterClosed: () => of(false)
+      } as any);
+
+      spyOn(component, 'executeDeleteFile');
+
+      component.confirmDeleteFile('src/keep-me.sql');
+
+      expect(mockDialog.open).toHaveBeenCalled();
+      expect(component.executeDeleteFile).not.toHaveBeenCalled();
+    });
+  });
 });

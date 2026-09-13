@@ -298,6 +298,19 @@ router.route('/api/git/file')
     } catch (err) {
       handleGitError(res, err);
     }
+  })
+  .delete(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || req.body?.projectId || 'default-project';
+      const filePath = req.query.path || req.body?.filePath || '';
+      if (!filePath) {
+        return res.status(400).json({ error: 'filePath is required' });
+      }
+      const result = await gitService.deleteFile(projectId, filePath, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
   });
 
 router.route('/api/git/files')
@@ -415,7 +428,14 @@ router.route('/api/collection/:db')
 
 router.route('/ai')
   .get(aiService.aiEnabled)
-  .post(validate({ body: aiBodySchema }), aiService.generativeAI);
+  .post(validate({ body: aiBodySchema }), (req, res, next) => {
+    const principal = req.user?.username || req.user?.id || req.user?.sub
+      || getConfiguredPrincipal(req)
+      || req.headers['x-git-user']
+      || null;
+    req.userContext = { username: principal };
+    aiService.generativeAI(req, res, next);
+  });
 
 router.route('/mcp')
   .get(aiService.handleMcpRequest)

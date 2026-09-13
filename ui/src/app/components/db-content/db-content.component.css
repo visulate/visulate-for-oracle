@@ -475,3 +475,48 @@ mat-expansion-panel {
 .code-file-item .open-btn {
   font-size: 12px;
 }
+
+.repo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: rgba(33, 150, 243, 0.12);
+  color: #1976d2;
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.repo-badge-link {
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.repo-badge-link:hover {
+  background-color: rgba(33, 150, 243, 0.24);
+  text-decoration: underline;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.repo-badge-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+}
+
+:host-context(.dark-theme) .repo-badge,
+body.dark-theme .repo-badge {
+  background-color: rgba(144, 202, 249, 0.18);
+  color: #90caf9;
+}
+
+:host-context(.dark-theme) .repo-badge-link:hover,
+body.dark-theme .repo-badge-link:hover {
+  background-color: rgba(144, 202, 249, 0.32);
+}
+

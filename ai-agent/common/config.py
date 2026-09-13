@@ -1,4 +1,6 @@
 import os
+from urllib.parse import urlparse
+
 
 def get_mcp_urls():
     """
@@ -21,21 +23,23 @@ def get_mcp_urls():
     visulate_base = os.getenv("VISULATE_BASE", "http://localhost")
     visulate_base = visulate_base.rstrip('/')
 
-    # Handle both reverse proxy and direct access scenarios
-    if "localhost" in visulate_base and ":" not in visulate_base:
-        # Local development without reverse proxy
-        api_server_url = f"{visulate_base}:3000/mcp"
-        query_engine_url = f"{visulate_base}:5000/mcp-sql"
-    elif "localhost" in visulate_base:
-        # Local development with specific port
-        api_server_url = f"{visulate_base}/mcp"
-        query_engine_url = f"{visulate_base.replace(':3000', ':5000')}/mcp-sql"
+    parsed = urlparse(visulate_base)
+    host = (parsed.hostname or "").lower()
+
+    if host in ("localhost", "127.0.0.1", "::1"):
+        if parsed.port:
+            api_server_url = f"{visulate_base}/mcp"
+            query_engine_url = f"{visulate_base.replace(f':{parsed.port}', ':5000')}/mcp-sql"
+        else:
+            api_server_url = f"{visulate_base}:3000/mcp"
+            query_engine_url = f"{visulate_base}:5000/mcp-sql"
     else:
         # Production with reverse proxy - both endpoints on same base URL
         api_server_url = f"{visulate_base}/mcp"
         query_engine_url = f"{visulate_base}/mcp-sql"
 
     return api_server_url, query_engine_url
+
 
 def get_ai_timeout() -> int:
     """
@@ -50,3 +54,38 @@ def get_max_attachments() -> int:
     Default: 10
     """
     return int(os.getenv("VISULATE_MAX_ATTACHMENTS", "10"))
+
+
+def resolve_repos_base_dir(username: str = None) -> str:
+    """
+    Resolves the base directory for git repositories.
+    - In server mode (GIT_MODE=server) and when username is provided,
+      partitions workspaces under $GIT_REPOS_DIR/users/<username>/
+    - In local mode (default), uses $GIT_REPOS_DIR directly.
+    """
+    root = os.getenv("GIT_REPOS_DIR")
+    if not root:
+        home_git = os.path.expanduser("~/git")
+        root = home_git if os.path.exists(home_git) else os.path.expanduser("~/visulate-repos")
+
+    mode = (os.getenv("GIT_MODE") or "local").lower()
+    if mode == "server" and username:
+        safe_user = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(username)]).strip("_")
+        if safe_user and safe_user not in (".", ".."):
+            return os.path.join(root, "users", safe_user)
+    return root
+
+
+def resolve_repo_path(project_id: str, username: str = None) -> str:
+    """
+    Resolves directory for a target repository folder.
+    Matches gitService.js:getProjectRepoDir partition logic.
+    """
+    if not project_id:
+        return ""
+    safe_project = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_")
+    if not safe_project or safe_project in (".", ".."):
+        return ""
+    base_dir = resolve_repos_base_dir(username)
+    return os.path.join(base_dir, safe_project)
+

@@ -50,6 +50,76 @@
   transition: all 0.2s ease-in-out;
 }
 
+.chat-repo-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  margin: 8px 16px 0 16px;
+  background-color: var(--app-sidebar-bg, #f8fafc);
+  border: 1px solid var(--app-border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--app-text-color, #334155);
+}
+
+.repo-indicator-icon {
+  color: #1976d2;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+}
+
+.repo-indicator-label {
+  color: var(--app-text-muted, #64748b);
+  font-weight: 500;
+}
+
+.repo-indicator-name {
+  font-weight: 600;
+  font-family: monospace;
+  color: #0284c7;
+  background-color: rgba(14, 165, 233, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+:host-context(.dark-theme) .chat-repo-indicator,
+body.dark-theme .chat-repo-indicator {
+  background-color: rgba(30, 41, 59, 0.7);
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+:host-context(.dark-theme) .repo-indicator-name,
+body.dark-theme .repo-indicator-name {
+  color: #38bdf8;
+  background-color: rgba(56, 189, 248, 0.15);
+}
+
+.chat-repo-indicator.chat-repo-link {
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-repo-indicator.chat-repo-link:hover {
+  background-color: var(--app-active-bg, #f1f5f9);
+  border-color: #90caf9;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.chat-repo-indicator.chat-repo-link:hover .repo-indicator-name {
+  text-decoration: underline;
+}
+
+:host-context(.dark-theme) .chat-repo-indicator.chat-repo-link:hover,
+body.dark-theme .chat-repo-indicator.chat-repo-link:hover {
+  background-color: rgba(51, 65, 85, 0.85);
+  border-color: #38bdf8;
+}
+
+
 .messages {
   flex: 1;
   overflow-y: auto;

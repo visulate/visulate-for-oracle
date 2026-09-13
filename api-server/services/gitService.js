@@ -286,6 +286,25 @@ async function saveFileContent(identifier, filePath, content, userContext = null
   return { success: true, filePath, fullPath };
 }
 
+async function deleteFile(identifier, filePath, userContext = null) {
+  const repoDir = await ensureRepoInitialized(identifier, userContext);
+  const fullPath = resolveSafePath(repoDir, filePath, true);
+
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+
+  const stat = fs.lstatSync(fullPath);
+  if (stat.isDirectory()) {
+    throw new Error(`Cannot delete directory: ${filePath}. Only file deletions are permitted.`);
+  }
+
+  fs.unlinkSync(fullPath);
+  logger.log('info', `Deleted ${filePath} in repository ${identifier}`);
+  return { success: true, filePath, message: `Deleted ${filePath}` };
+}
+
+
 async function createAndCheckoutBranch(identifier, branchName, userContext = null) {
   const repoDir = await ensureRepoInitialized(identifier, userContext);
   const checkRes = await runGitCommand(repoDir, ['rev-parse', '--verify', branchName], { logError: false });
@@ -480,6 +499,7 @@ module.exports = {
   pullRepo,
   getFileContent,
   saveFileContent,
+  deleteFile,
   createAndCheckoutBranch,
   commitAndPush,
   getDiff,

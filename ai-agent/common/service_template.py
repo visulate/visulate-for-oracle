@@ -19,36 +19,159 @@ from google.adk.utils.context_utils import Aclosing
 
 import importlib.metadata
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
-# No monkeypatch needed. 
+from common.config import resolve_repo_path
 
 logger = logging.getLogger(__name__)
 
-def get_okf_context(project_id: str) -> str:
+
+def get_okf_context(
+    project_id: str,
+    db_endpoint: str = None,
+    active_owner: str = None,
+    active_object: str = None,
+    max_budget_bytes: int = 35000,
+    username: str = None
+) -> str:
     try:
-        repos_dir = os.getenv("GIT_REPOS_DIR") or os.path.expanduser("~/visulate-repos")
         safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
-        proj_okf_dir = os.path.join(repos_dir, safe_project_id, ".okf")
-        if not os.path.exists(proj_okf_dir):
+        repo_path = resolve_repo_path(project_id, username)
+        if not repo_path or not os.path.exists(repo_path):
             return ""
-        
-        okf_text = "\nOpen Knowledge Format (OKF) Architectural Memory & Dependency Map:\n"
-        for root, dirs, files in os.walk(proj_okf_dir):
-            for file in files:
-                if file.endswith(".md") or file.endswith(".json"):
-                    rel_path = os.path.relpath(os.path.join(root, file), os.path.join(repos_dir, safe_project_id))
-                    full_path = os.path.join(root, file)
-                    try:
-                        with open(full_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                            if len(content) > 50000:
-                                content = content[:50000] + "\n[Truncated]"
-                            okf_text += f"--- OKF FILE: {rel_path} ---\n{content}\n--- END OF OKF FILE: {rel_path} ---\n"
-                    except Exception as e:
-                        logger.warning(f"Failed reading OKF file {full_path}: {e}")
+
+        visulate_dir = os.path.join(repo_path, ".visulate")
+        okf_dir = os.path.join(repo_path, ".okf")
+
+        target_dirs = []
+        if os.path.exists(visulate_dir):
+            target_dirs.append(visulate_dir)
+        if os.path.exists(okf_dir):
+            target_dirs.append(okf_dir)
+
+        if not target_dirs:
+            return ""
+
+        normalized_db = db_endpoint.lower().strip() if db_endpoint else None
+        collected_files = []
+
+        for base_dir in target_dirs:
+            for root, dirs, files in os.walk(base_dir):
+                for file in sorted(files):
+                    if file.endswith(".md") or file.endswith(".json"):
+                        full_path = os.path.join(root, file)
+                        rel_to_repo = os.path.relpath(full_path, repo_path)
+                        rel_to_base = os.path.relpath(full_path, base_dir)
+                        parts = rel_to_base.split(os.sep)
+
+                        # Check if file is striped by database
+                        is_in_db_subdir = len(parts) > 1 and parts[0] not in ("structures", "memories")
+                        db_folder = parts[0].lower() if is_in_db_subdir else None
+
+                        if normalized_db and is_in_db_subdir and db_folder != normalized_db:
+                            continue
+
+                        collected_files.append((rel_to_repo, full_path, file))
+
+        if not collected_files:
+            return ""
+
+        header_details = f"Repository: {safe_project_id}"
+        if db_endpoint:
+            header_details += f", Database: {db_endpoint}"
+
+        # Tiered prioritization to avoid OKF overload:
+        # Tier 1: Exact matches for active_object (e.g. object_name.md)
+        # Tier 2: Matches for active_owner (e.g. schema_owner_summary.md or owner in name)
+        # Tier 3: General architecture files (architecture_decisions.md, overview.md, codebase-dependencies.md)
+        # Tier 4: Other memory records
+        priority_files = []
+        other_files = []
+
+        norm_owner = active_owner.lower().strip() if active_owner else ""
+        norm_obj = active_object.lower().strip() if active_object else ""
+
+        for rel_path, full_path, filename in collected_files:
+            fn_lower = filename.lower()
+            if norm_obj and (fn_lower == f"{norm_obj}.md" or norm_obj in fn_lower):
+                priority_files.append((rel_path, full_path, filename, 1))
+            elif norm_owner and (norm_owner in fn_lower or fn_lower == f"schema_{norm_owner}_summary.md"):
+                priority_files.append((rel_path, full_path, filename, 2))
+            elif fn_lower in ("architecture_decisions.md", "architecture.md", "overview.md", "codebase-dependencies.md"):
+                priority_files.append((rel_path, full_path, filename, 3))
+            else:
+                other_files.append((rel_path, full_path, filename, 4))
+
+        priority_files.sort(key=lambda x: x[3])
+
+        eager_files = []
+        manifest_files = []
+        current_bytes = 0
+
+        # Load priority files up to budget
+        for item in priority_files:
+            rel_path, full_path, filename, _ = item
+            try:
+                sz = os.path.getsize(full_path)
+                if current_bytes + sz <= max_budget_bytes:
+                    eager_files.append((rel_path, full_path))
+                    current_bytes += sz
+                else:
+                    manifest_files.append(filename)
+            except Exception:
+                manifest_files.append(filename)
+
+        # If remaining budget, load from other files
+        for item in other_files:
+            rel_path, full_path, filename, _ = item
+            try:
+                sz = os.path.getsize(full_path)
+                if current_bytes + sz <= max_budget_bytes and not (filename.endswith(".json") and sz > 15000):
+                    eager_files.append((rel_path, full_path))
+                    current_bytes += sz
+                else:
+                    manifest_files.append(filename)
+            except Exception:
+                manifest_files.append(filename)
+
+        okf_text = f"\nVisulate Architectural Memory & Dependency Map ({header_details}):\n"
+
+        for rel_path, full_path in eager_files:
+            try:
+                file_size = os.path.getsize(full_path)
+                if full_path.endswith(".json") and file_size > 25000:
+                    okf_text += f"--- MEMORY FILE: {rel_path} (large mapping file, query corresponding .md) ---\n"
+                    continue
+
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if len(content) > 30000:
+                        content = content[:30000] + "\n[Truncated]"
+                    okf_text += f"--- MEMORY RECORD: {rel_path} ---\n{content}\n--- END OF MEMORY RECORD: {rel_path} ---\n"
+            except Exception as e:
+                logger.warning(f"Failed reading memory file {full_path}: {e}")
+
+        # If there are additional files, include a compact manifest
+        if manifest_files:
+            okf_text += "\nAdditional Available Memory Records (query via read_memory_record tool):\n"
+            schemas = [f for f in manifest_files if "schema" in f.lower()]
+            structures = [f for f in manifest_files if f not in schemas and not f.endswith(".json")]
+            other_maps = [f for f in manifest_files if f.endswith(".json")]
+
+            if schemas:
+                okf_text += f"- Schemas: {', '.join(schemas[:15])}\n"
+            if structures:
+                if len(structures) > 25:
+                    okf_text += f"- Object Structures: {', '.join(structures[:25])} ... ({len(structures)} total)\n"
+                else:
+                    okf_text += f"- Object Structures: {', '.join(structures)}\n"
+            if other_maps:
+                okf_text += f"- Maps/Indexes: {', '.join(other_maps[:5])}\n"
+
         return okf_text
     except Exception as err:
-        logger.warning(f"Error building OKF context: {err}")
+        logger.warning(f"Error building memory context: {err}")
         return ""
 
 def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> FastAPI:
@@ -72,8 +195,16 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
         data = await request.json()
         message = data.get("message", "")
         context_data = data.get("context", {})
-        auth_token = context_data.get("authToken")
-        db_credentials = context_data.get("dbCredentials")
+        if isinstance(context_data, str) and context_data.strip():
+            try:
+                context_data = json.loads(context_data)
+            except Exception as e:
+                logger.warning(f"Failed to parse context string: {e}")
+        username = data.get("username")
+        if username and isinstance(context_data, dict) and not context_data.get("username"):
+            context_data["username"] = username
+        auth_token = context_data.get("authToken") if isinstance(context_data, dict) else None
+        db_credentials = context_data.get("dbCredentials") if isinstance(context_data, dict) else None
         session_id = data.get("session_id", "default")
         browser_session_id = data.get("browser_session_id")
 
@@ -153,14 +284,23 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                 preamble += f"--- START OF FILE: {filename} ---\n"
                                 preamble += content_str
                         project_id = context_data.get("projectId") or "default-project"
-                        okf_context = get_okf_context(project_id)
+                        endpoint = context_data.get("endpoint")
+                        user_tenant = context_data.get("username")
+                        okf_context = get_okf_context(
+                            project_id,
+                            endpoint,
+                            context_data.get("owner"),
+                            context_data.get("objectName"),
+                            username=user_tenant
+                        )
                         if okf_context:
                             preamble += f"\n{okf_context}\n"
 
                         full_message = f"{preamble}\nUser Request: {message}"
                     else:
                         project_id = "default-project"
-                        okf_context = get_okf_context(project_id)
+                        user_tenant = data.get("username")
+                        okf_context = get_okf_context(project_id, username=user_tenant)
                         full_message = f"{okf_context}\nUser Request: {message}" if okf_context else message
 
                     agent_message = types.Content(role="user", parts=[types.Part(text=full_message)])
