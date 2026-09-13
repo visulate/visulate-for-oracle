@@ -77,12 +77,13 @@ export class MainNavComponent implements OnInit, OnDestroy {
         const dbType = endpoint ? endpoint.dbType : 'oracle';
         const useUpper = dbType === 'oracle';
 
-        if (this.router.url === '/database' || this.router.url === '/') {
+        const urlPath = (this.router.url || '').split('?')[0];
+        if (urlPath === '/database' || urlPath === '/' || !db) {
           context.setEndpoint('');
           context.setOwner('');
           context.setObjectType('');
           context.setObjectName('');
-        } else if (this.router.url.includes('/database') || params.get('db')) {
+        } else if (urlPath.includes('/database') || params.get('db')) {
           if (db) { context.setEndpoint(db); } else { context.setEndpoint(''); }
           context.setOwner(schema != null ? (useUpper ? schema.toUpperCase() : schema) : '');
           context.setObjectType(type != null ? type.toUpperCase() : '');
@@ -225,7 +226,28 @@ export class MainNavComponent implements OnInit, OnDestroy {
   }
 
   public getWorkbenchQueryParams(): any {
-    return this.state.getLastWorkbenchQueryParams();
+    const params = { ...this.state.getLastWorkbenchQueryParams() };
+    const currentDb = this.currentContext?.endpoint || params.db;
+    if (currentDb) {
+      params.db = currentDb;
+      try {
+        const stored = localStorage.getItem('visulate_db_repo_associations');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const associatedRepo = parsed.dbToRepo?.[currentDb];
+          if (associatedRepo) {
+            params.projectId = associatedRepo;
+          } else {
+            delete params.projectId;
+          }
+        } else {
+          delete params.projectId;
+        }
+      } catch (_) {
+        delete params.projectId;
+      }
+    }
+    return params;
   }
 
   expandAll() {

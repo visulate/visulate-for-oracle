@@ -298,6 +298,19 @@ router.route('/api/git/file')
     } catch (err) {
       handleGitError(res, err);
     }
+  })
+  .delete(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || req.body?.projectId || 'default-project';
+      const filePath = req.query.path || req.body?.filePath || '';
+      if (!filePath) {
+        return res.status(400).json({ error: 'filePath is required' });
+      }
+      const result = await gitService.deleteFile(projectId, filePath, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
   });
 
 router.route('/api/git/files')

@@ -262,10 +262,6 @@ export class DbContentComponent implements OnInit, OnDestroy {
         .subscribe(result => { this.processObject(result); });
 
       this.loadRelatedCodeFiles(context.endpoint, context.objectName);
-    } else if (!context.objectName) {
-      this.ddlLink = '';
-      this.relatedCodeFiles = [];
-      this.associatedRepo = '';
     }
 
     if (!context.endpoint) {
@@ -273,11 +269,33 @@ export class DbContentComponent implements OnInit, OnDestroy {
       this.ddlLink = '';
       this.relatedCodeFiles = [];
       this.associatedRepo = '';
+    } else if (!context.objectName) {
+      this.ddlLink = '';
+      this.relatedCodeFiles = [];
+      this.associatedRepo = this.getLinkedRepo(context.endpoint);
+    } else if (!this.associatedRepo) {
+      this.associatedRepo = this.getLinkedRepo(context.endpoint);
     }
   }
 
   public relatedCodeFiles: string[] = [];
   public associatedRepo: string = '';
+
+  public getLinkedRepo(endpoint?: string): string {
+    if (!endpoint) {
+      return '';
+    }
+    try {
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.dbToRepo?.[endpoint]) {
+          return parsed.dbToRepo[endpoint];
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
 
   public loadRelatedCodeFiles(endpoint: string, objectName: string): void {
     if (!this.enableGitIntegration || !endpoint || !objectName) return;
@@ -324,6 +342,24 @@ export class DbContentComponent implements OnInit, OnDestroy {
     });
   }
 
+  public openRepoInWorkbench(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!this.associatedRepo) return;
+    const queryParams: any = {
+      projectId: this.associatedRepo
+    };
+    if (this.currentContext?.endpoint) {
+      queryParams.db = this.currentContext.endpoint;
+    }
+    this.state.setLastWorkbenchQueryParams(queryParams);
+    this.router.navigate(['/workbench'], {
+      queryParams
+    });
+  }
+
+
   ngOnInit() {
     this.currentContext = this.state.getCurrentContext();
     this.state.endpoints$
@@ -338,6 +374,15 @@ export class DbContentComponent implements OnInit, OnDestroy {
     this.state.aiEnabled$
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(aiEnabled => { this.aiEnabled = aiEnabled; });
+    this.state.selectedRepo$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(repo => {
+        if (!this.currentContext?.endpoint) {
+          this.associatedRepo = '';
+        } else if (repo) {
+          this.associatedRepo = repo;
+        }
+      });
 
     this.state.toggleAccordions$
       .pipe(takeUntil(this.unsubscribe$))

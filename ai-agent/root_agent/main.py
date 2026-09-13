@@ -21,6 +21,7 @@ from google.adk.a2a.utils.agent_to_a2a import to_a2a
 from common.config import get_mcp_urls, get_max_attachments, get_ai_timeout
 from common.context import session_id_var, auth_token_var, progress_callback_var, stream_callback_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var
 from common.utils import format_tool_name
+from common.service_template import get_okf_context
 # Import Root Agent factory from local agent.py
 from root_agent.agent import create_root_agent
 import time
@@ -101,6 +102,18 @@ def create_app() -> FastAPI:
                         preamble += f"--- START OF FILE: {filename} ---\n"
                         preamble += content_str
                         preamble += f"\n--- END OF FILE: {filename} ---\n"
+
+                project_id = context.get("projectId")
+                if project_id:
+                    preamble += f"- Selected Repository: {project_id}\n"
+                    okf_context = get_okf_context(
+                        project_id,
+                        context.get("endpoint"),
+                        context.get("owner"),
+                        context.get("objectName")
+                    )
+                    if okf_context:
+                        preamble += f"\n{okf_context}\n"
 
                 prompt_text = f"{preamble}\nUser Request: {message}"
 

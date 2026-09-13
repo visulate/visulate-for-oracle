@@ -382,6 +382,13 @@ export class RestService {
     });
   }
 
+  deleteGitFile$(projectId: string, filePath: string): Observable<any> {
+    return this.http.delete<any>(`${environment.apiBase}/git/file`, {
+      headers: this.getGitHeaders(),
+      params: { projectId, path: filePath }
+    });
+  }
+
   commitAndPush$(projectId: string, branchName: string, commitMessage: string): Observable<any> {
     return this.http.post<any>(`${environment.apiBase}/git/commit-push`, { projectId, branchName, commitMessage }, {
       headers: this.getGitHeaders()

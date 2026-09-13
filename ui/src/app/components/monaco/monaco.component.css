@@ -681,3 +681,110 @@
   line-height: 1.4;
   opacity: 0.7;
 }
+
+/* File Tree Delete Button */
+.tree-delete-btn {
+  width: 22px !important;
+  height: 22px !important;
+  line-height: 22px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  margin-left: 2px;
+}
+
+.tree-delete-btn mat-icon {
+  font-size: 15px !important;
+  width: 15px !important;
+  height: 15px !important;
+  line-height: 15px !important;
+  color: var(--app-text-color);
+  opacity: 0.6;
+}
+
+.file-item:hover .tree-delete-btn,
+.file-item:focus-within .tree-delete-btn,
+.file-item.selected-file .tree-delete-btn {
+  opacity: 1;
+}
+
+.tree-delete-btn:hover mat-icon {
+  color: #f44336 !important;
+  opacity: 1 !important;
+}
+
+/* Editor Header Delete Button */
+.editor-header-spacer {
+  flex: 1;
+}
+
+.header-delete-btn {
+  width: 26px !important;
+  height: 26px !important;
+  line-height: 26px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+}
+
+.header-delete-btn mat-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+}
+
+/* Confirm Delete Modal Dialog */
+.delete-dialog-container {
+  padding: 12px 16px;
+  min-width: 320px;
+  max-width: 480px;
+}
+
+.delete-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--app-heading-color);
+}
+
+.delete-dialog-content {
+  font-size: 14px;
+  color: var(--app-text-color);
+  line-height: 1.5;
+  padding: 0 0 16px 0;
+}
+
+.file-path-code {
+  background-color: var(--app-active-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+  color: var(--app-link-color);
+}
+
+.delete-warning-subtext {
+  font-size: 12px;
+  color: var(--app-text-color);
+  opacity: 0.8;
+  margin-top: 10px;
+  border-left: 3px solid #f44336;
+  padding-left: 8px;
+}
+
+.delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 0 0 0;
+}

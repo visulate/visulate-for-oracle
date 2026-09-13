@@ -1,3 +1,4 @@
+import os
 import logging
 import json
 import requests
@@ -104,3 +105,157 @@ def get_mcp_toolsets():
         connection_params=StreamableHTTPConnectionParams(url=query_engine_url)
     )
     return api_server_tools, query_engine_tools
+
+def create_save_memory_tool() -> FunctionTool:
+    """Creates a tool for saving architectural memories and summaries to the active repository."""
+    async def save_memory_record(
+        content: str,
+        filename: str = "",
+        category: str = "memories",
+        description: str = "Architectural Memory Record"
+    ) -> str:
+        """
+        Saves an architectural memory or summary markdown document to the active Git repository workspace.
+        Stores the record under .visulate/<db>/<category>/<filename>.
+
+        Args:
+            content: The markdown formatted memory record or summary.
+            filename: The target filename (e.g. 'schema_rntmgr2_summary.md' or 'rental_agreements.md').
+            category: The subfolder category, typically 'memories' (for schema/domain summaries) or 'structures' (for table/object analyses).
+            description: Brief description of the record.
+        """
+        try:
+            ui_ctx = ui_context_var.get() if ui_context_var else {}
+            if not isinstance(ui_ctx, dict):
+                ui_ctx = {}
+
+            project_id = ui_ctx.get("projectId")
+            endpoint = ui_ctx.get("endpoint")
+
+            if not project_id:
+                return "No active Git repository linked in the current context. Memory record could not be written to repository."
+
+            repos_dir = os.getenv("GIT_REPOS_DIR") or (
+                os.path.expanduser("~/git") if os.path.exists(os.path.expanduser("~/git")) else os.path.expanduser("~/visulate-repos")
+            )
+            safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
+            repo_path = os.path.join(repos_dir, safe_project_id)
+            if not os.path.exists(repo_path):
+                return f"Repository '{safe_project_id}' not found in '{repos_dir}'. Memory record could not be saved."
+
+            safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(endpoint)]).strip("_").lower() if endpoint else "global"
+            clean_category = "structures" if category == "structures" else "memories"
+
+            if not filename:
+                owner = ui_ctx.get("owner", "").lower()
+                obj_name = ui_ctx.get("objectName", "").lower()
+                if clean_category == "structures" and obj_name:
+                    filename = f"{obj_name}.md"
+                elif owner:
+                    filename = f"schema_{owner}_summary.md"
+                else:
+                    filename = "architecture_summary.md"
+
+            if not filename.endswith(".md"):
+                filename += ".md"
+
+            safe_filename = os.path.basename(filename)
+            target_dir = os.path.join(repo_path, ".visulate", safe_db, clean_category)
+            os.makedirs(target_dir, exist_ok=True)
+
+            target_file = os.path.join(target_dir, safe_filename)
+            rel_file_path = os.path.relpath(target_file, repo_path)
+
+            with open(target_file, "w", encoding="utf-8") as f:
+                f.write(content.strip() + "\n")
+
+            callback = progress_callback_var.get()
+            if callback:
+                callback(f"▌SUCCESS: Architectural memory saved to {rel_file_path}")
+
+            logger.info(f"Saved memory record to {target_file}")
+            return f"Successfully saved {description} to `{rel_file_path}` in repository `{safe_project_id}`."
+        except Exception as e:
+            logger.error(f"Error saving memory record: {e}")
+            return f"Error saving memory record: {str(e)}"
+
+    return FunctionTool(save_memory_record)
+
+def create_read_memory_tool() -> FunctionTool:
+    """Creates a tool for reading specific architectural memory or structure documents from the active repository."""
+    async def read_memory_record(
+        name_or_path: str
+    ) -> str:
+        """
+        Reads and returns the contents of a specific architectural memory, schema summary, or structure record
+        from the active Git repository workspace (.visulate/ directory).
+
+        Args:
+            name_or_path: The name or relative path of the memory record (e.g. 'schema_rntmgr2_summary.md', 'rental_agreements.md', 'structures/leases.md', or 'architecture_decisions.md').
+        """
+        try:
+            ui_ctx = ui_context_var.get() if ui_context_var else {}
+            if not isinstance(ui_ctx, dict):
+                ui_ctx = {}
+
+            project_id = ui_ctx.get("projectId")
+            endpoint = ui_ctx.get("endpoint")
+
+            if not project_id:
+                return "No active Git repository linked in the current context."
+
+            repos_dir = os.getenv("GIT_REPOS_DIR") or (
+                os.path.expanduser("~/git") if os.path.exists(os.path.expanduser("~/git")) else os.path.expanduser("~/visulate-repos")
+            )
+            safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
+            repo_path = os.path.join(repos_dir, safe_project_id)
+            if not os.path.exists(repo_path):
+                return f"Repository '{safe_project_id}' not found in '{repos_dir}'."
+
+            clean_name = os.path.basename(name_or_path.strip())
+            if not clean_name.endswith(".md") and not clean_name.endswith(".json"):
+                clean_name += ".md"
+
+            safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(endpoint)]).strip("_").lower() if endpoint else None
+
+            candidates = []
+            for base_folder in (".visulate", ".okf"):
+                base_dir = os.path.join(repo_path, base_folder)
+                if not os.path.exists(base_dir):
+                    continue
+                if safe_db:
+                    db_dir = os.path.join(base_dir, safe_db)
+                    if os.path.exists(db_dir):
+                        for root, _, files in os.walk(db_dir):
+                            for f in files:
+                                if f.lower() == clean_name.lower():
+                                    candidates.append(os.path.join(root, f))
+                for root, _, files in os.walk(base_dir):
+                    for f in files:
+                        if f.lower() == clean_name.lower():
+                            cand_path = os.path.join(root, f)
+                            if cand_path not in candidates:
+                                candidates.append(cand_path)
+
+            if not candidates:
+                return f"Memory record '{name_or_path}' not found in repository '{safe_project_id}'."
+
+            target_file = candidates[0]
+            rel_path = os.path.relpath(target_file, repo_path)
+            with open(target_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            if len(content) > 50000:
+                content = content[:50000] + "\n[Content truncated]"
+
+            callback = progress_callback_var.get()
+            if callback:
+                callback(f"▌STATUS: Read architectural memory record: {rel_path}")
+
+            return f"--- MEMORY RECORD: {rel_path} ---\n{content}\n--- END OF MEMORY RECORD: {rel_path} ---"
+        except Exception as e:
+            logger.error(f"Error reading memory record: {e}")
+            return f"Error reading memory record: {str(e)}"
+
+    return FunctionTool(read_memory_record)
+

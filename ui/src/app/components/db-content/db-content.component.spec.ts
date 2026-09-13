@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { waitForAsync, ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatTableModule } from '@angular/material/table';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -75,7 +76,8 @@ describe('DbContentComponent', () => {
             }
           }
         }
-      ]
+      ],
+      schemas: [NO_ERRORS_SCHEMA]
     })
       .compileComponents();
   }));
@@ -261,5 +263,89 @@ describe('DbContentComponent', () => {
     expect(lines?.[0].textContent?.trim()).toBe('1');
     expect(lines?.[3].textContent?.trim()).toBe('4');
   });
+
+  it('should display associated repository badge in Agentic AI panel header when database has linked repo', () => {
+    localStorage.setItem('visulate_db_repo_associations', JSON.stringify({
+      dbToRepo: { pdb21: 'odoo-repo' }
+    }));
+
+    fixture.destroy();
+
+    const stateService = TestBed.inject(StateService);
+    stateService.saveAiEnabled(true);
+    stateService.setCurrentContext(new CurrentContextModel('pdb21', '', '', '', '', false, []));
+
+    const localFixture = TestBed.createComponent(DbContentComponent);
+    const localComponent = localFixture.componentInstance;
+    localComponent.currentContext = new CurrentContextModel('pdb21', '', '', '', '', false, []);
+    localComponent.associatedRepo = 'odoo-repo';
+    spyOn(localComponent, 'processContextChange').and.callFake(() => {});
+    localComponent.ngOnInit();
+    localFixture.detectChanges();
+
+    expect(localComponent.associatedRepo).toBe('odoo-repo');
+    const compiled = localFixture.nativeElement as HTMLElement;
+    const badge = compiled.querySelector('.repo-badge');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toContain('odoo-repo');
+  });
+
+  it('should NOT display associated repository badge on home page with no database selected', () => {
+    localStorage.setItem('visulate_db_repo_associations', JSON.stringify({
+      dbToRepo: { pdb21: 'odoo-repo' }
+    }));
+
+    fixture.destroy();
+
+    const stateService = TestBed.inject(StateService);
+    stateService.saveAiEnabled(true);
+    // Simulate deselecting database or visiting home page with no database
+    stateService.deselectDatabase();
+
+    const localFixture = TestBed.createComponent(DbContentComponent);
+    const localComponent = localFixture.componentInstance;
+    localComponent.ngOnInit();
+    localFixture.detectChanges();
+
+    expect(localComponent.associatedRepo).toBe('');
+    const compiled = localFixture.nativeElement as HTMLElement;
+    const badge = compiled.querySelector('.repo-badge');
+    expect(badge).toBeFalsy();
+  });
+
+  it('should navigate to Application Workbench when associated repository badge is clicked', () => {
+    localStorage.setItem('visulate_db_repo_associations', JSON.stringify({
+      dbToRepo: { pdb21: 'odoo-repo' }
+    }));
+
+    fixture.destroy();
+
+    const stateService = TestBed.inject(StateService);
+    stateService.saveAiEnabled(true);
+    stateService.setCurrentContext(new CurrentContextModel('pdb21', '', '', '', '', false, []));
+
+    const localFixture = TestBed.createComponent(DbContentComponent);
+    const localComponent = localFixture.componentInstance;
+    localComponent.currentContext = new CurrentContextModel('pdb21', '', '', '', '', false, []);
+    localComponent.associatedRepo = 'odoo-repo';
+    spyOn(localComponent, 'processContextChange').and.callFake(() => {});
+    spyOn(localComponent.router, 'navigate');
+
+    localComponent.ngOnInit();
+    localFixture.detectChanges();
+
+    const compiled = localFixture.nativeElement as HTMLElement;
+    const badge = compiled.querySelector('.repo-badge') as HTMLElement;
+    expect(badge).toBeTruthy();
+
+    badge.click();
+    expect(localComponent.router.navigate).toHaveBeenCalledWith(['/workbench'], {
+      queryParams: {
+        projectId: 'odoo-repo',
+        db: 'pdb21'
+      }
+    });
+  });
 });
+
 

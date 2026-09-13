@@ -1,7 +1,6 @@
 import logging
 from google.adk.agents import LlmAgent
 from common.tools import get_mcp_toolsets
-
 from common.context import progress_callback_var
 
 logger = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ When asked about a specific object (table, view, etc.):
 1. **Search**: Use `searchObjects` if necessary to confirm the exact name and owner of the object.
 2. **Deep Context**: Use the `getContext` tool with the `relationships` parameter set to 'ALL'.
    - IMPORTANT: Setting `relationships='ALL'` will generate a very large JSON document detailing the object and every related object (foreign keys, dependencies, etc.).
-3. **Analysis**: Thoroughly analyze the resulting data to answer the user's architectural or structural questions.
+3. **Analysis**: Thoroughly analyze the resulting data to answer the user's architectural or structural questions (e.g. what the object is used for, how it relates to other objects).
 4. **Final Report**: Provide an expansive and detailed explanation of the object's role, structure, and relationships. Your FINAL response MUST be a comprehensive textual report that the Root Agent can present to the user.
 
 ## Context Handling
@@ -68,3 +67,5 @@ def create_object_analysis_agent() -> LlmAgent:
         instruction=SYSTEM_INSTRUCTION,
         tools=[api_server_tools, progress_tool]
     )
+
+

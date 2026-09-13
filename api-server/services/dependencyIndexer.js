@@ -135,11 +135,14 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   }
 
   let dbConnectionId = dbConnParam || '';
+  const visulateDir = path.join(repoDir, '.visulate');
   const okfDir = path.join(repoDir, '.okf');
-  const mapPath = path.join(okfDir, 'oracle-code-map.json');
-  if (!dbConnectionId && fs.existsSync(mapPath)) {
+  const rootVisulateMap = path.join(visulateDir, 'oracle-code-map.json');
+  const rootOkfMap = path.join(okfDir, 'oracle-code-map.json');
+  const existingMapPath = fs.existsSync(rootVisulateMap) ? rootVisulateMap : (fs.existsSync(rootOkfMap) ? rootOkfMap : null);
+  if (!dbConnectionId && existingMapPath) {
     try {
-      const existing = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+      const existing = JSON.parse(fs.readFileSync(existingMapPath, 'utf8'));
       dbConnectionId = existing.dbConnectionId || '';
     } catch (e) {}
   }
@@ -168,7 +171,7 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
 
   // Scan codebase files for object names
   for (const fileRelPath of codeFiles) {
-    if (fileRelPath.startsWith('.git') || fileRelPath.startsWith('.okf')) {
+    if (fileRelPath.startsWith('.git') || fileRelPath.startsWith('.visulate') || fileRelPath.startsWith('.okf')) {
       continue;
     }
 
@@ -228,14 +231,19 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
     }
   }
 
-  // Write map to .okf/oracle-code-map.json
-  if (!fs.existsSync(okfDir)) {
-    fs.mkdirSync(okfDir, { recursive: true });
+  // Target directory: if dbConnectionId is provided, write to .visulate/<dbConnectionId>/, else .visulate/
+  const targetDir = dbConnectionId
+    ? path.join(visulateDir, dbConnectionId.toLowerCase().trim())
+    : visulateDir;
+
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
   }
 
+  const mapPath = path.join(targetDir, 'oracle-code-map.json');
   fs.writeFileSync(mapPath, JSON.stringify(mapData, null, 2), 'utf8');
 
-  // Also generate OKF Markdown document (.okf/codebase-dependencies.md)
+  // Also generate OKF Markdown document (.visulate/<db>/codebase-dependencies.md)
   let mdContent = `# Database-to-Codebase Dependency Index\n\n`;
   mdContent += `> **Indexed At:** ${mapData.indexedAt}\n`;
   mdContent += `> **Database Endpoint:** \`${mapData.dbConnectionId || 'N/A'}\` \n`;
@@ -263,10 +271,10 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
     }
   }
 
-  const mdPath = path.join(okfDir, 'codebase-dependencies.md');
+  const mdPath = path.join(targetDir, 'codebase-dependencies.md');
   fs.writeFileSync(mdPath, mdContent, 'utf8');
 
-  logger.log('info', `Successfully generated oracle-code-map.json and codebase-dependencies.md for project ${projectId}`);
+  logger.log('info', `Successfully generated oracle-code-map.json and codebase-dependencies.md for project ${projectId} in ${targetDir}`);
 
   return mapData;
 }
@@ -312,17 +320,29 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
   const allDependencies = new Set();
 
   for (const repo of repos) {
-    const mapPath = path.join(repo.fullPath, '.okf', 'oracle-code-map.json');
-    if (!fs.existsSync(mapPath)) continue;
+    const visulateDbMap = path.join(repo.fullPath, '.visulate', normalizedDb, 'oracle-code-map.json');
+    const okfDbMap = path.join(repo.fullPath, '.okf', normalizedDb, 'oracle-code-map.json');
+    const visulateLegacyMap = path.join(repo.fullPath, '.visulate', 'oracle-code-map.json');
+    const okfLegacyMap = path.join(repo.fullPath, '.okf', 'oracle-code-map.json');
+
+    const mapPath = fs.existsSync(visulateDbMap) ? visulateDbMap : (
+      fs.existsSync(okfDbMap) ? okfDbMap : (
+        fs.existsSync(visulateLegacyMap) ? visulateLegacyMap : (
+          fs.existsSync(okfLegacyMap) ? okfLegacyMap : null
+        )
+      )
+    );
+    if (!mapPath) continue;
 
     try {
       const raw = fs.readFileSync(mapPath, 'utf8');
       const mapData = JSON.parse(raw);
       const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
+      const isDbSpecific = (mapPath === visulateDbMap || mapPath === okfDbMap);
 
       const shouldInspect = repoFolder
-        ? repo.folderName === repoFolder && repoDb === normalizedDb
-        : repoDb === normalizedDb;
+        ? repo.folderName === repoFolder && (repoDb === normalizedDb || isDbSpecific)
+        : (repoDb === normalizedDb || isDbSpecific);
 
       if (shouldInspect) {
         if (mapData.objects && mapData.objects[targetObject]) {

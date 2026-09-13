@@ -81,6 +81,38 @@ export class StateService {
   private lastSelectedFilePath: string = '';
   private lastSelectedRepoFolder: string = '';
   private lastWorkbenchQueryParams: any = { db: 'pdb21' };
+  private selectedRepoSubject = new BehaviorSubject<string>('');
+  selectedRepo$ = this.selectedRepoSubject.asObservable();
+
+  public setSelectedRepo(repo: string): void {
+    this.lastSelectedRepoFolder = repo;
+    if (this.selectedRepoSubject.getValue() !== repo) {
+      this.selectedRepoSubject.next(repo || '');
+    }
+  }
+
+  public getSelectedRepo(): string {
+    const currentSubject = this.selectedRepoSubject.getValue();
+    if (currentSubject) return currentSubject;
+
+    const currentDb = this._endpoint || this.subjectContext.value?.currentContext?.endpoint;
+    if (currentDb) {
+      try {
+        const stored = localStorage.getItem('visulate_db_repo_associations');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.dbToRepo?.[currentDb]) {
+            return parsed.dbToRepo[currentDb];
+          }
+        }
+      } catch (_) {}
+    }
+    return this.lastSelectedRepoFolder || '';
+  }
+
+  public getLastSelectedRepoFolder(): string {
+    return this.getSelectedRepo();
+  }
 
   public setLastDatabaseUrl(url: string): void {
     if (url && url.startsWith('/database')) {
@@ -101,7 +133,7 @@ export class StateService {
       };
     }
     if (repoFolder) {
-      this.lastSelectedRepoFolder = repoFolder;
+      this.setSelectedRepo(repoFolder);
       this.lastWorkbenchQueryParams = {
         ...this.lastWorkbenchQueryParams,
         projectId: repoFolder
@@ -122,6 +154,7 @@ export class StateService {
   public deselectDatabase(): void {
     const emptyContext = new CurrentContextModel('', '', '', '', '', false, []);
     this.setCurrentContext(emptyContext);
+    this.setSelectedRepo('');
     this.lastDatabaseUrl = '/database';
     this.lastWorkbenchQueryParams = {};
     this.lastSelectedFilePath = '';
@@ -175,6 +208,23 @@ export class StateService {
     const changeSummary = this.getContextDiff(context, priorContext);
     this.storeContextValues(context);
     this.subjectContext.next(new ContextBehaviorSubjectModel(context, priorContext, changeSummary));
+
+    if (context.endpoint) {
+      try {
+        const stored = localStorage.getItem('visulate_db_repo_associations');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const linkedRepo = parsed.dbToRepo?.[context.endpoint];
+          this.setSelectedRepo(linkedRepo || '');
+        } else {
+          this.setSelectedRepo('');
+        }
+      } catch (_) {
+        this.setSelectedRepo('');
+      }
+    } else {
+      this.setSelectedRepo('');
+    }
   }
 
   saveEndpoints(endpoints: EndpointListModel) {

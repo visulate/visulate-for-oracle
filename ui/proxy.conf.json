@@ -2,5 +2,9 @@
   "/download": {
     "target": "http://localhost:3000",
     "secure": false
+  },
+  "/api-docs": {
+    "target": "http://localhost:3000",
+    "secure": false
   }
 }

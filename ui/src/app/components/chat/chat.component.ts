@@ -262,6 +262,34 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     }
   }
 
+  get currentRepo(): string {
+    if (!this.currentContext?.endpoint) {
+      return '';
+    }
+    try {
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.dbToRepo?.[this.currentContext.endpoint]) {
+          return parsed.dbToRepo[this.currentContext.endpoint];
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  openRepoInWorkbench(): void {
+    if (!this.currentRepo) return;
+    const queryParams: any = {
+      projectId: this.currentRepo
+    };
+    if (this.currentContext?.endpoint) {
+      queryParams.db = this.currentContext.endpoint;
+    }
+    this.stateService.setLastWorkbenchQueryParams(queryParams);
+    this.router.navigate(['/workbench'], { queryParams });
+  }
+
   sendMessage(specificMessage?: string): void {
     const userMessage = specificMessage || this.chatForm.get('message')?.value;
     if (!userMessage || !userMessage.trim()) return;
@@ -291,19 +319,10 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
       currentObject: this.currentObject,
       authToken: this.stateService.getAuthToken(this.currentContext?.endpoint), // Get current token
       dbCredentials: sessionStorage.getItem('visulate-credentials'), // Get ALL raw credentials for dynamic token creation
-      // Chat history is maintained by state, but agent might need it.
-      // Ideally agent manages session, but for now we can send history if needed.
-      // Or we assume the session ID in backend handles history?
-      // The backend agent uses InMemorySessionService, so it has history within a session.
-      // But we create a NEW session on each request in the current agent.py?
-      // Wait, agent.py creates a new session every time: session_id = str(uuid.uuid4())
-      // We need to fix that or send history.
-      // Let's send history for now to be safe, or coordinate session ID.
-      // Sending history in context is safer for stateless backend.
-      // Sending history in context is safer for stateless backend.
       chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1), // Exclude current empty response
       session_id: this.stateService.getSessionId(), // Include session_id from state
-      attachments: this.stateService.getUploadedFiles() // Include file attachments
+      attachments: this.stateService.getUploadedFiles(), // Include file attachments
+      projectId: this.currentRepo || undefined // Active repository
     };
 
     // Clear uploaded files after adding to context so UI resets

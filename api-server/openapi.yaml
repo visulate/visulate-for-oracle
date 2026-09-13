@@ -33,6 +33,21 @@ info:
     - Eliminates password exposure through secure token system
     - RAM-only credential storage with automatic cleanup
     - Multi-worker support via shared filesystem storage
+
+    ## Git Integration & Workbench Support
+
+    Visulate provides Git repository management and codebase dependency indexing:
+    - `/api/git/repositories` - List local repositories in workspace
+    - `/api/git/clone` - Clone remote repository to workspace
+    - `/api/git/diff` - Get uncommitted diff for project or file
+    - `/api/git/file` - Read/write file contents
+    - `/api/git/files` - List repository files
+    - `/api/git/branches` - List local and active branches
+    - `/api/git/checkout` - Switch or create branches
+    - `/api/git/commit-push` - Stage, commit, and push changes
+    - `/api/git/pull` - Pull latest remote changes
+    - `/api/git/index-dependencies` - Scan & index codebase object dependencies
+    - `/api/git/code-dependencies` - Query codebase files referencing DB objects
   contact:
     name: Peter Goldthorp
   license:
@@ -1097,12 +1112,530 @@ paths:
           required: true
           schema: { type: string }
       responses:
+  /api/database-connections:
+    get:
+      summary: Database connection configs
+      description: Returns a list of configured database connection endpoints and their database types (e.g. Oracle, PostgreSQL).
+      responses:
         '200':
-          description: File download
+          description: List of database connections
           content:
-            application/octet-stream:
-              schema: { type: string, format: binary }
-
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    endpoint:
+                      type: string
+                      example: db23ai
+                    description:
+                      type: string
+                      example: Oracle Database 23ai Free
+                    dbType:
+                      type: string
+                      example: oracle
+  /api/git/repositories:
+    get:
+      summary: List local repositories
+      description: Returns the base repository directory and list of repository folders in the active workspace.
+      responses:
+        '200':
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  baseDir:
+                    type: string
+                    example: /home/user/git
+                  repositories:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        folderName:
+                          type: string
+                          example: my-db-project
+                        fullPath:
+                          type: string
+                          example: /home/user/git/my-db-project
+                        isGitRepo:
+                          type: boolean
+                          example: true
+  /api/git/clone:
+    post:
+      summary: Clone git repository
+      description: Clones a remote repository into the active workspace directory. If the repository already exists, pulls latest changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - remoteUrl
+                - folderName
+              properties:
+                remoteUrl:
+                  type: string
+                  example: https://github.com/example/my-db-project.git
+                folderName:
+                  type: string
+                  example: my-db-project
+                branch:
+                  type: string
+                  example: main
+      responses:
+        '200':
+          description: Clone result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  folderName:
+                    type: string
+                    example: my-db-project
+                  message:
+                    type: string
+                    example: Repository cloned successfully
+  /api/git/diff:
+    get:
+      summary: Get git diff
+      description: Returns git diff output for uncommitted changes in the repository or for a specific file.
+      parameters:
+        - in: query
+          name: projectId
+          description: Repository identifier/folder name (defaults to 'default-project')
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+        - in: query
+          name: path
+          description: Optional relative file path to diff
+          required: false
+          schema:
+            type: string
+            example: src/packages/pkg_test.pkb
+      responses:
+        '200':
+          description: Git diff output
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  diff:
+                    type: string
+                    example: "diff --git a/file.sql b/file.sql\n--- a/file.sql\n+++ b/file.sql"
+  /api/git/file:
+    get:
+      summary: Get file content
+      description: Retrieves the content of a file from the repository working tree or a specific git revision.
+      parameters:
+        - in: query
+          name: projectId
+          description: Repository identifier/folder name (defaults to 'default-project')
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+        - in: query
+          name: path
+          description: Relative file path within the repository
+          required: false
+          schema:
+            type: string
+            example: src/schema/tables.sql
+        - in: query
+          name: revision
+          description: Optional git revision (branch, tag, or commit hash)
+          required: false
+          schema:
+            type: string
+            example: HEAD
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    example: "CREATE TABLE test (id NUMBER);"
+                  projectId:
+                    type: string
+                    example: my-db-project
+                  path:
+                    type: string
+                    example: src/schema/tables.sql
+                  revision:
+                    type: string
+                    nullable: true
+                    example: HEAD
+    put:
+      summary: Save file content
+      description: Writes or updates file content within the repository workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filePath
+              properties:
+                projectId:
+                  type: string
+                  example: my-db-project
+                filePath:
+                  type: string
+                  example: src/schema/tables.sql
+                content:
+                  type: string
+                  example: "CREATE TABLE test (id NUMBER);"
+      responses:
+        '200':
+          description: File save status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  filePath:
+                    type: string
+                    example: src/schema/tables.sql
+                  fullPath:
+                    type: string
+                    example: /home/user/git/my-db-project/src/schema/tables.sql
+    delete:
+      summary: Delete file
+      description: Deletes a file from the repository working tree.
+      parameters:
+        - in: query
+          name: projectId
+          description: Repository identifier/folder name (defaults to 'default-project')
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+        - in: query
+          name: path
+          description: Relative file path within the repository to delete
+          required: true
+          schema:
+            type: string
+            example: src/schema/tables.sql
+      responses:
+        '200':
+          description: File deletion status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  filePath:
+                    type: string
+                    example: src/schema/tables.sql
+                  message:
+                    type: string
+                    example: Deleted src/schema/tables.sql
+  /api/git/files:
+    get:
+      summary: List repository files
+      description: Lists relative paths of files in the repository workspace, filtering out ignored folders (.git, node_modules, dist, etc.).
+      parameters:
+        - in: query
+          name: projectId
+          description: Repository identifier/folder name (defaults to 'default-project')
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+        - in: query
+          name: subDir
+          description: Optional subdirectory to scan
+          required: false
+          schema:
+            type: string
+            example: src
+      responses:
+        '200':
+          description: List of file paths
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: string
+                    example: ["src/tables.sql", "src/views.sql"]
+                  projectId:
+                    type: string
+                    example: my-db-project
+  /api/git/branches:
+    get:
+      summary: List git branches
+      description: Returns the current active branch and a list of local branches in the repository.
+      parameters:
+        - in: query
+          name: projectId
+          description: Repository identifier/folder name (defaults to 'default-project')
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+      responses:
+        '200':
+          description: Branch information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentBranch:
+                    type: string
+                    example: main
+                  branches:
+                    type: array
+                    items:
+                      type: string
+                    example: ["main", "feature/new-schema"]
+  /api/git/checkout:
+    post:
+      summary: Switch or create git branch
+      description: Checks out an existing branch or creates and checks out a new branch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - branchName
+              properties:
+                projectId:
+                  type: string
+                  example: my-db-project
+                branchName:
+                  type: string
+                  example: feature/new-schema
+                createIfMissing:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Branch checkout result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  branch:
+                    type: string
+                    example: feature/new-schema
+  /api/git/commit-push:
+    post:
+      summary: Commit and push changes
+      description: Stages all working tree changes, creates a git commit with session author information, and pushes to remote origin if configured.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectId:
+                  type: string
+                  example: my-db-project
+                branchName:
+                  type: string
+                  example: main
+                commitMessage:
+                  type: string
+                  example: Update schema definitions
+      responses:
+        '200':
+          description: Commit and push result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  commit:
+                    type: object
+                  push:
+                    type: object
+  /api/git/pull:
+    post:
+      summary: Pull remote changes
+      description: Pulls latest changes from remote origin for the current or specified branch using session credentials.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectId:
+                  type: string
+                  example: my-db-project
+                branchName:
+                  type: string
+                  example: main
+      responses:
+        '200':
+          description: Pull result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  stdout:
+                    type: string
+                  branch:
+                    type: string
+                    example: main
+                  summary:
+                    type: string
+                    example: Already up to date
+  /api/git/index-dependencies:
+    post:
+      summary: Index codebase object dependencies
+      description: Scans project source files for references to database objects and cross-database dependencies. Saves results to `.okf/<db>/oracle-code-map.json` and `.okf/<db>/codebase-dependencies.md` (or `.okf/` if no database is specified).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectId:
+                  type: string
+                  example: my-db-project
+                owner:
+                  type: string
+                  example: HR
+                dbConnectionId:
+                  type: string
+                  example: db23ai
+      responses:
+        '200':
+          description: Dependency map result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId:
+                    type: string
+                    example: my-db-project
+                  dbConnectionId:
+                    type: string
+                    example: db23ai
+                  owner:
+                    type: string
+                    example: HR
+                  objects:
+                    type: object
+  /api/git/code-dependencies:
+    get:
+      summary: Get codebase dependencies for database object
+      description: Searches indexed repositories to find codebase files referencing or depending on a given database object.
+      parameters:
+        - in: query
+          name: db
+          description: Database endpoint/connection identifier
+          required: true
+          schema:
+            type: string
+            example: db23ai
+        - in: query
+          name: name
+          description: Name of the database object
+          required: true
+          schema:
+            type: string
+            example: EMPLOYEES
+        - in: query
+          name: repo
+          description: Optional specific repository folder to restrict search
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+        - in: query
+          name: owner
+          description: Optional schema owner to disambiguate object matches
+          required: false
+          schema:
+            type: string
+            example: HR
+      responses:
+        '200':
+          description: Codebase dependency search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  found:
+                    type: boolean
+                    example: true
+                  repoFolder:
+                    type: string
+                    example: my-db-project
+                  dbConnectionId:
+                    type: string
+                    example: db23ai
+                  objectName:
+                    type: string
+                    example: EMPLOYEES
+                  owner:
+                    type: string
+                    example: HR
+                  type:
+                    type: string
+                    example: TABLE
+                  files:
+                    type: array
+                    items:
+                      type: string
+                    example: ["src/services/employee.service.ts"]
+                  dependencies:
+                    type: array
+                    items:
+                      type: string
+                    example: ["DEPARTMENTS", "JOBS"]
+                  repositories:
+                    type: array
+                    items:
+                      type: object
 
   /mcp-sql:
     get:
