@@ -56,6 +56,7 @@ x-google-marketplace:
       v2.6.5 Add A2A agent discovery support.
       v3.0.0 Git integration plus code editor (Disabled for Google Cloud Marketplace deployment)
       v3.0.1 Git access token integration
+      v3.0.2 UI improvements, ADK memory implementation.
   images:
     '':
       properties:

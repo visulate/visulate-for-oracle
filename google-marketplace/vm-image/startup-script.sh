@@ -78,6 +78,12 @@ if [ ! -d /home/visulate/downloads ]; then
   chmod 777 /home/visulate/downloads
 fi
 
+# Create repos directory if it doesn't exist
+if [ ! -d /home/visulate/repos ]; then
+  mkdir /home/visulate/repos
+  chmod 777 /home/visulate/repos
+fi
+
 # Create docker-compose.yml if not already present
 if [ ! -f /home/visulate/docker-compose.yaml ]; then
 cat << EOF > /home/visulate/docker-compose.yaml
@@ -102,6 +108,7 @@ services:
     volumes:
       - /home/visulate/config:/visulate-server/config
       - visulate-downloads:/visulate-server/downloads
+      - ./repos:/app/repos
     environment:
       - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
       - CORS_ORIGIN_WHITELIST=\${CORS_ORIGIN_WHITELIST}
@@ -110,6 +117,9 @@ services:
       - INVALID_OBJECTS_URL=http://ai-agent:10006/agent/generate
       - TEST_DATA_GENERATOR_URL=http://ai-agent:10008/agent/generate
       - SCHEMA_COMPARISON_URL=http://ai-agent:10009/agent/generate
+      - ENABLE_GIT_INTEGRATION=true
+      - GIT_MODE=local
+      - GIT_REPOS_DIR=/app/repos
     networks:
       - visulate_network
     healthcheck:
@@ -164,9 +174,12 @@ services:
       - "10000-10009"
     volumes:
       - visulate-downloads:/app/downloads
+      - ./repos:/app/repos
     environment:
       - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
       - GOOGLE_API_KEY=\${GOOGLE_AI_KEY}
+      - GIT_REPOS_DIR=/app/repos
+      - GIT_MODE=local
       - VISULATE_BASE=http://reverseproxy
       - VISULATE_DOWNLOADS=/app/downloads
     networks:
