@@ -82,6 +82,19 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
 
     expect(() => gitService.getSafeFilePath(repoName, 'nonexistent.sql')).to.throw();
     expect(() => gitService.getSafeFilePath(repoName, 'visulate')).to.throw('directory');
+
+    // Reject .git control metadata
+    expect(() => gitService.getSafeFilePath(repoName, '.git/config')).to.throw('repository metadata is not downloadable');
+
+    // Reject symlinks
+    const symlinkPath = path.join(repoDir, 'emp-link.sql');
+    try { fs.unlinkSync(symlinkPath); } catch (e) {}
+    try {
+      fs.symlinkSync(path.join(repoDir, 'emp.sql'), symlinkPath);
+      expect(() => gitService.getSafeFilePath(repoName, 'emp-link.sql')).to.throw('symbolic links are not downloadable');
+    } finally {
+      try { fs.unlinkSync(symlinkPath); } catch (e) {}
+    }
   });
 
   it('should delete a file from working tree using gitService.deleteFile', async () => {
@@ -126,6 +139,34 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
       expect.fail('Should have rejected invalid dbConnectionId');
     } catch (err) {
       expect(err.message).to.include('Invalid database connection identifier');
+    }
+  });
+
+  it('should save comparison report to repository via compareEntities without ReferenceError', async () => {
+    const compareService = require('../services/compare-service');
+    const controller = require('../services/controller');
+    const dbConfig = require('../config/database');
+
+    const origEndpoints = controller.endpoints;
+    const origGetObj = controller.getObjectDetails;
+    const origConfigEndpoints = dbConfig.endpoints;
+
+    try {
+      dbConfig.endpoints = { dev: 'dev_pool', prod: 'prod_pool' };
+      controller.endpoints = async () => ({ dev: { connectString: 'mock' }, prod: { connectString: 'mock' } });
+      controller.getObjectDetails = async () => ([{ title: 'Columns', rows: [{ COLUMN_NAME: 'ID', DATA_TYPE: 'NUMBER' }] }]);
+
+      const sourceReq = { db: 'dev', owner: 'HR', type: 'TABLE', name: 'EMP' };
+      const targetReq = { db: 'prod', owner: 'HR', type: 'TABLE', name: 'EMP' };
+
+      const result = await compareService.compareEntities(sourceReq, targetReq);
+      expect(result).to.have.property('savedPath');
+      expect(result.savedPath).to.include('visulate/dev/reports/comparison_dev_vs_prod.md');
+      expect(fs.existsSync(path.join(repoDir, result.savedPath))).to.be.true;
+    } finally {
+      controller.endpoints = origEndpoints;
+      controller.getObjectDetails = origGetObj;
+      dbConfig.endpoints = origConfigEndpoints;
     }
   });
 });
