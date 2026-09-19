@@ -19,6 +19,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { GitAuthDialogComponent } from '../git-auth-dialog/git-auth-dialog.component';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
@@ -98,18 +99,45 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   private modifiedModel: any = null;
   private resizeObserver: ResizeObserver | null = null;
 
+  public showAuthAction: boolean = false;
+
   constructor(
     private restService: RestService,
     private state: StateService,
     private route: ActivatedRoute,
     private router: Router,
     private cdRef: ChangeDetectorRef,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) { }
 
   get isGitAuthenticated(): boolean {
     const auth = this.restService.getGitAuth();
     return !!(auth && (auth.token || auth.username));
+  }
+
+  public handleGitOperationError(operation: string, errorMsg: string): void {
+    const isAuthError = !/permission denied|returned error: 403|http 403/i.test(errorMsg) &&
+      /authentication failed|personal access token|could not read username|terminal prompts disabled|401/i.test(errorMsg);
+
+    const displayMsg = isAuthError
+      ? `${operation} failed: Remote repository authentication required. Configure your Personal Access Token in Git Auth.`
+      : `${operation} failed: ${errorMsg}`;
+
+    this.setStatus(displayMsg, true, isAuthError);
+
+    if (isAuthError) {
+      const snackRef = this.snackBar.open(
+        `${operation} failed: Remote repository authentication required.`,
+        'Set Git Token',
+        { duration: 10000 }
+      );
+      snackRef.onAction().subscribe(() => {
+        this.openGitAuthDialog();
+      });
+    } else {
+      this.snackBar.open(`${operation} failed: ${errorMsg}`, 'Dismiss', { duration: 6000 });
+    }
   }
 
   public openGitAuthDialog(): void {
@@ -519,12 +547,18 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     const targetId = this.selectedRepoFolder || this.projectId;
     if (!targetId) return;
 
+    this.showAuthAction = false;
     this.setStatus(`Pulling latest changes for branch '${this.currentBranch || this.branchName}'...`, false);
     this.isLoading = true;
     this.restService.pullRepository$(targetId, this.currentBranch || this.branchName).subscribe({
       next: (res) => {
         this.isLoading = false;
+        if (res && res.success === false) {
+          this.handleGitOperationError('Git pull', res.error || res.message || 'Pull failed');
+          return;
+        }
         this.setStatus(`Git pull completed: ${res.summary || 'up to date'}`, false);
+        this.snackBar.open(`Git pull completed: ${res.summary || 'up to date'}`, 'Dismiss', { duration: 4000 });
         this.loadProjectFiles();
         if (this.selectedFilePath) {
           this.loadFileContent();
@@ -532,7 +566,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         this.isLoading = false;
-        this.setStatus(`Git pull failed: ${err.error?.error || err.message}`, true);
+        const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
+        this.handleGitOperationError('Git pull', rawMsg);
       }
     });
   }
@@ -543,22 +578,25 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    this.showAuthAction = false;
     this.setStatus(`Cloning ${this.cloneRemoteUrl} into ${this.baseReposDir}/${this.cloneFolderName}...`, false);
     this.restService.cloneRepository$(this.cloneRemoteUrl, this.cloneFolderName).subscribe({
       next: (res) => {
         if (res.success) {
           this.setStatus(res.message || `Cloned ${this.cloneFolderName} successfully`, false);
+          this.snackBar.open(res.message || `Cloned ${this.cloneFolderName} successfully`, 'Dismiss', { duration: 4000 });
           this.showCloneForm = false;
           this.selectedRepoFolder = res.folderName;
           this.cloneRemoteUrl = '';
           this.cloneFolderName = '';
           this.loadLocalRepos();
         } else {
-          this.setStatus(`Clone failed: ${res.message}`, true);
+          this.handleGitOperationError('Clone', res.message || 'Clone failed');
         }
       },
       error: (err) => {
-        this.setStatus(`Clone error: ${err.message}`, true);
+        const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
+        this.handleGitOperationError('Clone', rawMsg);
       }
     });
   }
@@ -1376,14 +1414,22 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const executeCommit = () => {
+      this.showAuthAction = false;
       this.setStatus('Committing and pushing to Git remote...', false);
       this.restService.commitAndPush$(targetId, this.branchName, this.commitMessage).subscribe({
-        next: () => {
+        next: (res: any) => {
+          if (res && res.success === false) {
+            const errorMsg = res.error || res.push?.error || res.commit?.error || 'Commit & Push failed';
+            this.handleGitOperationError('Commit/Push', errorMsg);
+            return;
+          }
           this.setStatus(`Successfully committed and pushed branch '${this.branchName}'`, false);
+          this.snackBar.open(`Successfully committed and pushed branch '${this.branchName}'`, 'Dismiss', { duration: 4000 });
           this.loadProjectFiles();
         },
-        error: (err) => {
-          this.setStatus(`Commit/Push failed: ${err.message}`, true);
+        error: (err: any) => {
+          const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
+          this.handleGitOperationError('Commit/Push', rawMsg);
         }
       });
     };
@@ -1396,7 +1442,9 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
           executeCommit();
         },
         error: (err) => {
-          this.setStatus(`Save failed before commit: ${err.message}`, true);
+          const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
+          this.setStatus(`Save failed before commit: ${rawMsg}`, true);
+          this.snackBar.open(`Save failed before commit: ${rawMsg}`, 'Dismiss', { duration: 5000 });
         }
       });
     } else {
@@ -1480,7 +1528,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private statusTimer: any = null;
 
-  private setStatus(msg: string, error: boolean): void {
+  private setStatus(msg: string, error: boolean, isAuth: boolean = false): void {
     if (this.statusTimer) {
       clearTimeout(this.statusTimer);
       this.statusTimer = null;
@@ -1488,6 +1536,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.statusMessage = msg;
     this.isError = error;
+    this.showAuthAction = isAuth;
     try {
       this.cdRef.detectChanges();
     } catch (e) {}
@@ -1495,6 +1544,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!error && msg) {
       this.statusTimer = setTimeout(() => {
         this.statusMessage = '';
+        this.showAuthAction = false;
         try {
           this.cdRef.detectChanges();
         } catch (e) {}

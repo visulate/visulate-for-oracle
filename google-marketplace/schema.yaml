@@ -57,6 +57,7 @@ x-google-marketplace:
       v3.0.0 Git integration plus code editor (Disabled for Google Cloud Marketplace deployment)
       v3.0.1 Git access token integration
       v3.0.2 UI improvements, ADK memory implementation.
+      v3.0.3 Container deployment fixes
   images:
     '':
       properties:

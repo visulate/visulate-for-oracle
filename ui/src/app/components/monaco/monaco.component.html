@@ -110,7 +110,13 @@
 
   <!-- Status Notification Bar -->
   <div *ngIf="statusMessage" class="status-bar" [ngClass]="{ 'status-error': isError, 'status-info': !isError }">
-    <span>{{ statusMessage }}</span>
+    <span class="status-text">{{ statusMessage }}</span>
+    <button *ngIf="isError && showAuthAction" mat-stroked-button class="status-action-btn" (click)="openGitAuthDialog()">
+      <mat-icon>vpn_key</mat-icon> Configure Git Credentials
+    </button>
+    <button *ngIf="isError" mat-icon-button class="status-close-btn" (click)="statusMessage = ''; showAuthAction = false;" title="Dismiss">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
 
   <!-- Main 3-Pane Body Workspace -->
