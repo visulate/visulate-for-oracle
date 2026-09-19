@@ -130,9 +130,11 @@ class DiagramGenerator:
 
         if num_tables <= 3:
             curr_x = 80
-            for t in tables:
+            for idx, t in enumerate(tables):
                 th = get_th(t['name'])
-                coords[t['name']] = {'x': curr_x, 'y': 80, 'w': TABLE_WIDTH, 'h': th}
+                # Stagger y coordinate so tables are non-collinear, preventing lines from crossing middle tables
+                curr_y = 80 if idx % 2 == 0 else 240
+                coords[t['name']] = {'x': curr_x, 'y': curr_y, 'w': TABLE_WIDTH, 'h': th}
                 curr_x += TABLE_WIDTH + 140
         else:
             max_rank = max(ranks.values()) if ranks else 1
@@ -155,7 +157,7 @@ class DiagramGenerator:
                 elif r >= max_rank - 1 and max_rank > 2:
                     sector_assignments[t_name] = 'south'
                 else:
-                    if hash(t_name) % 2 == 0:
+                    if sum(ord(ch) for ch in t_name) % 2 == 0:
                         sector_assignments[t_name] = 'east'
                     else:
                         sector_assignments[t_name] = 'west'
@@ -201,48 +203,48 @@ class DiagramGenerator:
                 if t_name not in coords:
                     coords[t_name] = {'x': 1400, 'y': 200 + len(coords) * 80, 'w': TABLE_WIDTH, 'h': get_th(t_name)}
 
-            # 4. Local Line-of-Sight Relaxation to eliminate any straight line crossings
-            def evaluate_conflicts(test_coords):
-                conflicts = 0
-                names = list(test_coords.keys())
-                for i in range(len(names)):
-                    for j in range(i + 1, len(names)):
-                        b1 = test_coords[names[i]]
-                        b2 = test_coords[names[j]]
-                        if not (b1['x'] + b1['w'] + 30 <= b2['x'] or b2['x'] + b2['w'] + 30 <= b1['x'] or
-                                b1['y'] + b1['h'] + 30 <= b2['y'] or b2['y'] + b2['h'] + 30 <= b1['y']):
-                            conflicts += 10
-                for rel in valid_rels:
-                    s_name = rel['tableName']
-                    t_name = rel['referencedTable']
-                    if s_name not in test_coords or t_name not in test_coords: continue
-                    s = test_coords[s_name]
-                    t = test_coords[t_name]
-                    p1 = (s['x'] + s['w']/2, s['y'] + s['h']/2)
-                    p2 = (t['x'] + t['w']/2, t['y'] + t['h']/2)
-                    for n, b in test_coords.items():
-                        if n != s_name and n != t_name:
-                            if self._segment_intersects_box(p1, p2, b, pad=2):
-                                conflicts += 1
-                return conflicts
+        # 4. Local Line-of-Sight Relaxation to eliminate any straight line crossings
+        def evaluate_conflicts(test_coords):
+            conflicts = 0
+            names = list(test_coords.keys())
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    b1 = test_coords[names[i]]
+                    b2 = test_coords[names[j]]
+                    if not (b1['x'] + b1['w'] + 30 <= b2['x'] or b2['x'] + b2['w'] + 30 <= b1['x'] or
+                            b1['y'] + b1['h'] + 30 <= b2['y'] or b2['y'] + b2['h'] + 30 <= b1['y']):
+                        conflicts += 10
+            for rel in valid_rels:
+                s_name = rel['tableName']
+                t_name = rel['referencedTable']
+                if s_name not in test_coords or t_name not in test_coords: continue
+                s = test_coords[s_name]
+                t = test_coords[t_name]
+                p1 = (s['x'] + s['w']/2, s['y'] + s['h']/2)
+                p2 = (t['x'] + t['w']/2, t['y'] + t['h']/2)
+                for n, b in test_coords.items():
+                    if n != s_name and n != t_name:
+                        if self._segment_intersects_box(p1, p2, b, pad=2):
+                            conflicts += 1
+            return conflicts
 
-            curr_c = evaluate_conflicts(coords)
-            random.seed(42)
-            for _ in range(2500):
-                if curr_c == 0:
-                    break
-                node = random.choice(list(coords.keys()))
-                old_x, old_y = coords[node]['x'], coords[node]['y']
-                coords[node]['x'] += random.choice([-80, -40, -20, 0, 20, 40, 80])
-                coords[node]['y'] += random.choice([-80, -40, -20, 0, 20, 40, 80])
-                coords[node]['x'] = max(40, coords[node]['x'])
-                coords[node]['y'] = max(40, coords[node]['y'])
+        curr_c = evaluate_conflicts(coords)
+        random.seed(42)
+        for _ in range(2500):
+            if curr_c == 0:
+                break
+            node = random.choice(list(coords.keys()))
+            old_x, old_y = coords[node]['x'], coords[node]['y']
+            coords[node]['x'] += random.choice([-80, -40, -20, 0, 20, 40, 80])
+            coords[node]['y'] += random.choice([-80, -40, -20, 0, 20, 40, 80])
+            coords[node]['x'] = max(40, coords[node]['x'])
+            coords[node]['y'] = max(40, coords[node]['y'])
 
-                new_c = evaluate_conflicts(coords)
-                if new_c < curr_c:
-                    curr_c = new_c
-                else:
-                    coords[node]['x'], coords[node]['y'] = old_x, old_y
+            new_c = evaluate_conflicts(coords)
+            if new_c < curr_c:
+                curr_c = new_c
+            else:
+                coords[node]['x'], coords[node]['y'] = old_x, old_y
 
         # Normalize coordinates
         min_final_x = min(c['x'] for c in coords.values())

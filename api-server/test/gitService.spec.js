@@ -86,4 +86,16 @@ describe('Git Service Authentication and Error Handling', function () {
       expect(secondRes.commit.stdout).to.include('Nothing to commit');
     });
   });
+
+  describe('remote matching exactness', () => {
+    it('should reject remote when only substring matches exist (e.g. origin2 vs origin)', async () => {
+      await gitService.runGitCommand(repoDir, ['remote', 'add', 'origin2', 'https://github.com/fake/repo.git']);
+      try {
+        await gitService.pullRepo(repoName, 'main', null, 'origin');
+        expect.fail('Should have thrown an error for nonexistent remote origin');
+      } catch (err) {
+        expect(err.message).to.include("Remote 'origin' does not exist");
+      }
+    });
+  });
 });

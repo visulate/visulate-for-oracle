@@ -4,8 +4,9 @@ import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ChangeDetectorRef } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject, NEVER } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -19,6 +20,7 @@ describe('MonacoComponent - New File Creation', () => {
   let mockStateService: jasmine.SpyObj<StateService>;
   let mockRouter: jasmine.SpyObj<Router>;
   let mockDialog: jasmine.SpyObj<MatDialog>;
+  let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
 
   beforeEach(async () => {
     mockRestService = jasmine.createSpyObj('RestService', [
@@ -41,6 +43,13 @@ describe('MonacoComponent - New File Creation', () => {
     ]);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
     mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
+    mockDialog.open.and.returnValue({
+      afterClosed: () => of({})
+    } as any);
+    mockSnackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    mockSnackBar.open.and.returnValue({
+      onAction: () => NEVER
+    } as any);
 
     mockRestService.getGitAuth.and.returnValue(null);
     mockRestService.getLocalRepositories$.and.returnValue(of({ repositories: [], baseDir: '/repos' }));
@@ -52,7 +61,7 @@ describe('MonacoComponent - New File Creation', () => {
 
     await TestBed.configureTestingModule({
       declarations: [MonacoComponent],
-      imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule],
+      imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule, MatSnackBarModule],
       providers: [
         { provide: RestService, useValue: mockRestService },
         { provide: StateService, useValue: mockStateService },
@@ -65,6 +74,7 @@ describe('MonacoComponent - New File Creation', () => {
         },
         { provide: Router, useValue: mockRouter },
         { provide: MatDialog, useValue: mockDialog },
+        { provide: MatSnackBar, useValue: mockSnackBar },
         ChangeDetectorRef
       ]
     }).compileComponents();
@@ -397,6 +407,53 @@ describe('MonacoComponent - New File Creation', () => {
 
       expect(mockDialog.open).toHaveBeenCalled();
       expect(component.executeDeleteFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Git Operation Error Handling and MatSnackBar', () => {
+    it('should show "Set Git Token" snackbar and enable showAuthAction on authentication error', () => {
+      component.handleGitOperationError('Git pull', 'fatal: Authentication failed for remote origin (401)');
+
+      expect(component.showAuthAction).toBe(true);
+      expect(component.isError).toBe(true);
+      expect(component.statusMessage).toContain('Git pull failed: Remote repository authentication required');
+      expect(mockSnackBar.open).toHaveBeenCalledWith(
+        'Git pull failed: Remote repository authentication required.',
+        'Set Git Token',
+        { duration: 10000 }
+      );
+    });
+
+    it('should open git auth dialog when snackbar action is triggered for auth error', () => {
+      const actionSubject = new Subject<void>();
+      mockSnackBar.open.and.returnValue({
+        onAction: () => actionSubject.asObservable()
+      } as any);
+      spyOn(component, 'openGitAuthDialog');
+
+      component.handleGitOperationError('Git pull', 'personal access token required');
+      actionSubject.next();
+
+      expect(component.openGitAuthDialog).toHaveBeenCalled();
+    });
+
+    it('should show dismiss snackbar and NOT enable showAuthAction on 403 permission error', () => {
+      component.handleGitOperationError('Commit/Push', 'Permission to user/repo.git denied to user. The requested URL returned error: 403');
+
+      expect(component.showAuthAction).toBe(false);
+      expect(component.isError).toBe(true);
+      expect(component.statusMessage).toContain('Commit/Push failed: Permission to user/repo.git denied to user');
+      expect(mockSnackBar.open).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Commit\/Push failed: Permission to user\/repo\.git denied/),
+        'Dismiss',
+        { duration: 6000 }
+      );
+    });
+
+    it('should clear showAuthAction when a non-auth error status is set', () => {
+      component.showAuthAction = true;
+      (component as any).setStatus('A regular error occurred', true);
+      expect(component.showAuthAction).toBe(false);
     });
   });
 });

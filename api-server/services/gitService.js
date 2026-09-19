@@ -250,7 +250,8 @@ async function pullRepo(identifier, branch = null, authContext = {}, userContext
   // Check if remote exists
   const targetRemote = remote || 'origin';
   const remoteCheck = await runGitCommand(repoDir, ['remote']);
-  if (!remoteCheck.success || !remoteCheck.stdout.includes(targetRemote)) {
+  const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
+  if (!remoteCheck.success || !remotes.includes(targetRemote)) {
     throw new Error(`Remote '${targetRemote}' does not exist for this repository`);
   }
 
@@ -396,8 +397,9 @@ async function commitAndPush(identifier, branchName, commitMessage = 'Visulate W
   // Try pushing if remote origin exists
   const remoteCheck = await runGitCommand(repoDir, ['remote']);
   let pushRes = { success: true, stdout: 'No remote origin configured' };
+  const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
 
-  if (remoteCheck.success && remoteCheck.stdout.includes('origin')) {
+  if (remoteCheck.success && remotes.includes('origin')) {
     const currentBranch = branchName || await getCurrentBranch(repoDir);
     const pushArgs = [];
     const authHeader = formatGitAuthHeader(authContext);

@@ -117,14 +117,14 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public handleGitOperationError(operation: string, errorMsg: string): void {
-    const isAuthError = /authentication failed|personal access token|could not read username|terminal prompts disabled|401/i.test(errorMsg);
-    this.showAuthAction = isAuthError;
+    const isAuthError = !/permission denied|returned error: 403|http 403/i.test(errorMsg) &&
+      /authentication failed|personal access token|could not read username|terminal prompts disabled|401/i.test(errorMsg);
 
     const displayMsg = isAuthError
       ? `${operation} failed: Remote repository authentication required. Configure your Personal Access Token in Git Auth.`
       : `${operation} failed: ${errorMsg}`;
 
-    this.setStatus(displayMsg, true);
+    this.setStatus(displayMsg, true, isAuthError);
 
     if (isAuthError) {
       const snackRef = this.snackBar.open(
@@ -1528,7 +1528,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private statusTimer: any = null;
 
-  private setStatus(msg: string, error: boolean): void {
+  private setStatus(msg: string, error: boolean, isAuth: boolean = false): void {
     if (this.statusTimer) {
       clearTimeout(this.statusTimer);
       this.statusTimer = null;
@@ -1536,6 +1536,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.statusMessage = msg;
     this.isError = error;
+    this.showAuthAction = isAuth;
     try {
       this.cdRef.detectChanges();
     } catch (e) {}
@@ -1543,6 +1544,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!error && msg) {
       this.statusTimer = setTimeout(() => {
         this.statusMessage = '';
+        this.showAuthAction = false;
         try {
           this.cdRef.detectChanges();
         } catch (e) {}
