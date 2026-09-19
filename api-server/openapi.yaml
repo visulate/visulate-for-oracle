@@ -41,6 +41,7 @@ info:
     - `/api/git/clone` - Clone remote repository to workspace
     - `/api/git/diff` - Get uncommitted diff for project or file
     - `/api/git/file` - Read/write file contents
+    - `/api/git/download` - Download file attachment from repository
     - `/api/git/files` - List repository files
     - `/api/git/branches` - List local and active branches
     - `/api/git/checkout` - Switch or create branches
@@ -1360,6 +1361,39 @@ paths:
                   message:
                     type: string
                     example: Deleted src/schema/tables.sql
+  /api/git/download:
+    get:
+      summary: Download file from repository
+      description: Streams a repository file as an attachment download with proper Content-Disposition header.
+      parameters:
+        - in: query
+          name: projectId
+          description: Repository identifier/folder name (defaults to 'default-project')
+          required: false
+          schema:
+            type: string
+            example: my-db-project
+        - in: query
+          name: path
+          description: Relative path of the file to download within the repository
+          required: true
+          schema:
+            type: string
+            example: visulate/pdb21/erd/schema_rntmgr2.drawio
+      responses:
+        '200':
+          description: File download stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/git/files:
     get:
       summary: List repository files
@@ -1533,7 +1567,7 @@ paths:
   /api/git/index-dependencies:
     post:
       summary: Index codebase object dependencies
-      description: Scans project source files for references to database objects and cross-database dependencies. Saves results to `.visulate/<db>/oracle-code-map.json` and `.visulate/<db>/codebase-dependencies.md` (or `.visulate/` if no database is specified).
+      description: Scans project source files for references to database objects and cross-database dependencies. Saves results to `visulate/<db>/oracle-code-map.json` and `visulate/<db>/codebase-dependencies.md` (or `visulate/` if no database is specified).
       requestBody:
 
         required: false

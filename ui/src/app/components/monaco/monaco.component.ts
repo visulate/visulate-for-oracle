@@ -846,6 +846,33 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  public downloadFile(filePath: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId || !filePath) return;
+
+    this.setStatus(`Downloading '${filePath}'...`, false);
+    this.restService.downloadGitFile$(targetId, filePath).subscribe({
+      next: (blob: Blob) => {
+        const filename = filePath.split('/').pop() || filePath;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.setStatus(`Downloaded '${filename}' successfully`, false);
+      },
+      error: (err) => {
+        this.setStatus(`Failed to download '${filePath}': ${err.error?.error || err.message}`, true);
+      }
+    });
+  }
+
   public applyFileFilter(): void {
     if (!this.fileFilterQuery) {
       this.filteredFiles = [...this.projectFiles];
@@ -950,25 +977,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const loadLegacy = () => {
-      this.restService.getGitFile$(targetId, '.visulate/oracle-code-map.json').subscribe({
-        next: (res) => {
-          try {
-            this.dbMapData = JSON.parse(res.content);
-            this.updateCurrentFileDbObjects();
-            this.rebuildFileTree();
-          } catch (e) {
-            loadOkfLegacy();
-          }
-        },
-        error: () => {
-          loadOkfLegacy();
-        }
-      });
-    };
-
-    const loadOkfLegacy = () => {
-      this.restService.getGitFile$(targetId, '.okf/oracle-code-map.json').subscribe({
+    const loadRootMap = () => {
+      this.restService.getGitFile$(targetId, 'visulate/oracle-code-map.json').subscribe({
         next: (res) => {
           try {
             this.dbMapData = JSON.parse(res.content);
@@ -988,25 +998,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.selectedDbConnection) {
       const db = this.selectedDbConnection.toLowerCase().trim();
-      const visulateDbPath = `.visulate/${db}/oracle-code-map.json`;
-      const okfDbPath = `.okf/${db}/oracle-code-map.json`;
-
-      const loadOkfDb = () => {
-        this.restService.getGitFile$(targetId, okfDbPath).subscribe({
-          next: (res) => {
-            try {
-              this.dbMapData = JSON.parse(res.content);
-              this.updateCurrentFileDbObjects();
-              this.rebuildFileTree();
-            } catch (e) {
-              loadLegacy();
-            }
-          },
-          error: () => {
-            loadLegacy();
-          }
-        });
-      };
+      const visulateDbPath = `visulate/${db}/oracle-code-map.json`;
 
       this.restService.getGitFile$(targetId, visulateDbPath).subscribe({
         next: (res) => {
@@ -1015,15 +1007,15 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
             this.updateCurrentFileDbObjects();
             this.rebuildFileTree();
           } catch (e) {
-            loadOkfDb();
+            loadRootMap();
           }
         },
         error: () => {
-          loadOkfDb();
+          loadRootMap();
         }
       });
     } else {
-      loadLegacy();
+      loadRootMap();
     }
   }
 
@@ -1458,7 +1450,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     this.restService.indexDependencies$(targetId, undefined, this.selectedDbConnection).subscribe({
       next: () => {
         const targetDb = this.selectedDbConnection ? this.selectedDbConnection.toLowerCase().trim() : '';
-        const savedLoc = targetDb ? `.visulate/${targetDb}/` : '.visulate/';
+        const savedLoc = targetDb ? `visulate/${targetDb}/` : 'visulate/';
         this.setStatus(`Dependency mapping completed. Saved to ${savedLoc}oracle-code-map.json & codebase-dependencies.md`, false);
         this.loadProjectFiles();
       },

@@ -102,6 +102,22 @@ function resolveSafePath(repoDir, relativePath = '', mustExist = false) {
 }
 
 /**
+ * Resolves and validates an existing safe file path within a repository.
+ */
+function getSafeFilePath(identifier, filePath, userContext = null) {
+  const repoDir = getProjectRepoDir(identifier, userContext);
+  if (!repoDir || !fs.existsSync(repoDir)) {
+    throw new Error('Repository directory does not exist');
+  }
+  const fullPath = resolveSafePath(repoDir, filePath, true);
+  const stat = fs.lstatSync(fullPath);
+  if (stat.isDirectory()) {
+    throw new Error('Target path is a directory, not a file');
+  }
+  return fullPath;
+}
+
+/**
  * Lists local repository directories in the active workspace.
  */
 function listLocalRepositories(userContext = null) {
@@ -560,6 +576,7 @@ module.exports = {
   getBaseReposDir,
   getProjectRepoDir,
   resolveSafePath,
+  getSafeFilePath,
   listLocalRepositories,
   cloneRepoToFolder,
   pullRepo,

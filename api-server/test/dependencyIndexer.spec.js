@@ -27,11 +27,11 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     }
   });
 
-  it('should create .visulate/dev/ with oracle-code-map.json and codebase-dependencies.md when db is "dev"', async () => {
+  it('should create visulate/dev/ with oracle-code-map.json and codebase-dependencies.md when db is "dev"', async () => {
     const map = await dependencyIndexer.indexProjectDependencies(repoName, null, null, 'dev');
     expect(map.dbConnectionId).to.equal('dev');
 
-    const devDir = path.join(repoDir, '.visulate', 'dev');
+    const devDir = path.join(repoDir, 'visulate', 'dev');
     expect(fs.existsSync(devDir)).to.be.true;
 
     const mapFile = path.join(devDir, 'oracle-code-map.json');
@@ -48,12 +48,12 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     expect(mdContent).to.include('EMP');
   });
 
-  it('should create .visulate/prod/ without overwriting .visulate/dev/ when indexing for "prod"', async () => {
+  it('should create visulate/prod/ without overwriting visulate/dev/ when indexing for "prod"', async () => {
     const map = await dependencyIndexer.indexProjectDependencies(repoName, null, null, 'prod');
     expect(map.dbConnectionId).to.equal('prod');
 
-    const prodDir = path.join(repoDir, '.visulate', 'prod');
-    const devDir = path.join(repoDir, '.visulate', 'dev');
+    const prodDir = path.join(repoDir, 'visulate', 'prod');
+    const devDir = path.join(repoDir, 'visulate', 'dev');
 
     expect(fs.existsSync(prodDir)).to.be.true;
     expect(fs.existsSync(devDir)).to.be.true;
@@ -65,7 +65,7 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     expect(devMap.dbConnectionId).to.equal('dev');
   });
 
-  it('should resolve codebase dependencies from .visulate/<db>/ in getObjectCodeDependencies', async () => {
+  it('should resolve codebase dependencies from visulate/<db>/ in getObjectCodeDependencies', async () => {
     const devResult = await dependencyIndexer.getObjectCodeDependencies('dev', 'EMP', null, repoName);
     expect(devResult.found).to.be.true;
     expect(devResult.files).to.include('emp.sql');
@@ -75,20 +75,13 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     expect(prodResult.files).to.include('emp.sql');
   });
 
-  it('should fall back to legacy .okf/<db>/ when .visulate/<db>/ does not exist', async () => {
-    // Manually create legacy .okf/staging
-    const okfStaging = path.join(repoDir, '.okf', 'staging');
-    fs.mkdirSync(okfStaging, { recursive: true });
-    fs.writeFileSync(path.join(okfStaging, 'oracle-code-map.json'), JSON.stringify({
-      dbConnectionId: 'staging',
-      objects: {
-        'DEPT': { files: ['emp.sql'] }
-      }
-    }), 'utf8');
+  it('should resolve safe file path for download using gitService.getSafeFilePath', () => {
+    const gitService = require('../services/gitService');
+    const filePath = gitService.getSafeFilePath(repoName, 'emp.sql');
+    expect(filePath).to.equal(path.join(repoDir, 'emp.sql'));
 
-    const stagingResult = await dependencyIndexer.getObjectCodeDependencies('staging', 'DEPT', null, repoName);
-    expect(stagingResult.found).to.be.true;
-    expect(stagingResult.files).to.include('emp.sql');
+    expect(() => gitService.getSafeFilePath(repoName, 'nonexistent.sql')).to.throw();
+    expect(() => gitService.getSafeFilePath(repoName, 'visulate')).to.throw('directory');
   });
 
   it('should delete a file from working tree using gitService.deleteFile', async () => {

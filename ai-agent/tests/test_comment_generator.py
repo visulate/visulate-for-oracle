@@ -78,3 +78,29 @@ async def test_comment_generator_run_no_objects(tmp_path):
                 count = await generator.run(wildcard="%", output_file=str(output_file))
                 assert count == 0
         mock_call.assert_awaited()
+
+@pytest.mark.asyncio
+@patch("pathlib.Path.mkdir")
+@patch("comment_generator.agent.session_id_var")
+@patch("comment_generator.agent.ui_context_var")
+@patch("comment_generator.agent.resolve_repo_for_db")
+@patch("comment_generator.agent.progress_callback_var")
+@patch("comment_generator.agent.MCPClient")
+@patch("comment_generator.agent.CommentGenerator")
+async def test_generate_comments_tool_with_repo(mock_gen_cls, mock_mcp, mock_prog, mock_resolve_repo, mock_ui_ctx, mock_session_id, mock_mkdir):
+    from comment_generator.agent import create_generate_comments_tool
+    mock_session_id.get.return_value = "test-session"
+    mock_ui_ctx.get.return_value = {"projectId": "comments-repo"}
+    mock_resolve_repo.return_value = ("comments-repo", "/fake/repos/comments-repo")
+
+    mock_gen = AsyncMock()
+    mock_gen.run.return_value = 5
+    mock_gen_cls.return_value = mock_gen
+
+    tool = create_generate_comments_tool(MagicMock(), MagicMock())
+    result = await tool.func("db1", "schema1")
+
+    assert "Saved comments to repository `comments-repo`" in result
+    assert "visulate/db1/comments/comments_db1_schema1.sql" in result
+    assert "[Download SQL]" not in result
+    assert "SUCCESS: Generated 5 comments." in result

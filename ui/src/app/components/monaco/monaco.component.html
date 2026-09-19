@@ -188,9 +188,13 @@
               </span>
             </div>
 
-            <!-- Delete Button on File Row -->
+            <!-- Download and Delete Buttons on File Row -->
+            <button mat-icon-button class="tree-download-btn" matTooltip="Download file"
+              (click)="downloadFile(node.path, $event)" aria-label="Download file">
+              <mat-icon>download</mat-icon>
+            </button>
             <button mat-icon-button class="tree-delete-btn" matTooltip="Delete file"
-              (click)="confirmDeleteFile(node.path, $event)">
+              (click)="confirmDeleteFile(node.path, $event)" aria-label="Delete file">
               <mat-icon>delete_outline</mat-icon>
             </button>
           </div>
@@ -223,8 +227,12 @@
           {{ viewMode === 'editor' ? 'Single File Code Editor' : 'Side-by-Side Diff (HEAD vs Working Tree)' }}
         </span>
         <span class="editor-header-spacer"></span>
+        <button *ngIf="selectedFilePath" mat-icon-button class="header-download-btn" matTooltip="Download current file"
+          (click)="downloadFile(selectedFilePath)" aria-label="Download current file">
+          <mat-icon>download</mat-icon>
+        </button>
         <button *ngIf="selectedFilePath" mat-icon-button class="header-delete-btn" color="warn" matTooltip="Delete current file"
-          (click)="confirmDeleteFile(selectedFilePath)">
+          (click)="confirmDeleteFile(selectedFilePath)" aria-label="Delete current file">
           <mat-icon>delete_outline</mat-icon>
         </button>
       </div>

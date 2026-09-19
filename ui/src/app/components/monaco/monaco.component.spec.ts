@@ -29,6 +29,7 @@ describe('MonacoComponent - New File Creation', () => {
       'listGitFiles$',
       'saveGitFile$',
       'deleteGitFile$',
+      'downloadGitFile$',
       'getGitFile$',
       'getGitBranches$',
       'getEndpoints$'
@@ -299,7 +300,7 @@ describe('MonacoComponent - New File Creation', () => {
       }));
     });
 
-    it('should load db-specific map .visulate/<db>/oracle-code-map.json when selectedDbConnection is set', () => {
+    it('should load db-specific map visulate/<db>/oracle-code-map.json when selectedDbConnection is set', () => {
       component.selectedDbConnection = 'pdb23';
       component.selectedRepoFolder = 'my-repo';
       mockRestService.getGitFile$.and.returnValue(of({
@@ -312,16 +313,16 @@ describe('MonacoComponent - New File Creation', () => {
 
       component.loadDbMapData();
 
-      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', '.visulate/pdb23/oracle-code-map.json');
+      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', 'visulate/pdb23/oracle-code-map.json');
       expect(component.dbMapData).toBeTruthy();
       expect(component.dbMapData.objects['EMP']).toBeDefined();
     });
 
-    it('should fall back to .okf/ when .visulate/ is missing', () => {
+    it('should fall back to root visulate/oracle-code-map.json when db-specific is missing', () => {
       component.selectedDbConnection = 'pdb23';
       component.selectedRepoFolder = 'my-repo';
       mockRestService.getGitFile$.and.callFake((proj, file) => {
-        if (file.startsWith('.visulate')) {
+        if (file === 'visulate/pdb23/oracle-code-map.json') {
           return throwError(() => new Error('Not found'));
         }
         return of({
@@ -335,10 +336,27 @@ describe('MonacoComponent - New File Creation', () => {
 
       component.loadDbMapData();
 
-      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', '.visulate/pdb23/oracle-code-map.json');
-      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', '.okf/pdb23/oracle-code-map.json');
+      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', 'visulate/pdb23/oracle-code-map.json');
+      expect(mockRestService.getGitFile$).toHaveBeenCalledWith('my-repo', 'visulate/oracle-code-map.json');
       expect(component.dbMapData).toBeTruthy();
       expect(component.dbMapData.objects['DEPT']).toBeDefined();
+    });
+
+    it('should download file when downloadFile is called', () => {
+      component.selectedRepoFolder = 'my-repo';
+      const fakeBlob = new Blob(['sample content'], { type: 'text/plain' });
+      mockRestService.downloadGitFile$.and.returnValue(of(fakeBlob));
+
+      spyOn(window.URL, 'createObjectURL').and.returnValue('blob:fake-url');
+      spyOn(window.URL, 'revokeObjectURL');
+      const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+
+      const mockEvent = jasmine.createSpyObj('Event', ['stopPropagation']);
+      component.downloadFile('visulate/pdb21/erd/schema.drawio', mockEvent);
+
+      expect(mockEvent.stopPropagation).toHaveBeenCalled();
+      expect(mockRestService.downloadGitFile$).toHaveBeenCalledWith('my-repo', 'visulate/pdb21/erd/schema.drawio');
+      expect(clickSpy).toHaveBeenCalled();
     });
 
     it('should delete file and clear active editor state if deleted file was active', () => {
