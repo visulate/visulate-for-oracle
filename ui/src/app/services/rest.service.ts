@@ -402,6 +402,14 @@ export class RestService {
     });
   }
 
+  downloadGitFile$(projectId: string, filePath: string): Observable<Blob> {
+    return this.http.get(`${environment.apiBase}/git/download`, {
+      headers: this.getGitHeaders(),
+      params: { projectId, path: filePath },
+      responseType: 'blob'
+    });
+  }
+
   commitAndPush$(projectId: string, branchName: string, commitMessage: string): Observable<any> {
     return this.http.post<any>(`${environment.apiBase}/git/commit-push`, { projectId, branchName, commitMessage }, {
       headers: this.getGitHeaders()

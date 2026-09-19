@@ -1,5 +1,10 @@
+import json
+import logging
 import os
+from typing import Optional, Tuple
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 def get_mcp_urls():
@@ -88,4 +93,47 @@ def resolve_repo_path(project_id: str, username: str = None) -> str:
         return ""
     base_dir = resolve_repos_base_dir(username)
     return os.path.join(base_dir, safe_project)
+
+
+def resolve_repo_for_db(database: str = None, project_id: str = None, username: str = None) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Finds the repository associated with a database or project_id.
+    Returns (repo_name, repo_path) or (None, None).
+    """
+    # 1. If project_id is given and resolves to an existing directory
+    if project_id:
+        path = resolve_repo_path(project_id, username)
+        if path and os.path.exists(path):
+            safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_")
+            return safe_name, path
+
+    # 2. If database is given, scan repositories for visulate/<database>
+    if database:
+        safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(database)]).strip("_").lower()
+        base_dir = resolve_repos_base_dir(username)
+        if os.path.exists(base_dir):
+            try:
+                for entry in os.listdir(base_dir):
+                    if entry.startswith(".") or entry == "users":
+                        continue
+                    repo_dir = os.path.join(base_dir, entry)
+                    if os.path.isdir(repo_dir):
+                        # Check visulate/<safe_db>
+                        if os.path.exists(os.path.join(repo_dir, "visulate", safe_db)):
+                            return entry, repo_dir
+                        # Check visulate/oracle-code-map.json
+                        code_map = os.path.join(repo_dir, "visulate", "oracle-code-map.json")
+                        if os.path.exists(code_map):
+                            try:
+                                with open(code_map, "r", encoding="utf-8") as f:
+                                    data = json.load(f)
+                                    if (data.get("dbConnectionId") or "").lower().strip() == safe_db:
+                                        return entry, repo_dir
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.warning(f"Error scanning repositories in {base_dir}: {e}")
+
+    return None, None
+
 

@@ -6,6 +6,7 @@ from google.adk.tools.function_tool import FunctionTool
 # Import from local modules
 from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
+from common.config import resolve_repo_for_db
 from common.context import session_id_var, browser_session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var, cancelled_sessions
 import asyncio
 from datetime import datetime
@@ -22,7 +23,7 @@ Your purpose is to generate meaningful comments for Oracle database objects (tab
    - **No Wildcard Expansion**: Use the exact name or pattern provided. If the user says "mls_listings", use `wildcard='MLS_LISTINGS'`. Do NOT use `%MLS_LISTINGS%` or `%`.
    - **Mission Termination**: Once the tool call is complete, your mission for that turn is OVER. Regardless of the outcome (Success or No Objects Found), DO NOT probe the rest of the schema for unrelated missing work.
 2. **One Tool Call Per Mission**: Do not call `generate_comments` or `getObjectsMissingComments` multiple times in a row for a single user request. Trust the first result.
-3. **Response Priority (CRITICAL)**: Your final response MUST START with the download link using the format `[Download SQL](link)`. Do not provide any preamble or commentary before the link.
+3. **Response Priority (CRITICAL)**: If saving to a repository, your final response MUST START with the repository save confirmation returned by the tool. If no repository is associated, your response MUST START with the download link using the format `[Download SQL](link)`. Do not provide any preamble or commentary before the link or confirmation.
 
 You have a tool `generate_comments` that performs the following:
 1. Identifies tables and views in a specific schema that lack comments.
@@ -35,7 +36,7 @@ Check the provided input context for database ("endpoint") and schema ("owner") 
 If not found in the context or message, ask the user for them.
 You can optionally accept a wildcard pattern to filter object names.
 
-**STRICT LINK USAGE (CRITICAL)**: When the `generate_comments` tool returns a download link to you, you MUST output that EXACT link to the user in your final response. The download link is the primary wrap-up action. Even if the process is partial or reaches a time limit, the [Download SQL] link is MANDATORY and must be prominently featured as the very first line of your response.
+**STRICT DELIVERY USAGE (CRITICAL)**: When the `generate_comments` tool returns its response, you MUST output that EXACT header to the user in your final response. The primary delivery action must be prominently featured as the very first line of your response. Even if the process is partial or reaches a time limit, include the tool's confirmation header and any `### RESUME_OFFSET: N`.
 """
 
 from common.tools import get_mcp_toolsets, create_connection_token_tool
@@ -62,19 +63,31 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             browser_session_id = browser_session_id_var.get()
             storage_id = browser_session_id or session_id
 
-            # Define output directory and file
-            downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
-            output_dir = os.path.join(downloads_base, storage_id)
             safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
-            safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
+            safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_").lower()
             filename = f"comments_{safe_database}_{safe_schema}.sql"
-            output_file = Path(output_dir) / filename
 
-            # Return a download link
-            download_link = f"/download/{storage_id}/{filename}"
-            
-            # Ensure directory exists
-            os.makedirs(output_dir, exist_ok=True)
+            ui_ctx = ui_context_var.get() or {}
+            project_id = ui_ctx.get("projectId") if isinstance(ui_ctx, dict) else None
+            username_ctx = ui_ctx.get("username") if isinstance(ui_ctx, dict) else None
+
+            repo_name, repo_path = resolve_repo_for_db(database=database, project_id=project_id, username=username_ctx)
+
+            if repo_path:
+                output_dir = Path(repo_path) / "visulate" / safe_database / "comments"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_file = output_dir / filename
+                rel_file_path = os.path.relpath(str(output_file), repo_path)
+                is_repo = True
+                loc_header = f"Saved comments to repository `{repo_name}` at `{rel_file_path}`"
+            else:
+                downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
+                output_dir = Path(downloads_base) / storage_id
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_file = output_dir / filename
+                download_link = f"/download/{storage_id}/{filename}"
+                is_repo = False
+                loc_header = f"[Download SQL]({download_link})"
 
             # 1. Get auth token from context
             auth_token = auth_token_var.get()
@@ -84,7 +97,6 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
 
             # 3. Resolve username for authentication
             # In Postgres, the schema (e.g. public) often differs from the user (e.g. visulate)
-            ui_ctx = ui_context_var.get() or {}
             db_creds = db_credentials_var.get() or {}
             
             # Try to find username in db credentials first
@@ -111,31 +123,34 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
 
             if stmt_count == 0:
                 if timeout_signal_var.get():
-                     return (f"[Download SQL]({download_link})\n\n"
+                     return (f"{loc_header}\n\n"
                              f"Reached processing time limit before I could finish any new objects in this turn.\n\n"
                              f"### RESUME_OFFSET: {offset}\n\n"
                              f"Ask me to 'continue' to try the next batch.")
 
                 if offset > 0:
-                    return f"[Download SQL]({download_link})\n\nNo more Oracle objects in {schema} were found that are missing comments."
-                return f"[Download SQL]({download_link})\n\nAll requested objects in {schema} are already up-to-date in your database or session file."
+                    return f"{loc_header}\n\nNo more Oracle objects in {schema} were found that are missing comments."
+                return f"{loc_header}\n\nAll requested objects in {schema} are already up-to-date in your database or session file."
 
-            # Fail-safe: Always post download link to progress callback so it is visible in the UI
+            # Fail-safe: Always post download link or repo save path to progress callback so it is visible in the UI
             callback = progress_callback_var.get()
             if callback:
-                 callback(f"▌SUCCESS: SQL script is available here: [Download SQL]({download_link})")
+                 if is_repo:
+                     callback(f"▌SUCCESS: SQL script saved to repository '{repo_name}': {rel_file_path}")
+                 else:
+                     callback(f"▌SUCCESS: SQL script is available here: [Download SQL]({download_link})")
             
             # Check for timeout to provide specific guidance
             if timeout_signal_var.get():
                 processed_total = offset + stmt_count
-                return (f"[Download SQL]({download_link})\n\n"
+                return (f"{loc_header}\n\n"
                         f"Reached processing time limit. I've generated comments for {stmt_count} objects in this turn.\n\n"
                         f"### RESUME_OFFSET: {processed_total}\n\n"
                         f"**Recommendation:** Apply these comments now using the SQL script. Once applied, ask me to 'continue' to process the remaining objects.")
 
-            final_msg = f"[Download SQL]({download_link})\n\nSUCCESS: Generated {stmt_count} comments."
+            final_msg = f"{loc_header}\n\nSUCCESS: Generated {stmt_count} comments."
             if offset > 0:
-                 final_msg = f"[Download SQL]({download_link})\n\nResumed and generated {stmt_count} more comments."
+                 final_msg = f"{loc_header}\n\nResumed and generated {stmt_count} more comments."
             
             callback = progress_callback_var.get()
             if callback:
@@ -147,7 +162,8 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             # Handle graceful stop/timeout
             if str(e) == "Task stopped" or timeout_signal_var.get():
                 processed_total = offset + (generator.generated_count if 'generator' in locals() else 0)
-                return (f"[Download SQL]({download_link})\n\n"
+                fallback_loc = loc_header if 'loc_header' in locals() else "[Download SQL](unknown)"
+                return (f"{fallback_loc}\n\n"
                         f"▌TIMEOUT: I've reached the processing time limit for this turn. "
                         f"I've saved the comments generated so far to the SQL script.\n\n"
                         f"### RESUME_OFFSET: {processed_total}\n\n"

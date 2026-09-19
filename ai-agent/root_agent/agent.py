@@ -2,7 +2,7 @@ import logging
 from google.adk.agents import LlmAgent
 from .remote_tool import create_remote_delegate_tool
 from comment_generator.agent import create_comment_generator_agent
-from common.tools import create_save_memory_tool, create_read_memory_tool
+from common.tools import create_save_memory_tool, create_read_memory_tool, create_maintain_visulate_readme_tool
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to underst
 7. **delegate_to_test_data_generator_agent**: Use this for generating test data based on table definitions. It can generate SQL inserts and SQL*Loader files (CSV or fixed-length).
 8. **delegate_to_schema_comparison_agent**: Use this for universally comparing metadata between two databases, schemas, or specific objects (e.g. comparing DEV vs UAT databases, HR vs HR schemas, or TABLE_A vs TABLE_A) to identify differences in existence, row counts, and privileges. Do not ask for a schema name if the user just asks to compare databases.
 9. **read_memory_record**: Use this to read any un-injected architectural memory record or object structure listed in the memory manifest on demand.
-10. **save_memory_record**: Use this to persist architectural summaries, schema/object purpose notes, or design decisions to `.visulate/<db>/memories/` or `.visulate/<db>/structures/` in the active repository workspace.
+10. **save_memory_record**: Use this to persist architectural summaries, schema/object purpose notes, or design decisions to `visulate/<db>/memories/` or `visulate/<db>/structures/` in the active repository workspace.
+11. **maintain_visulate_readme**: Use this to create, update, or maintain the `visulate/README.md` file in the active repository, documenting its contents, database environments, code maps, memories, structures, and generated artifacts.
 
 ## Specialized Agents
 1. **Comment Generator Agent**: Delegate to this agent when the user explicitly asks to generate database comments or documentation. This agent supports an `offset` parameter for resuming long-running tasks.
@@ -31,8 +32,9 @@ SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to underst
 - **Synthesis Turn & Memory Recording (CRITICAL)**: Because the specialist's results are already streamed/displayed to the user in real-time during tool execution, you MUST NOT repeat, summarize, rephrase, or re-state that output in your final text response. Doing so causes the user to see duplicate text in their chat window.
   - HOWEVER, upon receiving the specialist's findings, if a repository is active (`projectId`) and the request involved analyzing a schema or object:
     1. Distill a concise markdown architectural summary of the findings (what the schema/object is used for, core entities, business purpose, key relationships).
-    2. Call `save_memory_record` to persist it to `.visulate/<db>/memories/schema_<owner>_summary.md` (for schemas) or `.visulate/<db>/structures/<object_name>.md` (for objects).
-    3. Your final text response to the user must be an extremely brief 1-sentence confirmation (e.g., "Analysis complete and saved to repository memory.").
+    2. Call `save_memory_record` to persist it to `visulate/<db>/memories/schema_<owner>_summary.md` (for schemas) or `visulate/<db>/structures/<object_name>.md` (for objects). Saving memory records automatically updates `visulate/README.md`.
+    3. If asked to create, document, or maintain the `visulate/` directory or its README, call `maintain_visulate_readme`.
+    4. Your final text response to the user must be an extremely brief 1-sentence confirmation (e.g., "Analysis complete and saved to repository memory.").
 - **Pre-Delegation Memory Consultation**: Before delegating to any specialist, consult the "Visulate Architectural Memory & Dependency Map" in your prompt preamble. If relevant context or constraints exist (or if you fetch them via `read_memory_record`), incorporate them into the delegation message to guide the specialist.
 - **Aggregation & Continuity**: If a user asks a follow-up about a previous action (e.g., "run it", "show more", "explain results"), or if a user says "run the query" after providing credentials, re-delegate to the appropriate specialist. Ensure you include enough context from the history if necessary to help the specialist understand what to continue.
 - **Resuming Long-Running Tasks**: When a specialist (like the Comment Generator) reaches a processing time limit, it will provide a partial result and a machine-readable marker: `### RESUME_OFFSET: N`. If the user asks to "continue" or "resume", you MUST look for the most recent occurrence of this marker in the history and pass that exact number as the `offset` parameter to the specialist. This allows the task to pick up exactly where it left off.
@@ -55,9 +57,10 @@ def create_root_agent() -> LlmAgent:
     test_data_tool = create_remote_delegate_tool("test_data_generator_agent", "http://localhost:10008")
     comparison_tool = create_remote_delegate_tool("schema_comparison_agent", "http://localhost:10009")
 
-    # 2. Create memory management tools for Root Agent
+    # 2. Create memory management and repository documentation tools for Root Agent
     save_memory_tool = create_save_memory_tool()
     read_memory_tool = create_read_memory_tool()
+    maintain_readme_tool = create_maintain_visulate_readme_tool()
 
     # 3. Create Root Agent
     root_agent = LlmAgent(
@@ -76,7 +79,8 @@ def create_root_agent() -> LlmAgent:
             test_data_tool,
             comparison_tool,
             read_memory_tool,
-            save_memory_tool
+            save_memory_tool,
+            maintain_readme_tool
         ]
     )
 

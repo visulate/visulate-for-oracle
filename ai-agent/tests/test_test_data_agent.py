@@ -51,3 +51,36 @@ async def test_generate_test_data_suite(mock_makedirs, mock_generator_class, moc
 
     mock_generator.run.assert_called_once()
     mock_zip.assert_called_once()
+
+@pytest.mark.asyncio
+@patch("test_data_generator.agent.session_id_var")
+@patch("test_data_generator.agent.ui_context_var")
+@patch("test_data_generator.agent.resolve_repo_for_db")
+@patch("test_data_generator.agent.progress_callback_var")
+@patch("test_data_generator.agent.create_zip_archive")
+@patch("test_data_generator.agent.TestDataGenerator")
+@patch("os.makedirs")
+async def test_generate_test_data_suite_with_repo(mock_makedirs, mock_generator_class, mock_zip, mock_progress, mock_resolve_repo, mock_ui_ctx, mock_session_id):
+    """Test generate_test_data_suite when an associated repository exists."""
+    from test_data_generator.agent import generate_test_data_suite
+
+    mock_session_id.get.return_value = "test-session"
+    mock_ui_ctx.get.return_value = {"projectId": "test-data-repo"}
+    mock_resolve_repo.return_value = ("test-data-repo", "/fake/repos/test-data-repo")
+
+    mock_generator = AsyncMock()
+    mock_generator.run.return_value = {
+        "files": ["table1.csv", "table1.ctl"],
+        "errors": []
+    }
+    mock_generator_class.return_value = mock_generator
+
+    result = await generate_test_data_suite("DB1", "SCHEMA1", ["TABLE1"])
+
+    assert "Successfully generated test data for 1 tables" in result
+    assert "saved to repository `test-data-repo`" in result
+    assert "visulate/db1/test-data/SCHEMA1" in result
+    assert "Download All Files (Zip)" not in result
+
+    mock_generator.run.assert_called_once()
+    mock_zip.assert_not_called()

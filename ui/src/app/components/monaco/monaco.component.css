@@ -723,7 +723,8 @@
   opacity: 0.7;
 }
 
-/* File Tree Delete Button */
+/* File Tree Download and Delete Buttons */
+.tree-download-btn,
 .tree-delete-btn {
   width: 22px !important;
   height: 22px !important;
@@ -738,6 +739,7 @@
   margin-left: 2px;
 }
 
+.tree-download-btn mat-icon,
 .tree-delete-btn mat-icon {
   font-size: 15px !important;
   width: 15px !important;
@@ -747,10 +749,18 @@
   opacity: 0.6;
 }
 
+.file-item:hover .tree-download-btn,
+.file-item:focus-within .tree-download-btn,
+.file-item.selected-file .tree-download-btn,
 .file-item:hover .tree-delete-btn,
 .file-item:focus-within .tree-delete-btn,
 .file-item.selected-file .tree-delete-btn {
   opacity: 1;
+}
+
+.tree-download-btn:hover mat-icon {
+  color: var(--primary-color, #1976d2) !important;
+  opacity: 1 !important;
 }
 
 .tree-delete-btn:hover mat-icon {
@@ -758,11 +768,12 @@
   opacity: 1 !important;
 }
 
-/* Editor Header Delete Button */
+/* Editor Header Download and Delete Buttons */
 .editor-header-spacer {
   flex: 1;
 }
 
+.header-download-btn,
 .header-delete-btn {
   width: 26px !important;
   height: 26px !important;
@@ -774,11 +785,22 @@
   margin-left: 8px;
 }
 
+.header-download-btn mat-icon,
 .header-delete-btn mat-icon {
   font-size: 18px !important;
   width: 18px !important;
   height: 18px !important;
   line-height: 18px !important;
+}
+
+.header-download-btn mat-icon {
+  color: var(--app-text-color);
+  opacity: 0.7;
+}
+
+.header-download-btn:hover mat-icon {
+  color: var(--primary-color, #1976d2) !important;
+  opacity: 1 !important;
 }
 
 /* Confirm Delete Modal Dialog */

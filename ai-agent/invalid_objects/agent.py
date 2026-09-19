@@ -5,7 +5,8 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
-from common.context import session_id_var, progress_callback_var
+from common.context import session_id_var, progress_callback_var, ui_context_var
+from common.config import resolve_repo_for_db
 
 logger = logging.getLogger(__name__)
 
@@ -39,25 +40,27 @@ Follow this systematic diagnostic flow for each invalid object:
    - **Do NOT** assume an object exists just because it is mentioned in an error message. If `findObject` returns no results, the object is MISSING.
    - If an object is referenced via a synonym, use `getContext` on the synonym and check `synonymDetails` for the base object, then verify the base object with `findObject`.
    - Check if a database link is required and verify its existence using `getDbLinks`.
-6. **Generate Remediation Script (Downloadable)**:
-   - You **MUST** call the `save_remediation_script` tool to provide a downloadable SQL file.
+6. **Generate Remediation Script**:
+   - You **MUST** call the `save_remediation_script` tool to provide the remediation SQL script.
+   - If the database has an associated repository, the script is saved directly to `visulate/<db>/remediation/<filename>.sql`.
+   - If no repository is associated, the tool provides a download link.
    - The script must include specific fixes (e.g., `GRANT EXECUTE`, `CREATE SYNONYM`) for **verified** missing dependencies.
    - **The script MUST end with a call to compile the entire schema**: `exec dbms_utility.compile_schema('YOUR_SCHEMA_NAME', false);`
 7. **Final Report**: Provide a summary of your findings, identifying exactly why each object is invalid (e.g., "Missing package UTL_MAIL", "Inaccessible table CUSTOMERS via broken DB Link SALES_LINK").
 
 ## Guidelines
 - **Verification First**: Never suggest a `GRANT` on an object unless you have verified that the object actually exists using `findObject`.
-- **Downloadable Output**: Always use `save_remediation_script`.
+- **Script Generation**: Always use `save_remediation_script`.
 - **Precision**: Do not provide high-level summaries. Identify specific missing links, objects, and grants.
 - **Progress Updates**: Use `report_progress` at each logical step of the investigation.
 - **Read-Only**: You are a diagnostic tool. You generate reports and plans, you do not execute DDL/DML yourself.
 - **NO TRUNCATION**: When generating file contents for the `save_remediation_script` tool, you MUST output the ENTIRE script completely. Do NOT use placeholders, `...`, or comments like "rest of the package code here". Your file output must be a 100% complete, fully runnable SQL script containing all necessary code.
-- **STRICT LINK USAGE**: When the `save_remediation_script` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL in your final generated response.
+- **Delivery**: If `save_remediation_script` returns a download link, you MUST output that EXACT link to the user. If it confirms saving to the repository, report that confirmation without inventing a link.
 """
 
 async def save_remediation_script(database: str, schema: str, sql_content: str, plan_name: str = "remediation_plan") -> str:
     """
-    Saves the generated SQL remediation script to a file and returns a download link.
+    Saves the generated SQL remediation script to a repository file or returns a download link.
 
     Args:
         database: The database name.
@@ -67,25 +70,43 @@ async def save_remediation_script(database: str, schema: str, sql_content: str, 
     """
     try:
         session_id = session_id_var.get()
-        downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
-        output_dir = os.path.join(downloads_base, session_id)
-        os.makedirs(output_dir, exist_ok=True)
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_name = "".join([c if c.isalnum() else "_" for c in plan_name]).strip("_")
         safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
-        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
+        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_").lower()
         filename = f"{safe_name}_{safe_schema}_{safe_database}_{timestamp}.sql"
-        output_path = os.path.join(output_dir, filename)
 
-        with open(output_path, "w") as f:
-            f.write(f"-- Visulate Remediation Script for {schema} @ {database}\n")
-            f.write(f"-- Generated on {datetime.now().isoformat()}\n\n")
-            f.write(sql_content)
+        ui_ctx = ui_context_var.get() if ui_context_var else {}
+        project_id = ui_ctx.get("projectId") if isinstance(ui_ctx, dict) else None
+        username = ui_ctx.get("username") if isinstance(ui_ctx, dict) else None
 
-        download_link = f"/download/{session_id}/{filename}"
-        report_progress(f"Remediation script generated: {filename}")
-        return f"Successfully generated remediation script. [Download SQL Script]({download_link})"
+        repo_name, repo_path = resolve_repo_for_db(database=database, project_id=project_id, username=username)
+
+        file_body = (
+            f"-- Visulate Remediation Script for {schema} @ {database}\n"
+            f"-- Generated on {datetime.now().isoformat()}\n\n"
+            f"{sql_content}"
+        )
+
+        if repo_path:
+            output_dir = os.path.join(repo_path, "visulate", safe_database, "remediation")
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, filename)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(file_body)
+            rel_path = os.path.relpath(output_path, repo_path)
+            report_progress(f"Remediation script saved to repository '{repo_name}': {rel_path}")
+            return f"Successfully generated remediation script and saved to repository `{repo_name}` at `{rel_path}`."
+        else:
+            downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
+            output_dir = os.path.join(downloads_base, session_id)
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, filename)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(file_body)
+            download_link = f"/download/{session_id}/{filename}"
+            report_progress(f"Remediation script generated: {filename}")
+            return f"Successfully generated remediation script. [Download SQL Script]({download_link})"
 
     except Exception as e:
         logger.error(f"Error saving remediation script: {e}")

@@ -6,18 +6,50 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const Diff = require('diff');
+const gitService = require('./gitService');
 
 const DOWNLOAD_ROOT = process.env.VISULATE_DOWNLOADS || path.resolve(__dirname, '../downloads');
 
+function findRepoForDb(db) {
+  if (!db) return null;
+  const safeDb = String(db).toLowerCase().trim();
+  const repos = gitService.listLocalRepositories();
+  for (const repo of repos) {
+    const dbDir = path.join(repo.fullPath, 'visulate', safeDb);
+    if (fs.existsSync(dbDir)) {
+      return repo;
+    }
+    const mapFile = path.join(repo.fullPath, 'visulate', 'oracle-code-map.json');
+    if (fs.existsSync(mapFile)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(mapFile, 'utf8'));
+        if ((data.dbConnectionId || '').toLowerCase().trim() === safeDb) {
+          return repo;
+        }
+      } catch (_) {}
+    }
+  }
+  return null;
+}
+
 function getEndpointList(endpoints) {
   let endpointList = [];
-  endpoints.forEach(endpoint => {
-    endpointList[endpoint.namespace] = endpoint.connect.poolAlias;
-  });
+  if (Array.isArray(endpoints)) {
+    endpoints.forEach(endpoint => {
+      if (endpoint && endpoint.namespace && endpoint.connect) {
+        endpointList[endpoint.namespace] = endpoint.connect.poolAlias;
+      }
+    });
+  }
   return endpointList;
 }
 
-const endpointList = getEndpointList(dbConfig.endpoints);
+function getPoolAlias(db, endpoints) {
+  const list = getEndpointList(dbConfig.endpoints);
+  if (list[db]) return list[db];
+  if (endpoints && typeof endpoints === 'object' && endpoints[db]) return db;
+  return null;
+}
 
 async function getSchemaObjectCounts(db, endpoints, ownerToFilter = null) {
   const epObj = endpoints.find(e => e.endpoint === db);
@@ -52,7 +84,7 @@ async function getSchemaObjectCounts(db, endpoints, ownerToFilter = null) {
 }
 
 async function getDatabaseData(db, endpoints) {
-  const poolAlias = endpointList[db];
+  const poolAlias = getPoolAlias(db, endpoints);
   if (!poolAlias) throw new Error(`Database ${db} not found`);
 
   let queryCollection = sql.collection['DATABASE'];
@@ -76,7 +108,7 @@ async function getDatabaseData(db, endpoints) {
 }
 
 async function getSchemaData(db, owner, endpoints) {
-  const poolAlias = endpointList[db];
+  const poolAlias = getPoolAlias(db, endpoints);
   if (!poolAlias) throw new Error(`Database ${db} not found`);
 
   let result = [];
@@ -116,7 +148,7 @@ async function getSchemaData(db, owner, endpoints) {
 }
 
 async function getObjectData(db, owner, type, name, endpoints) {
-  const poolAlias = endpointList[db];
+  const poolAlias = getPoolAlias(db, endpoints);
   if (!poolAlias) throw new Error(`Database ${db} not found`);
   const details = await controller.getObjectDetails(poolAlias, owner, type, name, true);
   if (details === '404') throw new Error(`Object ${name} not found in ${db}.${owner}`);
@@ -342,6 +374,27 @@ async function compareEntities(sourceReq, targetReq) {
       report += `## ${title}\n\n*Section exists in target but missing in source.*\n\n`;
       apiReport += `## ${title}\n\n*Section exists in target but missing in source.*\n\n`;
     }
+  }
+
+  const sourceDb = sourceReq && sourceReq.db;
+  const targetDb = targetReq && targetReq.db;
+  const repo = findRepoForDb(sourceDb) || findRepoForDb(targetDb);
+  if (repo) {
+    const safeDb = String(sourceDb || targetDb).toLowerCase().trim().replace(/[^a-z0-9_-]/gi, '_');
+    const safeTargetDb = String(targetDb || 'target').toLowerCase().trim().replace(/[^a-z0-9_-]/gi, '_');
+    const targetDir = path.join(repo.fullPath, 'visulate', safeDb, 'reports');
+    await fs.promises.mkdir(targetDir, { recursive: true });
+    const targetFilename = `comparison_${safeDb}_vs_${safeTargetDb}.md`;
+    const targetFilePath = path.join(targetDir, targetFilename);
+    await fs.promises.writeFile(targetFilePath, report, 'utf8');
+    const relPath = path.relative(repo.fullPath, targetFilePath);
+
+    return {
+      reportSummary: `Comparison complete! Saved diff report to repository \`${repo.folderName}\` at \`${relPath}\`.\n\nPreview:\n\n${apiReport.substring(0, 1500)}${apiReport.length > 1500 ? '\n\n... (report truncated to save space, view file in repository)' : ''}`,
+      rawMarkdown: apiReport,
+      savedPath: relPath,
+      repo: repo.folderName
+    };
   }
 
   const sessionId = crypto.randomUUID();

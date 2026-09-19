@@ -41,14 +41,11 @@ def get_okf_context(
         if not repo_path or not os.path.exists(repo_path):
             return ""
 
-        visulate_dir = os.path.join(repo_path, ".visulate")
-        okf_dir = os.path.join(repo_path, ".okf")
+        visulate_dir = os.path.join(repo_path, "visulate")
 
         target_dirs = []
         if os.path.exists(visulate_dir):
             target_dirs.append(visulate_dir)
-        if os.path.exists(okf_dir):
-            target_dirs.append(okf_dir)
 
         if not target_dirs:
             return ""

@@ -8,8 +8,8 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
-from common.config import get_mcp_urls
-from common.context import session_id_var, progress_callback_var
+from common.config import get_mcp_urls, resolve_repo_for_db
+from common.context import session_id_var, progress_callback_var, ui_context_var
 from common.utils import create_zip_archive
 from test_data_generator.generator import TestDataGenerator
 
@@ -75,48 +75,86 @@ async def generate_test_data_suite(database: str, schema: str, tables: List[str]
         # Clean table names (remove 'TABLE ' prefix if present)
         tables = [t.split()[-1] if ' ' in t else t for t in tables]
 
-        session_id = session_id_var.get()
-        downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
-        output_dir = os.path.join(downloads_base, session_id)
-        os.makedirs(output_dir, exist_ok=True)
-
-        generator = TestDataGenerator(api_server_url, session_id)
-        result = await generator.run(database, schema, tables, output_dir)
-        file_list = result.get('files', [])
-        errors = result.get('errors', [])
-
-        if not file_list:
-            err_summary = "\n".join([f"- {e}" for e in errors])
-            fallback_msg = "No files were generated."
-            if errors:
-                fallback_msg += f" Reasons:\n{err_summary}"
-            return f"{fallback_msg}\n\nPlease verify table names and database connectivity."
-
-        # Create zip archive of all generated files
         safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
-        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
-        archive_name = f"test_data_{safe_database}_{safe_schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
-        zip_path = create_zip_archive(output_dir, archive_name)
+        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_").lower()
 
-        # Formulate the response with the single zip download link as the primary action
-        zip_download_link = f"[{archive_name}](/download/{session_id}/{archive_name})"
+        ui_ctx = ui_context_var.get() if ui_context_var else {}
+        project_id = ui_ctx.get("projectId") if isinstance(ui_ctx, dict) else None
+        username = ui_ctx.get("username") if isinstance(ui_ctx, dict) else None
 
-        # Also provide a list of individual files for transparency, but emphasize the zip
-        individual_files_str = ", ".join(file_list)
+        repo_name, repo_path = resolve_repo_for_db(database=database, project_id=project_id, username=username)
+        session_id = session_id_var.get()
 
-        error_section = ""
-        if errors:
-            err_list = "\n".join([f"- {e}" for e in errors])
-            error_section = f"\n\n**Warnings during generation:**\n{err_list}"
+        if repo_path:
+            output_dir = os.path.join(repo_path, "visulate", safe_database, "test-data", safe_schema)
+            os.makedirs(output_dir, exist_ok=True)
 
-        final_msg = (
-            f"Successfully generated test data for {len(tables)} tables.\n\n"
-            f"### [Download All Files (Zip)]({zip_download_link})\n\n"
-            f"**Included files:** {individual_files_str}"
-            f"{error_section}"
-        )
-        report_progress(f"▌SUCCESS: Generated {len(file_list)} files and compressed into {archive_name}")
-        return final_msg
+            generator = TestDataGenerator(api_server_url, session_id)
+            result = await generator.run(database, schema, tables, output_dir)
+            file_list = result.get('files', [])
+            errors = result.get('errors', [])
+
+            if not file_list:
+                err_summary = "\n".join([f"- {e}" for e in errors])
+                fallback_msg = "No files were generated."
+                if errors:
+                    fallback_msg += f" Reasons:\n{err_summary}"
+                return f"{fallback_msg}\n\nPlease verify table names and database connectivity."
+
+            rel_dir = os.path.relpath(output_dir, repo_path)
+            individual_files_str = ", ".join(file_list)
+            error_section = ""
+            if errors:
+                err_list = "\n".join([f"- {e}" for e in errors])
+                error_section = f"\n\n**Warnings during generation:**\n{err_list}"
+
+            final_msg = (
+                f"Successfully generated test data for {len(tables)} tables and saved to repository `{repo_name}` under `{rel_dir}/`.\n\n"
+                f"**Generated files:** {individual_files_str}"
+                f"{error_section}"
+            )
+            report_progress(f"▌SUCCESS: Generated {len(file_list)} files in repository {repo_name} at {rel_dir}")
+            return final_msg
+        else:
+            downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
+            output_dir = os.path.join(downloads_base, session_id)
+            os.makedirs(output_dir, exist_ok=True)
+
+            generator = TestDataGenerator(api_server_url, session_id)
+            result = await generator.run(database, schema, tables, output_dir)
+            file_list = result.get('files', [])
+            errors = result.get('errors', [])
+
+            if not file_list:
+                err_summary = "\n".join([f"- {e}" for e in errors])
+                fallback_msg = "No files were generated."
+                if errors:
+                    fallback_msg += f" Reasons:\n{err_summary}"
+                return f"{fallback_msg}\n\nPlease verify table names and database connectivity."
+
+            # Create zip archive of all generated files
+            archive_name = f"test_data_{safe_database}_{safe_schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            zip_path = create_zip_archive(output_dir, archive_name)
+
+            # Formulate the response with the single zip download link as the primary action
+            zip_download_link = f"[{archive_name}](/download/{session_id}/{archive_name})"
+
+            # Also provide a list of individual files for transparency, but emphasize the zip
+            individual_files_str = ", ".join(file_list)
+
+            error_section = ""
+            if errors:
+                err_list = "\n".join([f"- {e}" for e in errors])
+                error_section = f"\n\n**Warnings during generation:**\n{err_list}"
+
+            final_msg = (
+                f"Successfully generated test data for {len(tables)} tables.\n\n"
+                f"### [Download All Files (Zip)]({zip_download_link})\n\n"
+                f"**Included files:** {individual_files_str}"
+                f"{error_section}"
+            )
+            report_progress(f"▌SUCCESS: Generated {len(file_list)} files and compressed into {archive_name}")
+            return final_msg
 
     except Exception as e:
         logger.error(f"Error in generate_test_data_suite: {e}", exc_info=True)
@@ -130,13 +168,13 @@ Your purpose is to generate comprehensive test data suites for Oracle database t
    - Check the "Current UI Context" (objectList or Selected Object).
    - If the user provides a filter or wildcard (e.g., "RNT_MENU*"), call `list_tables` first to get the actual table names.
 2. **Generate Data**: Call `generate_test_data_suite` with the resolved list of table names.
-3. **Report Output**: Summarize what was generated and present the download links provided by the tool.
+3. **Report Output**: Summarize what was generated and present the delivery confirmation or download link provided by the tool.
 
 ## Guidelines
 - **Always use the tools**: Never try to generate the data formats yourself in text.
 - **Table Discovery**: Always resolve wildcards/filters using `list_tables` before calling the generation suite.
 - **Reference Context**: Use the `owner` and `database` names from the UI context preamble.
-- **STRICT LINK USAGE**: When the `generate_test_data_suite` tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
+- **Delivery**: If the tool saved to a git repository, report the repository path confirmation. If a download link was returned, output the EXACT link to the user.
 """
 
 def create_test_data_generator_agent() -> LlmAgent:

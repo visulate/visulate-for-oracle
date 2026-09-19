@@ -6,7 +6,8 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
-from common.context import session_id_var, progress_callback_var, auth_token_var
+from common.context import session_id_var, progress_callback_var, auth_token_var, ui_context_var
+from common.config import resolve_repo_for_db
 from erd_agent.diagram_generator import DiagramGenerator
 
 logger = logging.getLogger(__name__)
@@ -39,13 +40,14 @@ When asked to generate an ERD:
 6. **Limit**: Ensure no page exceeds 40 tables. Create multiple pages if necessary.
 7. **Layout**: Identify Master-Detail relationships. In your generated diagram, detail tables should be positioned below or to the right of their masters.
 8. **Generation**: Call the `generate_erd_file` tool with the filtered tables, their columns, and relationships. Provide a descriptive `diagram_name` that reflects the schema and any sub-system specified (e.g., "HR Schema Overview", "Property Management Sub-system").
-9. **Delivery**: Provide the user with the download link returned by the tool.
+9. **Delivery**: When the tool completes, report the exact result returned by the tool.
+   - If the database has an associated repository, the file is saved directly into the repository under `visulate/<db>/erd/<filename>.drawio`. Do not invent a download link in this scenario.
+   - If a download link is returned, output the EXACT link in markdown format.
 
 ## Guidelines
 - **Thinking and Progress**: ALWAYS provide real-time updates using the `report_progress` tool at EACH step. Proactively report progress **before** starting any long-running tool calls (e.g., "Fetching columns for 30 tables...").
 - Focus on architectural clarity.
-- Your final response MUST include the download link in markdown format.
-- **STRICT LINK USAGE**: When the  tool returns a download link to you, you MUST output that EXACT link to the user. Do not fabricate or shorten the link URL or change the file extension in your final generated response.
+- **Repository / Download Delivery**: Output the exact delivery message and path or link returned by `generate_erd_file`. If a download link was provided, do not fabricate or shorten the link URL or change the file extension in your final generated response.
 """
 
 async def generate_erd_file(database: str, schema: str, tables_json: str, relationships_json: str, columns_json: str, diagram_name: str = "ERD") -> str:
@@ -176,26 +178,39 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
         report_progress("Finalizing Draw.io XML structure...")
         xml_content = generator.to_xml()
 
-        # Save to downloads
-        downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
-        output_dir = os.path.join(downloads_base, session_id)
-
         # Clean and unique filename
         safe_name = "".join([c if c.isalnum() else "_" for c in diagram_name]).strip("_")
         safe_schema = "".join([c if c.isalnum() else "_" for c in schema]).strip("_")
-        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_")
+        safe_database = "".join([c if c.isalnum() else "_" for c in database]).strip("_").lower()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{safe_name}_{safe_schema}_{safe_database}_{timestamp}.drawio"
-        output_path = os.path.join(output_dir, filename)
 
-        os.makedirs(output_dir, exist_ok=True)
-        with open(output_path, "w") as f:
-            f.write(xml_content)
+        ui_ctx = ui_context_var.get() if ui_context_var else {}
+        project_id = ui_ctx.get("projectId") if isinstance(ui_ctx, dict) else None
+        username = ui_ctx.get("username") if isinstance(ui_ctx, dict) else None
 
-        download_link = f"/download/{session_id}/{filename}"
-        report_progress(f"ERD generated successfully: {filename}")
+        repo_name, repo_path = resolve_repo_for_db(database=database, project_id=project_id, username=username)
 
-        return f"Successfully generated ERD for {schema}. [Download Draw.io File]({download_link})"
+        if repo_path:
+            output_dir = os.path.join(repo_path, "visulate", safe_database, "erd")
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, filename)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(xml_content)
+            rel_path = os.path.relpath(output_path, repo_path)
+            report_progress(f"ERD saved to repository '{repo_name}': {rel_path}")
+            return f"Successfully generated ERD for {schema} and saved to repository `{repo_name}` at `{rel_path}`."
+        else:
+            # Save to downloads fallback
+            downloads_base = os.getenv("VISULATE_DOWNLOADS") or os.path.join(os.path.abspath(os.getcwd()), "downloads")
+            output_dir = os.path.join(downloads_base, session_id)
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, filename)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(xml_content)
+            download_link = f"/download/{session_id}/{filename}"
+            report_progress(f"ERD generated successfully: {filename}")
+            return f"Successfully generated ERD for {schema}. [Download Draw.io File]({download_link})"
 
     except Exception as e:
         logger.error(f"Error in generate_erd_file: {e}")

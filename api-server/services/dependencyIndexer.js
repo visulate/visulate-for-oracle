@@ -135,11 +135,9 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   }
 
   let dbConnectionId = dbConnParam || '';
-  const visulateDir = path.join(repoDir, '.visulate');
-  const okfDir = path.join(repoDir, '.okf');
+  const visulateDir = path.join(repoDir, 'visulate');
   const rootVisulateMap = path.join(visulateDir, 'oracle-code-map.json');
-  const rootOkfMap = path.join(okfDir, 'oracle-code-map.json');
-  const existingMapPath = fs.existsSync(rootVisulateMap) ? rootVisulateMap : (fs.existsSync(rootOkfMap) ? rootOkfMap : null);
+  const existingMapPath = fs.existsSync(rootVisulateMap) ? rootVisulateMap : null;
   if (!dbConnectionId && existingMapPath) {
     try {
       const existing = JSON.parse(fs.readFileSync(existingMapPath, 'utf8'));
@@ -171,7 +169,7 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
 
   // Scan codebase files for object names
   for (const fileRelPath of codeFiles) {
-    if (fileRelPath.startsWith('.git') || fileRelPath.startsWith('.visulate') || fileRelPath.startsWith('.okf')) {
+    if (fileRelPath.startsWith('.git') || fileRelPath.startsWith('visulate/') || fileRelPath === 'visulate') {
       continue;
     }
 
@@ -342,17 +340,11 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
   const allDependencies = new Set();
 
   for (const repo of repos) {
-    const visulateDbMap = path.join(repo.fullPath, '.visulate', normalizedDb, 'oracle-code-map.json');
-    const okfDbMap = path.join(repo.fullPath, '.okf', normalizedDb, 'oracle-code-map.json');
-    const visulateLegacyMap = path.join(repo.fullPath, '.visulate', 'oracle-code-map.json');
-    const okfLegacyMap = path.join(repo.fullPath, '.okf', 'oracle-code-map.json');
+    const visulateDbMap = path.join(repo.fullPath, 'visulate', normalizedDb, 'oracle-code-map.json');
+    const visulateLegacyMap = path.join(repo.fullPath, 'visulate', 'oracle-code-map.json');
 
     const mapPath = fs.existsSync(visulateDbMap) ? visulateDbMap : (
-      fs.existsSync(okfDbMap) ? okfDbMap : (
-        fs.existsSync(visulateLegacyMap) ? visulateLegacyMap : (
-          fs.existsSync(okfLegacyMap) ? okfLegacyMap : null
-        )
-      )
+      fs.existsSync(visulateLegacyMap) ? visulateLegacyMap : null
     );
     if (!mapPath) continue;
 
@@ -360,7 +352,7 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
       const raw = fs.readFileSync(mapPath, 'utf8');
       const mapData = JSON.parse(raw);
       const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
-      const isDbSpecific = (mapPath === visulateDbMap || mapPath === okfDbMap);
+      const isDbSpecific = (mapPath === visulateDbMap);
 
       const shouldInspect = repoFolder
         ? repo.folderName === repoFolder && (repoDb === normalizedDb || isDbSpecific)

@@ -102,6 +102,38 @@ function resolveSafePath(repoDir, relativePath = '', mustExist = false) {
 }
 
 /**
+ * Resolves and validates an existing safe file path within a repository.
+ */
+function getSafeFilePath(identifier, filePath, userContext = null) {
+  const repoDir = getProjectRepoDir(identifier, userContext);
+  if (!repoDir || !fs.existsSync(repoDir)) {
+    throw new Error('Repository directory does not exist');
+  }
+  const normalizedRel = (filePath || '').replace(/^[\\\/]+/, '');
+  if (normalizedRel.split(/[\\\/]/).includes('.git')) {
+    throw new Error('Invalid file path: repository metadata is not downloadable');
+  }
+  const realRepoDir = fs.realpathSync(repoDir);
+  const resolved = path.resolve(realRepoDir, normalizedRel);
+  if (fs.existsSync(resolved)) {
+    const rawStat = fs.lstatSync(resolved);
+    if (rawStat.isSymbolicLink()) {
+      throw new Error('Invalid file path: symbolic links are not downloadable');
+    }
+  }
+  const fullPath = resolveSafePath(repoDir, filePath, true);
+  const relativeTarget = path.relative(realRepoDir, fullPath);
+  if (relativeTarget.split(path.sep).includes('.git')) {
+    throw new Error('Invalid file path: repository metadata is not downloadable');
+  }
+  const stat = fs.lstatSync(fullPath);
+  if (stat.isDirectory()) {
+    throw new Error('Target path is a directory, not a file');
+  }
+  return fullPath;
+}
+
+/**
  * Lists local repository directories in the active workspace.
  */
 function listLocalRepositories(userContext = null) {
@@ -560,6 +592,7 @@ module.exports = {
   getBaseReposDir,
   getProjectRepoDir,
   resolveSafePath,
+  getSafeFilePath,
   listLocalRepositories,
   cloneRepoToFolder,
   pullRepo,

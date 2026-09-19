@@ -6,10 +6,11 @@ from typing import List, Optional, Dict, Any
 from google.adk.tools import BaseTool
 from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from google.adk.tools.function_tool import FunctionTool
-from common.config import get_mcp_urls, resolve_repo_path
+from common.config import get_mcp_urls, resolve_repo_path, resolve_repo_for_db
 from common.credentials import CredentialManager
 from common.utils import parse_token_from_response, create_token_request, mask_sensitive_data, call_mcp_tool_rest, format_mcp_text_response
 from common.context import session_id_var, auth_token_var, progress_callback_var, ui_context_var, browser_session_id_var
+from common.readme_builder import update_visulate_readme
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ def create_save_memory_tool() -> FunctionTool:
     ) -> str:
         """
         Saves an architectural memory or summary markdown document to the active Git repository workspace.
-        Stores the record under .visulate/<db>/<category>/<filename>.
+        Stores the record under visulate/<db>/<category>/<filename>.
 
         Args:
             content: The markdown formatted memory record or summary.
@@ -158,7 +159,7 @@ def create_save_memory_tool() -> FunctionTool:
                 filename += ".md"
 
             safe_filename = os.path.basename(filename)
-            target_dir = os.path.join(repo_path, ".visulate", safe_db, clean_category)
+            target_dir = os.path.join(repo_path, "visulate", safe_db, clean_category)
             os.makedirs(target_dir, exist_ok=True)
 
             target_file = os.path.join(target_dir, safe_filename)
@@ -166,6 +167,12 @@ def create_save_memory_tool() -> FunctionTool:
 
             with open(target_file, "w", encoding="utf-8") as f:
                 f.write(content.strip() + "\n")
+
+            # Automatically maintain visulate/README.md
+            try:
+                update_visulate_readme(repo_path)
+            except Exception as readme_err:
+                logger.warning(f"Error updating visulate/README.md after saving memory: {readme_err}")
 
             callback = progress_callback_var.get()
             if callback:
@@ -179,6 +186,47 @@ def create_save_memory_tool() -> FunctionTool:
 
     return FunctionTool(save_memory_record)
 
+def create_maintain_visulate_readme_tool() -> FunctionTool:
+    """Creates a tool for maintaining and updating visulate/README.md in the active repository."""
+    async def maintain_visulate_readme(notes: str = "") -> str:
+        """
+        Creates, updates, and refreshes the README.md file in the visulate/ directory of the active Git repository.
+        The README documents all database environments, codebase dependency maps, architectural memories,
+        object structures, and generated artifacts (ERDs, comments, remediation scripts, test data, and reports).
+
+        Args:
+            notes: Optional additional architectural notes or domain overview to include in the README.
+        """
+        try:
+            ui_ctx = ui_context_var.get() if ui_context_var else {}
+            if not isinstance(ui_ctx, dict):
+                ui_ctx = {}
+
+            project_id = ui_ctx.get("projectId")
+            username = ui_ctx.get("username")
+
+            if not project_id:
+                return "No active Git repository linked in the current context. Cannot maintain visulate/README.md."
+
+            safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
+            repo_path = resolve_repo_path(project_id, username)
+            if not repo_path or not os.path.exists(repo_path):
+                return f"Repository '{safe_project_id}' not found."
+
+            readme_rel_path = update_visulate_readme(repo_path, notes=notes)
+
+            callback = progress_callback_var.get()
+            if callback:
+                callback(f"▌SUCCESS: Maintained {readme_rel_path} in repository '{safe_project_id}'")
+
+            logger.info(f"Updated {readme_rel_path} in {repo_path}")
+            return f"Successfully generated and updated `{readme_rel_path}` in repository `{safe_project_id}`."
+        except Exception as e:
+            logger.error(f"Error maintaining visulate/README.md: {e}", exc_info=True)
+            return f"Error maintaining visulate/README.md: {str(e)}"
+
+    return FunctionTool(maintain_visulate_readme)
+
 def create_read_memory_tool() -> FunctionTool:
     """Creates a tool for reading specific architectural memory or structure documents from the active repository."""
     async def read_memory_record(
@@ -186,7 +234,7 @@ def create_read_memory_tool() -> FunctionTool:
     ) -> str:
         """
         Reads and returns the contents of a specific architectural memory, schema summary, or structure record
-        from the active Git repository workspace (.visulate/ directory).
+        from the active Git repository workspace (visulate/ directory).
 
         Args:
             name_or_path: The name or relative path of the memory record (e.g. 'schema_rntmgr2_summary.md', 'rental_agreements.md', 'structures/leases.md', or 'architecture_decisions.md').
@@ -215,7 +263,7 @@ def create_read_memory_tool() -> FunctionTool:
             safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(endpoint)]).strip("_").lower() if endpoint else None
 
             candidates = []
-            for base_folder in (".visulate", ".okf"):
+            for base_folder in ("visulate",):
                 base_dir = os.path.join(repo_path, base_folder)
                 if not os.path.exists(base_dir):
                     continue

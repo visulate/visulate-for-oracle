@@ -319,6 +319,22 @@ router.route('/api/git/file')
     }
   });
 
+router.route('/api/git/download')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || 'default-project';
+      const filePath = req.query.path || '';
+      if (!filePath) {
+        return res.status(400).json({ error: 'path is required' });
+      }
+      const fullPath = gitService.getSafeFilePath(projectId, filePath, req.userContext);
+      const filename = path.basename(fullPath);
+      res.download(fullPath, filename);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
 router.route('/api/git/files')
   .get(async (req, res) => {
     try {

@@ -13,7 +13,7 @@ def temp_repo_dir(monkeypatch):
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 def test_get_okf_context_visulate_dir(temp_repo_dir):
-    proj_dir = os.path.join(temp_repo_dir, "my-repo", ".visulate", "dev")
+    proj_dir = os.path.join(temp_repo_dir, "my-repo", "visulate", "dev")
     os.makedirs(os.path.join(proj_dir, "memories"), exist_ok=True)
     os.makedirs(os.path.join(proj_dir, "structures"), exist_ok=True)
 
@@ -35,7 +35,7 @@ def test_get_okf_context_visulate_dir(temp_repo_dir):
     assert "Use PL/SQL packages for core business logic." in result
 
 def test_get_okf_context_database_striping(temp_repo_dir):
-    repo_base = os.path.join(temp_repo_dir, "my-repo", ".visulate")
+    repo_base = os.path.join(temp_repo_dir, "my-repo", "visulate")
     dev_dir = os.path.join(repo_base, "dev", "memories")
     prod_dir = os.path.join(repo_base, "prod", "memories")
     os.makedirs(dev_dir, exist_ok=True)
@@ -55,20 +55,9 @@ def test_get_okf_context_database_striping(temp_repo_dir):
     assert "PROD MEMORY" in prod_context
     assert "DEV MEMORY" not in prod_context
 
-def test_get_okf_context_legacy_okf_fallback(temp_repo_dir):
-    proj_dir = os.path.join(temp_repo_dir, "legacy-repo", ".okf", "uat")
-    os.makedirs(proj_dir, exist_ok=True)
-
-    with open(os.path.join(proj_dir, "codebase-dependencies.md"), "w", encoding="utf-8") as f:
-        f.write("# Legacy OKF Dependencies for UAT\n")
-
-    result = get_okf_context("legacy-repo", "uat")
-    assert "Visulate Architectural Memory & Dependency Map" in result
-    assert "Legacy OKF Dependencies for UAT" in result
-
 @patch("google.adk.runners.Runner.run_async")
 def test_root_agent_injects_repository_and_memory(mock_run, client, temp_repo_dir):
-    proj_dir = os.path.join(temp_repo_dir, "app-repo", ".visulate", "pdb21", "memories")
+    proj_dir = os.path.join(temp_repo_dir, "app-repo", "visulate", "pdb21", "memories")
     os.makedirs(proj_dir, exist_ok=True)
     with open(os.path.join(proj_dir, "rules.md"), "w", encoding="utf-8") as f:
         f.write("System Rule: Table names must be pluralized.")
@@ -107,7 +96,7 @@ def test_root_agent_injects_repository_and_memory(mock_run, client, temp_repo_di
     assert "System Rule: Table names must be pluralized." in prompt
 
 def test_get_okf_context_tiered_priority_and_budget(temp_repo_dir):
-    proj_dir = os.path.join(temp_repo_dir, "tiered-repo", ".visulate", "pdb21")
+    proj_dir = os.path.join(temp_repo_dir, "tiered-repo", "visulate", "pdb21")
     mem_dir = os.path.join(proj_dir, "memories")
     struct_dir = os.path.join(proj_dir, "structures")
     os.makedirs(mem_dir, exist_ok=True)
@@ -149,7 +138,7 @@ def test_get_okf_context_tiered_priority_and_budget(temp_repo_dir):
 
 def test_get_okf_context_server_mode_tenant(temp_repo_dir, monkeypatch):
     monkeypatch.setenv("GIT_MODE", "server")
-    user_repo = os.path.join(temp_repo_dir, "users", "tenant_user", "tenant-project", ".visulate", "dev", "memories")
+    user_repo = os.path.join(temp_repo_dir, "users", "tenant_user", "tenant-project", "visulate", "dev", "memories")
     os.makedirs(user_repo, exist_ok=True)
 
     with open(os.path.join(user_repo, "tenant_rules.md"), "w", encoding="utf-8") as f:
