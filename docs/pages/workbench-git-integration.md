@@ -189,11 +189,34 @@ Visulate uses **Personal Access Tokens (HTTPS)** for session-based authenticatio
 
 1. Click the **Git Auth** button in the Workbench toolbar.
 2. Enter your **Git Username** (e.g. your GitHub or GitLab username).
-3. Enter your **Personal Access Token (PAT)** (e.g. GitHub `ghp_...` or GitLab `glpat-...`).
+3. Enter your **Personal Access Token (PAT)** (e.g. GitHub `github_pat_...` or classic `ghp_...`, or GitLab `glpat-...`).
 4. Enter your **Author Name** and **Author Email** for Git commits.
 5. Click **Save Session Credentials**.
 
 Credentials are saved exclusively in the browser's `sessionStorage` and are **never written to server-side configuration files or Git config**. When the user closes the browser tab, the session credentials are automatically destroyed.
+
+#### GitHub Personal Access Token (PAT) Requirements
+
+To push commits, publish branches, or clone private repositories, your GitHub token must have the proper permissions:
+
+* **Fine-Grained Personal Access Tokens (`github_pat_...`)**:
+  1. In GitHub, go to **Settings** > **Developer Settings** > **Personal access tokens** > **Fine-grained tokens**.
+  2. Under **Repository access**, select either **All repositories** or **Only select repositories** and pick your target repository.
+  3. Under **Permissions**, expand **Repository permissions**:
+     * Set **Contents** to **Read and write** *(Mandatory: Fine-grained tokens default to "Read-only". Read-only allows cloning/pulling, but `git push` will fail with an HTTP 403 Permission Denied error)*.
+     * *(Optional)* Set **Pull requests** to **Read and write** if planning to open pull requests.
+     * All other permissions can remain at their defaults (*No access* / *Metadata: Read-only*).
+  4. Generate and copy the token.
+
+* **Classic Personal Access Tokens (`ghp_...`)**:
+  1. In GitHub, go to **Settings** > **Developer Settings** > **Personal access tokens** > **Tokens (classic)**.
+  2. Select the top-level **`repo`** scope (Full control of private repositories).
+  3. If your organization enforces SAML Single Sign-On (SSO), click **Configure SSO** next to the token and click **Authorize**.
+
+> [!TIP]
+> **Troubleshooting Git Errors:**
+> * **HTTP 401 (Authentication Failed)**: The token is invalid, expired, or was entered incorrectly. Verify the token string in the Git Auth dialog.
+> * **HTTP 403 (`remote: Permission to <repo> denied to <user>`)**: The user account authenticated successfully, but the token lacks write access. For fine-grained tokens, verify that **Contents: Read and write** is granted and that the target repository is selected under repository access. If pushing to `main` or `master`, check whether repository branch protection rules require a pull request.
 
 ---
 

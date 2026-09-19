@@ -133,23 +133,48 @@ function listLocalRepositories(userContext = null) {
 }
 
 /**
+ * Formats an HTTP Authorization header using Basic Authentication for Git Smart HTTP protocol.
+ * Git Smart HTTP servers (including GitHub) require HTTP Basic Auth with username/token,
+ * rather than OAuth Bearer tokens.
+ */
+function formatGitAuthHeader(authContext) {
+  if (!authContext || !authContext.token) return null;
+  const token = String(authContext.token).trim();
+  if (!token) return null;
+  const user = (authContext.username && String(authContext.username).trim()) || 'x-access-token';
+  const basicAuth = Buffer.from(`${user}:${token}`).toString('base64');
+  return `Authorization: Basic ${basicAuth}`;
+}
+
+/**
  * Executes Git directly via execFile with an argument array.
  * Never executes through a shell and never writes secrets to repository .git/config.
  */
 async function runGitCommand(repoDir, args, options = {}) {
   const { logError = true } = options;
-  const env = { ...process.env };
-  const gitArgs = Array.isArray(args) ? args : args.split(' ').filter(Boolean);
+  const env = {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_ASKPASS: 'echo'
+  };
+  const rawArgs = Array.isArray(args) ? args : args.split(' ').filter(Boolean);
+  // Ensure safe.directory is honored for Docker container mounts where host UID != container UID
+  const gitArgs = ['-c', 'safe.directory=*', ...rawArgs];
 
   try {
     const { stdout, stderr } = await execFileAsync('git', gitArgs, { cwd: repoDir, env });
     return { success: true, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() };
   } catch (error) {
-    const sanitize = (value) => String(value || '').replace(/(Authorization:\s*Bearer\s+)\S+/gi, '$1***');
+    const sanitize = (value) => String(value || '').replace(/(Authorization:\s*(?:Bearer|Basic)\s+)\S+/gi, '$1***');
     if (logError) {
       logger.log('warn', `Git command error: ${sanitize(error.message)}`);
     }
-    return { success: false, error: sanitize(error.message), stderr: sanitize(error.stderr).trim() };
+    return {
+      success: false,
+      error: sanitize(error.message),
+      stderr: sanitize(error.stderr).trim(),
+      stdout: sanitize(error.stdout).trim()
+    };
   }
 }
 
@@ -179,8 +204,9 @@ async function cloneRepoToFolder(remoteUrl, folderName, branch = null, userConte
   const gitArgs = [];
 
   // Inject token dynamically for HTTPS if provided
-  if (authContext && authContext.token && safeRemoteUrl.startsWith('https://')) {
-    gitArgs.push('-c', `http.extraHeader=Authorization: Bearer ${authContext.token}`);
+  const authHeader = formatGitAuthHeader(authContext);
+  if (authHeader && safeRemoteUrl.startsWith('https://')) {
+    gitArgs.push('-c', `http.extraHeader=${authHeader}`);
   }
 
   gitArgs.push('clone', '--depth', '1');
@@ -190,10 +216,18 @@ async function cloneRepoToFolder(remoteUrl, folderName, branch = null, userConte
   gitArgs.push(safeRemoteUrl, safeFolder);
 
   const res = await runGitCommand(baseDir, gitArgs, { authContext });
+  let cloneMsg = res.success ? 'Repository cloned successfully' : res.error;
+  if (!res.success) {
+    if (cloneMsg && /could not read Username|Authentication failed|terminal prompts disabled/i.test(cloneMsg)) {
+      cloneMsg = `Git authentication failed for remote repository. Please configure your Personal Access Token (PAT) via the Git Session Credentials dialog. (${cloneMsg})`;
+    } else if (cloneMsg && /Permission to .* denied|returned error: 403/i.test(cloneMsg)) {
+      cloneMsg = `Permission denied (HTTP 403) accessing remote repository. Please ensure your Personal Access Token (PAT) has access to this repository. (${cloneMsg})`;
+    }
+  }
   return {
     success: res.success,
     folderName: safeFolder,
-    message: res.success ? 'Repository cloned successfully' : res.error
+    message: cloneMsg
   };
 }
 
@@ -202,28 +236,38 @@ async function cloneRepoToFolder(remoteUrl, folderName, branch = null, userConte
  */
 async function pullRepo(identifier, branch = null, authContext = {}, userContext = null, remote = 'origin') {
   const repoDir = getProjectRepoDir(identifier, userContext);
-  if (!repoDir || !fs.existsSync(repoDir) || !fs.existsSync(path.join(repoDir, '.git'))) {
-    throw new Error(`Repository folder '${identifier}' does not exist or is not a git repository.`);
+  if (!repoDir || !fs.existsSync(repoDir)) {
+    throw new Error('Repository directory does not exist');
   }
 
   const currentBranch = branch || await getCurrentBranch(repoDir);
   const gitArgs = [];
-  if (authContext && authContext.token) {
-    gitArgs.push('-c', `http.extraHeader=Authorization: Bearer ${authContext.token}`);
+  const authHeader = formatGitAuthHeader(authContext);
+  if (authHeader) {
+    gitArgs.push('-c', `http.extraHeader=${authHeader}`);
   }
 
   // Check if remote exists
+  const targetRemote = remote || 'origin';
   const remoteCheck = await runGitCommand(repoDir, ['remote']);
-  const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
-  const targetRemote = remotes.includes(remote) ? remote : (remotes[0] || 'origin');
+  if (!remoteCheck.success || !remoteCheck.stdout.includes(targetRemote)) {
+    throw new Error(`Remote '${targetRemote}' does not exist for this repository`);
+  }
 
-  gitArgs.push('pull', '--prune', targetRemote, currentBranch);
-  const res = await runGitCommand(repoDir, gitArgs);
+  gitArgs.push('pull', targetRemote, currentBranch);
+  const res = await runGitCommand(repoDir, gitArgs, { authContext });
+
   if (!res.success) {
     if (res.stderr && res.stderr.includes("couldn't find remote ref")) {
       throw new Error(`Branch '${currentBranch}' does not exist on remote '${targetRemote}'. Use Commit & Push to publish it first.`);
     }
-    throw new Error(res.stderr || res.error || 'Failed to pull changes from remote');
+    let pullErr = res.stderr || res.error || 'Failed to pull changes from remote';
+    if (/could not read Username|Authentication failed|terminal prompts disabled/i.test(pullErr)) {
+      pullErr = `Git authentication failed for remote '${targetRemote}'. Please configure your Personal Access Token (PAT) via the Git Session Credentials dialog. (${pullErr})`;
+    } else if (/Permission to .* denied|returned error: 403/i.test(pullErr)) {
+      pullErr = `Permission denied (HTTP 403) accessing remote '${targetRemote}'. Please ensure your Personal Access Token (PAT) has access to this repository. (${pullErr})`;
+    }
+    throw new Error(pullErr);
   }
 
   return { success: true, stdout: res.stdout, branch: currentBranch, summary: res.stdout || 'Already up to date' };
@@ -338,8 +382,17 @@ async function commitAndPush(identifier, branchName, commitMessage = 'Visulate W
     'commit',
     '-m', commitMessage
   ];
-  const commitRes = await runGitCommand(repoDir, commitArgs);
-  
+  let commitRes = await runGitCommand(repoDir, commitArgs);
+
+  if (!commitRes.success) {
+    const combinedOutput = `${commitRes.stdout || ''} ${commitRes.stderr || ''} ${commitRes.error || ''}`;
+    if (/nothing to commit|working tree clean/i.test(combinedOutput)) {
+      commitRes = { success: true, stdout: 'Nothing to commit, working tree clean' };
+    } else {
+      throw new Error(commitRes.stderr || commitRes.error || 'Failed to commit changes');
+    }
+  }
+
   // Try pushing if remote origin exists
   const remoteCheck = await runGitCommand(repoDir, ['remote']);
   let pushRes = { success: true, stdout: 'No remote origin configured' };
@@ -347,15 +400,26 @@ async function commitAndPush(identifier, branchName, commitMessage = 'Visulate W
   if (remoteCheck.success && remoteCheck.stdout.includes('origin')) {
     const currentBranch = branchName || await getCurrentBranch(repoDir);
     const pushArgs = [];
-    if (authContext && authContext.token) {
-      pushArgs.push('-c', `http.extraHeader=Authorization: Bearer ${authContext.token}`);
+    const authHeader = formatGitAuthHeader(authContext);
+    if (authHeader) {
+      pushArgs.push('-c', `http.extraHeader=${authHeader}`);
     }
     pushArgs.push('push', 'origin', currentBranch);
     pushRes = await runGitCommand(repoDir, pushArgs, { authContext });
+
+    if (!pushRes.success) {
+      let pushErr = pushRes.stderr || pushRes.error || 'Failed to push changes to remote';
+      if (/could not read Username|Authentication failed|terminal prompts disabled/i.test(pushErr)) {
+        pushErr = `Git authentication failed for remote 'origin'. Please configure your Personal Access Token (PAT) via the Git Session Credentials dialog. (${pushErr})`;
+      } else if (/Permission to .* denied|returned error: 403/i.test(pushErr)) {
+        pushErr = `Permission denied (HTTP 403) pushing to remote repository. Please ensure your Personal Access Token (PAT) has 'Contents: Read and write' permissions (or 'repo' scope for classic tokens) and access to repository '${identifier}'. (${pushErr})`;
+      }
+      throw new Error(pushErr);
+    }
   }
 
   return {
-    success: commitRes.success || pushRes.success,
+    success: true,
     commit: commitRes,
     push: pushRes
   };
@@ -506,5 +570,7 @@ module.exports = {
   listProjectFiles,
   getCurrentBranch,
   getRepoBranches,
-  switchBranch
+  switchBranch,
+  formatGitAuthHeader,
+  runGitCommand
 };

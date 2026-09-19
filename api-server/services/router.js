@@ -234,6 +234,12 @@ function handleGitError(res, err) {
   if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('not a git repository')) {
     return res.status(404).json({ error: msg });
   }
+  if (/authentication failed|personal access token|could not read username/i.test(msg)) {
+    return res.status(401).json({ error: msg });
+  }
+  if (/permission denied|returned error: 403/i.test(msg)) {
+    return res.status(403).json({ error: msg });
+  }
   return res.status(500).json({ error: msg });
 }
 

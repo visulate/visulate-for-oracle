@@ -48,8 +48,9 @@ logger.log('info', `UV_THREADPOOL_SIZE set to ${process.env.UV_THREADPOOL_SIZE}`
 async function startup() {
   logger.log('info', 'Starting application');
   try {
-    logger.log('info', 'Validating database connect strings...');
-    await configSanitizer.filterInvalidEndpoints(dbConfig, 2000);
+    const timeoutMs = Number(configSanitizer.DEFAULT_TIMEOUT_MS) > 0 ? configSanitizer.DEFAULT_TIMEOUT_MS : 10000;
+    logger.log('info', `Validating database connect strings (timeout ${timeoutMs}ms)...`);
+    await configSanitizer.filterInvalidEndpoints(dbConfig, timeoutMs);
 
     logger.log('info', 'Initializing http server module');
     await httpServer.initialize();

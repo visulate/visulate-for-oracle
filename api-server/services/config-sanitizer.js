@@ -18,6 +18,16 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 const logger = require('./logger.js');
+const dbConstants = require('../config/db-constants');
+const rawTimeout = dbConstants.DEFAULT_CONNECT_TIMEOUT_MS || dbConstants.values?.defaultConnectTimeoutMs;
+const parsedTimeout = parseInt(
+  process.env.ENDPOINT_VALIDATION_TIMEOUT_MS || process.env.DB_CONNECT_TIMEOUT_MS || '',
+  10
+);
+const DEFAULT_CONNECT_TIMEOUT_MS = Number.isFinite(rawTimeout) && rawTimeout > 0
+  ? rawTimeout
+  : (Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 10000);
+
 const OracleProvider = require('./providers/oracle-provider');
 const PostgresProvider = require('./providers/postgres-provider');
 
@@ -57,11 +67,12 @@ function extractHostAndPort(connectString, defaultPort = 1521) {
  * This prevents the ODPI-C native driver from hanging or segfaulting in the background when the host is unreachable.
  */
 function isTcpPortReachable(host, port, timeoutMs) {
+  const safeTimeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_CONNECT_TIMEOUT_MS;
   return new Promise((resolve) => {
     const socket = new net.Socket();
     let settled = false;
 
-    socket.setTimeout(timeoutMs);
+    socket.setTimeout(safeTimeout);
 
     socket.on('connect', () => {
       if (!settled) {
@@ -104,10 +115,11 @@ function isTcpPortReachable(host, port, timeoutMs) {
  * Does not hardcode any placeholder values or strings.
  *
  * @param {object} endpoint - Endpoint configuration object
- * @param {number} [timeoutMs=2000] - Connection timeout in milliseconds
+ * @param {number} [timeoutMs=DEFAULT_CONNECT_TIMEOUT_MS] - Connection timeout in milliseconds
  * @returns {Promise<boolean>} True if connect string is valid and reachable, false otherwise
  */
-async function validateConnectString(endpoint, timeoutMs = 2000) {
+async function validateConnectString(endpoint, timeoutMs = DEFAULT_CONNECT_TIMEOUT_MS) {
+  const safeTimeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_CONNECT_TIMEOUT_MS;
   if (!endpoint || !endpoint.namespace || !endpoint.connect) {
     return false;
   }
@@ -128,7 +140,7 @@ async function validateConnectString(endpoint, timeoutMs = 2000) {
   const defaultPort = dbType === 'postgres' ? 5432 : 1521;
   const hostInfo = extractHostAndPort(connect.connectString, defaultPort);
   if (hostInfo) {
-    const isReachable = await isTcpPortReachable(hostInfo.host, hostInfo.port, timeoutMs);
+    const isReachable = await isTcpPortReachable(hostInfo.host, hostInfo.port, safeTimeout);
     if (!isReachable) {
       logger.log('warn', `Endpoint ${endpoint.namespace} connectString verification failed: Host ${hostInfo.host}:${hostInfo.port} is unreachable`);
       return false;
@@ -138,12 +150,12 @@ async function validateConnectString(endpoint, timeoutMs = 2000) {
   const poolAlias = connect.poolAlias || endpoint.namespace;
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Connection attempt timed out after ${timeoutMs}ms`)), timeoutMs);
+    timer = setTimeout(() => reject(new Error(`Connection attempt timed out after ${safeTimeout}ms`)), safeTimeout);
   });
 
   try {
     const success = await Promise.race([
-      provider.ping(poolAlias, connect, timeoutMs),
+      provider.ping(poolAlias, connect, safeTimeout),
       timeoutPromise
     ]);
     return Boolean(success);
@@ -167,7 +179,7 @@ async function validateConnectString(endpoint, timeoutMs = 2000) {
  * Updates require.cache so all modules receive the in-memory object.
  *
  * @param {string} [customPath] - Optional path to config file (default: config/database.js)
- * @returns {object} { endpoints: Array }
+ * @returns {object} { dbConfig: object, resolvedPath: string }
  */
 function loadDatabaseConfig(customPath) {
   const defaultPath = path.resolve(__dirname, '../config/database.js');
@@ -252,18 +264,19 @@ function sanitizeDatabaseConfig(customPath) {
  * Validates endpoints on startup and filters out any invalid connect strings in memory.
  *
  * @param {object} dbConfig - Configuration object
- * @param {number} [timeoutMs=2000] - Connection timeout per endpoint
+ * @param {number} [timeoutMs=DEFAULT_CONNECT_TIMEOUT_MS] - Connection timeout per endpoint
  * @param {string} [configPath] - Path to config file for require.cache update
  * @returns {Promise<object>} Updated dbConfig with invalid connect strings removed
  */
-async function filterInvalidEndpoints(dbConfig, timeoutMs = 2000, configPath) {
+async function filterInvalidEndpoints(dbConfig, timeoutMs = DEFAULT_CONNECT_TIMEOUT_MS, configPath) {
+  const safeTimeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_CONNECT_TIMEOUT_MS;
   const defaultPath = path.resolve(__dirname, '../config/database.js');
   const resolvedPath = configPath ? path.resolve(configPath) : defaultPath;
 
   const endpoints = dbConfig.endpoints || [];
   const results = await Promise.all(
     endpoints.map(async (ep) => {
-      const isValid = await validateConnectString(ep, timeoutMs);
+      const isValid = await validateConnectString(ep, safeTimeout);
       return { endpoint: ep, isValid };
     })
   );
@@ -291,6 +304,7 @@ async function filterInvalidEndpoints(dbConfig, timeoutMs = 2000, configPath) {
 }
 
 module.exports = {
+  DEFAULT_TIMEOUT_MS: DEFAULT_CONNECT_TIMEOUT_MS,
   validateConnectString,
   loadDatabaseConfig,
   sanitizeDatabaseConfig,

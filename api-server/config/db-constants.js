@@ -14,15 +14,29 @@
  * limitations under the License.
  */
 
+const parsedTimeout = parseInt(
+  process.env.ENDPOINT_VALIDATION_TIMEOUT_MS || process.env.DB_CONNECT_TIMEOUT_MS || '10000',
+  10
+);
+const DEFAULT_CONNECT_TIMEOUT_MS = Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 10000;
+
 const values = {
+  defaultConnectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
   internalSchemas:
     ['ANONYMOUS', 'APPQOSSYS', 'AUDSYS', 'CTXSYS', 'DBSFWUSER', 'DBSNMP', 'DIP', 'DVF', 'DVSYS',
       'GGSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'LBACSYS', 'MDSYS', 'OJVMSYS', 'OLAPSYS',
       'ORACLE_OCM', 'ORDDATA', 'ORDPLUGINS', 'ORDSYS', 'OUTLN', 'PUBLIC', 'REMOTE_SCHEDULER_AGENT',
       'SI_INFORMTN_SCHEMA', 'SYS$UMF', 'SYS', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSRAC', 'SYSTEM',
-      'WMSYS', 'XDB', 'XS$NULL', 'ADMIN', 'ADBSNMP', 'C##CLOUD$SERVICE', 'OAX_USER', 'RQSYS',
+      'WMSYS', 'XS$NULL', 'ADMIN', 'ADBSNMP', 'C##CLOUD$SERVICE', 'OAX_USER', 'RQSYS',
       'RMAN$CATALOG', 'RMAN$VPC', 'APEX_PUBLIC_USER', 'APEX$_APP_STORE'],
   requiredPrivilages:
     ['CREATE SESSION', 'SELECT ANY DICTIONARY', 'SELECT_CATALOG_ROLE']
-}
+};
+
+module.exports = {
+  values,
+  DEFAULT_CONNECT_TIMEOUT_MS
+};
 module.exports.values = values;
+module.exports.DEFAULT_CONNECT_TIMEOUT_MS = DEFAULT_CONNECT_TIMEOUT_MS;
+

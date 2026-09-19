@@ -94,7 +94,7 @@ class PostgresProvider extends DatabaseProvider {
     }
   }
 
-  async ping(poolAlias, config, timeoutMs = 2000) {
+  async ping(poolAlias, config, timeoutMs = DatabaseProvider.DEFAULT_TIMEOUT_MS) {
     let connection;
     try {
       const pingConfig = {
@@ -104,6 +104,7 @@ class PostgresProvider extends DatabaseProvider {
       connection = await this.getConnection(poolAlias, pingConfig);
       return true;
     } catch (err) {
+      logger.log('warn', `Endpoint ${poolAlias} connection check failed: ${err.message}`);
       await this.closePool(poolAlias);
       return false;
     } finally {
