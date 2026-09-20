@@ -13,6 +13,30 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { Component, Directive, EventEmitter, Input, Output } from '@angular/core';
+
+@Component({
+  selector: 'app-chat',
+  template: '',
+  standalone: false
+})
+class MockChatComponent {
+  @Input() currentContext: any;
+  @Input() currentObject: any;
+  @Input() agent: string;
+  @Output() fileSelect = new EventEmitter<string>();
+  sendMessage: jasmine.Spy = jasmine.createSpy('sendMessage');
+  toggleFullScreen(): void {}
+}
+
+@Directive({
+  selector: '[markdown]',
+  standalone: false
+})
+class MockMarkdownDirective {
+  @Input() data?: string;
+}
+
 describe('MonacoComponent - New File Creation', () => {
   let component: MonacoComponent;
   let fixture: ComponentFixture<MonacoComponent>;
@@ -32,7 +56,8 @@ describe('MonacoComponent - New File Creation', () => {
       'downloadGitFile$',
       'getGitFile$',
       'getGitBranches$',
-      'getEndpoints$'
+      'getEndpoints$',
+      'getDatabaseConnections$'
     ]);
     mockStateService = jasmine.createSpyObj('StateService', [
       'getCurrentContext',
@@ -40,7 +65,8 @@ describe('MonacoComponent - New File Creation', () => {
       'setCurrentContext',
       'setSelectedRepo',
       'getSelectedRepo',
-      'notifyRepoAssociationChanged'
+      'notifyRepoAssociationChanged',
+      'addMessage'
     ]);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
     mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
@@ -55,13 +81,16 @@ describe('MonacoComponent - New File Creation', () => {
     mockRestService.getGitAuth.and.returnValue(null);
     mockRestService.getLocalRepositories$.and.returnValue(of({ repositories: [], baseDir: '/repos' }));
     mockRestService.getEndpoints$.and.returnValue(of({ databases: [] } as any));
+    mockRestService.getDatabaseConnections$.and.returnValue(of([]));
+    mockStateService.isDarkMode$ = of(false) as any;
+    mockStateService.currentContext$ = of(null) as any;
     mockStateService.getCurrentContext.and.returnValue({
       endpoint: '',
       setEndpoint: jasmine.createSpy('setEndpoint')
     } as any);
 
     await TestBed.configureTestingModule({
-      declarations: [MonacoComponent],
+      declarations: [MonacoComponent, MockChatComponent, MockMarkdownDirective],
       imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule, MatSnackBarModule],
       providers: [
         { provide: RestService, useValue: mockRestService },
@@ -82,6 +111,7 @@ describe('MonacoComponent - New File Creation', () => {
 
     fixture = TestBed.createComponent(MonacoComponent);
     component = fixture.componentInstance;
+    component.chatComponent = new MockChatComponent();
   });
 
   it('should toggle new file input when repository is selected', () => {
@@ -472,6 +502,254 @@ describe('MonacoComponent - New File Creation', () => {
       component.showAuthAction = true;
       (component as any).setStatus('A regular error occurred', true);
       expect(component.showAuthAction).toBe(false);
+    });
+  });
+
+  describe('Application Workbench - AI Interactions & README Generator', () => {
+    it('should initialize with rightPanelTab set to "ai" and allow switching to "context"', () => {
+      expect(component.rightPanelTab).toBe('ai');
+
+      component.setRightPanelTab('context');
+      expect(component.rightPanelTab).toBe('context');
+
+      component.setRightPanelTab('ai');
+      expect(component.rightPanelTab).toBe('ai');
+    });
+
+    it('should construct workbenchAiContext with repository, file, branch, and mapped DB objects', () => {
+      component.selectedRepoFolder = 'sample-repo';
+      component.selectedDbConnection = 'pdb21';
+      component.currentBranch = 'feature/modernize';
+      component.selectedFilePath = 'src/billing/invoice.js';
+      component.currentFileDbObjects = ['RNT_INVOICES', 'RNT_PAYMENTS'];
+      component.activeFileContent = 'const x = 1;';
+
+      const ctx = component.workbenchAiContext;
+      expect(ctx.projectId).toBe('sample-repo');
+      expect(ctx.endpoint).toBe('pdb21');
+      expect(ctx.branch).toBe('feature/modernize');
+      expect(ctx.activeFile).toBe('src/billing/invoice.js');
+      expect(ctx.fileDbObjects).toEqual(['RNT_INVOICES', 'RNT_PAYMENTS']);
+      expect(ctx.activeFileContent).toBe('const x = 1;');
+
+      const obj = component.workbenchAiObject;
+      expect(obj.objectName).toBe('invoice.js');
+      expect(obj.filePath).toBe('src/billing/invoice.js');
+    });
+
+    it('should trigger README generation for repository when scoped to repo', () => {
+      component.selectedRepoFolder = 'sample-repo';
+      component.rightPanelTab = 'context';
+
+      component.triggerReadmeGeneration('repo');
+
+      expect(component.rightPanelTab).toBe('ai');
+      expect(component.chatComponent.sendMessage).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Please generate, validate, or update README files across repository 'sample-repo'/)
+      );
+    });
+
+    it('should trigger README generation for selected node directory when scoped to selected', () => {
+      component.selectedRepoFolder = 'sample-repo';
+      component.selectedFolderPath = 'src/services/billing';
+
+      component.triggerReadmeGeneration('selected');
+
+      expect(component.chatComponent.sendMessage).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Please generate, validate, or update README files for directory 'src\/services\/billing'/)
+      );
+    });
+
+    it('should fallback to state.addMessage when chatComponent is not present', () => {
+      component.chatComponent = null;
+      spyOn(component['cdRef'], 'detectChanges'); // prevent re-querying ViewChild
+
+      component.selectedRepoFolder = 'sample-repo';
+      component.triggerReadmeGeneration('repo');
+
+      expect(mockStateService.addMessage).toHaveBeenCalledWith(
+        jasmine.objectContaining({ user: 'You' })
+      );
+    });
+
+    it('should toggle folder selection when selectFolder is called', () => {
+      expect(component.selectedFolderPath).toBe('');
+      component.selectFolder('src/services');
+      expect(component.selectedFolderPath).toBe('src/services');
+      expect(component.selectedNodeDir).toBe('src/services');
+
+      component.selectFolder('src/services');
+      expect(component.selectedFolderPath).toBe('');
+    });
+
+    it('should reset selectedFolderPath when selected repository changes', () => {
+      component.selectedRepoFolder = 'repo-a';
+      component.selectedFolderPath = 'src/services';
+      expect(component.selectedFolderPath).toBe('src/services');
+
+      component.selectedRepoFolder = 'repo-b';
+      expect(component.selectedFolderPath).toBe('');
+    });
+
+    it('should toggle folder expanded state and update selectedFolderPath when toggleFolder is called', () => {
+      const mockNode = { name: 'services', path: 'src/services', type: 'folder' as const, expanded: false };
+      component.toggleFolder(mockNode);
+      expect(mockNode.expanded).toBe(true);
+      expect(component.selectedFolderPath).toBe('src/services');
+
+      component.toggleFolder(mockNode);
+      expect(mockNode.expanded).toBe(false);
+      expect(component.selectedFolderPath).toBe('src/services');
+    });
+
+    it('should trigger explain code with referenced DB objects', () => {
+      component.selectedRepoFolder = 'sample-repo';
+      component.selectedFilePath = 'src/services/billing/payment.sql';
+      component.currentFileDbObjects = ['RNT_PAYMENTS'];
+
+      component.triggerExplainCode();
+
+      expect(component.rightPanelTab).toBe('ai');
+      expect(component.chatComponent.sendMessage).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Please explain the function of the file 'src\/services\/billing\/payment\.sql'.*references indexed database objects: RNT_PAYMENTS/)
+      );
+    });
+
+    it('should warn when triggerReadmeGeneration is called without selected repository', () => {
+      component.selectedRepoFolder = '';
+      component.triggerReadmeGeneration('repo');
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Please select a Git repository first.', 'Close', { duration: 4000 });
+    });
+
+    it('should warn when triggerExplainCode is called without selected file', () => {
+      component.selectedFilePath = '';
+      component.triggerExplainCode();
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Please select a file to explain.', 'Close', { duration: 4000 });
+    });
+
+    it('should toggle AI panel wide mode', () => {
+      expect(component.aiPanelWide).toBe(false);
+      component.toggleAiPanelWidth();
+      expect(component.aiPanelWide).toBe(true);
+      component.toggleAiPanelWidth();
+      expect(component.aiPanelWide).toBe(false);
+    });
+
+    it('should trigger fullscreen on chat component when toggleFullScreenChat is called', () => {
+      const toggleSpy = jasmine.createSpy('toggleFullScreen');
+      component.chatComponent = { toggleFullScreen: toggleSpy };
+      component.toggleFullScreenChat();
+      expect(toggleSpy).toHaveBeenCalled();
+    });
+
+    it('should toggle word wrap and update monaco editor options', () => {
+      const updateOptionsSpy = jasmine.createSpy('updateOptions');
+      (component as any).monacoEditor = { updateOptions: updateOptionsSpy, dispose: jasmine.createSpy('dispose') };
+
+      expect(component.isWordWrap).toBe(false);
+
+      component.toggleWordWrap();
+      expect(component.isWordWrap).toBe(true);
+      expect(updateOptionsSpy).toHaveBeenCalledWith({ wordWrap: 'on' });
+
+      component.toggleWordWrap();
+      expect(component.isWordWrap).toBe(false);
+      expect(updateOptionsSpy).toHaveBeenCalledWith({ wordWrap: 'off' });
+    });
+
+    it('should correctly identify markdown files via isMarkdownFile getter', () => {
+      component.selectedFilePath = 'README.md';
+      expect(component.isMarkdownFile).toBe(true);
+
+      component.selectedFilePath = 'docs/architecture.markdown';
+      expect(component.isMarkdownFile).toBe(true);
+
+      component.selectedFilePath = 'src/app.ts';
+      expect(component.isMarkdownFile).toBe(false);
+
+      component.selectedFilePath = 'scripts/test.sql';
+      expect(component.isMarkdownFile).toBe(false);
+
+      component.selectedFilePath = '';
+      expect(component.isMarkdownFile).toBe(false);
+    });
+
+    it('should switch markdown view modes and update preview content', () => {
+      const layoutSpy = jasmine.createSpy('layout');
+      (component as any).monacoEditor = {
+        getValue: () => '# Heading\nPreview text',
+        layout: layoutSpy,
+        dispose: jasmine.createSpy('dispose')
+      };
+
+      component.selectedFilePath = 'README.md';
+      component.setMdViewMode('split');
+      expect(component.mdViewMode).toBe('split');
+      expect(component.markdownPreviewContent).toBe('# Heading\nPreview text');
+
+      component.setMdViewMode('preview');
+      expect(component.mdViewMode).toBe('preview');
+
+      component.setMdViewMode('edit');
+      expect(component.mdViewMode).toBe('edit');
+    });
+
+    it('should reset mdViewMode to edit if opening non-markdown file from preview mode', () => {
+      spyOn(component, 'loadFileContent');
+      component.mdViewMode = 'preview';
+      component.openFile('src/queries.sql');
+      expect(component.mdViewMode).toBe('edit');
+    });
+
+    it('should resolve relative links and open file on markdown preview click', () => {
+      spyOn(component, 'openFile');
+      component.selectedFilePath = 'database/public_records/README.md';
+
+      const anchor = document.createElement('a');
+      anchor.setAttribute('href', '../other_schema/README.md');
+      const mockEvent = {
+        target: anchor,
+        preventDefault: jasmine.createSpy('preventDefault'),
+        stopPropagation: jasmine.createSpy('stopPropagation')
+      } as any;
+
+      component.handleMarkdownPreviewClick(mockEvent);
+
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(component.openFile).toHaveBeenCalledWith('database/other_schema/README.md');
+    });
+
+    it('should strip query and hash fragments from relative links in markdown preview', () => {
+      spyOn(component, 'openFile');
+      component.selectedFilePath = 'database/public_records/README.md';
+
+      const anchor = document.createElement('a');
+      anchor.setAttribute('href', '../other_schema/README.md#setup');
+      const mockEvent = {
+        target: anchor,
+        preventDefault: jasmine.createSpy('preventDefault'),
+        stopPropagation: jasmine.createSpy('stopPropagation')
+      } as any;
+
+      component.handleMarkdownPreviewClick(mockEvent);
+
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(component.openFile).toHaveBeenCalledWith('database/other_schema/README.md');
+    });
+
+    it('should set target=_blank for external links in markdown preview', () => {
+      const anchor = document.createElement('a');
+      anchor.setAttribute('href', 'https://example.com/docs');
+      const mockEvent = {
+        target: anchor,
+        preventDefault: jasmine.createSpy('preventDefault'),
+        stopPropagation: jasmine.createSpy('stopPropagation')
+      } as any;
+
+      component.handleMarkdownPreviewClick(mockEvent);
+
+      expect(anchor.getAttribute('target')).toBe('_blank');
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
   });
 });

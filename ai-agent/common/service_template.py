@@ -9,7 +9,7 @@ from google.adk.sessions.database_session_service import DatabaseSessionService
 from google.adk.agents import RunConfig, LlmAgent
 from google.adk.agents.run_config import StreamingMode
 from google.genai import types
-from common.context import progress_callback_var, session_id_var, browser_session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var, timeout_signal_var
+from common.context import progress_callback_var, stream_callback_var, session_id_var, browser_session_id_var, auth_token_var, cancelled_var, cancelled_sessions, ui_context_var, db_credentials_var, timeout_signal_var
 from common.utils import format_tool_name
 from common.config import get_ai_timeout, get_max_attachments
 import time
@@ -216,6 +216,7 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
             db_credentials_token = None
             ui_context_token = None
             progress_callback_token = None
+            stream_callback_token = None
 
             # Set up context variables
             session_token = session_id_var.set(session_id)
@@ -232,11 +233,20 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
 
             def progress_callback(msg):
                 try:
-                    loop.call_soon_threadsafe(queue.put_nowait, f"▌STATUS: {msg}\n")
+                    clean_msg = str(msg).replace("▌STATUS: ", "").replace("▌STATUS:", "").strip()
+                    loop.call_soon_threadsafe(queue.put_nowait, f"▌STATUS: {clean_msg}\n")
                 except Exception as e:
                     logger.error(f"Error in progress callback: {e}")
 
             progress_callback_token = progress_callback_var.set(progress_callback)
+
+            def stream_callback(msg):
+                try:
+                    loop.call_soon_threadsafe(queue.put_nowait, msg)
+                except Exception as e:
+                    logger.error(f"Error in stream callback: {e}")
+
+            stream_callback_token = stream_callback_var.set(stream_callback)
 
             async def run_agent():
                 try:
@@ -422,6 +432,8 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                     ui_context_var.reset(ui_context_token)
                 if progress_callback_token:
                     progress_callback_var.reset(progress_callback_token)
+                if stream_callback_token:
+                    stream_callback_var.reset(stream_callback_token)
 
         return StreamingResponse(response_generator(), media_type="text/plain")
 

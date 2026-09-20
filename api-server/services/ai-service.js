@@ -163,6 +163,10 @@ async function generativeAIInternal(args, res) {
     agentUrl = process.env.APP_DEVELOPER_URL || 'http://ai-agent:10007/agent/generate';
   } else if (agent === 'test_data_generator') {
     agentUrl = process.env.TEST_DATA_GENERATOR_URL || 'http://ai-agent:10008/agent/generate';
+  } else if (agent === 'schema_comparison') {
+    agentUrl = process.env.SCHEMA_COMPARISON_URL || 'http://ai-agent:10009/agent/generate';
+  } else if (agent === 'readme_generator') {
+    agentUrl = process.env.README_GENERATOR_URL || 'http://ai-agent:10010/agent/generate';
   } else {
     throw new Error(`Unknown agent: ${agent}`);
   }

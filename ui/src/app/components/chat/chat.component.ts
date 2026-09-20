@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, ElementRef, ViewChild, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, ElementRef, ViewChild, OnChanges, SimpleChanges, OnDestroy, NgZone, ChangeDetectorRef, TemplateRef, ViewContainerRef, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { FormBuilder, FormGroup } from '@angular/forms';
@@ -26,6 +26,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
   @Input() currentContext: any;
   @Input() currentObject: any;
   @Input() agent: string;
+  @Output() fileSelect = new EventEmitter<string>();
   @ViewChild('messageContainer') private messageContainer: ElementRef;
   @ViewChild('chatTemplate') chatTemplate: TemplateRef<any>;
 
@@ -57,7 +58,8 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     private overlay: Overlay,
     private viewContainerRef: ViewContainerRef,
     private snackBar: MatSnackBar,
-    private http: HttpClient
+    private http: HttpClient,
+    private hostElementRef: ElementRef
   ) {
     this.chatForm = this.fb.group({
       message: ['']
@@ -78,69 +80,129 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     });
   }
 
+  private isCodeFileLink(href: string): boolean {
+    if (!href) return false;
+    if (href.startsWith('/workbench') || href.startsWith('workbench')) return true;
+    const cleanPath = href.split('?')[0].split('#')[0];
+    const fileExtensions = /\.(md|markdown|sql|pkb|pks|pls|plsql|js|ts|json|py|java|c|cpp|h|cs|html|css|scss|xml|yaml|yml|sh|bash|txt|log|properties|conf|ini|env)$/i;
+    return fileExtensions.test(cleanPath);
+  }
+
   handleLinkClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (target.tagName === 'A') {
-      const href = target.getAttribute('href');
-      if (href) {
-        if (href.startsWith('/database') || href.startsWith('database')) {
-          event.preventDefault();
-          // Ensure path starts with /
-          const path = href.startsWith('/') ? href : '/' + href;
-          this.router.navigateByUrl(path);
-        } else if (href.startsWith('/download') || href.startsWith('http')) {
-          event.preventDefault();
-          // Check if this is a download endpoint link matching an uploaded file or active database object
-          const downloadMatch = href.match(/\/download\/[^/]+\/([^/?#]+)/);
-          if (href.startsWith('/download') && downloadMatch) {
-            const filename = decodeURIComponent(downloadMatch[1]);
-            let originalContent = this.stateService.getSessionUploadedFileContent(filename);
+    const anchor = target.tagName === 'A' ? target : target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
 
-            if (originalContent === undefined) {
-              // Try to match current active object's Source property
-              if (this.currentContext && this.currentContext.objectName && this.currentObject) {
-                const baseFilename = filename.split('.')[0].toLowerCase();
-                const objName = this.currentContext.objectName.toLowerCase();
-                if (baseFilename === objName || filename.toLowerCase().includes(objName)) {
-                  const sourceProp = this.currentObject.objectProperties?.find((p: any) =>
-                    p.title === 'Source' || p.title === 'Trigger Body' || p.title === 'Body'
-                  );
-                  if (sourceProp && sourceProp.rows) {
-                    originalContent = sourceProp.rows.map((row: any) => row.Text || '').join('');
-                  }
-                }
-              }
-            }
+    // 1. Code file or workbench link: open in Application Workbench editor
+    if (!href.startsWith('/download') && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:') && !href.startsWith('/database') && !href.startsWith('database') && this.isCodeFileLink(href) && (href.startsWith('/workbench') || href.startsWith('workbench') || !!this.currentRepo)) {
+      event.preventDefault();
+      event.stopPropagation();
 
-            if (originalContent !== undefined) {
-              // Fetch modified content and show diff
-              this.http.get(href, { responseType: 'text' }).subscribe({
-                next: (modifiedContent: string) => {
-                  this.dialog.open(DiffDialogComponent, {
-                    data: {
-                      filename: filename,
-                      originalContent: originalContent,
-                      modifiedContent: modifiedContent
-                    },
-                    width: '90vw',
-                    maxWidth: '1200px',
-                    panelClass: 'visulate-diff-dialog-panel'
-                  });
-                },
-                error: (err) => {
-                  console.error('Failed to fetch modified file content', err);
-                  this.snackBar.open(`Failed to load modified file "${filename}"`, 'Close', { duration: 5000 });
-                }
-              });
-              return;
-            }
-          }
-          // Default action: Open download links and external links in a new tab
-          window.open(href, '_blank');
+      let filePath = href;
+      if (href.includes('file=')) {
+        const match = href.match(/[?&]file=([^&#]+)/);
+        if (match) {
+          filePath = decodeURIComponent(match[1]);
         }
       }
+      if (!filePath.startsWith('/workbench')) {
+        filePath = filePath.replace(/^\/+/, '');
+        if (this.currentRepo && filePath.startsWith(this.currentRepo + '/')) {
+          filePath = filePath.substring(this.currentRepo.length + 1);
+        }
+      }
+
+      this.fileSelect.emit(filePath);
+
+      const targetRepo = this.currentRepo;
+      const queryParams: any = {
+        file: filePath
+      };
+      if (targetRepo) {
+        queryParams.projectId = targetRepo;
+      }
+      if (this.currentContext?.endpoint) {
+        queryParams.db = this.currentContext.endpoint;
+      }
+      this.stateService.setLastSelectedFile(filePath, targetRepo || undefined);
+      this.stateService.setLastWorkbenchQueryParams(queryParams);
+
+      const currentUrl = this.router.url || '';
+      if (!currentUrl.includes('/workbench')) {
+        this.router.navigate(['/workbench'], { queryParams });
+      } else {
+        this.router.navigate([], {
+          queryParams: { file: filePath },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      }
+      return;
     }
+
+    // 2. Database catalog link (must not be a file)
+    if (href.startsWith('/database') || href.startsWith('database')) {
+      event.preventDefault();
+      const path = href.startsWith('/') ? href : '/' + href;
+      this.router.navigateByUrl(path);
+      return;
+    }
+
+    // 3. Download or external links
+    if (href.startsWith('/download') || href.startsWith('http')) {
+      event.preventDefault();
+      const downloadMatch = href.match(/\/download\/[^/]+\/([^/?#]+)/);
+      if (href.startsWith('/download') && downloadMatch) {
+        const filename = decodeURIComponent(downloadMatch[1]);
+        let originalContent = this.stateService.getSessionUploadedFileContent(filename);
+
+        if (originalContent === undefined) {
+          if (this.currentContext && this.currentContext.objectName && this.currentObject) {
+            const baseFilename = filename.split('.')[0].toLowerCase();
+            const objName = this.currentContext.objectName.toLowerCase();
+            if (baseFilename === objName || filename.toLowerCase().includes(objName)) {
+              const sourceProp = this.currentObject.objectProperties?.find((p: any) =>
+                p.title === 'Source' || p.title === 'Trigger Body' || p.title === 'Body'
+              );
+              if (sourceProp && sourceProp.rows) {
+                originalContent = sourceProp.rows.map((row: any) => row.Text || '').join('');
+              }
+            }
+          }
+        }
+
+        if (originalContent !== undefined) {
+          this.http.get(href, { responseType: 'text' }).subscribe({
+            next: (modifiedContent: string) => {
+              this.dialog.open(DiffDialogComponent, {
+                data: {
+                  filename: filename,
+                  originalContent: originalContent,
+                  modifiedContent: modifiedContent
+                },
+                width: '90vw',
+                maxWidth: '1200px',
+                panelClass: 'visulate-diff-dialog-panel'
+              });
+            },
+            error: (err) => {
+              console.error('Failed to fetch modified file content', err);
+              this.snackBar.open(`Failed to load modified file "${filename}"`, 'Close', { duration: 5000 });
+            }
+          });
+          return;
+        }
+      }
+      window.open(href, '_blank');
+      return;
+    }
+
+    // Default safety: prevent accidental relative link navigation to nonexistent routes
+    event.preventDefault();
   }
+
 
   ngOnInit(): void {
     this.stateService.isChatFullScreen$
@@ -177,6 +239,11 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     if (!this.portal) {
       // If portal isn't initialized yet (e.g. initial load in fullscreen), 
       // wait until ngAfterViewInit runs.
+      return;
+    }
+
+    // Only attach fullscreen overlay if this chat component instance is currently visible
+    if (this.hostElementRef?.nativeElement && !this.hostElementRef.nativeElement.offsetParent && !document.body.classList.contains('chat-fullscreen-active')) {
       return;
     }
 
@@ -263,6 +330,9 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
   }
 
   get currentRepo(): string {
+    if (this.currentContext?.projectId) {
+      return this.currentContext.projectId;
+    }
     if (!this.currentContext?.endpoint) {
       return '';
     }
@@ -310,6 +380,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
 
     // Prepare lightweight context
     const context = {
+      ...(this.currentContext || {}),
       endpoint: this.currentContext?.endpoint,
       owner: this.currentContext?.owner,
       objectType: this.currentContext?.objectType,
@@ -322,7 +393,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
       chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1), // Exclude current empty response
       session_id: this.stateService.getSessionId(), // Include session_id from state
       attachments: this.stateService.getUploadedFiles(), // Include file attachments
-      projectId: this.currentRepo || undefined // Active repository
+      projectId: this.currentRepo || this.currentContext?.projectId || undefined, // Active repository
+      branch: this.currentContext?.branch,
+      activeFile: this.currentContext?.activeFile,
+      selectedDirectory: this.currentContext?.selectedDirectory,
+      fileDbObjects: this.currentContext?.fileDbObjects,
+      activeFileContent: this.currentContext?.activeFileContent
     };
 
     // Clear uploaded files after adding to context so UI resets
@@ -345,13 +421,13 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
             this.chunkBuffer = lines.pop() || '';
 
             for (const line of lines) {
-              if (line.includes('▌STATUS: ')) {
-                this.currentStatus = line.replace('▌STATUS: ', '').trim();
-              } else if (line.includes('▌ERROR: ')) {
-                const errorMsg = line.replace('▌ERROR: ', '').trim();
+              if (line.includes('▌STATUS:')) {
+                this.currentStatus = line.replace(/▌STATUS:\s*/g, '').trim();
+              } else if (line.includes('▌ERROR:')) {
+                const errorMsg = line.replace(/▌ERROR:\s*/g, '').trim();
                 this.stateService.updateLastMessage("Error: " + errorMsg);
                 this.isLoading = false;
-              } else if (line.trim()) {
+              } else {
                 const currentHistory = this.stateService.getChatHistory();
                 const lastMsg = currentHistory[currentHistory.length - 1];
                 this.stateService.updateLastMessage(lastMsg.text + line + '\n');

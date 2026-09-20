@@ -783,6 +783,18 @@ paths:
                     - message
                     - context
                   properties:
+                    agent:
+                      type: string
+                      description: Target specialized AI agent to handle the request.
+                      enum:
+                        - visulate_agent
+                        - comment_generator
+                        - invalid_objects
+                        - app_developer
+                        - test_data_generator
+                        - schema_comparison
+                        - readme_generator
+                      default: visulate_agent
                     message:
                       type: string
                       example: "What is the structure of the users table?"
@@ -2010,6 +2022,31 @@ components:
                 type: string
               text:
                 type: string
+        projectId:
+          type: string
+          description: Active Git repository project name or identifier.
+          example: "visulate-for-oracle"
+        branch:
+          type: string
+          description: Currently checked out Git branch.
+          example: "main"
+        activeFile:
+          type: string
+          description: Relative path of the file open in the workbench editor.
+          example: "database/public_records/README.md"
+        selectedDirectory:
+          type: string
+          description: Relative path of the selected directory in the workbench tree.
+          example: "database/public_records"
+        fileDbObjects:
+          type: array
+          description: Mapped database catalog objects referenced by the active file.
+          items:
+            type: string
+          example: ["RNT_INVOICES", "RNT_PAYMENTS"]
+        activeFileContent:
+          type: string
+          description: Content snippet of the active file in the workbench editor.
     McpLinkExtractionPayload:
       type: object
       description: Payload containing the base object and its extracted list of related objects. Used as the request for the collection details step.

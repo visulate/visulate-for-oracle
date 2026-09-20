@@ -21,6 +21,7 @@ import { StateService } from '../../services/state.service';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GitAuthDialogComponent } from '../git-auth-dialog/git-auth-dialog.component';
+import { ChatComponent } from '../chat/chat.component';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
@@ -56,7 +57,16 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public dbEndpoints: Array<{ endpoint: string; description: string }> = [];
 
   public selectedDbConnection: string = 'pdb21';
-  public selectedRepoFolder: string = '';
+  private _selectedRepoFolder: string = '';
+  public get selectedRepoFolder(): string {
+    return this._selectedRepoFolder;
+  }
+  public set selectedRepoFolder(val: string) {
+    if (this._selectedRepoFolder !== val) {
+      this._selectedRepoFolder = val;
+      this.selectedFolderPath = '';
+    }
+  }
 
   public cloneRemoteUrl: string = '';
   public cloneFolderName: string = '';
@@ -91,6 +101,229 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public dbMapData: any = null;
   public currentFileDbObjects: string[] = [];
   public activeDbObjectDetails: any = null;
+
+  // Right sidebar tab state: 'ai' | 'context'
+  public rightPanelTab: 'ai' | 'context' = 'ai';
+  public aiPanelWide: boolean = false;
+  public selectedFolderPath: string = '';
+  @ViewChild('chatComp', { static: false }) public chatComponent?: any;
+
+  // Editor Word Wrap & Markdown Previewer
+  public isWordWrap: boolean = false;
+  public mdViewMode: 'edit' | 'split' | 'preview' = 'edit';
+  public markdownPreviewContent: string = '';
+
+  public get isMarkdownFile(): boolean {
+    if (!this.selectedFilePath) return false;
+    const lower = this.selectedFilePath.toLowerCase();
+    return lower.endsWith('.md') || lower.endsWith('.markdown');
+  }
+
+  public toggleWordWrap(): void {
+    this.isWordWrap = !this.isWordWrap;
+    const wrapOption = this.isWordWrap ? 'on' : 'off';
+    if (this.monacoEditor) {
+      this.monacoEditor.updateOptions({ wordWrap: wrapOption });
+    }
+    if (this.diffEditor) {
+      this.diffEditor.updateOptions({ wordWrap: wrapOption });
+    }
+    try {
+      localStorage.setItem('monaco_word_wrap', this.isWordWrap ? 'true' : 'false');
+    } catch (e) {}
+    this.cdRef.detectChanges();
+  }
+
+  public setMdViewMode(mode: 'edit' | 'split' | 'preview'): void {
+    this.mdViewMode = mode;
+    if (this.monacoEditor) {
+      this.markdownPreviewContent = this.monacoEditor.getValue();
+    } else {
+      this.markdownPreviewContent = this.activeFileContent || '';
+    }
+    setTimeout(() => {
+      if (this.monacoEditor) {
+        this.monacoEditor.layout();
+      }
+    }, 50);
+    this.cdRef.detectChanges();
+  }
+
+  public handleMarkdownPreviewClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    const anchor = target.tagName === 'A' ? target : target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+
+    // External or mailto link
+    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:')) {
+      anchor.setAttribute('target', '_blank');
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    // In-page hash anchor
+    if (href.startsWith('#')) {
+      const elem = document.getElementById(href.substring(1));
+      elem?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    let targetPath = href.split(/[?#]/, 1)[0];
+    if (href.includes('file=')) {
+      const match = href.match(/[?&]file=([^&#]+)/);
+      if (match) {
+        targetPath = decodeURIComponent(match[1]);
+      }
+    }
+
+    if (!targetPath || targetPath.startsWith('/workbench')) {
+      return;
+    }
+
+    // Resolve relative path against current open file
+    if (this.selectedFilePath && !targetPath.startsWith('/')) {
+      const currentDir = this.selectedFilePath.includes('/')
+        ? this.selectedFilePath.substring(0, this.selectedFilePath.lastIndexOf('/'))
+        : '';
+      const combined = currentDir ? `${currentDir}/${targetPath}` : targetPath;
+      const parts = combined.split('/');
+      const stack: string[] = [];
+      for (const p of parts) {
+        if (p === '.' || !p) continue;
+        if (p === '..') {
+          if (stack.length > 0) stack.pop();
+        } else {
+          stack.push(p);
+        }
+      }
+      targetPath = stack.join('/');
+    } else {
+      targetPath = targetPath.replace(/^\/+/, '');
+    }
+
+    this.openFile(targetPath);
+  }
+
+  public get selectedNodeDir(): string {
+    if (this.selectedFolderPath) {
+      return this.selectedFolderPath;
+    }
+    if (this.selectedFilePath && this.selectedFilePath.includes('/')) {
+      return this.selectedFilePath.substring(0, this.selectedFilePath.lastIndexOf('/'));
+    }
+    return '';
+  }
+
+  public toggleFolder(node: FileTreeNode, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    node.expanded = !node.expanded;
+    this.selectedFolderPath = node.path;
+    this.cdRef.detectChanges();
+  }
+
+  public selectFolder(folderPath: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.selectedFolderPath = (this.selectedFolderPath === folderPath) ? '' : folderPath;
+    this.cdRef.detectChanges();
+  }
+
+  public triggerReadmeForNode(nodePath: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.selectedFolderPath = nodePath;
+    this.triggerReadmeGeneration('selected');
+  }
+
+  public setRightPanelTab(tab: 'ai' | 'context'): void {
+    this.rightPanelTab = tab;
+    this.cdRef.detectChanges();
+  }
+
+  public toggleAiPanelWidth(): void {
+    this.aiPanelWide = !this.aiPanelWide;
+    this.cdRef.detectChanges();
+  }
+
+  public toggleFullScreenChat(): void {
+    if (this.chatComponent && typeof this.chatComponent.toggleFullScreen === 'function') {
+      this.chatComponent.toggleFullScreen();
+    }
+  }
+
+  get workbenchAiContext(): any {
+    const dbObjs = this.currentFileDbObjects || [];
+    return {
+      endpoint: this.selectedDbConnection,
+      projectId: this.selectedRepoFolder,
+      branch: this.currentBranch,
+      activeFile: this.selectedFilePath,
+      selectedDirectory: this.selectedNodeDir,
+      fileDbObjects: dbObjs,
+      activeFileContent: this.activeFileContent ? this.activeFileContent.slice(0, 4000) : ''
+    };
+  }
+
+  get workbenchAiObject(): any {
+    const filename = this.selectedFilePath ? this.selectedFilePath.split('/').pop() : '';
+    return {
+      objectName: filename || this.selectedRepoFolder,
+      filePath: this.selectedFilePath,
+      fileDbObjects: this.currentFileDbObjects
+    };
+  }
+
+  public triggerReadmeGeneration(scope: 'selected' | 'repo' | 'directory' = 'selected'): void {
+    if (!this.selectedRepoFolder) {
+      this.snackBar.open('Please select a Git repository first.', 'Close', { duration: 4000 });
+      return;
+    }
+    this.rightPanelTab = 'ai';
+    this.cdRef.detectChanges();
+
+    const targetDir = (scope === 'repo') ? '' : this.selectedNodeDir;
+
+    let prompt = '';
+    if (targetDir) {
+      prompt = `Please generate, validate, or update README files for directory '${targetDir}' (and its subdirectories bottom-up) in repository '${this.selectedRepoFolder}'. Read existing READMEs first, verify their content against actual files and indexed database dependencies, and correct where necessary.`;
+    } else {
+      prompt = `Please generate, validate, or update README files across repository '${this.selectedRepoFolder}' starting from the lowest directory up to the root. Read existing READMEs first, verify their content against actual files and indexed database dependencies, and correct where necessary.`;
+    }
+
+    if (this.chatComponent) {
+      this.chatComponent.sendMessage(prompt);
+    } else {
+      this.state.addMessage({ user: 'You', text: prompt });
+    }
+  }
+
+  public triggerExplainCode(): void {
+    if (!this.selectedFilePath) {
+      this.snackBar.open('Please select a file to explain.', 'Close', { duration: 4000 });
+      return;
+    }
+    this.rightPanelTab = 'ai';
+    this.cdRef.detectChanges();
+
+    const depsStr = this.currentFileDbObjects && this.currentFileDbObjects.length > 0
+      ? ` It references indexed database objects: ${this.currentFileDbObjects.join(', ')}.`
+      : '';
+    const prompt = `Please explain the function of the file '${this.selectedFilePath}' in repository '${this.selectedRepoFolder}'.${depsStr} What is its role and what are key considerations for maintenance or rewrites?`;
+
+    if (this.chatComponent) {
+      this.chatComponent.sendMessage(prompt);
+    } else {
+      this.state.addMessage({ user: 'You', text: prompt });
+    }
+  }
 
   private monacoEditor: any = null;
   private diffEditor: any = null;
@@ -158,6 +391,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    try {
+      this.isWordWrap = localStorage.getItem('monaco_word_wrap') === 'true';
+    } catch (e) {}
+
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       const url = this.router.url || '';
       if (!url.includes('/workbench')) {
@@ -200,12 +437,15 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    this.state.isDarkMode$.pipe(takeUntil(this.destroy$)).subscribe(isDark => {
-      this.isDarkMode = isDark;
-      this.updateMonacoTheme();
-    });
+    if (this.state.isDarkMode$) {
+      this.state.isDarkMode$.pipe(takeUntil(this.destroy$)).subscribe(isDark => {
+        this.isDarkMode = isDark;
+        this.updateMonacoTheme();
+      });
+    }
 
-    this.state.currentContext$.pipe(takeUntil(this.destroy$)).subscribe(ctxModel => {
+    if (this.state.currentContext$) {
+      this.state.currentContext$.pipe(takeUntil(this.destroy$)).subscribe(ctxModel => {
       if (ctxModel && ctxModel.currentContext) {
         const db = ctxModel.currentContext.endpoint;
         if (!db) {
@@ -226,6 +466,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
     });
+    }
 
     this.initWorkbenchData();
   }
@@ -1021,7 +1262,11 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public openFile(filePath: string): void {
     if (!filePath) return;
+    this.selectedFolderPath = '';
     this.selectedFilePath = filePath;
+    if (!this.isMarkdownFile && this.mdViewMode === 'preview') {
+      this.mdViewMode = 'edit';
+    }
     this.state.setLastSelectedFile(filePath, this.selectedRepoFolder || this.projectId);
     this.updateCurrentFileDbObjects();
     this.loadFileContent();
@@ -1072,6 +1317,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       this.restService.getGitFile$(targetId, this.selectedFilePath).subscribe({
         next: (res) => {
           this.activeFileContent = res.content || '';
+          this.markdownPreviewContent = this.activeFileContent;
           try {
             this.updateSingleEditorModel();
           } catch (e) {
@@ -1272,8 +1518,16 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       this.monacoEditor = monaco.editor.create(this.editorContainer.nativeElement, {
         theme: currentTheme,
         automaticLayout: true,
+        wordWrap: this.isWordWrap ? 'on' : 'off',
         minimap: { enabled: true },
         scrollBeyondLastLine: false
+      });
+
+      this.monacoEditor.onDidChangeModelContent(() => {
+        if (this.isMarkdownFile) {
+          this.markdownPreviewContent = this.monacoEditor.getValue();
+          this.cdRef.detectChanges();
+        }
       });
 
       this.updateSingleEditorModel();
@@ -1285,6 +1539,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       this.diffEditor = monaco.editor.createDiffEditor(this.editorContainer.nativeElement, {
         theme: currentTheme,
         automaticLayout: true,
+        wordWrap: this.isWordWrap ? 'on' : 'off',
         originalEditable: false,
         readOnly: false
       });
@@ -1331,10 +1586,12 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       this.monacoEditor.setModel(model);
+      this.markdownPreviewContent = this.activeFileContent || '';
     } catch (e) {
       console.warn('Fallback monaco model creation:', e);
       const fallbackModel = monaco.editor.createModel(this.activeFileContent || '', lang);
       this.monacoEditor.setModel(fallbackModel);
+      this.markdownPreviewContent = this.activeFileContent || '';
     }
 
     setTimeout(() => {

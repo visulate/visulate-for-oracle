@@ -1,7 +1,18 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .chat-container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-height: 0;
   max-width: 1000px;
   margin: 0 auto;
   transition: all 0.3s ease-in-out;
@@ -128,15 +139,33 @@ body.dark-theme .chat-repo-indicator.chat-repo-link:hover {
   flex-direction: column;
   gap: 16px;
   max-height: 600px;
-  /* Keep reasonable height constraint */
+  min-height: 0;
 }
 
 /* Loading indicator */
 .loading-indicator {
   padding: 8px 16px;
   text-align: center;
-  color: #64748b;
+  color: var(--app-text-color, #334155);
   font-size: 0.875rem;
+  flex-shrink: 0;
+  background-color: var(--app-card-bg);
+  border-top: 1px solid var(--app-border-color);
+  z-index: 2;
+}
+
+.loading-indicator p {
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.loading-status-text {
+  font-weight: 500;
+  color: var(--app-link-color, #1976d2);
 }
 
 .timer {
@@ -155,6 +184,7 @@ body.dark-theme .chat-repo-indicator.chat-repo-link:hover {
   /* Align avatar to bottom of bubble */
   gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 
 .user-row {
@@ -220,7 +250,20 @@ body.dark-theme .chat-repo-indicator.chat-repo-link:hover {
   line-height: 1.5;
   position: relative;
   word-wrap: break-word;
+  overflow-wrap: break-word;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  min-width: 0;
+}
+
+.agent-row .message-bubble {
+  max-width: calc(100% - 44px);
+}
+
+.message-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Agent Bubble */
@@ -265,6 +308,89 @@ body.dark-theme .chat-repo-indicator.chat-repo-link:hover {
   border-radius: 8px;
   overflow-x: auto;
   border: 1px solid var(--app-border-color);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.agent-bubble ::ng-deep code {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.agent-bubble ::ng-deep pre code {
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
+/* Ensure tables in agent responses are scrollable and styled properly */
+.agent-bubble ::ng-deep table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 12px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agent-bubble ::ng-deep th,
+.agent-bubble ::ng-deep td {
+  padding: 6px 10px;
+  border: 1px solid var(--app-border-color);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.agent-bubble ::ng-deep th {
+  background-color: var(--app-sidebar-bg);
+  font-weight: 600;
+  text-align: left;
+}
+
+.agent-bubble ::ng-deep tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+:host-context(.dark-theme) .agent-bubble ::ng-deep tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Workbench-specific contextual styling */
+:host-context(.workbench-chat-wrapper) {
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:host-context(.workbench-chat-wrapper) .chat-container {
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+  flex: 1 1 0%;
+  overflow: hidden;
+}
+
+:host-context(.workbench-chat-wrapper) .messages {
+  max-height: none !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  padding: 10px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+:host-context(.workbench-chat-wrapper) .agent-row .message-bubble {
+  max-width: calc(100% - 44px);
+}
+
+:host-context(.workbench-chat-wrapper) .chat-input-area {
+  padding: 8px 12px;
+  flex-shrink: 0;
 }
 
 /* Welcome Message */
