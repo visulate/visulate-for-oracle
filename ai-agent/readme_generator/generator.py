@@ -61,8 +61,9 @@ def build_directory_tree_bottom_up(repo_path: str, target_subpath: str = "") -> 
     if not repo_path or not os.path.exists(repo_path):
         raise ValueError(f"Repository path does not exist: {repo_path}")
 
-    start_dir = os.path.abspath(os.path.join(repo_path, target_subpath.lstrip("/")))
-    if not start_dir.startswith(os.path.abspath(repo_path)):
+    repo_path = os.path.realpath(repo_path)
+    start_dir = os.path.realpath(os.path.join(repo_path, target_subpath.lstrip("/")))
+    if os.path.commonpath([repo_path, start_dir]) != repo_path:
         raise ValueError(f"Invalid subpath '{target_subpath}' escapes repository boundary.")
 
     if not os.path.exists(start_dir) or not os.path.isdir(start_dir):
@@ -71,6 +72,10 @@ def build_directory_tree_bottom_up(repo_path: str, target_subpath: str = "") -> 
     collected_dirs: List[Dict[str, Any]] = []
 
     for root, dirs, files in os.walk(start_dir):
+        root_real = os.path.realpath(root)
+        if os.path.commonpath([repo_path, root_real]) != repo_path:
+            continue
+
         # Filter directories in-place to avoid traversing ignored paths
         dirs[:] = [d for d in dirs if not is_ignored_dir(d)]
 
@@ -142,11 +147,13 @@ def load_indexed_dependencies(repo_path: str, db_endpoint: str = None) -> Dict[s
         - file_to_objects: { file_rel_path: [object_names] }
         - objects: { object_name: { owner, type, files, dependencies } }
         - db_connection: database name if identified
+        - dependency_markdown: Architectural summary text from codebase-dependencies.md
     """
     result: Dict[str, Any] = {
         "file_to_objects": {},
         "objects": {},
-        "db_connection": db_endpoint or ""
+        "db_connection": db_endpoint or "",
+        "dependency_markdown": ""
     }
 
     visulate_dir = os.path.join(repo_path, "visulate")
@@ -202,6 +209,30 @@ def load_indexed_dependencies(repo_path: str, db_endpoint: str = None) -> Dict[s
                         result["objects"][obj_name]["files"] = sorted(list(existing_files))
         except Exception as e:
             logger.warning(f"Could not load indexed dependencies from {map_file}: {e}")
+
+        # Check for companion codebase-dependencies.md in same directory
+        comp_md = os.path.join(os.path.dirname(map_file), "codebase-dependencies.md")
+        if os.path.exists(comp_md):
+            try:
+                with open(comp_md, "r", encoding="utf-8", errors="replace") as mf:
+                    md_text = mf.read().strip()
+                    if md_text:
+                        if result["dependency_markdown"]:
+                            result["dependency_markdown"] += "\n\n" + md_text
+                        else:
+                            result["dependency_markdown"] = md_text
+            except Exception as e:
+                logger.warning(f"Could not load companion markdown from {comp_md}: {e}")
+
+    # Check root visulate/codebase-dependencies.md if none loaded
+    if not result["dependency_markdown"]:
+        root_md = os.path.join(visulate_dir, "codebase-dependencies.md")
+        if os.path.exists(root_md):
+            try:
+                with open(root_md, "r", encoding="utf-8", errors="replace") as mf:
+                    result["dependency_markdown"] = mf.read().strip()
+            except Exception as e:
+                logger.warning(f"Could not load root codebase-dependencies.md: {e}")
 
     return result
 
@@ -288,7 +319,7 @@ def _build_deterministic_readme(
         for sd in subdirs:
             child_name = os.path.basename(sd)
             summary = child_summaries.get(sd, f"Submodule `{child_name}` component.")
-            lines.append(f"| [`{child_name}/`]({child_name}/) | {summary} |")
+            lines.append(f"| [`{child_name}/`]({child_name}/README.md) | {summary} |")
         lines.append("")
 
     # Files inventory
@@ -345,7 +376,7 @@ def _build_deterministic_readme(
             "### Preserved Architectural Notes",
             "",
             "```markdown",
-            existing_readme.strip()[:1500] + ("..." if len(existing_readme.strip()) > 1500 else ""),
+            existing_readme.strip(),
             "```"
         ])
 
@@ -415,6 +446,9 @@ Your task is to create, validate, or update the `README.md` file for the directo
 
 ## DATABASE OBJECT CATALOG INFO
 {json.dumps({k: v for k, v in objects_meta.items() if any(k in objs for objs in dir_matched_deps.values())}, indent=2)}
+
+## CODEBASE DEPENDENCY SUMMARY (codebase-dependencies.md)
+{dep_info.get("dependency_markdown") or "No codebase-dependencies.md summary available."}
 
 ## SOURCE FILE SAMPLES
 {json.dumps(file_samples, indent=2)}
@@ -566,6 +600,12 @@ async def run_bottom_up_readme_generation(
 
         # Write README.md to disk immediately as generated
         target_readme = os.path.join(repo_path, rel_dir, "README.md")
+        if os.path.islink(target_readme):
+            raise ValueError(f"Refusing to overwrite symlink: {target_readme}")
+        target_real = os.path.realpath(target_readme)
+        if os.path.exists(target_readme) and os.path.commonpath([repo_path, target_real]) != repo_path:
+            raise ValueError(f"Refusing to write to target outside repository: {target_readme}")
+
         os.makedirs(os.path.dirname(target_readme), exist_ok=True)
 
         with open(target_readme, "w", encoding="utf-8") as f:

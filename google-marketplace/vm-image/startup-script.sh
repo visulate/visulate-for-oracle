@@ -115,8 +115,10 @@ services:
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
       - INVALID_OBJECTS_URL=http://ai-agent:10006/agent/generate
+      - APP_DEVELOPER_URL=http://ai-agent:10007/agent/generate
       - TEST_DATA_GENERATOR_URL=http://ai-agent:10008/agent/generate
       - SCHEMA_COMPARISON_URL=http://ai-agent:10009/agent/generate
+      - README_GENERATOR_URL=http://ai-agent:10010/agent/generate
       - ENABLE_GIT_INTEGRATION=true
       - GIT_MODE=local
       - GIT_REPOS_DIR=/app/repos
@@ -171,7 +173,7 @@ services:
       - vissql
       - visapi
     expose:
-      - "10000-10009"
+      - "10000-10010"
     volumes:
       - visulate-downloads:/app/downloads
       - ./repos:/app/repos

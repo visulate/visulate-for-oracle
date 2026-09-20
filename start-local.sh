@@ -78,12 +78,24 @@ cleanup() {
     # Send SIGTERM to the entire process group as a fallback
     kill 0 2>/dev/null || true
 
-    # Terminate any processes still listening on ports 3000, 5000, and 10000-10010
-    if command -v fuser >/dev/null 2>&1; then
-        for port in 3000 5000 $(seq 10000 10010); do
-            fuser -k -TERM $port/tcp 2>/dev/null || true
-        done
-    fi
+    # Helper to terminate only Visulate-related processes listening on ports
+    kill_matching_port_processes() {
+        local sig="$1"
+        if command -v fuser >/dev/null 2>&1; then
+            for port in 3000 5000 $(seq 10000 10010); do
+                local pids=$(fuser $port/tcp 2>/dev/null)
+                for pid in $pids; do
+                    local cmd=$(ps -p "$pid" -o cmd= 2>/dev/null || true)
+                    if echo "$cmd" | grep -qE "node.*app\.js|gunicorn.*sql2csv|api-server|query-engine|python.*agent|python.*main|uvicorn|readme_generator"; then
+                        kill "$sig" "$pid" 2>/dev/null || true
+                    fi
+                done
+            done
+        fi
+    }
+
+    # Terminate Visulate processes still listening on ports 3000, 5000, and 10000-10010
+    kill_matching_port_processes -TERM
 
     # Wait up to 3 seconds for background services to shut down gracefully and finish logging
     for _ in 1 2 3; do
@@ -106,12 +118,8 @@ cleanup() {
         pkill -9 -P "$AGENTS_PID" 2>/dev/null || true
     fi
 
-    # Force kill any remaining processes on our ports
-    if command -v fuser >/dev/null 2>&1; then
-        for port in 3000 5000 $(seq 10000 10010); do
-            fuser -k -KILL $port/tcp 2>/dev/null || true
-        done
-    fi
+    # Force kill any remaining Visulate processes on our ports
+    kill_matching_port_processes -KILL
 
     wait 2>/dev/null || true
     echo "All services stopped."

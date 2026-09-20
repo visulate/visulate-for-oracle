@@ -96,7 +96,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     if (!href) return;
 
     // 1. Code file or workbench link: open in Application Workbench editor
-    if (this.isCodeFileLink(href)) {
+    if (!href.startsWith('/download') && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:') && !href.startsWith('/database') && !href.startsWith('database') && this.isCodeFileLink(href)) {
       event.preventDefault();
       event.stopPropagation();
 
@@ -380,6 +380,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
 
     // Prepare lightweight context
     const context = {
+      ...(this.currentContext || {}),
       endpoint: this.currentContext?.endpoint,
       owner: this.currentContext?.owner,
       objectType: this.currentContext?.objectType,
@@ -392,7 +393,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
       chatHistory: this.stateService.getChatHistory().map(m => ({ role: m.user === 'You' ? 'user' : 'model', parts: [{ text: m.text }] })).slice(0, -1), // Exclude current empty response
       session_id: this.stateService.getSessionId(), // Include session_id from state
       attachments: this.stateService.getUploadedFiles(), // Include file attachments
-      projectId: this.currentRepo || undefined // Active repository
+      projectId: this.currentRepo || this.currentContext?.projectId || undefined, // Active repository
+      branch: this.currentContext?.branch,
+      activeFile: this.currentContext?.activeFile,
+      selectedDirectory: this.currentContext?.selectedDirectory,
+      fileDbObjects: this.currentContext?.fileDbObjects,
+      activeFileContent: this.currentContext?.activeFileContent
     };
 
     // Clear uploaded files after adding to context so UI resets

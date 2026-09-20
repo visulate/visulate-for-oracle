@@ -57,7 +57,16 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public dbEndpoints: Array<{ endpoint: string; description: string }> = [];
 
   public selectedDbConnection: string = 'pdb21';
-  public selectedRepoFolder: string = '';
+  private _selectedRepoFolder: string = '';
+  public get selectedRepoFolder(): string {
+    return this._selectedRepoFolder;
+  }
+  public set selectedRepoFolder(val: string) {
+    if (this._selectedRepoFolder !== val) {
+      this._selectedRepoFolder = val;
+      this.selectedFolderPath = '';
+    }
+  }
 
   public cloneRemoteUrl: string = '';
   public cloneFolderName: string = '';
@@ -163,7 +172,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    let targetPath = href;
+    let targetPath = href.split(/[?#]/, 1)[0];
     if (href.includes('file=')) {
       const match = href.match(/[?&]file=([^&#]+)/);
       if (match) {
@@ -171,7 +180,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    if (targetPath.startsWith('/workbench')) {
+    if (!targetPath || targetPath.startsWith('/workbench')) {
       return;
     }
 
@@ -428,12 +437,15 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    this.state.isDarkMode$.pipe(takeUntil(this.destroy$)).subscribe(isDark => {
-      this.isDarkMode = isDark;
-      this.updateMonacoTheme();
-    });
+    if (this.state.isDarkMode$) {
+      this.state.isDarkMode$.pipe(takeUntil(this.destroy$)).subscribe(isDark => {
+        this.isDarkMode = isDark;
+        this.updateMonacoTheme();
+      });
+    }
 
-    this.state.currentContext$.pipe(takeUntil(this.destroy$)).subscribe(ctxModel => {
+    if (this.state.currentContext$) {
+      this.state.currentContext$.pipe(takeUntil(this.destroy$)).subscribe(ctxModel => {
       if (ctxModel && ctxModel.currentContext) {
         const db = ctxModel.currentContext.endpoint;
         if (!db) {
@@ -454,6 +466,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
     });
+    }
 
     this.initWorkbenchData();
   }

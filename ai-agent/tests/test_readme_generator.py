@@ -9,7 +9,8 @@ from readme_generator.generator import (
     build_directory_tree_bottom_up,
     load_indexed_dependencies,
     generate_readme_for_directory,
-    run_bottom_up_readme_generation
+    run_bottom_up_readme_generation,
+    _build_deterministic_readme
 )
 from readme_generator.agent import create_readme_generator_agent
 
@@ -234,3 +235,86 @@ def test_create_readme_generator_agent():
     assert "generate_all_readmes" in tool_names
     assert "validate_or_update_directory_readme" in tool_names
     assert "scan_readme_status" in tool_names
+
+
+def test_subpath_escape_and_symlink_traversal(temp_repo):
+    # Prefix / directory traversal escape
+    with pytest.raises(ValueError, match="escapes repository boundary"):
+        build_directory_tree_bottom_up(temp_repo, target_subpath="../outside")
+
+    # Symlink pointing outside repo
+    outside_dir = tempfile.mkdtemp()
+    try:
+        symlink_path = os.path.join(temp_repo, "src", "outside_symlink")
+        os.symlink(outside_dir, symlink_path)
+        with pytest.raises(ValueError, match="escapes repository boundary"):
+            build_directory_tree_bottom_up(temp_repo, target_subpath="src/outside_symlink")
+    finally:
+        shutil.rmtree(outside_dir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_symlink_readme_write_prevention(temp_repo):
+    outside_file = tempfile.NamedTemporaryFile(delete=False)
+    outside_file.write(b"sensitive content")
+    outside_file.close()
+
+    try:
+        # Create symlink for README.md in billing dir
+        billing_readme = os.path.join(temp_repo, "src", "services", "billing", "README.md")
+        if os.path.exists(billing_readme):
+            os.remove(billing_readme)
+        os.symlink(outside_file.name, billing_readme)
+
+        with pytest.raises(ValueError, match="Refusing to overwrite symlink"):
+            await run_bottom_up_readme_generation(
+                repo_path=temp_repo,
+                db_endpoint="pdb21",
+                target_subpath="src/services/billing",
+                genai_client=None
+            )
+
+        # Ensure outside file was NOT overwritten
+        with open(outside_file.name, "r") as f:
+            assert f.read() == "sensitive content"
+    finally:
+        if os.path.exists(outside_file.name):
+            os.remove(outside_file.name)
+
+
+def test_companion_markdown_dependencies_loaded(temp_repo):
+    # Write companion codebase-dependencies.md
+    pdb_dir = os.path.join(temp_repo, "visulate", "pdb21")
+    md_file = os.path.join(pdb_dir, "codebase-dependencies.md")
+    with open(md_file, "w", encoding="utf-8") as f:
+        f.write("# Database-to-Codebase Dependency Index\nSpecial architectural note for RNT_INVOICES.")
+
+    deps = load_indexed_dependencies(temp_repo, "pdb21")
+    assert "Special architectural note for RNT_INVOICES" in deps["dependency_markdown"]
+
+
+def test_child_links_point_to_readme_and_notes_untruncated(temp_repo):
+    dirs = build_directory_tree_bottom_up(temp_repo)
+    deps = load_indexed_dependencies(temp_repo, "pdb21")
+
+    # Give billing a long existing readme (>2000 chars)
+    long_notes = "CUSTOM_NOTE_" + ("A" * 2500) + "_END_NOTE"
+    billing_info = next(d for d in dirs if d['rel_path'].replace("\\", "/") == "src/services/billing")
+    billing_info['existing_readme'] = long_notes
+
+    content, _ = _build_deterministic_readme(
+        rel_dir="src/services",
+        files=["service_registry.js"],
+        matched_deps={},
+        dep_objects={},
+        subdirs=["src/services/billing"],
+        child_summaries={"src/services/billing": "Billing submodule"},
+        existing_readme=long_notes
+    )
+
+    # Subdirectory link points to README.md
+    assert "[`billing/`](billing/README.md)" in content
+    # Long notes must not be truncated
+    assert long_notes in content
+    assert "..." not in content.split("### Preserved Architectural Notes")[1]
+

@@ -25,7 +25,7 @@ class MockChatComponent {
   @Input() currentObject: any;
   @Input() agent: string;
   @Output() fileSelect = new EventEmitter<string>();
-  sendMessage(message?: string): void {}
+  sendMessage: jasmine.Spy = jasmine.createSpy('sendMessage');
   toggleFullScreen(): void {}
 }
 
@@ -56,7 +56,8 @@ describe('MonacoComponent - New File Creation', () => {
       'downloadGitFile$',
       'getGitFile$',
       'getGitBranches$',
-      'getEndpoints$'
+      'getEndpoints$',
+      'getDatabaseConnections$'
     ]);
     mockStateService = jasmine.createSpyObj('StateService', [
       'getCurrentContext',
@@ -80,6 +81,9 @@ describe('MonacoComponent - New File Creation', () => {
     mockRestService.getGitAuth.and.returnValue(null);
     mockRestService.getLocalRepositories$.and.returnValue(of({ repositories: [], baseDir: '/repos' }));
     mockRestService.getEndpoints$.and.returnValue(of({ databases: [] } as any));
+    mockRestService.getDatabaseConnections$.and.returnValue(of([]));
+    mockStateService.isDarkMode$ = of(false) as any;
+    mockStateService.currentContext$ = of(null) as any;
     mockStateService.getCurrentContext.and.returnValue({
       endpoint: '',
       setEndpoint: jasmine.createSpy('setEndpoint')
@@ -107,6 +111,7 @@ describe('MonacoComponent - New File Creation', () => {
 
     fixture = TestBed.createComponent(MonacoComponent);
     component = fixture.componentInstance;
+    component.chatComponent = new MockChatComponent();
   });
 
   it('should toggle new file input when repository is selected', () => {
@@ -533,27 +538,37 @@ describe('MonacoComponent - New File Creation', () => {
     });
 
     it('should trigger README generation for repository when scoped to repo', () => {
-      const sendSpy = spyOn(MockChatComponent.prototype, 'sendMessage');
       component.selectedRepoFolder = 'sample-repo';
       component.rightPanelTab = 'context';
 
       component.triggerReadmeGeneration('repo');
 
       expect(component.rightPanelTab).toBe('ai');
-      expect(sendSpy).toHaveBeenCalledWith(
+      expect(component.chatComponent.sendMessage).toHaveBeenCalledWith(
         jasmine.stringMatching(/Please generate, validate, or update README files across repository 'sample-repo'/)
       );
     });
 
     it('should trigger README generation for selected node directory when scoped to selected', () => {
-      const sendSpy = spyOn(MockChatComponent.prototype, 'sendMessage');
       component.selectedRepoFolder = 'sample-repo';
       component.selectedFolderPath = 'src/services/billing';
 
       component.triggerReadmeGeneration('selected');
 
-      expect(sendSpy).toHaveBeenCalledWith(
+      expect(component.chatComponent.sendMessage).toHaveBeenCalledWith(
         jasmine.stringMatching(/Please generate, validate, or update README files for directory 'src\/services\/billing'/)
+      );
+    });
+
+    it('should fallback to state.addMessage when chatComponent is not present', () => {
+      component.chatComponent = null;
+      spyOn(component['cdRef'], 'detectChanges'); // prevent re-querying ViewChild
+
+      component.selectedRepoFolder = 'sample-repo';
+      component.triggerReadmeGeneration('repo');
+
+      expect(mockStateService.addMessage).toHaveBeenCalledWith(
+        jasmine.objectContaining({ user: 'You' })
       );
     });
 
@@ -564,6 +579,15 @@ describe('MonacoComponent - New File Creation', () => {
       expect(component.selectedNodeDir).toBe('src/services');
 
       component.selectFolder('src/services');
+      expect(component.selectedFolderPath).toBe('');
+    });
+
+    it('should reset selectedFolderPath when selected repository changes', () => {
+      component.selectedRepoFolder = 'repo-a';
+      component.selectedFolderPath = 'src/services';
+      expect(component.selectedFolderPath).toBe('src/services');
+
+      component.selectedRepoFolder = 'repo-b';
       expect(component.selectedFolderPath).toBe('');
     });
 
@@ -579,7 +603,6 @@ describe('MonacoComponent - New File Creation', () => {
     });
 
     it('should trigger explain code with referenced DB objects', () => {
-      const sendSpy = spyOn(MockChatComponent.prototype, 'sendMessage');
       component.selectedRepoFolder = 'sample-repo';
       component.selectedFilePath = 'src/services/billing/payment.sql';
       component.currentFileDbObjects = ['RNT_PAYMENTS'];
@@ -587,7 +610,7 @@ describe('MonacoComponent - New File Creation', () => {
       component.triggerExplainCode();
 
       expect(component.rightPanelTab).toBe('ai');
-      expect(sendSpy).toHaveBeenCalledWith(
+      expect(component.chatComponent.sendMessage).toHaveBeenCalledWith(
         jasmine.stringMatching(/Please explain the function of the file 'src\/services\/billing\/payment\.sql'.*references indexed database objects: RNT_PAYMENTS/)
       );
     });
@@ -684,6 +707,24 @@ describe('MonacoComponent - New File Creation', () => {
 
       const anchor = document.createElement('a');
       anchor.setAttribute('href', '../other_schema/README.md');
+      const mockEvent = {
+        target: anchor,
+        preventDefault: jasmine.createSpy('preventDefault'),
+        stopPropagation: jasmine.createSpy('stopPropagation')
+      } as any;
+
+      component.handleMarkdownPreviewClick(mockEvent);
+
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(component.openFile).toHaveBeenCalledWith('database/other_schema/README.md');
+    });
+
+    it('should strip query and hash fragments from relative links in markdown preview', () => {
+      spyOn(component, 'openFile');
+      component.selectedFilePath = 'database/public_records/README.md';
+
+      const anchor = document.createElement('a');
+      anchor.setAttribute('href', '../other_schema/README.md#setup');
       const mockEvent = {
         target: anchor,
         preventDefault: jasmine.createSpy('preventDefault'),

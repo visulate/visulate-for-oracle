@@ -275,7 +275,7 @@
         </button>
       </div>
 
-      <div class="editor-viewport" [class.split-layout]="isMarkdownFile && mdViewMode === 'split'">
+      <div class="editor-viewport" [class.split-layout]="viewMode === 'editor' && isMarkdownFile && mdViewMode === 'split'">
         <div *ngIf="!selectedFilePath && selectedRepoFolder" class="no-file-selected-overlay">
           <mat-icon class="no-file-icon">note_add</mat-icon>
           <h3>No File Selected</h3>
@@ -285,11 +285,11 @@
           </button>
         </div>
         <div #editorContainer class="monaco-container"
-          [class.split-pane]="isMarkdownFile && mdViewMode === 'split'"
-          [style.display]="(!isMarkdownFile || mdViewMode !== 'preview') && monacoLoaded ? 'block' : 'none'"></div>
+          [class.split-pane]="viewMode === 'editor' && isMarkdownFile && mdViewMode === 'split'"
+          [style.display]="(viewMode === 'diff' || !isMarkdownFile || mdViewMode !== 'preview') && monacoLoaded ? 'block' : 'none'"></div>
 
         <!-- Live Markdown Preview Pane -->
-        <div *ngIf="isMarkdownFile && (mdViewMode === 'split' || mdViewMode === 'preview')"
+        <div *ngIf="viewMode === 'editor' && isMarkdownFile && (mdViewMode === 'split' || mdViewMode === 'preview')"
           class="markdown-preview-pane"
           [class.split-pane]="mdViewMode === 'split'"
           [class.full-pane]="mdViewMode === 'preview'"
@@ -297,7 +297,7 @@
           <div class="markdown-preview-content markdown-body" markdown [data]="markdownPreviewContent"></div>
         </div>
 
-        <textarea *ngIf="!monacoLoaded && (!isMarkdownFile || mdViewMode !== 'preview')" class="fallback-textarea" [(ngModel)]="activeFileContent" (change)="saveDraft()"
+        <textarea *ngIf="!monacoLoaded && (viewMode === 'diff' || !isMarkdownFile || mdViewMode !== 'preview')" class="fallback-textarea" [(ngModel)]="activeFileContent" (change)="saveDraft()"
           placeholder="Loading code editor..."></textarea>
       </div>
     </div>

@@ -173,6 +173,12 @@ def create_validate_directory_tool() -> FunctionTool:
             )
 
             target_readme = os.path.join(repo_path, target_info['rel_path'], "README.md")
+            if os.path.islink(target_readme):
+                raise ValueError(f"Refusing to overwrite symlink: {target_readme}")
+            target_real = os.path.realpath(target_readme)
+            if os.path.exists(target_readme) and os.path.commonpath([repo_path, target_real]) != repo_path:
+                raise ValueError(f"Refusing to write to target outside repository: {target_readme}")
+
             os.makedirs(os.path.dirname(target_readme), exist_ok=True)
             with open(target_readme, "w", encoding="utf-8") as f:
                 f.write(content)
