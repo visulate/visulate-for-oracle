@@ -98,6 +98,8 @@ def build_directory_tree_bottom_up(repo_path: str, target_subpath: str = "") -> 
 
         if readme_name:
             readme_full = os.path.join(root, readme_name)
+            if os.path.islink(readme_full):
+                raise ValueError(f"Refusing to overwrite symlink: {readme_full}")
             try:
                 with open(readme_full, "r", encoding="utf-8", errors="replace") as rf:
                     existing_readme = rf.read()
