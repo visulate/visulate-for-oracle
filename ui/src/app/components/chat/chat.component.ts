@@ -96,7 +96,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     if (!href) return;
 
     // 1. Code file or workbench link: open in Application Workbench editor
-    if (!href.startsWith('/download') && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:') && !href.startsWith('/database') && !href.startsWith('database') && this.isCodeFileLink(href)) {
+    if (!href.startsWith('/download') && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:') && !href.startsWith('/database') && !href.startsWith('database') && this.isCodeFileLink(href) && (href.startsWith('/workbench') || href.startsWith('workbench') || !!this.currentRepo)) {
       event.preventDefault();
       event.stopPropagation();
 
