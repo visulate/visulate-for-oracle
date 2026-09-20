@@ -248,7 +248,7 @@ def extract_file_summaries(repo_path: str, rel_dir: str, files: List[str], max_b
 
     for f in files:
         f_path = os.path.join(dir_full, f)
-        if not os.path.exists(f_path) or not os.path.isfile(f_path):
+        if os.path.islink(f_path) or not os.path.isfile(f_path):
             continue
 
         sample_lines = []
