@@ -167,7 +167,8 @@ def create_app() -> FastAPI:
 
                 def progress_callback(msg):
                     try:
-                        loop.call_soon_threadsafe(queue.put_nowait, f"▌STATUS: {msg}\n")
+                        clean_msg = str(msg).replace("▌STATUS: ", "").replace("▌STATUS:", "").strip()
+                        loop.call_soon_threadsafe(queue.put_nowait, f"▌STATUS: {clean_msg}\n")
                     except Exception as e:
                         logger.error(f"Error in progress callback: {e}")
 

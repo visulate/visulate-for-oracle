@@ -92,6 +92,16 @@
         [disabled]="!selectedRepoFolder" title="Scan codebase and map database dependencies to repo">
         <mat-icon>account_tree</mat-icon> Index Dependencies
       </button>
+
+      <button mat-stroked-button class="action-btn ai-toolbar-btn" (click)="triggerReadmeGeneration('selected')"
+        [disabled]="!selectedRepoFolder" [title]="selectedNodeDir ? 'Generate READMEs for ' + selectedNodeDir : 'Generate READMEs for repository'">
+        <mat-icon color="accent">auto_awesome</mat-icon> Generate READMEs{{ selectedNodeDir ? ' (' + selectedNodeDir + ')' : '' }}
+      </button>
+
+      <button mat-button class="action-btn ai-toggle-btn" [class.active-mode]="rightPanelTab === 'ai'" (click)="setRightPanelTab(rightPanelTab === 'ai' ? 'context' : 'ai')"
+        title="Toggle AI Assistant sidebar">
+        <mat-icon>smart_toy</mat-icon> AI Assistant
+      </button>
     </div>
   </div>
 
@@ -159,10 +169,15 @@
       <ng-template #treeNodeTemplate let-nodes let-depth="depth">
         <div *ngFor="let node of nodes; trackBy: trackByNodePath">
           <!-- Folder Row -->
-          <div *ngIf="node.type === 'folder'" class="tree-folder-row" [style.padding-left.px]="depth * 12 + 6"
-            (click)="node.expanded = !node.expanded">
+          <div *ngIf="node.type === 'folder'" class="tree-folder-row" [class.selected-folder]="node.path === selectedFolderPath"
+            [style.padding-left.px]="depth * 12 + 6"
+            (click)="toggleFolder(node, $event)">
             <span class="node-icon folder-icon">{{ node.expanded ? '📂' : '📁' }}</span>
             <span class="folder-name">{{ node.name }}</span>
+            <button mat-icon-button class="tree-readme-btn" matTooltip="Generate READMEs for this directory"
+              (click)="triggerReadmeForNode(node.path, $event)" aria-label="Generate READMEs for this directory">
+              <mat-icon>auto_awesome</mat-icon>
+            </button>
           </div>
 
           <!-- Folder Children -->
@@ -227,6 +242,29 @@
           {{ viewMode === 'editor' ? 'Single File Code Editor' : 'Side-by-Side Diff (HEAD vs Working Tree)' }}
         </span>
         <span class="editor-header-spacer"></span>
+
+        <!-- Markdown View Mode Toggles (Edit / Split / Preview) -->
+        <div class="md-mode-toggle-group" *ngIf="selectedFilePath && isMarkdownFile && viewMode === 'editor'">
+          <button mat-button class="md-mode-btn" [class.active]="mdViewMode === 'edit'" (click)="setMdViewMode('edit')" matTooltip="Edit Markdown Source">
+            <mat-icon>code</mat-icon> Edit
+          </button>
+          <button mat-button class="md-mode-btn" [class.active]="mdViewMode === 'split'" (click)="setMdViewMode('split')" matTooltip="Side-by-Side Split View">
+            <mat-icon>vertical_split</mat-icon> Split
+          </button>
+          <button mat-button class="md-mode-btn" [class.active]="mdViewMode === 'preview'" (click)="setMdViewMode('preview')" matTooltip="Preview Formatted Markdown">
+            <mat-icon>visibility</mat-icon> Preview
+          </button>
+        </div>
+
+        <!-- Soft-Wrap Toggle Button -->
+        <button *ngIf="selectedFilePath && (!isMarkdownFile || mdViewMode !== 'preview')" mat-icon-button class="header-action-btn wrap-toggle-btn"
+          [class.active-toggle]="isWordWrap"
+          (click)="toggleWordWrap()"
+          [matTooltip]="isWordWrap ? 'Disable Word Wrap (Soft Wrap)' : 'Enable Word Wrap (Soft Wrap)'"
+          aria-label="Toggle Word Wrap">
+          <mat-icon>wrap_text</mat-icon>
+        </button>
+
         <button *ngIf="selectedFilePath" mat-icon-button class="header-download-btn" matTooltip="Download current file"
           (click)="downloadFile(selectedFilePath)" aria-label="Download current file">
           <mat-icon>download</mat-icon>
@@ -237,7 +275,7 @@
         </button>
       </div>
 
-      <div class="editor-viewport">
+      <div class="editor-viewport" [class.split-layout]="isMarkdownFile && mdViewMode === 'split'">
         <div *ngIf="!selectedFilePath && selectedRepoFolder" class="no-file-selected-overlay">
           <mat-icon class="no-file-icon">note_add</mat-icon>
           <h3>No File Selected</h3>
@@ -246,19 +284,81 @@
             <mat-icon>note_add</mat-icon> Create New File
           </button>
         </div>
-        <div #editorContainer class="monaco-container" [style.display]="monacoLoaded ? 'block' : 'none'"></div>
-        <textarea *ngIf="!monacoLoaded" class="fallback-textarea" [(ngModel)]="activeFileContent" (change)="saveDraft()"
+        <div #editorContainer class="monaco-container"
+          [class.split-pane]="isMarkdownFile && mdViewMode === 'split'"
+          [style.display]="(!isMarkdownFile || mdViewMode !== 'preview') && monacoLoaded ? 'block' : 'none'"></div>
+
+        <!-- Live Markdown Preview Pane -->
+        <div *ngIf="isMarkdownFile && (mdViewMode === 'split' || mdViewMode === 'preview')"
+          class="markdown-preview-pane"
+          [class.split-pane]="mdViewMode === 'split'"
+          [class.full-pane]="mdViewMode === 'preview'"
+          (click)="handleMarkdownPreviewClick($event)">
+          <div class="markdown-preview-content markdown-body" markdown [data]="markdownPreviewContent"></div>
+        </div>
+
+        <textarea *ngIf="!monacoLoaded && (!isMarkdownFile || mdViewMode !== 'preview')" class="fallback-textarea" [(ngModel)]="activeFileContent" (change)="saveDraft()"
           placeholder="Loading code editor..."></textarea>
       </div>
     </div>
 
-    <!-- RIGHT PANEL: Database Data Dictionary Context -->
-    <div class="sidebar-panel db-context-panel">
-      <div class="panel-header">
-        <span><mat-icon>storage</mat-icon> Database Context</span>
+    <!-- RIGHT PANEL: AI Assistant & Database Data Dictionary Context -->
+    <div class="sidebar-panel db-context-panel" [class.ai-tab-active]="rightPanelTab === 'ai'" [class.ai-panel-wide]="rightPanelTab === 'ai' && aiPanelWide">
+      <div class="panel-header right-panel-tabs-header">
+        <div class="panel-tabs">
+          <button mat-button class="tab-btn" [class.active-tab]="rightPanelTab === 'ai'" (click)="setRightPanelTab('ai')" matTooltip="Application AI Interactions">
+            <mat-icon>smart_toy</mat-icon> AI Assistant
+          </button>
+          <button mat-button class="tab-btn" [class.active-tab]="rightPanelTab === 'context'" (click)="setRightPanelTab('context')" matTooltip="Database Context">
+            <mat-icon>storage</mat-icon> DB Context
+          </button>
+        </div>
+        <div class="panel-header-actions" *ngIf="rightPanelTab === 'ai'">
+          <button mat-icon-button class="panel-header-action-btn" (click)="toggleAiPanelWidth()" [matTooltip]="aiPanelWide ? 'Standard Panel Width' : 'Widen Panel'" aria-label="Toggle Panel Width">
+            <mat-icon>{{ aiPanelWide ? 'close_fullscreen' : 'open_in_full' }}</mat-icon>
+          </button>
+          <button mat-icon-button class="panel-header-action-btn" (click)="toggleFullScreenChat()" matTooltip="Full Screen AI Assistant" aria-label="Full Screen">
+            <mat-icon>fullscreen</mat-icon>
+          </button>
+        </div>
       </div>
 
-      <div class="db-context-body">
+      <!-- TAB 1: AI Assistant -->
+      <div *ngIf="rightPanelTab === 'ai'" class="ai-assistant-body">
+        <!-- Quick Action Chips -->
+        <div class="ai-quick-actions">
+          <button mat-stroked-button class="quick-chip-btn action-readme" (click)="triggerReadmeGeneration('selected')" [disabled]="!selectedRepoFolder" [matTooltip]="selectedNodeDir ? 'Generate READMEs for directory: ' + selectedNodeDir : 'Generate READMEs for entire repository'">
+            <mat-icon color="accent">auto_awesome</mat-icon> Generate READMEs{{ selectedNodeDir ? ' (' + selectedNodeDir + ')' : '' }}
+          </button>
+          <button mat-stroked-button class="quick-chip-btn" (click)="triggerExplainCode()" [disabled]="!selectedFilePath" matTooltip="Explain active file and database interactions">
+            <mat-icon>description</mat-icon> Explain Code
+          </button>
+          <button mat-stroked-button class="quick-chip-btn" (click)="runIndexDependencies()" [disabled]="!selectedRepoFolder" matTooltip="Index repository database dependencies">
+            <mat-icon>account_tree</mat-icon> Index DB
+          </button>
+        </div>
+
+        <!-- Active Context Indicator -->
+        <div class="ai-context-indicator" *ngIf="selectedRepoFolder">
+          <span class="indicator-chip" [title]="'Repository: ' + selectedRepoFolder">
+            <mat-icon class="mini-icon">folder_special</mat-icon> {{ selectedRepoFolder }}
+          </span>
+          <span class="indicator-chip" *ngIf="selectedFilePath" [title]="'Active file: ' + selectedFilePath">
+            <mat-icon class="mini-icon">insert_drive_file</mat-icon> {{ selectedFilePath.split('/').pop() }}
+          </span>
+          <span class="indicator-chip db-chip" *ngIf="currentFileDbObjects.length > 0" [title]="currentFileDbObjects.join(', ')">
+            <mat-icon class="mini-icon">storage</mat-icon> {{ currentFileDbObjects.length }} DB objs
+          </span>
+        </div>
+
+        <!-- Embedded Chat Interface -->
+        <div class="workbench-chat-wrapper">
+          <app-chat #chatComp [currentContext]="workbenchAiContext" [currentObject]="workbenchAiObject" agent="visulate_agent" (fileSelect)="openFile($event)"></app-chat>
+        </div>
+      </div>
+
+      <!-- TAB 2: Database Data Dictionary Context -->
+      <div *ngIf="rightPanelTab === 'context'" class="db-context-body">
         <div class="context-card">
           <div class="card-title">Connected Database</div>
           <div class="card-value"><strong>{{ selectedDbConnection }}</strong></div>

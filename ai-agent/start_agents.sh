@@ -6,6 +6,18 @@ if [ -z "$GOOGLE_API_KEY" ] && [ -z "$GOOGLE_AI_KEY" ]; then
     exit 0
 fi
 
+cleanup_agents() {
+    trap '' INT TERM EXIT
+    pids=$(jobs -p)
+    if [ -n "$pids" ]; then
+        kill -TERM $pids 2>/dev/null || true
+        sleep 1
+        kill -KILL $pids 2>/dev/null || true
+    fi
+    exit 0
+}
+trap cleanup_agents INT TERM EXIT
+
 # Start specialized agents in background
 python -m nl2sql_agent.main &
 python -m object_analysis_agent.main &
@@ -16,12 +28,10 @@ python -m invalid_objects.main &
 python -m app_developer.main &
 python -m test_data_generator.main &
 python -m schema_comparison_agent.main &
+python -m readme_generator.main &
 
 # Start Root Agent
 python -m root_agent.main &
-
-# Trap to kill all background processes on exit
-trap 'kill $(jobs -p) 2>/dev/null; wait 2>/dev/null; exit 0' INT TERM EXIT
 
 echo "Agents started:"
 echo "- Root Agent: http://localhost:10000"
@@ -34,6 +44,7 @@ echo "- Invalid Objects Agent: http://localhost:10006"
 echo "- App Developer Agent: http://localhost:10007"
 echo "- Test Data Generator Agent: http://localhost:10008"
 echo "- Schema Comparison Agent: http://localhost:10009"
+echo "- README Generator Agent: http://localhost:10010"
 
 # Wait for all background processes
 wait

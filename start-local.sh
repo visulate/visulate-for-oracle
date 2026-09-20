@@ -38,6 +38,7 @@ export INVALID_OBJECTS_URL=http://localhost:10006/agent/generate
 export APP_DEVELOPER_URL=http://localhost:10007/agent/generate
 export TEST_DATA_GENERATOR_URL=http://localhost:10008/agent/generate
 export SCHEMA_COMPARISON_URL=http://localhost:10009/agent/generate
+export README_GENERATOR_URL=http://localhost:10010/agent/generate
 export QUERY_ENGINE_URL=http://localhost:5000/mcp-sql/call_tool
 export CORS_ORIGIN_WHITELIST="http://localhost:3000,http://localhost:4200"
 if [ -n "$LOCAL_WHITELIST" ]; then
@@ -64,6 +65,11 @@ cleanup() {
     [ -n "$QUERY_PID" ] && pids="$pids $QUERY_PID"
     [ -n "$AGENTS_PID" ] && pids="$pids $AGENTS_PID"
 
+    # Send SIGTERM to process tree of agents
+    if [ -n "$AGENTS_PID" ]; then
+        pkill -P "$AGENTS_PID" 2>/dev/null || true
+    fi
+
     # Send SIGTERM to tracked background processes
     for pid in $pids; do
         kill -TERM "$pid" 2>/dev/null || true
@@ -71,6 +77,13 @@ cleanup() {
 
     # Send SIGTERM to the entire process group as a fallback
     kill 0 2>/dev/null || true
+
+    # Terminate any processes still listening on ports 3000, 5000, and 10000-10010
+    if command -v fuser >/dev/null 2>&1; then
+        for port in 3000 5000 $(seq 10000 10010); do
+            fuser -k -TERM $port/tcp 2>/dev/null || true
+        done
+    fi
 
     # Wait up to 3 seconds for background services to shut down gracefully and finish logging
     for _ in 1 2 3; do
@@ -89,6 +102,16 @@ cleanup() {
     for pid in $pids; do
         kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true
     done
+    if [ -n "$AGENTS_PID" ]; then
+        pkill -9 -P "$AGENTS_PID" 2>/dev/null || true
+    fi
+
+    # Force kill any remaining processes on our ports
+    if command -v fuser >/dev/null 2>&1; then
+        for port in 3000 5000 $(seq 10000 10010); do
+            fuser -k -KILL $port/tcp 2>/dev/null || true
+        done
+    fi
 
     wait 2>/dev/null || true
     echo "All services stopped."
@@ -96,14 +119,14 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
-# Clean up any stale Visulate processes on ports 3000 and 5000 before starting
-for port in 3000 5000; do
+# Clean up any stale Visulate processes on ports 3000, 5000, and 10000-10010 before starting
+for port in 3000 5000 $(seq 10000 10010); do
     if command -v fuser >/dev/null 2>&1 && fuser $port/tcp >/dev/null 2>&1; then
         pids=$(fuser $port/tcp 2>/dev/null)
         is_visulate=false
         for pid in $pids; do
             cmd=$(ps -p "$pid" -o cmd= 2>/dev/null || true)
-            if echo "$cmd" | grep -qE "node.*app\.js|gunicorn.*sql2csv|api-server|query-engine"; then
+            if echo "$cmd" | grep -qE "node.*app\.js|gunicorn.*sql2csv|api-server|query-engine|python.*agent|python.*main"; then
                 is_visulate=true
                 echo "Port $port is in use by stale Visulate process (PID $pid). Stopping it..."
                 kill -TERM "$pid" 2>/dev/null || true
@@ -170,7 +193,7 @@ echo "Services started."
 echo "API Server: http://localhost:3000"
 echo "Query Engine: http://localhost:5000"
 if [ ! -z "$GOOGLE_AI_KEY" ]; then
-    echo "Agents: ports 10000-10009"
+    echo "Agents: ports 10000-10010"
 fi
 echo "Press Ctrl+C to stop all services."
 

@@ -18,9 +18,10 @@ SYSTEM_INSTRUCTION = """You are the Visulate Root Agent. Your role is to underst
 6. **delegate_to_app_developer_agent**: Use this for application development tasks, including generating PL/SQL, SQL, Java, Python, or JavaScript code, creating data migration scripts, and analyzing dependencies for impact assessment.
 7. **delegate_to_test_data_generator_agent**: Use this for generating test data based on table definitions. It can generate SQL inserts and SQL*Loader files (CSV or fixed-length).
 8. **delegate_to_schema_comparison_agent**: Use this for universally comparing metadata between two databases, schemas, or specific objects (e.g. comparing DEV vs UAT databases, HR vs HR schemas, or TABLE_A vs TABLE_A) to identify differences in existence, row counts, and privileges. Do not ask for a schema name if the user just asks to compare databases.
-9. **read_memory_record**: Use this to read any un-injected architectural memory record or object structure listed in the memory manifest on demand.
-10. **save_memory_record**: Use this to persist architectural summaries, schema/object purpose notes, or design decisions to `visulate/<db>/memories/` or `visulate/<db>/structures/` in the active repository workspace.
-11. **maintain_visulate_readme**: Use this to create, update, or maintain the `visulate/README.md` file in the active repository, documenting its contents, database environments, code maps, memories, structures, and generated artifacts.
+9. **delegate_to_readme_generator_agent**: Use this when the user asks to create, validate, or update README files for the repository or application code (e.g., "generate READMEs for this repo", "validate README in src/services", "document application code"). This agent traverses the directory structure bottom-up and documents code functionality and database dependencies.
+10. **read_memory_record**: Use this to read any un-injected architectural memory record or object structure listed in the memory manifest on demand.
+11. **save_memory_record**: Use this to persist architectural summaries, schema/object purpose notes, or design decisions to `visulate/<db>/memories/` or `visulate/<db>/structures/` in the active repository workspace.
+12. **maintain_visulate_readme**: Use this to create, update, or maintain the `visulate/README.md` file in the active repository, documenting its contents, database environments, code maps, memories, structures, and generated artifacts.
 
 ## Specialized Agents
 1. **Comment Generator Agent**: Delegate to this agent when the user explicitly asks to generate database comments or documentation. This agent supports an `offset` parameter for resuming long-running tasks.
@@ -56,6 +57,7 @@ def create_root_agent() -> LlmAgent:
     app_developer_tool = create_remote_delegate_tool("app_developer_agent", "http://localhost:10007")
     test_data_tool = create_remote_delegate_tool("test_data_generator_agent", "http://localhost:10008")
     comparison_tool = create_remote_delegate_tool("schema_comparison_agent", "http://localhost:10009")
+    readme_generator_tool = create_remote_delegate_tool("readme_generator_agent", "http://localhost:10010")
 
     # 2. Create memory management and repository documentation tools for Root Agent
     save_memory_tool = create_save_memory_tool()
@@ -78,6 +80,7 @@ def create_root_agent() -> LlmAgent:
             app_developer_tool,
             test_data_tool,
             comparison_tool,
+            readme_generator_tool,
             read_memory_tool,
             save_memory_tool,
             maintain_readme_tool
