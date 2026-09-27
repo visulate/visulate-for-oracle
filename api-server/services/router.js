@@ -156,6 +156,12 @@ const transformSchema = {
   ]
 }
 
+router.route('/healthz')
+  .get((req, res) => res.status(200).json({ status: 'OK' }));
+
+router.route('/api/healthz')
+  .get((req, res) => res.status(200).json({ status: 'OK' }));
+
 router.route('/')
   .get(controller.getEndpoints);
 

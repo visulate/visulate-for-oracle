@@ -133,6 +133,7 @@ describe('config-sanitizer', () => {
     this.timeout(5000);
 
     it('should filter out endpoints with invalid connect strings in memory', async () => {
+      const dummyPath = path.join(os.tmpdir(), 'dummy-filter-config.js');
       const config = {
         endpoints: [
           {
@@ -146,7 +147,7 @@ describe('config-sanitizer', () => {
         ]
       };
 
-      const result = await filterInvalidEndpoints(config, 800);
+      const result = await filterInvalidEndpoints(config, 800, dummyPath);
       expect(result.endpoints).to.be.an('array').that.is.empty;
     });
   });

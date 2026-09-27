@@ -125,7 +125,7 @@ services:
     networks:
       - visulate_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -159,7 +159,7 @@ services:
     networks:
       - visulate_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3

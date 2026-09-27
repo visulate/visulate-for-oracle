@@ -14,7 +14,19 @@
  * limitations under the License.
  */
 
-const dbConfig = require('../config/database');
+const path = require('path');
+const dbConfigPath = path.resolve(__dirname, '../config/database.js');
+const dbConfig = new Proxy({}, {
+  get(target, prop) {
+    const current = (require.cache[dbConfigPath] && require.cache[dbConfigPath].exports) || require('../config/database.js');
+    return current[prop];
+  },
+  set(target, prop, value) {
+    const current = (require.cache[dbConfigPath] && require.cache[dbConfigPath].exports) || require('../config/database.js');
+    current[prop] = value;
+    return true;
+  }
+});
 const logger = require('./logger.js');
 const OracleProvider = require('./providers/oracle-provider');
 const PostgresProvider = require('./providers/postgres-provider');

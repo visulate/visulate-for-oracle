@@ -68,9 +68,15 @@ export class RestService {
    * Gets a list of database endpoints + object type summary
    */
   public getEndpoints$(filter: string = '*'): Observable<EndpointListModel> {
+    const url = `${environment.apiBase}/?filter=${filter}`;
+    const cached = this.getFromCache(url);
+    if (cached) {
+      return of<EndpointListModel>(cached as EndpointListModel);
+    }
     const filterParam: any = { filter };
     return this.http.get<EndpointListModel>(`${environment.apiBase}/`, { params: filterParam }).pipe(
-      map(data => new EndpointListModel().deserialize(data))
+      map(data => new EndpointListModel().deserialize(data)),
+      tap(data => this.addToCache(url, data))
     );
   }
 

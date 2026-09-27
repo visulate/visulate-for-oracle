@@ -58,6 +58,7 @@ x-google-marketplace:
       v3.0.1 Git access token integration
       v3.0.2 UI improvements, ADK memory implementation.
       v3.0.3 Container deployment fixes
+      v3.0.4 Readme file generator + Application Workbench AI
   images:
     '':
       properties:

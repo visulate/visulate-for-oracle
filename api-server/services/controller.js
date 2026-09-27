@@ -14,7 +14,19 @@
  * limitations under the License.
  */
 
-const dbConfig = require('../config/database.js');
+const path = require('path');
+const dbConfigPath = path.resolve(__dirname, '../config/database.js');
+const dbConfig = new Proxy({}, {
+  get(target, prop) {
+    const current = (require.cache[dbConfigPath] && require.cache[dbConfigPath].exports) || require('../config/database.js');
+    return current[prop];
+  },
+  set(target, prop, value) {
+    const current = (require.cache[dbConfigPath] && require.cache[dbConfigPath].exports) || require('../config/database.js');
+    current[prop] = value;
+    return true;
+  }
+});
 const httpConfig = require('../config/http-server.js');
 const dbService = require('./database.js');
 const sqlRegistry = require('./sql-statements');
@@ -30,25 +42,30 @@ function getSql(poolAlias) {
 }
 
 const util = require('./util');
-const endpointList = getEndpointList(dbConfig.endpoints);
+function getEndpointList(endpoints) {
+  const source = endpoints || dbConfig.endpoints || [];
+  let list = {};
+  source.forEach(endpoint => {
+    if (endpoint && endpoint.namespace && endpoint.connect) {
+      list[endpoint.namespace] = endpoint.connect.poolAlias;
+    }
+  });
+  return list;
+}
+
+const endpointList = new Proxy({}, {
+  get(target, prop) {
+    const list = getEndpointList();
+    return list[prop];
+  },
+  has(target, prop) {
+    const list = getEndpointList();
+    return prop in list;
+  }
+});
 const dbConstants = require('../config/db-constants');
 const templateEngine = require('./template-engine');
 const async = require('async');
-
-
-
-
-/**
- * Gets a list of endpoints
- * @returns an endpoint to pool alias  dictionary
- */
-function getEndpointList(endpoints) {
-  let endpointList = [];
-  endpoints.forEach(endpoint => {
-    endpointList[endpoint.namespace] = endpoint.connect.poolAlias;
-  });
-  return endpointList;
-}
 
 
 /**
@@ -79,16 +96,41 @@ function formatEndpoint(endpoint, objectCountRows, version) {
   return epObj;
 }
 
-async function endpoints(filter) {
+const dbVersionCache = new Map();
+const endpointsCache = new Map();
+const ENDPOINTS_CACHE_TTL_MS = parseInt(process.env.ENDPOINTS_CACHE_TTL_MS, 10) || 5 * 60 * 1000; // 5 minutes default
+
+function clearEndpointsCache() {
+  endpointsCache.clear();
+  dbVersionCache.clear();
+}
+
+async function endpoints(filter, bypassCache = false) {
+  const normalizedFilter = (filter && filter !== '*') ? filter.toString().toUpperCase() : '*';
+  const now = Date.now();
+
+  if (!bypassCache) {
+    const cached = endpointsCache.get(normalizedFilter);
+    if (cached && (now - cached.timestamp < ENDPOINTS_CACHE_TTL_MS)) {
+      return cached.data;
+    }
+  }
+
   const rows = [];
   await async.each(dbConfig.endpoints, async function (ep) {
     try {
       const sql = getSql(ep.connect.poolAlias);
-      // Get the database version
-      let versionQuery = sql.statement['DB-VERSION'];
-      const versionResult = await dbService.simpleExecute(ep.connect.poolAlias, versionQuery.sql, versionQuery.params);
-      const row = versionResult[0];
-      const versionBanner = row.Version || row.VERSION || '';
+      // Get the database version (cached per poolAlias)
+      let versionBanner = dbVersionCache.get(ep.connect.poolAlias);
+      if (!versionBanner || bypassCache) {
+        let versionQuery = sql.statement['DB-VERSION'];
+        const versionResult = await dbService.simpleExecute(ep.connect.poolAlias, versionQuery.sql, versionQuery.params);
+        const row = (versionResult && versionResult[0]) || {};
+        versionBanner = row.Version || row.VERSION || '';
+        if (versionBanner) {
+          dbVersionCache.set(ep.connect.poolAlias, versionBanner);
+        }
+      }
       const is11g = versionBanner.includes('Release 11.');
 
       let query = is11g ? sql.statement['COUNT_DBA_OBJECTS_11G'] : sql.statement['COUNT_DBA_OBJECTS'];
@@ -111,13 +153,20 @@ async function endpoints(filter) {
     }
   });
 
-  return rows.sort(function (a, b) {
+  const sortedRows = rows.sort(function (a, b) {
     const endpointA = a.endpoint.toUpperCase();
     const endpointB = b.endpoint.toUpperCase();
     if (endpointA < endpointB) { return -1; }
     if (endpointA > endpointB) { return 1; }
     return 0;
   });
+
+  endpointsCache.set(normalizedFilter, {
+    timestamp: now,
+    data: sortedRows
+  });
+
+  return sortedRows;
 }
 /**
  * Implements GET /
@@ -128,7 +177,8 @@ async function endpoints(filter) {
 async function getEndpoints(req, res, next) {
   try {
     const filter = req.query.filter;
-    const databaseList = await endpoints(filter);
+    const bypassCache = req.query.refresh === 'true';
+    const databaseList = await endpoints(filter, bypassCache);
     res.status(200).json({ endpoints: databaseList });
   } catch (err) {
     logger.log('error', 'Failed to get endpoints');
@@ -140,6 +190,9 @@ async function getEndpoints(req, res, next) {
 
 module.exports.getEndpoints = getEndpoints;
 module.exports.endpoints = endpoints;
+module.exports.clearEndpointsCache = clearEndpointsCache;
+module.exports.dbVersionCache = dbVersionCache;
+module.exports.endpointsCache = endpointsCache;
 
 /**
  * Implements GET /endpoints
