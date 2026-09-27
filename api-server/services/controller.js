@@ -99,10 +99,51 @@ function formatEndpoint(endpoint, objectCountRows, version) {
 const dbVersionCache = new Map();
 const endpointsCache = new Map();
 const ENDPOINTS_CACHE_TTL_MS = parseInt(process.env.ENDPOINTS_CACHE_TTL_MS, 10) || 5 * 60 * 1000; // 5 minutes default
+const MAX_ENDPOINTS_CACHE_SIZE = parseInt(process.env.MAX_ENDPOINTS_CACHE_SIZE, 10) || 100;
 
 function clearEndpointsCache() {
   endpointsCache.clear();
   dbVersionCache.clear();
+}
+
+function pruneExpiredEndpointsCache(now = Date.now()) {
+  for (const [key, entry] of endpointsCache.entries()) {
+    if (now - entry.timestamp >= ENDPOINTS_CACHE_TTL_MS) {
+      endpointsCache.delete(key);
+    }
+  }
+}
+
+function getEndpointsCache(key, now = Date.now()) {
+  const cached = endpointsCache.get(key);
+  if (!cached) {
+    return null;
+  }
+  if (now - cached.timestamp >= ENDPOINTS_CACHE_TTL_MS) {
+    endpointsCache.delete(key);
+    return null;
+  }
+  // Refresh recency for LRU eviction order
+  endpointsCache.delete(key);
+  endpointsCache.set(key, cached);
+  return cached.data;
+}
+
+function setEndpointsCache(key, data, now = Date.now()) {
+  pruneExpiredEndpointsCache(now);
+  if (endpointsCache.has(key)) {
+    endpointsCache.delete(key);
+  } else if (endpointsCache.size >= MAX_ENDPOINTS_CACHE_SIZE) {
+    // Evict least recently used (oldest) entry
+    const oldestKey = endpointsCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      endpointsCache.delete(oldestKey);
+    }
+  }
+  endpointsCache.set(key, {
+    timestamp: now,
+    data: data
+  });
 }
 
 async function endpoints(filter, bypassCache = false) {
@@ -110,9 +151,9 @@ async function endpoints(filter, bypassCache = false) {
   const now = Date.now();
 
   if (!bypassCache) {
-    const cached = endpointsCache.get(normalizedFilter);
-    if (cached && (now - cached.timestamp < ENDPOINTS_CACHE_TTL_MS)) {
-      return cached.data;
+    const cachedData = getEndpointsCache(normalizedFilter, now);
+    if (cachedData) {
+      return cachedData;
     }
   }
 
@@ -161,10 +202,7 @@ async function endpoints(filter, bypassCache = false) {
     return 0;
   });
 
-  endpointsCache.set(normalizedFilter, {
-    timestamp: now,
-    data: sortedRows
-  });
+  setEndpointsCache(normalizedFilter, sortedRows, now);
 
   return sortedRows;
 }
@@ -191,6 +229,11 @@ async function getEndpoints(req, res, next) {
 module.exports.getEndpoints = getEndpoints;
 module.exports.endpoints = endpoints;
 module.exports.clearEndpointsCache = clearEndpointsCache;
+module.exports.pruneExpiredEndpointsCache = pruneExpiredEndpointsCache;
+module.exports.getEndpointsCache = getEndpointsCache;
+module.exports.setEndpointsCache = setEndpointsCache;
+module.exports.ENDPOINTS_CACHE_TTL_MS = ENDPOINTS_CACHE_TTL_MS;
+module.exports.MAX_ENDPOINTS_CACHE_SIZE = MAX_ENDPOINTS_CACHE_SIZE;
 module.exports.dbVersionCache = dbVersionCache;
 module.exports.endpointsCache = endpointsCache;
 

@@ -38,21 +38,37 @@ describe('Healthcheck and Controller Caching Tests', function () {
 
   describe('GET /healthz and /api/healthz', () => {
     it('GET /healthz should return 200 with status OK without querying database', (done) => {
+      let callCount = 0;
+      dbService.simpleExecute = async () => {
+        callCount++;
+        throw new Error('healthz queried the database');
+      };
+
       chai.request(app)
         .get('/healthz')
         .end((err, res) => {
+          expect(err).to.equal(null);
           expect(res).to.have.status(200);
           expect(res.body).to.deep.equal({ status: 'OK' });
+          expect(callCount).to.equal(0);
           done();
         });
     });
 
-    it('GET /api/healthz should return 200 with status OK', (done) => {
+    it('GET /api/healthz should return 200 with status OK without querying database', (done) => {
+      let callCount = 0;
+      dbService.simpleExecute = async () => {
+        callCount++;
+        throw new Error('healthz queried the database');
+      };
+
       chai.request(app)
         .get('/api/healthz')
         .end((err, res) => {
+          expect(err).to.equal(null);
           expect(res).to.have.status(200);
           expect(res.body).to.deep.equal({ status: 'OK' });
+          expect(callCount).to.equal(0);
           done();
         });
     });
@@ -153,6 +169,46 @@ describe('Healthcheck and Controller Caching Tests', function () {
       // Second run: should NOT re-query v$version because dbVersionCache is populated
       await controller.endpoints('*', false);
       expect(versionQueryCount).to.equal(initialVersionCount);
+    });
+
+    it('pruneExpiredEndpointsCache should remove expired entries', () => {
+      const now = Date.now();
+      const expiredTimestamp = now - (controller.ENDPOINTS_CACHE_TTL_MS + 1000);
+      const freshTimestamp = now - 1000;
+
+      controller.endpointsCache.set('EXPIRED_FILTER', { timestamp: expiredTimestamp, data: ['old'] });
+      controller.endpointsCache.set('FRESH_FILTER', { timestamp: freshTimestamp, data: ['fresh'] });
+
+      expect(controller.endpointsCache.size).to.equal(2);
+
+      controller.pruneExpiredEndpointsCache(now);
+
+      expect(controller.endpointsCache.size).to.equal(1);
+      expect(controller.endpointsCache.has('EXPIRED_FILTER')).to.be.false;
+      expect(controller.endpointsCache.has('FRESH_FILTER')).to.be.true;
+    });
+
+    it('setEndpointsCache should evict oldest (LRU) entry when exceeding max size', () => {
+      const now = Date.now();
+      const maxSize = controller.MAX_ENDPOINTS_CACHE_SIZE;
+
+      // Fill cache up to maxSize
+      for (let i = 0; i < maxSize; i++) {
+        controller.setEndpointsCache(`KEY_${i}`, [`data_${i}`], now + i);
+      }
+      expect(controller.endpointsCache.size).to.equal(maxSize);
+      expect(controller.endpointsCache.has('KEY_0')).to.be.true;
+
+      // Access KEY_0 via getEndpointsCache to mark it as recently used
+      const val0 = controller.getEndpointsCache('KEY_0', now + maxSize);
+      expect(val0).to.deep.equal(['data_0']);
+
+      // Adding a new key should evict KEY_1 (since KEY_0 was refreshed)
+      controller.setEndpointsCache('NEW_KEY', ['new_data'], now + maxSize + 1);
+      expect(controller.endpointsCache.size).to.equal(maxSize);
+      expect(controller.endpointsCache.has('NEW_KEY')).to.be.true;
+      expect(controller.endpointsCache.has('KEY_0')).to.be.true;
+      expect(controller.endpointsCache.has('KEY_1')).to.be.false;
     });
   });
 });
