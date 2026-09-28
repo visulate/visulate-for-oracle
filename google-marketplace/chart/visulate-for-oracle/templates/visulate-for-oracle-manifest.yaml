@@ -182,7 +182,7 @@ spec:
               value: "{{ .Values.apiServer.corsOriginWhitelist }}"
           livenessProbe:
             httpGet:
-              path: /endpoints/
+              path: /healthz
               port: {{ .Values.apiServer.port }}
             initialDelaySeconds: 180
             periodSeconds: 60

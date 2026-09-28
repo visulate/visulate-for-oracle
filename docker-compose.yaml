@@ -29,6 +29,11 @@ services:
       - TEST_DATA_GENERATOR_URL=http://ai-agent:10008/agent/generate
       - SCHEMA_COMPARISON_URL=http://ai-agent:10009/agent/generate
       - README_GENERATOR_URL=http://ai-agent:10010/agent/generate
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   visui:
     hostname: visui
     depends_on:
@@ -36,6 +41,11 @@ services:
     build: ./ui
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   vissql:
     hostname: vissql
     depends_on:
@@ -46,6 +56,11 @@ services:
     volumes:
       - ./query-engine/sql2csv/config:/query-engine/sql2csv/config
       - ./wallet:/opt/oracle/network/admin:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   ai-agent:
     hostname: ai-agent
     build: ./ai-agent
@@ -64,6 +79,11 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_AI_KEY}
       - GIT_REPOS_DIR=/app/repos
       - VISULATE_BASE=http://reverseproxy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import requests; requests.get('http://localhost:10000/openapi.json').raise_for_status()\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   visulate-downloads:

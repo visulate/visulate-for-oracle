@@ -290,7 +290,26 @@ async function filterInvalidEndpoints(dbConfig, timeoutMs = DEFAULT_CONNECT_TIME
     }
   }
 
-  dbConfig.endpoints = validEndpoints;
+  // Mutate in place so all existing module references get updated
+  if (Array.isArray(dbConfig.endpoints)) {
+    dbConfig.endpoints.length = 0;
+    dbConfig.endpoints.push(...validEndpoints);
+  } else {
+    dbConfig.endpoints = validEndpoints;
+  }
+
+  // Also update require.cache exports if an existing module holds a reference to a cached config object
+  if (require.cache[resolvedPath] && require.cache[resolvedPath].exports) {
+    const cachedExports = require.cache[resolvedPath].exports;
+    if (cachedExports !== dbConfig) {
+      if (Array.isArray(cachedExports.endpoints)) {
+        cachedExports.endpoints.length = 0;
+        cachedExports.endpoints.push(...validEndpoints);
+      } else {
+        cachedExports.endpoints = validEndpoints;
+      }
+    }
+  }
 
   // Update require.cache
   require.cache[resolvedPath] = {

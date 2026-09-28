@@ -57,6 +57,38 @@ info:
 servers:
   - url: 'http://localhost:3000'
 paths:
+  /healthz:
+    summary: Health check
+    get:
+      summary: Liveness and health check endpoint
+      description: Returns service status without querying registered databases.
+      responses:
+        200:
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+  /api/healthz:
+    summary: API Health check
+    get:
+      summary: Liveness and health check endpoint
+      description: Returns service status without querying registered databases.
+      responses:
+        200:
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
   /endpoints/:
     summary: Database endpoints
     get:
@@ -109,6 +141,13 @@ paths:
           schema:
             type: string
             example: dba_*
+        - in: query
+          name: refresh
+          description: Bypass cached endpoints and re-query the databases
+          required: false
+          schema:
+            type: boolean
+            example: true
       description: >-
         List each registered database along with a count of object types by
         schema
