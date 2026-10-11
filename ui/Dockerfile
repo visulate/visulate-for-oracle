@@ -20,7 +20,7 @@ WORKDIR /visulate-client
 # 2. Copy only the dependency files first.
 # This layer is cached separately so dependency installs are fast when only
 # source files change.
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 
 # 3. Install all dependencies (production and development)
 # Use 'npm install' rather than 'npm ci' to avoid strict lock file sync errors
