@@ -67,9 +67,6 @@ function getSqlRegistry(db) {
  */
 async function aiEnabled(req, res) {
   try {
-    if (!process.env.GOOGLE_AI_KEY && !process.env.GOOGLE_API_KEY) {
-      return res.status(200).json({ enabled: false });
-    }
     // Use configured URL or default to docker service name if not set
     const agentBaseUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate'; // Default for generation
     // Construct health URL based on base URL.
