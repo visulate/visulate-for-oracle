@@ -15,7 +15,11 @@ class TestDataGenerator:
     def __init__(self, api_server_url: str, session_id: str):
         self.api_server_url = api_server_url.rstrip('/')
         self.session_id = session_id
-        self.genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1"):
+            self.genai_client = genai.Client()
+        else:
+            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY")
+            self.genai_client = genai.Client(api_key=api_key) if api_key else genai.Client()
 
     def report_progress(self, message: str):
         """Send progress update to the context-local callback if available"""

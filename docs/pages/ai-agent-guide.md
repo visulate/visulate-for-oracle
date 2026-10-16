@@ -49,4 +49,4 @@ Visulate maintains conversational context. You can refer to previous answers:
 - *"Run that same query but filter for 'active' status only."*
 
 > [!TIP]
-> Always ensure your `GOOGLE_AI_KEY` is correctly configured in your [Quickstart](/pages/quickstart.html#enable-google-gemini-ai) setup to enable these features.
+> Ensure either `GOOGLE_AI_KEY` is configured in your [Quickstart](/pages/quickstart.html#enable-google-gemini-ai) setup (for AI Studio API keys) or deploy with **Google Cloud Vertex AI** using a dedicated Service Account for enterprise and Assured Workloads environments. See the [Vertex AI Deployment Guide](/pages/vertex-ai-deployment.html).

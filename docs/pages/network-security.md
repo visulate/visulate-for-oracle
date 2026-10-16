@@ -69,6 +69,9 @@ IAP allows you to manage access to Visulate using Google Cloud identities withou
    - Navigate to **Security > Identity-Aware Proxy**.
    - Select your Backend Service and add the **IAP-secured Web App User** role to authorized individuals or groups.
 
+> [!TIP]
+> For complete end-to-end `gcloud` and Terraform scripts that deploy the VM, Zonal NEG, Backend Service, Google-managed SSL Certificate, and IAP configuration together, see the [Vertex AI & IAP Deployment Guide](/pages/vertex-ai-deployment.html).
+
 ---
 
 ## TLS Certificates

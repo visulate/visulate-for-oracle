@@ -67,7 +67,15 @@ function getSqlRegistry(db) {
  */
 async function aiEnabled(req, res) {
   try {
-    if (!process.env.GOOGLE_AI_KEY && !process.env.GOOGLE_API_KEY) {
+    const hasApiKey = Boolean(process.env.GOOGLE_AI_KEY || process.env.GOOGLE_API_KEY);
+    const hasVertexAi = Boolean(
+      process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
+      process.env.GOOGLE_GENAI_USE_VERTEXAI === '1' ||
+      process.env.VERTEX_AI === 'true' ||
+      process.env.GOOGLE_CLOUD_PROJECT
+    );
+
+    if (!hasApiKey && !hasVertexAi) {
       return res.status(200).json({ enabled: false });
     }
     // Use configured URL or default to docker service name if not set
