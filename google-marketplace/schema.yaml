@@ -59,6 +59,7 @@ x-google-marketplace:
       v3.0.2 UI improvements, ADK memory implementation.
       v3.0.3 Container deployment fixes
       v3.0.4 Readme file generator, Application Workbench AI and heartbeat endpoint
+      v3.0.5 Support non-AI deployments and reverse proxy dynamic resolution
   images:
     '':
       properties:
