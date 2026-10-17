@@ -81,8 +81,11 @@ def create_generate_all_readmes_tool() -> FunctionTool:
             if not repo_path or not os.path.exists(repo_path):
                 return f"Error: Repository workspace '{project_id}' not found. Please select a Git repository in the Application Workbench."
 
-            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY")
-            client = genai.Client(api_key=api_key) if api_key else None
+            if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1"):
+                client = genai.Client()
+            else:
+                api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY")
+                client = genai.Client(api_key=api_key) if api_key else None
 
             result = await run_bottom_up_readme_generation(
                 repo_path=repo_path,
@@ -147,8 +150,11 @@ def create_validate_directory_tool() -> FunctionTool:
             if not repo_path or not os.path.exists(repo_path):
                 return f"Error: Repository workspace '{project_id}' not found."
 
-            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY")
-            client = genai.Client(api_key=api_key) if api_key else None
+            if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1"):
+                client = genai.Client()
+            else:
+                api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY")
+                client = genai.Client(api_key=api_key) if api_key else None
 
             # Get directory info
             dirs = build_directory_tree_bottom_up(repo_path, target_subpath=directory)

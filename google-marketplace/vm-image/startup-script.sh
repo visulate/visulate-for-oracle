@@ -111,6 +111,10 @@ services:
       - ./repos:/app/repos
     environment:
       - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
+      - GOOGLE_API_KEY=\${GOOGLE_API_KEY:-\${GOOGLE_AI_KEY}}
+      - GOOGLE_GENAI_USE_VERTEXAI=\${GOOGLE_GENAI_USE_VERTEXAI:-false}
+      - GOOGLE_CLOUD_PROJECT=\${GOOGLE_CLOUD_PROJECT}
+      - GOOGLE_CLOUD_LOCATION=\${GOOGLE_CLOUD_LOCATION:-us-central1}
       - CORS_ORIGIN_WHITELIST=\${CORS_ORIGIN_WHITELIST}
       - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
       - COMMENT_GENERATOR_URL=http://ai-agent:10003/agent/generate
@@ -179,7 +183,11 @@ services:
       - ./repos:/app/repos
     environment:
       - GOOGLE_AI_KEY=\${GOOGLE_AI_KEY}
-      - GOOGLE_API_KEY=\${GOOGLE_AI_KEY}
+      - GOOGLE_API_KEY=\${GOOGLE_API_KEY:-\${GOOGLE_AI_KEY}}
+      - GOOGLE_GENAI_USE_VERTEXAI=\${GOOGLE_GENAI_USE_VERTEXAI:-false}
+      - GOOGLE_CLOUD_PROJECT=\${GOOGLE_CLOUD_PROJECT}
+      - GOOGLE_CLOUD_LOCATION=\${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=\${GOOGLE_APPLICATION_CREDENTIALS}
       - GIT_REPOS_DIR=/app/repos
       - GIT_MODE=local
       - VISULATE_BASE=http://reverseproxy
@@ -215,6 +223,10 @@ docker run --rm \
   -w="$PWD" \
   -e GOOGLE_AI_KEY \
   -e GOOGLE_API_KEY \
+  -e GOOGLE_GENAI_USE_VERTEXAI \
+  -e GOOGLE_CLOUD_PROJECT \
+  -e GOOGLE_CLOUD_LOCATION \
+  -e GOOGLE_APPLICATION_CREDENTIALS \
   docker/compose:latest "$@"
 SCRIPT
   chmod +x /home/visulate/docker-compose.sh

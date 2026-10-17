@@ -249,6 +249,9 @@ A curl command appears below the results. Cut and paste this into a console wind
     docker-compose up -d
     ```
 
+> [!NOTE]
+> **Enterprise & Assured Workloads (Vertex AI)**: If deploying in an Assured Workloads project or enterprise Google Cloud environment that requires IAM service account authorization and regional data residency instead of API keys, follow the [Vertex AI Deployment Guide](/pages/vertex-ai-deployment.html).
+
 
 4. Navigate to a database table screen and start asking questions
 

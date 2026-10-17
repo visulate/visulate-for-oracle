@@ -12,7 +12,7 @@ class CredentialManager:
     """Manages retrieval of database credentials from GCP Secret Manager or .env."""
 
     def __init__(self):
-        self.gcp_project = os.getenv("GCP_PROJECT_ID")
+        self.gcp_project = os.getenv("GCP_PROJECT_ID") or os.getenv("GOOGLE_CLOUD_PROJECT")
         self.secret_client = None
         if self.gcp_project:
             try:
