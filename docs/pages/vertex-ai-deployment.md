@@ -28,7 +28,7 @@ While development and evaluation environments typically use lightweight **Google
 |        |                                                                        |
 |        v (HTTPS:443 with Google-managed Certificate)                            |
 |  [ Cloud External Application Load Balancer ]                                   |
-|        |                                                                        |
+|        | (Session Affinity: GENERATED_COOKIE)                                   |
 |        v                                                                        |
 |  [ Identity-Aware Proxy (IAP) ]  <--- Google Identity / IAM Group Policy        |
 |        |                                                                        |
@@ -64,7 +64,7 @@ Visulate automatically activates Vertex AI mode when the following environment v
 | `GOOGLE_GENAI_USE_VERTEXAI` | Tells the Google GenAI SDK and ADK to target Vertex AI instead of Google AI Studio. | `true` |
 | `GOOGLE_CLOUD_PROJECT` | The Google Cloud Project ID where Vertex AI is enabled. | `my-assured-project-id` |
 | `GOOGLE_CLOUD_LOCATION` | The region where model inference runs. Must match the Assured Workload boundary. | `us-central1` or `us-east4` |
-| `GOOGLE_APPLICATION_CREDENTIALS` | *(Optional)* Path to a service account JSON file if running outside GCP. On GCE, leave blank to use the attached VM service account. | *(None)* |
+| `GOOGLE_APPLICATION_CREDENTIALS` | *(Optional)* Path to a service account JSON file if running outside GCP. On GCE, leave unset so ADC automatically discovers the VM service account via the metadata server. | *(Unset)* |
 
 When `GOOGLE_GENAI_USE_VERTEXAI=true` is set:
 - The AI Agent container automatically acquires short-lived OAuth 2.0 access tokens from the GCE metadata server (`http://169.254.169.254`).
@@ -170,9 +170,133 @@ gcloud compute firewall-rules create allow-iap-ssh \
     --target-tags=visulate-server
 ```
 
-### Step 6: Deploy the Visulate VM
-Deploy the VM with the dedicated service account and no external IP:
+### Step 6: Deploy and Bootstrap the Visulate VM
+Deploy the VM with the dedicated service account and no external IP. 
+
+To ensure Visulate starts automatically and responds on port 80 for the load balancer health check, pass a startup script that installs Docker, configures the services, and runs `docker compose`:
+
 ```bash
+# Create local bootstrap startup script
+cat << 'BOOTSTRAP' > startup.sh
+#!/bin/bash
+set -e
+
+# 1. Install Docker & Compose plugin
+apt-get update
+apt-get install -y ca-certificates curl gnupg
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+systemctl enable --now docker
+
+# 2. Create Visulate directory structure
+mkdir -p /home/visulate/config /home/visulate/downloads /home/visulate/repos /home/visulate/wallet
+chmod -R 777 /home/visulate/downloads /home/visulate/repos
+
+# 3. Create default database configuration files
+cat << 'EOF' > /home/visulate/config/database.js
+const endpoints = [];
+module.exports.endpoints = endpoints;
+EOF
+
+cat << 'EOF' > /home/visulate/config/endpoints.json
+{}
+EOF
+
+# 4. Create docker-compose.yaml
+IMAGE_REPO="gcr.io/visulate-llc-public"
+VERSION="3.0"
+
+cat << EOF > /home/visulate/docker-compose.yaml
+version: "3.8"
+services:
+  reverseproxy:
+    image: \${IMAGE_REPO}/visulate-for-oracle/proxy:\${VERSION}
+    container_name: reverseproxy
+    ports:
+      - 80:80
+    networks:
+      - visulate_network
+
+  visapi:
+    image: \${IMAGE_REPO}/visulate-for-oracle:\${VERSION}
+    container_name: visapi
+    hostname: visapi
+    depends_on:
+      - reverseproxy
+    expose:
+      - "3000"
+    volumes:
+      - /home/visulate/config:/visulate-server/config
+      - /home/visulate/downloads:/visulate-server/downloads
+      - /home/visulate/repos:/app/repos
+    environment:
+      - GOOGLE_GENAI_USE_VERTEXAI=\${GOOGLE_GENAI_USE_VERTEXAI:-false}
+      - GOOGLE_CLOUD_PROJECT=\${GOOGLE_CLOUD_PROJECT}
+      - GOOGLE_CLOUD_LOCATION=\${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - CORS_ORIGIN_WHITELIST=\${CORS_ORIGIN_WHITELIST}
+      - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
+    networks:
+      - visulate_network
+
+  visui:
+    image: \${IMAGE_REPO}/visulate-for-oracle/ui:\${VERSION}
+    container_name: visui
+    hostname: visui
+    depends_on:
+      - reverseproxy
+    expose:
+      - "80"
+    networks:
+      - visulate_network
+
+  vissql:
+    image: \${IMAGE_REPO}/visulate-for-oracle/sql:\${VERSION}
+    container_name: vissql
+    hostname: vissql
+    depends_on:
+      - reverseproxy
+    expose:
+      - "5000"
+    volumes:
+      - /home/visulate/config:/query-engine/sql2csv/config
+    networks:
+      - visulate_network
+
+  ai-agent:
+    image: \${IMAGE_REPO}/visulate-for-oracle/ai-agent:\${VERSION}
+    container_name: ai-agent
+    hostname: ai-agent
+    depends_on:
+      - reverseproxy
+      - vissql
+      - visapi
+    expose:
+      - "10000-10010"
+    volumes:
+      - /home/visulate/downloads:/app/downloads
+      - /home/visulate/repos:/app/repos
+    environment:
+      - GOOGLE_GENAI_USE_VERTEXAI=\${GOOGLE_GENAI_USE_VERTEXAI:-false}
+      - GOOGLE_CLOUD_PROJECT=\${GOOGLE_CLOUD_PROJECT}
+      - GOOGLE_CLOUD_LOCATION=\${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - VISULATE_BASE=http://reverseproxy
+    networks:
+      - visulate_network
+
+networks:
+  visulate_network:
+EOF
+
+# 5. Start Visulate
+cd /home/visulate
+docker compose up -d
+BOOTSTRAP
+
+# Create VM with attached bootstrap startup script
 gcloud compute instances create ${VM_NAME} \
     --zone=${ZONE} \
     --machine-type=e2-standard-4 \
@@ -183,7 +307,8 @@ gcloud compute instances create ${VM_NAME} \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
     --image-family=debian-12 \
     --image-project=debian-cloud \
-    --boot-disk-size=50GB
+    --boot-disk-size=50GB \
+    --metadata-from-file=startup-script=startup.sh
 ```
 
 ### Step 7: Configure Vertex AI on the VM
@@ -192,18 +317,21 @@ Connect to the VM via IAP SSH:
 gcloud compute ssh ${VM_NAME} --zone=${ZONE} --tunnel-through-iap
 ```
 
-Create `/home/visulate/.env` with your Vertex AI configuration:
+In the interactive SSH session, export the project and location chosen in Step 1, write them to `/home/visulate/.env`, and recreate the containers:
 ```bash
+# Define variables inside the remote SSH session
+export PROJECT_ID="my-assured-project"
+export REGION="us-central1"
+
 sudo tee -a /home/visulate/.env << EOF
 GOOGLE_GENAI_USE_VERTEXAI=true
 GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
 GOOGLE_CLOUD_LOCATION=${REGION}
 EOF
 
-# Restart Visulate to apply
+# Recreate containers to apply the updated environment variables
 cd /home/visulate
-docker-compose down
-docker-compose up -d
+sudo docker compose up -d --force-recreate ai-agent visapi
 ```
 
 ### Step 8: Set Up Cloud Load Balancer with IAP
@@ -228,15 +356,17 @@ docker-compose up -d
        --port=80 \
        --request-path=/
 
-   # Create backend service with CDN disabled (required for IAP)
+   # Create backend service with session affinity and CDN disabled (required for IAP)
    gcloud compute backend-services create visulate-backend-service \
        --load-balancing-scheme=EXTERNAL \
        --protocol=HTTP \
        --health-checks=visulate-health-check \
+       --session-affinity=GENERATED_COOKIE \
+       --affinity-cookie-ttl=86400 \
        --global \
        --no-enable-cdn
 
-   # Add the Zonal NEG backend
+   # Add the Zonal NEG backend with RATE balancing mode
    gcloud compute backend-services add-backend visulate-backend-service \
        --network-endpoint-group=visulate-neg \
        --network-endpoint-group-zone=${ZONE} \
@@ -304,7 +434,7 @@ docker-compose up -d
 
 ## 4. Infrastructure as Code (Terraform)
 
-Below is a complete Terraform module deploying the secure architecture with a dedicated service account, Vertex AI permissions, and Identity-Aware Proxy.
+Below is a complete Terraform module deploying the secure architecture with a dedicated service account, Vertex AI permissions, VM bootstrap, and Identity-Aware Proxy.
 
 ### `main.tf`
 
@@ -371,7 +501,7 @@ resource "google_compute_subnetwork" "subnet" {
   private_ip_google_access = true
 }
 
-# 4. Cloud Router & NAT (Outbound access for updates)
+# 4. Cloud Router & NAT (Outbound access for updates and container pulls)
 resource "google_compute_router" "router" {
   name    = "visulate-router"
   region  = var.region
@@ -413,7 +543,7 @@ resource "google_compute_firewall" "allow_iap_ssh" {
   target_tags   = ["visulate-node"]
 }
 
-# 6. Compute Engine Instance
+# 6. Compute Engine Instance with Visulate Bootstrap
 resource "google_compute_instance" "visulate_vm" {
   name         = "visulate-vm"
   machine_type = "e2-standard-4"
@@ -440,12 +570,105 @@ resource "google_compute_instance" "visulate_vm" {
 
   metadata_startup_script = <<-EOT
     #!/bin/bash
-    mkdir -p /home/visulate
-    cat << 'ENV' > /home/visulate/.env
+    set -e
+
+    # 1. Install Docker & Compose plugin
+    apt-get update
+    apt-get install -y ca-certificates curl gnupg
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt-get update
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    systemctl enable --now docker
+
+    # 2. Directory structure
+    mkdir -p /home/visulate/config /home/visulate/downloads /home/visulate/repos /home/visulate/wallet
+    chmod -R 777 /home/visulate/downloads /home/visulate/repos
+
+    cat << 'CFG' > /home/visulate/config/database.js
+    const endpoints = [];
+    module.exports.endpoints = endpoints;
+    CFG
+
+    cat << 'CFG' > /home/visulate/config/endpoints.json
+    {}
+    CFG
+
+    # 3. Environment settings
+    cat << ENV > /home/visulate/.env
     GOOGLE_GENAI_USE_VERTEXAI=true
     GOOGLE_CLOUD_PROJECT=${var.project_id}
     GOOGLE_CLOUD_LOCATION=${var.region}
     ENV
+
+    # 4. Compose stack
+    cat << 'COMPOSE' > /home/visulate/docker-compose.yaml
+    version: "3.8"
+    services:
+      reverseproxy:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle/proxy:3.0
+        ports:
+          - 80:80
+        networks:
+          - visulate_net
+
+      visapi:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle:3.0
+        depends_on:
+          - reverseproxy
+        volumes:
+          - /home/visulate/config:/visulate-server/config
+          - /home/visulate/downloads:/visulate-server/downloads
+          - /home/visulate/repos:/app/repos
+        environment:
+          - GOOGLE_GENAI_USE_VERTEXAI=true
+          - GOOGLE_CLOUD_PROJECT=${var.project_id}
+          - GOOGLE_CLOUD_LOCATION=${var.region}
+          - VISULATE_AGENT_URL=http://ai-agent:10000/agent/generate
+        networks:
+          - visulate_net
+
+      visui:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle/ui:3.0
+        depends_on:
+          - reverseproxy
+        networks:
+          - visulate_net
+
+      vissql:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle/sql:3.0
+        depends_on:
+          - reverseproxy
+        volumes:
+          - /home/visulate/config:/query-engine/sql2csv/config
+        networks:
+          - visulate_net
+
+      ai-agent:
+        image: gcr.io/visulate-llc-public/visulate-for-oracle/ai-agent:3.0
+        depends_on:
+          - reverseproxy
+          - vissql
+          - visapi
+        volumes:
+          - /home/visulate/downloads:/app/downloads
+          - /home/visulate/repos:/app/repos
+        environment:
+          - GOOGLE_GENAI_USE_VERTEXAI=true
+          - GOOGLE_CLOUD_PROJECT=${var.project_id}
+          - GOOGLE_CLOUD_LOCATION=${var.region}
+          - VISULATE_BASE=http://reverseproxy
+        networks:
+          - visulate_net
+
+    networks:
+      visulate_net:
+    COMPOSE
+
+    cd /home/visulate
+    docker compose up -d
   EOT
 }
 
@@ -487,9 +710,13 @@ resource "google_compute_backend_service" "visulate_backend" {
   enable_cdn            = false
   health_checks         = [google_compute_health_check.http.id]
   load_balancing_scheme = "EXTERNAL"
+  session_affinity      = "GENERATED_COOKIE"
+  affinity_cookie_ttl_sec = 86400
 
   backend {
-    group = google_compute_network_endpoint_group.visulate_neg.id
+    group                 = google_compute_network_endpoint_group.visulate_neg.id
+    balancing_mode        = "RATE"
+    max_rate_per_endpoint = 100
   }
 
   iap {
@@ -615,4 +842,33 @@ Ensure `GOOGLE_CLOUD_LOCATION` in `/home/visulate/.env` is set to an allowed reg
 ```text
 google.api_core.exceptions.FailedPrecondition: 400 Location not allowed by organization policy constraints/gcp.resourceLocations
 ```
-Adjust `GOOGLE_CLOUD_LOCATION` in `/home/visulate/.env` and restart containers (`docker-compose restart ai-agent visapi`) to resolve.
+Adjust `GOOGLE_CLOUD_LOCATION` in `/home/visulate/.env` and recreate the affected containers to apply the updated environment:
+```bash
+sudo docker compose up -d --force-recreate ai-agent visapi
+```
+
+---
+
+## 6. Multi-Instance Load Balancing & High Availability
+
+If scaling Visulate across multiple VM instances behind the Cloud Load Balancer, consider the following operational requirements:
+
+### 1. Session Affinity (`GENERATED_COOKIE`)
+Visulate maintains conversational and security state locally on each instance:
+- **AI Agent Sessions (`sessions.db`)**: Google ADK uses `DatabaseSessionService` backed by a local SQLite database (`sessions.db`) inside the `ai-agent` container to preserve conversation history, multi-turn reasoning, and task resumption markers across requests.
+- **SQL Query Engine Credentials**: The `vissql` container issues temporary, in-memory credential tokens tied to the browser's `session_id`. If a subsequent query routes to a different VM, the token will not be found in memory.
+
+**Requirement**: Configure **Cookie-based Session Affinity** on the Cloud Load Balancer backend service:
+```hcl
+session_affinity        = "GENERATED_COOKIE"
+affinity_cookie_ttl_sec = 86400 # 1 day
+```
+This sets a `GCLB` cookie in the client browser, pinning all subsequent requests from that user to the same VM instance.
+
+### 2. Database Connection Pools
+Each Visulate instance runs an independent connection pool manager via `node-oracledb` in `visapi` and `vissql`:
+- **Identical Configuration**: `/home/visulate/config/database.js`, `/home/visulate/config/endpoints.json`, and `/home/visulate/wallet` must be identical across all VMs.
+- **Listener & Database Sizing**: Each instance opens its own connection pool to registered databases. If a database endpoint specifies `poolMax: 10`, deploying 3 load-balanced Visulate VMs will consume up to 30 simultaneous database connections. Ensure your Oracle / PostgreSQL listener and `PROCESSES` parameter can accommodate `(number of instances) * poolMax`.
+
+### 3. Shared Workspace Filesystem (Filestore)
+In single-instance deployments, user repositories and generated files reside in `/home/visulate/repos` and `/home/visulate/downloads`. In a multi-instance topology where users might establish new sessions across different VMs, mount a shared NFS volume (such as **Google Cloud Filestore**) at `/home/visulate/repos` and `/home/visulate/downloads` on each VM so cloned repositories, OKF architectural memories, and generated DDL/CSV artifacts remain accessible regardless of which instance serves the session.

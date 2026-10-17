@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Leave ADC free to discover credentials when no file is configured.
+if [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
+    unset GOOGLE_APPLICATION_CREDENTIALS
+fi
+
 # Check if Vertex AI is enabled via environment variables
 IS_VERTEX=false
 if [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "1" ] || [ "$VERTEX_AI" = "true" ] || [ -n "$GOOGLE_CLOUD_PROJECT" ]; then

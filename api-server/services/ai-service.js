@@ -75,7 +75,7 @@ async function aiEnabled(req, res) {
       process.env.GOOGLE_CLOUD_PROJECT
     );
 
-    if (!hasApiKey && !hasVertexAi) {
+    if (!hasApiKey && !hasVertexAi && !process.env.VISULATE_AGENT_URL) {
       return res.status(200).json({ enabled: false });
     }
     // Use configured URL or default to docker service name if not set
