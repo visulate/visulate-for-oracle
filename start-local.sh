@@ -8,8 +8,12 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-if [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "1" ] || [ -n "$GOOGLE_CLOUD_PROJECT" ]; then
+if [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "1" ] || [ "$VERTEX_AI" = "true" ]; then
     echo "Vertex AI check: Using Vertex AI with project: ${GOOGLE_CLOUD_PROJECT:-auto-detect} location: ${GOOGLE_CLOUD_LOCATION:-us-central1}"
+    export GOOGLE_GENAI_USE_VERTEXAI=true
+    export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-us-central1}"
+elif [ "$GOOGLE_GENAI_USE_VERTEXAI" != "false" ] && [ -n "$GOOGLE_CLOUD_PROJECT" ] && [ -z "$GOOGLE_AI_KEY" ]; then
+    echo "Vertex AI check: Using Vertex AI with project: ${GOOGLE_CLOUD_PROJECT} location: ${GOOGLE_CLOUD_LOCATION:-us-central1}"
     export GOOGLE_GENAI_USE_VERTEXAI=true
     export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-us-central1}"
 elif [ -z "$GOOGLE_AI_KEY" ]; then

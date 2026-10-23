@@ -354,7 +354,7 @@ sudo docker compose up -d --force-recreate ai-agent visapi
    # Health check targets the reverseproxy / healthz endpoint
    gcloud compute health-checks create http visulate-health-check \
        --port=80 \
-       --request-path=/
+       --request-path=/healthz
 
    # Create backend service with session affinity and CDN disabled (required for IAP)
    gcloud compute backend-services create visulate-backend-service \
@@ -698,7 +698,7 @@ resource "google_compute_health_check" "http" {
 
   http_health_check {
     port         = 80
-    request_path = "/"
+    request_path = "/healthz"
   }
 }
 

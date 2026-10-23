@@ -68,11 +68,12 @@ function getSqlRegistry(db) {
 async function aiEnabled(req, res) {
   try {
     const hasApiKey = Boolean(process.env.GOOGLE_AI_KEY || process.env.GOOGLE_API_KEY);
+    const useVertex = String(process.env.GOOGLE_GENAI_USE_VERTEXAI || '').toLowerCase();
     const hasVertexAi = Boolean(
-      process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' ||
-      process.env.GOOGLE_GENAI_USE_VERTEXAI === '1' ||
+      useVertex === 'true' ||
+      useVertex === '1' ||
       process.env.VERTEX_AI === 'true' ||
-      process.env.GOOGLE_CLOUD_PROJECT
+      (useVertex !== 'false' && process.env.GOOGLE_CLOUD_PROJECT && !hasApiKey)
     );
 
     if (!hasApiKey && !hasVertexAi && !process.env.VISULATE_AGENT_URL) {

@@ -82,3 +82,21 @@ async def test_generate_table_data_prompt_pdb(generator):
             prompt = mock_gen.call_args[1]["contents"]
             assert "ORGANIZATION EXTERNAL" in prompt
             assert "table1.dat" in prompt # Verify lowercase filename in PDB syntax
+
+def test_test_data_generator_init_vertexai():
+    import os
+    with patch.dict(os.environ, {
+        "GOOGLE_GENAI_USE_VERTEXAI": "true",
+        "GOOGLE_CLOUD_PROJECT": "test-project",
+        "GOOGLE_CLOUD_LOCATION": "us-central1"
+    }, clear=True):
+        with patch("test_data_generator.generator.genai.Client") as mock_genai:
+            gen = TestDataGenerator("http://api-server", "test-session")
+            mock_genai.assert_called_once_with()
+
+def test_test_data_generator_init_api_key():
+    import os
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-api-key"}, clear=True):
+        with patch("test_data_generator.generator.genai.Client") as mock_genai:
+            gen = TestDataGenerator("http://api-server", "test-session")
+            mock_genai.assert_called_once_with(api_key="test-api-key")

@@ -18,8 +18,8 @@ class TestDataGenerator:
         if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1"):
             self.genai_client = genai.Client()
         else:
-            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY")
-            self.genai_client = genai.Client(api_key=api_key) if api_key else genai.Client()
+            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY") or os.getenv("GEMINI_API_KEY")
+            self.genai_client = genai.Client(api_key=api_key) if api_key else None
 
     def report_progress(self, message: str):
         """Send progress update to the context-local callback if available"""
@@ -124,6 +124,8 @@ class TestDataGenerator:
         """
 
         try:
+            if not self.genai_client:
+                raise ValueError("GenAI client not initialized. Ensure GOOGLE_GENAI_USE_VERTEXAI=true or GOOGLE_API_KEY is configured.")
             def do_generate():
                 return self.genai_client.models.generate_content(
                     model="gemini-flash-latest",

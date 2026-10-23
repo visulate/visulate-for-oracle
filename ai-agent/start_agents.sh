@@ -5,9 +5,13 @@ if [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
     unset GOOGLE_APPLICATION_CREDENTIALS
 fi
 
-# Check if Vertex AI is enabled via environment variables
+# Check if Vertex AI is enabled via environment variables.
+# Do not enable Vertex AI if GOOGLE_GENAI_USE_VERTEXAI is explicitly set to false.
 IS_VERTEX=false
-if [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "1" ] || [ "$VERTEX_AI" = "true" ] || [ -n "$GOOGLE_CLOUD_PROJECT" ]; then
+if [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "1" ] || [ "$VERTEX_AI" = "true" ]; then
+    IS_VERTEX=true
+    export GOOGLE_GENAI_USE_VERTEXAI=true
+elif [ "$GOOGLE_GENAI_USE_VERTEXAI" != "false" ] && [ -n "$GOOGLE_CLOUD_PROJECT" ] && [ -z "$GOOGLE_API_KEY" ] && [ -z "$GOOGLE_AI_KEY" ]; then
     IS_VERTEX=true
     export GOOGLE_GENAI_USE_VERTEXAI=true
 fi
