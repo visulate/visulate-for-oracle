@@ -156,8 +156,12 @@ class CommentGenerator:
         self.schema_input = schema
         self.schema = schema
         self.username = username
+        if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1"):
+            self.genai_client = genai.Client()
+        else:
+            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_KEY") or os.getenv("GEMINI_API_KEY")
+            self.genai_client = genai.Client(api_key=api_key) if api_key else None
         self.credential_token = credential_token
-        self.genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.session_id = session_id
         self.db_type = "oracle" 
 
@@ -322,6 +326,8 @@ class CommentGenerator:
         """
 
         try:
+            if not self.genai_client:
+                raise ValueError("GenAI client not initialized. Ensure GOOGLE_GENAI_USE_VERTEXAI=true or GOOGLE_API_KEY is configured.")
             import asyncio
             def do_generate():
                 return self.genai_client.models.generate_content(

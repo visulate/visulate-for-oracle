@@ -8,7 +8,15 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-if [ -z "$GOOGLE_AI_KEY" ]; then
+if [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "1" ] || [ "$VERTEX_AI" = "true" ]; then
+    echo "Vertex AI check: Using Vertex AI with project: ${GOOGLE_CLOUD_PROJECT:-auto-detect} location: ${GOOGLE_CLOUD_LOCATION:-us-central1}"
+    export GOOGLE_GENAI_USE_VERTEXAI=true
+    export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-us-central1}"
+elif [ "$GOOGLE_GENAI_USE_VERTEXAI" != "false" ] && [ -n "$GOOGLE_CLOUD_PROJECT" ] && [ -z "$GOOGLE_AI_KEY" ]; then
+    echo "Vertex AI check: Using Vertex AI with project: ${GOOGLE_CLOUD_PROJECT} location: ${GOOGLE_CLOUD_LOCATION:-us-central1}"
+    export GOOGLE_GENAI_USE_VERTEXAI=true
+    export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-us-central1}"
+elif [ -z "$GOOGLE_AI_KEY" ]; then
     echo "GOOGLE_AI_KEY check: Not found in environment."
     read -p "Enter your Google AI Key or press Enter to skip AI: " INPUT_KEY
     if [ -z "$INPUT_KEY" ]; then
@@ -173,8 +181,10 @@ echo "Starting Query Engine..."
 ) &
 QUERY_PID=$!
 
-if [ ! -z "$GOOGLE_AI_KEY" ]; then
-    export GOOGLE_API_KEY="${GOOGLE_AI_KEY}"
+if [ ! -z "$GOOGLE_AI_KEY" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ]; then
+    if [ ! -z "$GOOGLE_AI_KEY" ]; then
+        export GOOGLE_API_KEY="${GOOGLE_AI_KEY}"
+    fi
     echo "Starting Agents..."
     (
         cd ai-agent
@@ -200,7 +210,7 @@ fi
 echo "Services started."
 echo "API Server: http://localhost:3000"
 echo "Query Engine: http://localhost:5000"
-if [ ! -z "$GOOGLE_AI_KEY" ]; then
+if [ ! -z "$GOOGLE_AI_KEY" ] || [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ]; then
     echo "Agents: ports 10000-10010"
 fi
 echo "Press Ctrl+C to stop all services."

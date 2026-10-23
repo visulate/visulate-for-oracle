@@ -67,6 +67,18 @@ function getSqlRegistry(db) {
  */
 async function aiEnabled(req, res) {
   try {
+    const hasApiKey = Boolean(process.env.GOOGLE_AI_KEY || process.env.GOOGLE_API_KEY);
+    const useVertex = String(process.env.GOOGLE_GENAI_USE_VERTEXAI || '').toLowerCase();
+    const hasVertexAi = Boolean(
+      useVertex === 'true' ||
+      useVertex === '1' ||
+      process.env.VERTEX_AI === 'true' ||
+      (useVertex !== 'false' && process.env.GOOGLE_CLOUD_PROJECT && !hasApiKey)
+    );
+
+    if (!hasApiKey && !hasVertexAi && !process.env.VISULATE_AGENT_URL) {
+      return res.status(200).json({ enabled: false });
+    }
     // Use configured URL or default to docker service name if not set
     const agentBaseUrl = process.env.VISULATE_AGENT_URL || 'http://ai-agent:10000/agent/generate'; // Default for generation
     // Construct health URL based on base URL.

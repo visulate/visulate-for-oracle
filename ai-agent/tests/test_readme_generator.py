@@ -318,3 +318,25 @@ def test_child_links_point_to_readme_and_notes_untruncated(temp_repo):
     assert long_notes in content
     assert "..." not in content.split("### Preserved Architectural Notes")[1]
 
+
+@pytest.mark.asyncio
+async def test_readme_generator_vertexai_client_init(temp_repo):
+    from readme_generator.agent import create_generate_all_readmes_tool
+    tool = create_generate_all_readmes_tool()
+    with patch.dict(os.environ, {
+        "GOOGLE_GENAI_USE_VERTEXAI": "true",
+        "GOOGLE_CLOUD_PROJECT": "test-project",
+        "GOOGLE_CLOUD_LOCATION": "us-central1"
+    }, clear=True):
+        with patch("readme_generator.agent.genai.Client") as mock_genai:
+            with patch("readme_generator.agent.resolve_repo_path", return_value=temp_repo):
+                with patch("readme_generator.agent.run_bottom_up_readme_generation") as mock_run:
+                    mock_run.return_value = {
+                        "processed_count": 0,
+                        "created": [],
+                        "updated": [],
+                        "details": []
+                    }
+                    await tool.run_async(args={"project_id": "test-proj", "endpoint": "pdb21"})
+                    mock_genai.assert_called_once_with()
+

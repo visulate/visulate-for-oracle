@@ -27,8 +27,29 @@ async def test_comment_generator_init_fix():
 
             assert generator.database == "pdb23"
             assert generator.schema == "RNTMGR2"
-            # Verify it didn't crash and tried to initialize genai.Client with correct key
             mock_genai.assert_called_with(api_key="test-key-123")
+
+@pytest.mark.asyncio
+async def test_comment_generator_init_vertexai():
+    """Test CommentGenerator initialization when Vertex AI is enabled."""
+    api_tools = MagicMock(spec=McpToolset)
+    qe_tools = MagicMock(spec=McpToolset)
+    client = MCPClient(api_tools, qe_tools, session_id="test-session")
+
+    with patch.dict(os.environ, {
+        "GOOGLE_GENAI_USE_VERTEXAI": "true",
+        "GOOGLE_CLOUD_PROJECT": "test-project",
+        "GOOGLE_CLOUD_LOCATION": "us-central1"
+    }, clear=True):
+        with patch("google.genai.Client") as mock_genai:
+            generator = CommentGenerator(
+                mcp_client=client,
+                database="pdb23",
+                schema="RNTMGR2"
+            )
+            assert generator.database == "pdb23"
+            assert generator.schema == "RNTMGR2"
+            mock_genai.assert_called_with()
 
 @pytest.mark.asyncio
 async def test_mcp_client_call_api_server_tool_unwrapping():
