@@ -17,6 +17,9 @@
             "allowedCommonJsDependencies": [
               "highlight.js"
             ],
+            "externalDependencies": [
+              "marked-katex-extension"
+            ],
             "outputPath": {
               "base": "dist/client"
             },
