@@ -422,6 +422,78 @@ export class RestService {
     });
   }
 
+  getGitStatus$(projectId: string): Observable<any> {
+    return this.http.get<any>(`${environment.apiBase}/git/status`, {
+      headers: this.getGitHeaders(),
+      params: { projectId }
+    });
+  }
+
+  commitGitChanges$(projectId: string, payload: { commitMessage: string; files?: string[]; stageAll?: boolean; branchName?: string }): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/commit`, { projectId, ...payload }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  pushGitChanges$(projectId: string, payload: { remote?: string; branchName?: string; setUpstream?: boolean } = {}): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/push`, { projectId, ...payload }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  getGitRemotes$(projectId: string): Observable<{ projectId: string; remotes: Array<{ name: string; url: string }> }> {
+    return this.http.get<{ projectId: string; remotes: Array<{ name: string; url: string }> }>(`${environment.apiBase}/git/remotes`, {
+      headers: this.getGitHeaders(),
+      params: { projectId }
+    });
+  }
+
+  setGitRemote$(projectId: string, url: string, name: string = 'origin'): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/remote`, { projectId, name, url }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  discardGitFile$(projectId: string, filePath: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/discard`, { projectId, filePath }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  copyGitArtifact$(payload: { sourceRepo: string; sourcePath: string; targetRepo: string; targetPath: string; overwrite?: boolean }): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/copy`, payload, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  getGitAssociations$(): Observable<{ version: number; links: Array<{ db: string; repo: string; role: string }> }> {
+    return this.http.get<{ version: number; links: Array<{ db: string; repo: string; role: string }> }>(`${environment.apiBase}/git/associations`, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  saveGitAssociation$(db: string, repo: string, role: string = 'app'): Observable<{ version: number; links: Array<{ db: string; repo: string; role: string }> }> {
+    return this.http.post<{ version: number; links: Array<{ db: string; repo: string; role: string }> }>(`${environment.apiBase}/git/associations`, { db, repo, role }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  deleteGitAssociation$(db: string, repo: string): Observable<{ version: number; links: Array<{ db: string; repo: string; role: string }> }> {
+    return this.http.delete<{ version: number; links: Array<{ db: string; repo: string; role: string }> }>(`${environment.apiBase}/git/associations`, {
+      headers: this.getGitHeaders(),
+      params: { db, repo }
+    });
+  }
+
+  getProjectCodeMap$(projectId: string, db?: string): Observable<any> {
+    const params: any = { projectId };
+    if (db) params.db = db;
+    return this.http.get<any>(`${environment.apiBase}/git/code-map`, {
+      headers: this.getGitHeaders(),
+      params
+    });
+  }
+
   pullRepository$(projectId: string, branchName?: string): Observable<any> {
     return this.http.post<any>(`${environment.apiBase}/git/pull`, { projectId, branchName }, {
       headers: this.getGitHeaders()
@@ -456,8 +528,8 @@ export class RestService {
     });
   }
 
-  getLocalRepositories$(): Observable<{ baseDir: string, repositories: any[] }> {
-    return this.http.get<{ baseDir: string, repositories: any[] }>(`${environment.apiBase}/git/repositories`, {
+  getLocalRepositories$(): Observable<{ baseDir: string, memoryRepoName?: string, repositories: any[] }> {
+    return this.http.get<{ baseDir: string, memoryRepoName?: string, repositories: any[] }>(`${environment.apiBase}/git/repositories`, {
       headers: this.getGitHeaders()
     });
   }

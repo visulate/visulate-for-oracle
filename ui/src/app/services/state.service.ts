@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, TemplateRef } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { EndpointListModel } from '../models/endpoint.model';
@@ -81,27 +81,97 @@ export class StateService {
   private lastSelectedFilePath: string = '';
   private lastSelectedRepoFolder: string = '';
   private lastWorkbenchQueryParams: any = { db: 'pdb21' };
+  private memoryRepoName: string = 'visulate-memory';
   private selectedRepoSubject = new BehaviorSubject<string>('');
   selectedRepo$ = this.selectedRepoSubject.asObservable();
   private repoAssociationSubject = new BehaviorSubject<void>(undefined);
   repoAssociation$ = this.repoAssociationSubject.asObservable();
+  private associationsSubject = new BehaviorSubject<Array<{ db: string; repo: string; role: string }>>([]);
+  associations$ = this.associationsSubject.asObservable();
+  private workbenchToolbarSubject = new BehaviorSubject<TemplateRef<any> | null>(null);
+  workbenchToolbar$ = this.workbenchToolbarSubject.asObservable();
+  private workbenchSidenavSubject = new BehaviorSubject<TemplateRef<any> | null>(null);
+  workbenchSidenav$ = this.workbenchSidenavSubject.asObservable();
+  private sidenavCommandSubject = new Subject<'open' | 'close' | 'toggle'>();
+  sidenavCommand$ = this.sidenavCommandSubject.asObservable();
+
+  public setWorkbenchToolbar(tpl: TemplateRef<any> | null): void {
+    this.workbenchToolbarSubject.next(tpl);
+  }
+
+  public setWorkbenchSidenav(tpl: TemplateRef<any> | null): void {
+    this.workbenchSidenavSubject.next(tpl);
+  }
+
+  public openSidenav(): void {
+    this.sidenavCommandSubject.next('open');
+  }
+
+  public closeSidenav(): void {
+    this.sidenavCommandSubject.next('close');
+  }
+
+  public toggleSidenav(): void {
+    this.sidenavCommandSubject.next('toggle');
+  }
+
+  public setMemoryRepoName(name: string): void {
+    if (name) {
+      this.memoryRepoName = name;
+    }
+  }
+
+  public getMemoryRepoName(): string {
+    return this.memoryRepoName || 'visulate-memory';
+  }
+
+  public setAssociations(links: Array<{ db: string; repo: string; role: string }>): void {
+    this.associationsSubject.next(Array.isArray(links) ? links : []);
+    this.repoAssociationSubject.next();
+  }
+
+  public getAssociations(): Array<{ db: string; repo: string; role: string }> {
+    return this.associationsSubject.getValue() || [];
+  }
+
+  public getReposForDb(endpoint?: string): Array<{ db: string; repo: string; role: string }> {
+    const currentDb = endpoint || this._endpoint || this.subjectContext.value?.currentContext?.endpoint;
+    if (!currentDb) return [];
+    const normDb = currentDb.toLowerCase();
+    const links = this.getAssociations();
+    const exact = links.filter(l => l.db.toLowerCase() === normDb);
+    const wildcard = links.filter(l => l.db === '*' && !exact.some(e => e.repo === l.repo));
+    const combined = [...exact, ...wildcard];
+    if (combined.length > 0) {
+      return combined;
+    }
+    // Legacy localStorage fallback
+    try {
+      const stored = localStorage.getItem('visulate_db_repo_associations');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.dbToRepo?.[currentDb]) {
+          return [{ db: currentDb, repo: parsed.dbToRepo[currentDb], role: 'app' }];
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  public getDbsForRepo(repo: string): Array<{ db: string; repo: string; role: string }> {
+    if (!repo) return [];
+    return this.getAssociations().filter(l => l.repo === repo);
+  }
 
   public notifyRepoAssociationChanged(): void {
     this.repoAssociationSubject.next();
   }
 
   public getAssociatedRepo(endpoint?: string): string {
-    const currentDb = endpoint || this._endpoint || this.subjectContext.value?.currentContext?.endpoint;
-    if (!currentDb) return '';
-    try {
-      const stored = localStorage.getItem('visulate_db_repo_associations');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.dbToRepo?.[currentDb]) {
-          return parsed.dbToRepo[currentDb];
-        }
-      }
-    } catch (_) {}
+    const matches = this.getReposForDb(endpoint);
+    if (matches.length > 0) {
+      return matches[0].repo;
+    }
     return '';
   }
 
@@ -223,18 +293,8 @@ export class StateService {
     this.subjectContext.next(new ContextBehaviorSubjectModel(context, priorContext, changeSummary));
 
     if (context.endpoint) {
-      try {
-        const stored = localStorage.getItem('visulate_db_repo_associations');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const linkedRepo = parsed.dbToRepo?.[context.endpoint];
-          this.setSelectedRepo(linkedRepo || '');
-        } else {
-          this.setSelectedRepo('');
-        }
-      } catch (_) {
-        this.setSelectedRepo('');
-      }
+      const linkedRepo = this.getAssociatedRepo(context.endpoint);
+      this.setSelectedRepo(linkedRepo || '');
     } else {
       this.setSelectedRepo('');
     }

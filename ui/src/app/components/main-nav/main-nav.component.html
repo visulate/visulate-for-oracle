@@ -1,10 +1,14 @@
 <div class="app-container" [class.app-is-mobile]="mobileQuery.matches">
   <mat-toolbar color="primary" class="app-toolbar">
-    <button mat-icon-button type="button" aria-label="Toggle sidenav" (click)="snav.toggle()"> <mat-icon
+    <button mat-icon-button type="button" aria-label="Toggle sidenav"
+      [matTooltip]="activeTab === 'application' ? 'Application Context & Menu' : 'Database Navigation'"
+      (click)="snav.toggle()"> <mat-icon
         aria-label="Side nav toggle icon">menu</mat-icon>
     </button>
     <a routerLink="/database" (click)="resetDatabaseSelection()">Visulate</a>
+    @if (activeTab === 'database') {
     <app-breadcrumbs></app-breadcrumbs>
+    }
     <div class="nav-tabs-container">
       <button mat-button class="nav-tab-btn" [class.active-tab]="activeTab === 'database'" (click)="selectTab('database')" matTooltip="Database Catalog">
         <mat-icon>storage</mat-icon> Database
@@ -16,6 +20,9 @@
       }
     </div>
     <span class="spacer"></span>
+    @if (activeTab === 'application') {
+      <ng-container *ngTemplateOutlet="workbenchToolbar$ | async"></ng-container>
+    } @else {
     <button mat-icon-button matTooltip="Expand All" aria-label="Expand All" (click)="expandAll()">
       <mat-icon>unfold_more</mat-icon>
     </button>
@@ -25,6 +32,7 @@
     <button mat-icon-button aria-hidden="false" aria-label="search icon" (click)=toggleSearchForm()>
       <mat-icon>search</mat-icon>
     </button>
+    }
     <button mat-icon-button type="button" aria-label="Toggle dark mode" (click)="toggleTheme()">
       <mat-icon>{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</mat-icon>
     </button>
@@ -34,10 +42,14 @@
   }
 
   <mat-sidenav-container class="app-sidenav-container">
-    <mat-sidenav #snav [mode]="mobileQuery.matches ? 'over' : 'side'" class="app-sidebar"
+    <mat-sidenav #snav [mode]="(mobileQuery.matches || activeTab === 'application') ? 'over' : 'side'" class="app-sidebar"
       [fixedInViewport]="mobileQuery.matches" [opened]="activeTab === 'database' ? opened : null">
-      <app-db-selection></app-db-selection>
-      <app-db-object-list></app-db-object-list>
+      @if (activeTab === 'application') {
+        <ng-container *ngTemplateOutlet="workbenchSidenav$ | async"></ng-container>
+      } @else {
+        <app-db-selection></app-db-selection>
+        <app-db-object-list></app-db-object-list>
+      }
     </mat-sidenav>
     <mat-sidenav-content>
       @if (displaySearchForm) {

@@ -20,7 +20,13 @@ import { RestService } from '../../services/rest.service';
 import { StateService } from '../../services/state.service';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatMenuTrigger } from '@angular/material/menu';
 import { GitAuthDialogComponent } from '../git-auth-dialog/git-auth-dialog.component';
+import { GitCommitDialogComponent } from '../git-commit-dialog/git-commit-dialog.component';
+import { GitStatusDialogComponent } from '../git-status-dialog/git-status-dialog.component';
+import { GitRemoteDialogComponent } from '../git-remote-dialog/git-remote-dialog.component';
+import { GitAssociationsDialogComponent } from '../git-associations-dialog/git-associations-dialog.component';
+import { CopyToRepoDialogComponent } from '../copy-to-repo-dialog/copy-to-repo-dialog.component';
 import { ChatComponent } from '../chat/chat.component';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
@@ -35,6 +41,24 @@ export interface FileTreeNode {
   expanded?: boolean;
   dbBadges?: string[];
   extraBadgeCount?: number;
+  gitStatus?: string;
+}
+
+export interface WorkspaceState {
+  folderName: string;
+  fullPath: string;
+  isGitRepo: boolean;
+  isMemoryRepo?: boolean;
+  hasRemote?: boolean;
+  expanded: boolean;
+  loaded: boolean;
+  loading: boolean;
+  files: string[];
+  filteredFiles: string[];
+  treeNodes: FileTreeNode[];
+  dbMapData: any;
+  gitStatus: any;
+  gitFileStatusMap: Record<string, string>;
 }
 
 @Component({
@@ -51,10 +75,561 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public isDarkMode: boolean = false;
   private destroy$ = new Subject<void>();
+  private isDestroyed: boolean = false;
 
   public baseReposDir: string = '';
-  public localRepos: Array<{ folderName: string; fullPath: string; isGitRepo: boolean }> = [];
+  public memoryRepoName: string = 'visulate-memory';
+  public localRepos: Array<{ folderName: string; fullPath: string; isGitRepo: boolean; isMemoryRepo?: boolean; hasRemote?: boolean }> = [];
   public dbEndpoints: Array<{ endpoint: string; description: string }> = [];
+  public associations: Array<{ db: string; repo: string; role: string }> = [];
+  public gitStatus: {
+    projectId: string;
+    branch: string;
+    upstream: string | null;
+    remotes: Array<{ name: string; url: string }>;
+    hasRemote: boolean;
+    isMemoryRepo: boolean;
+    ahead: number;
+    behind: number;
+    files: Array<{ path: string; indexStatus: string; workTreeStatus: string; status: string }>;
+  } | null = null;
+  public gitFileStatusMap: Record<string, string> = {};
+  public workspaceMap: Record<string, WorkspaceState> = {};
+  public compareSource: { repo: string; path: string } | null = null;
+  public activeCompare: { leftRepo: string; leftPath: string; rightRepo: string; rightPath: string } | null = null;
+
+  public get compareSourceLabel(): string {
+    if (!this.compareSource) return '';
+    const file = this.compareSource.path.split('/').pop() || this.compareSource.path;
+    return `${this.compareSource.repo}/${file}`;
+  }
+
+  public get totalGitBadgeCount(): number {
+    return this.dirtyFileCount + (this.hasConfiguredRemote ? this.aheadCount : 0);
+  }
+
+  public get activeDbRoleLabel(): string | null {
+    return this.getRepoRoleForCurrentDb(this.selectedRepoFolder);
+  }
+
+  public get activeRemoteName(): string {
+    return this.gitStatus?.remotes?.[0]?.name || 'origin';
+  }
+
+  public get activeFileLanguageLabel(): string {
+    if (!this.selectedFilePath) return '';
+    const file = this.selectedFilePath.split('/').pop() || '';
+    const ext = file.includes('.') ? file.split('.').pop()!.toLowerCase() : '';
+    const map: Record<string, string> = {
+      sql: 'SQL', pks: 'PL/SQL', pkb: 'PL/SQL', pls: 'PL/SQL',
+      md: 'Markdown', markdown: 'Markdown',
+      ts: 'TypeScript', js: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript',
+      py: 'Python', java: 'Java', json: 'JSON', yaml: 'YAML', yml: 'YAML',
+      html: 'HTML', css: 'CSS', scss: 'SCSS', xml: 'XML', sh: 'Shell',
+      pl: 'Perl', pm: 'Perl', conf: 'Config', txt: 'Plain Text'
+    };
+    return map[ext] || (ext ? ext.toUpperCase() : 'Plain Text');
+  }
+
+  public openAppMenu(): void {
+    if (typeof this.state.openSidenav === 'function') {
+      this.state.openSidenav();
+    }
+  }
+
+  public closeAppMenu(): void {
+    if (typeof this.state.closeSidenav === 'function') {
+      this.state.closeSidenav();
+    }
+  }
+
+  public onSidenavRepoChange(repoName: string): void {
+    if (repoName) {
+      this.activateWorkspace(repoName, false);
+    }
+  }
+
+  public get orderedWorkspaces(): WorkspaceState[] {
+    this.syncWorkspacesFromLocalRepos();
+    const list = Object.values(this.workspaceMap);
+    const db = (this.selectedDbConnection || '').toLowerCase();
+    const links = this.getEffectiveLinks();
+    const linkedRank = (folderName: string): number => {
+      if (links.some(l => l.repo === folderName && l.db.toLowerCase() === db)) return 0;
+      if (links.some(l => l.repo === folderName && l.db === '*')) return 1;
+      if (folderName === this.memoryRepoName) return 2;
+      return 3;
+    };
+    return list.sort((a, b) => {
+      const ra = linkedRank(a.folderName);
+      const rb = linkedRank(b.folderName);
+      if (ra !== rb) return ra - rb;
+      return a.folderName.localeCompare(b.folderName);
+    });
+  }
+
+  public getRepoRoleForCurrentDb(repoName: string): string | null {
+    if (!repoName || repoName === this.memoryRepoName) return null;
+    const db = (this.selectedDbConnection || '').toLowerCase();
+    if (!db) return null;
+    const links = this.getEffectiveLinks();
+    const exact = links.find(l => l.repo === repoName && l.db.toLowerCase() === db);
+    if (exact) return exact.role;
+    const wild = links.find(l => l.repo === repoName && l.db === '*');
+    if (wild) return wild.role;
+    return null;
+  }
+
+  public isRepoLinkedToCurrentDb(repoName: string): boolean {
+    return !!this.getRepoRoleForCurrentDb(repoName);
+  }
+
+  public syncWorkspacesFromLocalRepos(): void {
+    const validNames = new Set<string>();
+    for (const r of this.localRepos || []) {
+      validNames.add(r.folderName);
+      const existing = this.workspaceMap[r.folderName];
+      if (existing) {
+        existing.fullPath = r.fullPath;
+        existing.isGitRepo = r.isGitRepo;
+        existing.isMemoryRepo = r.isMemoryRepo || r.folderName === this.memoryRepoName;
+        existing.hasRemote = r.hasRemote;
+      } else {
+        this.workspaceMap[r.folderName] = {
+          folderName: r.folderName,
+          fullPath: r.fullPath,
+          isGitRepo: r.isGitRepo,
+          isMemoryRepo: r.isMemoryRepo || r.folderName === this.memoryRepoName,
+          hasRemote: r.hasRemote,
+          expanded: r.folderName === this.selectedRepoFolder,
+          loaded: false,
+          loading: false,
+          files: [],
+          filteredFiles: [],
+          treeNodes: [],
+          dbMapData: null,
+          gitStatus: null,
+          gitFileStatusMap: {}
+        };
+      }
+    }
+    for (const key of Object.keys(this.workspaceMap)) {
+      if (!validNames.has(key)) {
+        delete this.workspaceMap[key];
+      }
+    }
+  }
+
+  public onNodeContextMenu(event: MouseEvent, trigger: MatMenuTrigger): void {
+    event.preventDefault();
+    event.stopPropagation();
+    trigger.openMenu();
+  }
+
+  public toggleWorkspace(ws: WorkspaceState, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    ws.expanded = !ws.expanded;
+    if (ws.expanded) {
+      this.activateWorkspace(ws.folderName, !ws.loaded);
+    }
+    this.cdRef.detectChanges();
+  }
+
+  public activateWorkspace(repoName: string, forceReloadFiles: boolean = false): void {
+    if (!repoName) return;
+    this.syncWorkspacesFromLocalRepos();
+    const ws = this.workspaceMap[repoName];
+    const changed = this.selectedRepoFolder !== repoName;
+    this.selectedRepoFolder = repoName;
+    this.projectId = repoName;
+    this.state.setSelectedRepo(repoName);
+    if (ws) {
+      ws.expanded = true;
+    }
+
+    if (ws && ws.loaded && !forceReloadFiles) {
+      this.projectFiles = [...ws.files];
+      this.filteredFiles = [...ws.filteredFiles];
+      this.fileTreeNodes = ws.treeNodes;
+      this.dbMapData = ws.dbMapData;
+      this.gitStatus = ws.gitStatus;
+      this.gitFileStatusMap = { ...ws.gitFileStatusMap };
+      this.updateCurrentFileDbObjects();
+      if (changed) {
+        this.loadBranches();
+        this.loadGitStatusForWorkspace(repoName);
+      }
+    } else {
+      this.loadWorkspaceFiles(repoName, true);
+    }
+  }
+
+  public loadWorkspaceFiles(repoName: string, setAsActive: boolean = false): void {
+    if (!repoName) return;
+    this.syncWorkspacesFromLocalRepos();
+    const ws = this.workspaceMap[repoName];
+    if (ws) {
+      ws.loading = true;
+    }
+    this.restService.listGitFiles$(repoName).subscribe({
+      next: (res) => {
+        const files = res.files || [];
+        if (ws) {
+          ws.files = files;
+          ws.loaded = true;
+          ws.loading = false;
+          this.applyFileFilterForWorkspace(ws);
+        }
+        if (setAsActive || repoName === this.selectedRepoFolder) {
+          this.projectFiles = files;
+          this.applyFileFilter();
+          const paramFile = this.route.snapshot.queryParams['file'];
+          if (paramFile && this.projectFiles.includes(paramFile)) {
+            this.selectedFilePath = paramFile;
+          } else if (this.selectedFilePath && this.projectFiles.includes(this.selectedFilePath)) {
+            // keep
+          } else if (!this.selectedFilePath && this.projectFiles.length > 0) {
+            this.selectedFilePath = this.projectFiles[0];
+          }
+          this.loadBranches();
+          if (this.selectedFilePath && this.projectFiles.includes(this.selectedFilePath)) {
+            this.openFile(this.selectedFilePath);
+          } else {
+            this.isLoading = false;
+          }
+        }
+        this.loadDbMapDataForWorkspace(repoName);
+        this.loadGitStatusForWorkspace(repoName);
+        this.cdRef.detectChanges();
+      },
+      error: (err) => {
+        if (ws) {
+          ws.loading = false;
+        }
+        this.setStatus(`Error loading files for repository '${repoName}': ${err.message}`, true);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  public loadDbMapDataForWorkspace(repoName: string): void {
+    if (!repoName) return;
+    const ws = this.workspaceMap[repoName];
+    if (typeof this.restService.getProjectCodeMap$ === 'function') {
+      this.restService.getProjectCodeMap$(repoName, this.selectedDbConnection || undefined).subscribe({
+        next: (mapData) => {
+          if (ws) {
+            ws.dbMapData = mapData || null;
+            this.applyFileFilterForWorkspace(ws);
+          }
+          if (repoName === this.selectedRepoFolder) {
+            this.dbMapData = mapData || null;
+            this.updateCurrentFileDbObjects();
+            this.rebuildFileTree();
+          }
+          this.cdRef.detectChanges();
+        },
+        error: () => {
+          if (ws) {
+            ws.dbMapData = null;
+            this.applyFileFilterForWorkspace(ws);
+          }
+          if (repoName === this.selectedRepoFolder) {
+            this.dbMapData = null;
+            this.updateCurrentFileDbObjects();
+            this.rebuildFileTree();
+          }
+        }
+      });
+    }
+  }
+
+  public loadGitStatusForWorkspace(repoName: string): void {
+    if (!repoName || typeof this.restService.getGitStatus$ !== 'function') return;
+    const ws = this.workspaceMap[repoName];
+    this.restService.getGitStatus$(repoName).subscribe({
+      next: (status) => {
+        const map: Record<string, string> = {};
+        if (status && Array.isArray(status.files)) {
+          for (const f of status.files) {
+            map[f.path] = f.status === '?' ? 'U' : f.status;
+          }
+        }
+        if (ws) {
+          ws.gitStatus = status;
+          ws.gitFileStatusMap = map;
+          ws.hasRemote = !!status?.hasRemote;
+          this.applyFileFilterForWorkspace(ws);
+        }
+        if (repoName === this.selectedRepoFolder) {
+          this.gitStatus = status;
+          this.gitFileStatusMap = map;
+          this.rebuildFileTree();
+        }
+        this.cdRef.detectChanges();
+      },
+      error: () => {
+        if (ws) {
+          ws.gitStatus = null;
+          ws.gitFileStatusMap = {};
+        }
+        if (repoName === this.selectedRepoFolder) {
+          this.gitStatus = null;
+          this.gitFileStatusMap = {};
+        }
+      }
+    });
+  }
+
+  public applyFileFilterForWorkspace(ws: WorkspaceState): void {
+    if (!this.fileFilterQuery) {
+      ws.filteredFiles = [...ws.files];
+    } else {
+      const q = this.fileFilterQuery.toLowerCase();
+      ws.filteredFiles = ws.files.filter(f => {
+        if (f.toLowerCase().includes(q)) return true;
+        if (ws.dbMapData && ws.dbMapData.files && ws.dbMapData.files[f]) {
+          return ws.dbMapData.files[f].some((obj: string) => obj.toLowerCase().includes(q));
+        }
+        return false;
+      });
+    }
+    ws.treeNodes = this.buildFileTreeForData(ws.filteredFiles, ws.dbMapData, ws.gitFileStatusMap);
+    if (this.selectedRepoFolder === ws.folderName && this.selectedFilePath) {
+      this.expandPathInNodes(ws.treeNodes, this.selectedFilePath);
+    }
+  }
+
+  public openFileInWorkspace(repoName: string, filePath: string, mode: 'editor' | 'diff' = 'editor'): void {
+    if (!repoName || !filePath) return;
+    this.activeCompare = null;
+    if (this.selectedRepoFolder !== repoName) {
+      this.activateWorkspace(repoName, false);
+    }
+    if (this.viewMode !== mode) {
+      this.viewMode = mode;
+      this.initMonaco();
+    }
+    this.openFile(filePath);
+  }
+
+  public selectForCompare(repoName: string, filePath: string): void {
+    this.compareSource = { repo: repoName, path: filePath };
+    this.setStatus(`Selected '${repoName}/${filePath}' for compare`, false);
+    this.snackBar.open(`Selected '${filePath.split('/').pop()}' for compare. Use any file's menu → Compare with Selected.`, 'Dismiss', { duration: 4000 });
+    this.cdRef.detectChanges();
+  }
+
+  public compareWithSelected(targetRepo: string, targetPath: string): void {
+    if (!this.compareSource) return;
+    const leftRepo = this.compareSource.repo;
+    const leftPath = this.compareSource.path;
+    this.isLoading = true;
+    this.setStatus(`Comparing ${leftRepo}/${leftPath} with ${targetRepo}/${targetPath}...`, false);
+
+    forkJoin({
+      left: this.restService.getGitFile$(leftRepo, leftPath).pipe(catchError(() => of({ content: '' }))),
+      right: this.restService.getGitFile$(targetRepo, targetPath).pipe(catchError(() => of({ content: '' })))
+    }).subscribe({
+      next: ({ left, right }) => {
+        this.activeCompare = { leftRepo, leftPath, rightRepo: targetRepo, rightPath: targetPath };
+        this.selectedRepoFolder = targetRepo;
+        this.projectId = targetRepo;
+        this.selectedFilePath = targetPath;
+        this.originalContent = left?.content || '';
+        this.modifiedContent = right?.content || '';
+        this.viewMode = 'diff';
+        this.initMonaco();
+        try {
+          this.updateDiffEditorModels();
+        } catch (e) {
+          console.error('Error updating compare diff models:', e);
+        }
+        this.isLoading = false;
+        this.setStatus(`Comparing ${leftRepo}/${leftPath} ↔ ${targetRepo}/${targetPath}`, false);
+        this.cdRef.detectChanges();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.setStatus(`Compare failed: ${err.message}`, true);
+      }
+    });
+  }
+
+  public clearCustomCompare(): void {
+    this.activeCompare = null;
+    if (this.selectedFilePath) {
+      this.loadFileContent();
+    }
+    this.cdRef.detectChanges();
+  }
+
+  public startNewFileInWorkspace(repoName: string, folderPrefix: string = ''): void {
+    this.activateWorkspace(repoName, false);
+    this.showNewFileInput = true;
+    this.newFilePath = folderPrefix ? `${folderPrefix.replace(/\/+$/, '')}/` : '';
+    setTimeout(() => {
+      this.newFileInputRef?.nativeElement?.focus();
+    }, 50);
+  }
+
+  public quickLinkRepoToCurrentDb(repoName: string, role: string = 'app'): void {
+    if (!this.selectedDbConnection || !repoName || repoName === this.memoryRepoName) return;
+    if (typeof this.restService.saveGitAssociation$ === 'function') {
+      this.restService.saveGitAssociation$(this.selectedDbConnection, repoName, role).subscribe({
+        next: (res) => {
+          this.associations = res.links || [];
+          if (typeof this.state.setAssociations === 'function') {
+            this.state.setAssociations(this.associations);
+          }
+          this.setStatus(`Linked '${repoName}' to '${this.selectedDbConnection}' (${role})`, false);
+          this.loadGitStatusForWorkspace(this.memoryRepoName);
+          this.cdRef.detectChanges();
+        },
+        error: (err) => this.setStatus(`Failed to link repository: ${err.error?.error || err.message}`, true)
+      });
+    }
+  }
+
+  public quickUnlinkRepoFromCurrentDb(repoName: string): void {
+    if (!this.selectedDbConnection || !repoName) return;
+    if (typeof this.restService.deleteGitAssociation$ === 'function') {
+      this.restService.deleteGitAssociation$(this.selectedDbConnection, repoName).subscribe({
+        next: (res) => {
+          this.associations = res.links || [];
+          if (typeof this.state.setAssociations === 'function') {
+            this.state.setAssociations(this.associations);
+          }
+          this.setStatus(`Unlinked '${repoName}' from '${this.selectedDbConnection}'`, false);
+          this.loadGitStatusForWorkspace(this.memoryRepoName);
+          this.cdRef.detectChanges();
+        },
+        error: (err) => this.setStatus(`Failed to unlink repository: ${err.error?.error || err.message}`, true)
+      });
+    }
+  }
+
+  public openAssociationsDialogForRepo(repoName?: string): void {
+    const dialogRef = this.dialog.open(GitAssociationsDialogComponent, {
+      width: '680px',
+      data: {
+        databases: this.dbEndpoints,
+        repos: this.localRepos,
+        links: this.associations,
+        defaultDb: this.selectedDbConnection,
+        defaultRepo: repoName || this.selectedRepoFolder
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(res => {
+      if (res?.updated && Array.isArray(res.links)) {
+        this.associations = res.links;
+        if (typeof this.state.setAssociations === 'function') {
+          this.state.setAssociations(res.links);
+        }
+        this.loadGitStatusForWorkspace(this.memoryRepoName);
+        this.cdRef.detectChanges();
+      }
+    });
+  }
+
+  public explainFileFromMenu(repoName: string, filePath: string): void {
+    this.openFileInWorkspace(repoName, filePath, 'editor');
+    setTimeout(() => this.triggerExplainCode(), 100);
+  }
+
+  public discardFileFromMenu(repoName: string, filePath: string): void {
+    if (!confirm(`Discard uncommitted changes to '${filePath}' in '${repoName}'?`)) {
+      return;
+    }
+    this.restService.discardGitFile$(repoName, filePath).subscribe({
+      next: () => {
+        this.setStatus(`Discarded changes to '${filePath}'`, false);
+        this.loadWorkspaceFiles(repoName, repoName === this.selectedRepoFolder);
+        if (repoName === this.selectedRepoFolder && filePath === this.selectedFilePath) {
+          this.loadFileContent();
+        }
+      },
+      error: (err) => {
+        this.setStatus(`Failed to discard changes: ${err.error?.error || err.message}`, true);
+      }
+    });
+  }
+
+  public trackByWorkspaceName(index: number, ws: WorkspaceState): string {
+    return ws ? ws.folderName : String(index);
+  }
+
+  public get isMemoryRepoSelected(): boolean {
+    return !!this.selectedRepoFolder && this.selectedRepoFolder === this.memoryRepoName;
+  }
+
+  public get dirtyFileCount(): number {
+    return this.gitStatus?.files?.length || 0;
+  }
+
+  public get aheadCount(): number {
+    return this.gitStatus?.ahead || 0;
+  }
+
+  public get behindCount(): number {
+    return this.gitStatus?.behind || 0;
+  }
+
+  public get hasConfiguredRemote(): boolean {
+    return !!(this.gitStatus?.hasRemote);
+  }
+
+  public get linkedReposForCurrentDb(): Array<{ folderName: string; role?: string; isMemoryRepo?: boolean }> {
+    const db = (this.selectedDbConnection || '').toLowerCase();
+    if (!db) return [];
+    const matchingLinks = this.getEffectiveLinks().filter(l => l.db.toLowerCase() === db || l.db === '*');
+    const repoMap = new Map<string, string>();
+    matchingLinks.forEach(l => {
+      if (!repoMap.has(l.repo) || l.db !== '*') {
+        repoMap.set(l.repo, l.role);
+      }
+    });
+    return this.localRepos
+      .filter(r => repoMap.has(r.folderName))
+      .map(r => ({ folderName: r.folderName, role: repoMap.get(r.folderName), isMemoryRepo: r.isMemoryRepo }));
+  }
+
+  public get otherReposForCurrentDb(): Array<{ folderName: string; isMemoryRepo?: boolean }> {
+    const linkedSet = new Set(this.linkedReposForCurrentDb.map(r => r.folderName));
+    return this.localRepos
+      .filter(r => !linkedSet.has(r.folderName))
+      .map(r => ({ folderName: r.folderName, isMemoryRepo: r.isMemoryRepo }));
+  }
+
+  public get linkedDbEndpointsForCurrentRepo(): Array<{ endpoint: string; description: string; role?: string }> {
+    if (!this.selectedRepoFolder || this.isMemoryRepoSelected) return [];
+    const links = this.getEffectiveLinks().filter(l => l.repo === this.selectedRepoFolder);
+    const hasWildcard = links.some(l => l.db === '*');
+    const dbRoleMap = new Map<string, string>();
+    links.forEach(l => dbRoleMap.set(l.db.toLowerCase(), l.role));
+    return this.dbEndpoints
+      .filter(ep => hasWildcard || dbRoleMap.has(ep.endpoint.toLowerCase()))
+      .map(ep => ({
+        ...ep,
+        role: dbRoleMap.get(ep.endpoint.toLowerCase()) || (hasWildcard ? 'dba' : undefined)
+      }));
+  }
+
+  public get otherDbEndpointsForCurrentRepo(): Array<{ endpoint: string; description: string }> {
+    const linkedSet = new Set(this.linkedDbEndpointsForCurrentRepo.map(d => d.endpoint));
+    return this.dbEndpoints.filter(ep => !linkedSet.has(ep.endpoint));
+  }
+
+  private getEffectiveLinks(): Array<{ db: string; repo: string; role: string }> {
+    if (this.associations && this.associations.length > 0) {
+      return this.associations;
+    }
+    const legacy = this.getDbRepoAssociations().dbToRepo;
+    return Object.keys(legacy).map(db => ({ db, repo: legacy[db], role: 'app' }));
+  }
 
   public selectedDbConnection: string = 'pdb21';
   private _selectedRepoFolder: string = '';
@@ -91,6 +666,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public showNewFileInput: boolean = false;
   @ViewChild('newFileInputRef', { static: false }) newFileInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('confirmDeleteDialog', { static: false }) confirmDeleteDialog?: TemplateRef<any>;
+  @ViewChild('workbenchToolbarTpl', { static: true }) workbenchToolbarTpl?: TemplateRef<any>;
+  @ViewChild('workbenchSidenavTpl', { static: true }) workbenchSidenavTpl?: TemplateRef<any>;
   public commitMessage: string = 'Update codebase and OKF memory documentation';
   public statusMessage: string = '';
   public isError: boolean = false;
@@ -475,11 +1052,16 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isLoading = true;
     this.setStatus('Initializing Workbench & loading repository context...', false);
 
+    const assoc$ = typeof this.restService.getGitAssociations$ === 'function'
+      ? this.restService.getGitAssociations$().pipe(catchError(() => of({ version: 1, links: [] })))
+      : of({ version: 1, links: [] });
+
     forkJoin({
       endpoints: this.restService.getDatabaseConnections$().pipe(catchError(() => of([]))),
-      repos: this.restService.getLocalRepositories$().pipe(catchError(() => of({ baseDir: '', repositories: [] })))
+      repos: this.restService.getLocalRepositories$().pipe(catchError(() => of({ baseDir: '', memoryRepoName: 'visulate-memory', repositories: [] }))),
+      assoc: assoc$
     }).subscribe({
-      next: ({ endpoints, repos }) => {
+      next: ({ endpoints, repos, assoc }) => {
         if (Array.isArray(endpoints) && endpoints.length > 0) {
           this.dbEndpoints = endpoints.map((ep: any) => ({
             endpoint: ep.endpoint,
@@ -488,7 +1070,19 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         if (repos) {
           this.baseReposDir = repos.baseDir || '';
+          if (repos.memoryRepoName) {
+            this.memoryRepoName = repos.memoryRepoName;
+            if (typeof this.state.setMemoryRepoName === 'function') {
+              this.state.setMemoryRepoName(repos.memoryRepoName);
+            }
+          }
           this.localRepos = repos.repositories || [];
+        }
+        if (assoc && Array.isArray(assoc.links)) {
+          this.associations = assoc.links;
+          if (typeof this.state.setAssociations === 'function') {
+            this.state.setAssociations(assoc.links);
+          }
         }
 
         // 1. Resolve active database connection
@@ -501,9 +1095,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         }
 
-        // 2. Check dbToRepo association for the selected database
-        const associations = this.getDbRepoAssociations();
-        const associatedRepo = this.selectedDbConnection ? associations.dbToRepo[this.selectedDbConnection] : null;
+        // 2. Resolve associated repository for the selected database (M:N links, then legacy localStorage)
+        const associatedRepo = this.resolvePrimaryRepoForDb(this.selectedDbConnection);
 
         if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
           this.selectedRepoFolder = associatedRepo;
@@ -527,6 +1120,15 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    Promise.resolve().then(() => {
+      if (this.isDestroyed) return;
+      if (this.workbenchToolbarTpl && typeof this.state.setWorkbenchToolbar === 'function') {
+        this.state.setWorkbenchToolbar(this.workbenchToolbarTpl);
+      }
+      if (this.workbenchSidenavTpl && typeof this.state.setWorkbenchSidenav === 'function') {
+        this.state.setWorkbenchSidenav(this.workbenchSidenavTpl);
+      }
+    });
     this.initMonaco();
     this.setupResizeObserver();
   }
@@ -546,6 +1148,13 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.isDestroyed = true;
+    if (typeof this.state.setWorkbenchToolbar === 'function') {
+      this.state.setWorkbenchToolbar(null);
+    }
+    if (typeof this.state.setWorkbenchSidenav === 'function') {
+      this.state.setWorkbenchSidenav(null);
+    }
     this.destroy$.next();
     this.destroy$.complete();
     if (this.resizeObserver) {
@@ -673,10 +1282,59 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private resolvePrimaryRepoForDb(db?: string): string {
+    if (!db) return '';
+    const normDb = db.toLowerCase();
+    const links = this.getEffectiveLinks();
+    const exact = links.filter(l => l.db.toLowerCase() === normDb);
+    if (exact.length > 0) {
+      // Keep current repo if it is already one of the linked repos for this DB
+      if (this.selectedRepoFolder && exact.some(l => l.repo === this.selectedRepoFolder)) {
+        return this.selectedRepoFolder;
+      }
+      return exact[0].repo;
+    }
+    const wildcard = links.filter(l => l.db === '*');
+    if (wildcard.length > 0) {
+      if (this.selectedRepoFolder && wildcard.some(l => l.repo === this.selectedRepoFolder)) {
+        return this.selectedRepoFolder;
+      }
+      return wildcard[0].repo;
+    }
+    return '';
+  }
+
   public get isCurrentPairAssociated(): boolean {
     if (!this.selectedDbConnection || !this.selectedRepoFolder) return false;
-    const associations = this.getDbRepoAssociations();
-    return associations.dbToRepo[this.selectedDbConnection] === this.selectedRepoFolder;
+    const normDb = this.selectedDbConnection.toLowerCase();
+    const links = this.getEffectiveLinks();
+    return links.some(
+      l => l.repo === this.selectedRepoFolder && (l.db.toLowerCase() === normDb || l.db === '*')
+    );
+  }
+
+  public openAssociationsDialog(): void {
+    const dialogRef = this.dialog.open(GitAssociationsDialogComponent, {
+      width: '680px',
+      data: {
+        databases: this.dbEndpoints,
+        repos: this.localRepos,
+        links: this.associations,
+        defaultDb: this.selectedDbConnection,
+        defaultRepo: this.selectedRepoFolder
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(res => {
+      if (res?.updated && Array.isArray(res.links)) {
+        this.associations = res.links;
+        if (typeof this.state.setAssociations === 'function') {
+          this.state.setAssociations(res.links);
+        }
+        this.loadGitStatus();
+        this.cdRef.detectChanges();
+      }
+    });
   }
 
   public toggleDbRepoAssociation(): void {
@@ -685,6 +1343,36 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    if (typeof this.restService.saveGitAssociation$ === 'function' && typeof this.restService.deleteGitAssociation$ === 'function') {
+      if (this.isCurrentPairAssociated) {
+        this.restService.deleteGitAssociation$(this.selectedDbConnection, this.selectedRepoFolder).subscribe({
+          next: (res) => {
+            this.associations = res.links || [];
+            if (typeof this.state.setAssociations === 'function') {
+              this.state.setAssociations(this.associations);
+            }
+            this.setStatus(`Unlinked database '${this.selectedDbConnection}' from repository '${this.selectedRepoFolder}'`, false);
+            this.loadGitStatus();
+          },
+          error: (err) => this.setStatus(`Failed to unlink: ${err.error?.error || err.message}`, true)
+        });
+      } else {
+        this.restService.saveGitAssociation$(this.selectedDbConnection, this.selectedRepoFolder, 'app').subscribe({
+          next: (res) => {
+            this.associations = res.links || [];
+            if (typeof this.state.setAssociations === 'function') {
+              this.state.setAssociations(this.associations);
+            }
+            this.setStatus(`Linked database '${this.selectedDbConnection}' with repository '${this.selectedRepoFolder}'`, false);
+            this.loadGitStatus();
+          },
+          error: (err) => this.setStatus(`Failed to link: ${err.error?.error || err.message}`, true)
+        });
+      }
+      return;
+    }
+
+    // Legacy localStorage fallback (used by older unit tests that don't mock association endpoints)
     const associations = this.getDbRepoAssociations();
     if (this.isCurrentPairAssociated) {
       delete associations.dbToRepo[this.selectedDbConnection];
@@ -713,10 +1401,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public syncProjectAssociation(): void {
-    const associations = this.getDbRepoAssociations();
-
     if (this.selectedDbConnection) {
-      const associatedRepo = associations.dbToRepo[this.selectedDbConnection];
+      const associatedRepo = this.resolvePrimaryRepoForDb(this.selectedDbConnection);
       if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
         if (this.selectedRepoFolder !== associatedRepo) {
           this.selectedRepoFolder = associatedRepo;
@@ -738,6 +1424,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       this.projectFiles = [];
       this.filteredFiles = [];
       this.fileTreeNodes = [];
+      this.gitStatus = null;
+      this.gitFileStatusMap = {};
       const paramFile = this.route.snapshot.queryParams['file'];
       if (!paramFile) {
         this.selectedFilePath = '';
@@ -750,8 +1438,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   public onDbChange(): void {
     if (!this.selectedDbConnection) return;
 
-    const associations = this.getDbRepoAssociations();
-    const associatedRepo = associations.dbToRepo[this.selectedDbConnection];
+    const associatedRepo = this.resolvePrimaryRepoForDb(this.selectedDbConnection);
 
     if (associatedRepo && this.localRepos.some(r => r.folderName === associatedRepo)) {
       if (this.selectedRepoFolder !== associatedRepo) {
@@ -853,10 +1540,22 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const targetId = this.selectedRepoFolder;
+    this.syncWorkspacesFromLocalRepos();
+    const ws = this.workspaceMap[targetId];
+    if (ws) {
+      ws.expanded = true;
+      ws.loading = true;
+    }
 
     this.restService.listGitFiles$(targetId).subscribe({
       next: (res) => {
         this.projectFiles = res.files || [];
+        if (ws) {
+          ws.files = [...this.projectFiles];
+          ws.loaded = true;
+          ws.loading = false;
+          this.applyFileFilterForWorkspace(ws);
+        }
         this.applyFileFilter();
 
         const paramFile = this.route.snapshot.queryParams['file'];
@@ -870,6 +1569,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.loadDbMapData();
         this.loadBranches();
+        this.loadGitStatus();
         if (this.selectedFilePath) {
           this.openFile(this.selectedFilePath);
         } else {
@@ -877,8 +1577,38 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: (err) => {
+        if (ws) {
+          ws.loading = false;
+        }
         this.setStatus(`Error loading files for repository '${targetId}': ${err.message}`, true);
         this.isLoading = false;
+      }
+    });
+  }
+
+  public loadGitStatus(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId || typeof this.restService.getGitStatus$ !== 'function') {
+      this.gitStatus = null;
+      this.gitFileStatusMap = {};
+      return;
+    }
+
+    this.restService.getGitStatus$(targetId).subscribe({
+      next: (status) => {
+        this.gitStatus = status;
+        const map: Record<string, string> = {};
+        if (status && Array.isArray(status.files)) {
+          for (const f of status.files) {
+            map[f.path] = f.status === '?' ? 'U' : f.status;
+          }
+        }
+        this.gitFileStatusMap = map;
+        this.rebuildFileTree();
+      },
+      error: () => {
+        this.gitStatus = null;
+        this.gitFileStatusMap = {};
       }
     });
   }
@@ -1127,6 +1857,11 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         return false;
       });
     }
+    for (const ws of Object.values(this.workspaceMap)) {
+      if (ws.loaded) {
+        this.applyFileFilterForWorkspace(ws);
+      }
+    }
     this.rebuildFileTree();
   }
 
@@ -1135,15 +1870,25 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectedFilePath) {
       this.expandPathToNode(this.selectedFilePath);
     }
+    const activeWs = this.selectedRepoFolder ? this.workspaceMap[this.selectedRepoFolder] : null;
+    if (activeWs) {
+      activeWs.dbMapData = this.dbMapData;
+      activeWs.gitFileStatusMap = { ...this.gitFileStatusMap };
+      activeWs.treeNodes = this.fileTreeNodes;
+    }
     try {
       this.cdRef.detectChanges();
     } catch (e) {}
   }
 
   public expandPathToNode(filePath: string): void {
-    if (!filePath || !this.fileTreeNodes) return;
+    this.expandPathInNodes(this.fileTreeNodes, filePath);
+  }
+
+  private expandPathInNodes(nodes: FileTreeNode[], filePath: string): void {
+    if (!filePath || !nodes) return;
     const parts = filePath.split('/');
-    let currentLevel = this.fileTreeNodes;
+    let currentLevel = nodes;
 
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
@@ -1158,6 +1903,14 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private buildFileTree(filePaths: string[]): FileTreeNode[] {
+    return this.buildFileTreeForData(filePaths, this.dbMapData, this.gitFileStatusMap);
+  }
+
+  private buildFileTreeForData(
+    filePaths: string[],
+    dbMapData: any,
+    gitFileStatusMap: Record<string, string>
+  ): FileTreeNode[] {
     const root: FileTreeNode[] = [];
     const isFiltering = !!this.fileFilterQuery;
 
@@ -1173,7 +1926,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
         let existingNode = currentLevel.find(node => node.name === part);
 
         if (!existingNode) {
-          const badges = isFile && this.dbMapData?.files?.[currentPath] ? this.dbMapData.files[currentPath] : undefined;
+          const badges = isFile && dbMapData?.files?.[currentPath] ? dbMapData.files[currentPath] : undefined;
           const displayBadges = badges && badges.length > 0 ? badges.slice(0, 2) : undefined;
           const extraCount = badges && badges.length > 2 ? badges.length - 2 : 0;
           existingNode = {
@@ -1183,7 +1936,8 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
             expanded: isFiltering,
             children: isFile ? undefined : [],
             dbBadges: displayBadges,
-            extraBadgeCount: extraCount
+            extraBadgeCount: extraCount,
+            gitStatus: isFile ? gitFileStatusMap[currentPath] : undefined
           };
           currentLevel.push(existingNode);
         }
@@ -1215,6 +1969,22 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!targetId) {
       this.dbMapData = null;
       this.rebuildFileTree();
+      return;
+    }
+
+    if (typeof this.restService.getProjectCodeMap$ === 'function') {
+      this.restService.getProjectCodeMap$(targetId, this.selectedDbConnection || undefined).subscribe({
+        next: (mapData) => {
+          this.dbMapData = mapData || null;
+          this.updateCurrentFileDbObjects();
+          this.rebuildFileTree();
+        },
+        error: () => {
+          this.dbMapData = null;
+          this.updateCurrentFileDbObjects();
+          this.rebuildFileTree();
+        }
+      });
       return;
     }
 
@@ -1380,7 +2150,10 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public toggleViewMode(mode: 'editor' | 'diff'): void {
-    if (this.viewMode === mode) return;
+    if (this.viewMode === mode && !this.activeCompare) return;
+    if (mode === 'editor') {
+      this.activeCompare = null;
+    }
     this.viewMode = mode;
     this.initMonaco();
     this.loadFileContent();
@@ -1644,6 +2417,7 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       next: () => {
         this.setStatus(`Successfully saved ${this.selectedFilePath}`, false);
         this.loadDbMapData();
+        this.loadGitStatus();
       },
       error: (err) => {
         this.setStatus(`Error saving file: ${err.message}`, true);
@@ -1651,65 +2425,270 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  public commitAndPush(): void {
+  public openGitStatusDialog(repoOverride?: string): void {
+    const targetId = repoOverride || this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    const initialStatus = this.workspaceMap[targetId]?.gitStatus ||
+      (targetId === this.selectedRepoFolder ? this.gitStatus : null);
+
+    const dialogRef = this.dialog.open(GitStatusDialogComponent, {
+      width: '680px',
+      data: {
+        projectId: targetId,
+        repos: this.orderedWorkspaces.map(w => ({ folderName: w.folderName, isMemoryRepo: w.isMemoryRepo })),
+        initialStatus
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(res => {
+      const repo = res?.repo || targetId;
+      if (res?.didMutate) {
+        this.loadWorkspaceFiles(repo, repo === this.selectedRepoFolder);
+        if (repo === this.selectedRepoFolder && this.selectedFilePath) {
+          this.loadFileContent();
+        }
+      } else {
+        this.loadGitStatusForWorkspace(repo);
+      }
+
+      if (!res?.action) return;
+
+      if (res.action === 'open' && res.filePath) {
+        this.openFileInWorkspace(repo, res.filePath, 'editor');
+      } else if (res.action === 'diff' && res.filePath) {
+        this.openFileInWorkspace(repo, res.filePath, 'diff');
+      } else if (res.action === 'commit') {
+        if (repo !== this.selectedRepoFolder) {
+          this.activateWorkspace(repo, false);
+        }
+        this.openCommitDialog();
+      } else if (res.action === 'push') {
+        if (repo !== this.selectedRepoFolder) {
+          this.activateWorkspace(repo, false);
+        }
+        this.pushChanges();
+      } else if (res.action === 'pull') {
+        if (repo !== this.selectedRepoFolder) {
+          this.activateWorkspace(repo, false);
+        }
+        this.pullRepo();
+      } else if (res.action === 'remote') {
+        if (repo !== this.selectedRepoFolder) {
+          this.activateWorkspace(repo, false);
+        }
+        this.openRemoteDialog();
+      }
+    });
+  }
+
+  public openCommitDialog(): void {
     const targetId = this.selectedRepoFolder || this.projectId;
     if (!targetId) return;
 
-    let contentToSave = '';
-    if (this.viewMode === 'editor' && this.monacoEditor) {
-      contentToSave = this.monacoEditor.getValue();
-    } else if (this.viewMode === 'diff' && this.modifiedModel) {
-      contentToSave = this.modifiedModel.getValue();
-    }
+    const launchDialog = () => {
+      this.restService.getGitStatus$(targetId).subscribe({
+        next: (status) => {
+          this.gitStatus = status;
+          const dialogRef = this.dialog.open(GitCommitDialogComponent, {
+            width: '620px',
+            data: {
+              projectId: targetId,
+              branch: status.branch || this.currentBranch || 'main',
+              files: status.files || [],
+              defaultMessage: ''
+            }
+          });
 
-    const executeCommit = () => {
-      this.showAuthAction = false;
-      this.setStatus('Committing and pushing to Git remote...', false);
-      this.restService.commitAndPush$(targetId, this.branchName, this.commitMessage).subscribe({
-        next: (res: any) => {
-          if (res && res.success === false) {
-            const errorMsg = res.error || res.push?.error || res.commit?.error || 'Commit & Push failed';
-            this.handleGitOperationError('Commit/Push', errorMsg);
-            return;
-          }
-          this.setStatus(`Successfully committed and pushed branch '${this.branchName}'`, false);
-          this.snackBar.open(`Successfully committed and pushed branch '${this.branchName}'`, 'Dismiss', { duration: 4000 });
-          this.loadProjectFiles();
+          dialogRef.afterClosed().subscribe(res => {
+            if (res?.action === 'diff' && res.filePath) {
+              this.viewMode = 'diff';
+              this.openFile(res.filePath);
+            } else if (res?.committed) {
+              const hash = res.result?.commitHash ? ` (${res.result.commitHash})` : '';
+              this.setStatus(`Committed locally to '${status.branch}'${hash}. Use Push when ready.`, false);
+              this.snackBar.open(`Committed locally${hash}. Not pushed upstream.`, 'Dismiss', { duration: 4000 });
+              this.loadProjectFiles();
+            } else {
+              this.loadGitStatus();
+            }
+          });
         },
-        error: (err: any) => {
-          const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
-          this.handleGitOperationError('Commit/Push', rawMsg);
+        error: (err) => {
+          const rawMsg = err.error?.error || err.message || 'Failed to load git status';
+          this.setStatus(`Could not load Git status: ${rawMsg}`, true);
         }
       });
     };
 
-    if (this.selectedFilePath && contentToSave) {
-      this.setStatus('Saving file to workspace before commit...', false);
+    // Save current editor buffer to disk first if a file is open
+    let contentToSave: string | null = null;
+    if (this.selectedFilePath) {
+      if (this.viewMode === 'editor' && this.monacoEditor) {
+        contentToSave = this.monacoEditor.getValue();
+      } else if (this.viewMode === 'diff' && this.modifiedModel) {
+        contentToSave = this.modifiedModel.getValue();
+      }
+    }
+
+    if (this.selectedFilePath && contentToSave !== null && contentToSave !== this.activeFileContent) {
       this.restService.saveGitFile$(targetId, this.selectedFilePath, contentToSave).subscribe({
         next: () => {
-          this.loadDbMapData();
-          executeCommit();
+          this.activeFileContent = contentToSave!;
+          launchDialog();
         },
-        error: (err) => {
-          const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
-          this.setStatus(`Save failed before commit: ${rawMsg}`, true);
-          this.snackBar.open(`Save failed before commit: ${rawMsg}`, 'Dismiss', { duration: 5000 });
-        }
+        error: () => launchDialog()
       });
     } else {
-      executeCommit();
+      launchDialog();
     }
+  }
+
+  public pushChanges(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    if (!this.hasConfiguredRemote) {
+      this.openRemoteDialog();
+      return;
+    }
+
+    const remoteName = this.gitStatus?.remotes?.[0]?.name || 'origin';
+    const branch = this.gitStatus?.branch || this.currentBranch || 'main';
+    const aheadText = this.aheadCount > 0 ? ` (${this.aheadCount} commit${this.aheadCount === 1 ? '' : 's'})` : '';
+    if (!confirm(`Push branch '${branch}'${aheadText} in '${targetId}' to remote '${remoteName}'?`)) {
+      return;
+    }
+
+    this.showAuthAction = false;
+    this.isLoading = true;
+    this.setStatus(`Pushing '${branch}' to '${remoteName}'...`, false);
+
+    this.restService.pushGitChanges$(targetId, {
+      remote: remoteName,
+      branchName: branch,
+      setUpstream: !this.gitStatus?.upstream
+    }).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.setStatus(`Successfully pushed '${branch}' to '${remoteName}'`, false);
+        this.snackBar.open(`Pushed '${branch}' to '${remoteName}'`, 'Dismiss', { duration: 4000 });
+        if (res?.status) {
+          this.gitStatus = res.status;
+        } else {
+          this.loadGitStatus();
+        }
+      },
+      error: (err) => {
+        this.isLoading = false;
+        const rawMsg = err.error?.error || err.error?.message || err.message || 'Push failed';
+        this.handleGitOperationError('Git push', rawMsg);
+      }
+    });
+  }
+
+  public openRemoteDialog(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    const dialogRef = this.dialog.open(GitRemoteDialogComponent, {
+      width: '540px',
+      data: {
+        projectId: targetId,
+        remotes: this.gitStatus?.remotes || [],
+        isMemoryRepo: this.isMemoryRepoSelected
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(res => {
+      if (res?.saved) {
+        this.setStatus(`Updated upstream remote for '${targetId}'`, false);
+        this.snackBar.open(`Upstream remote saved for '${targetId}'`, 'Dismiss', { duration: 4000 });
+        this.loadGitStatus();
+      }
+    });
+  }
+
+  public openCopyToRepoDialog(sourcePath: string, event?: Event, sourceRepoOverride?: string): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    const sourceRepo = sourceRepoOverride || this.selectedRepoFolder || this.projectId;
+    if (!sourceRepo || !sourcePath) return;
+
+    const isFromMemoryRepo = sourceRepo === this.memoryRepoName;
+    // Infer DB from path if browsing visulate-memory (e.g. "pdb21/comments/file.sql")
+    const pathParts = sourcePath.split('/');
+    const inferredDb = isFromMemoryRepo && pathParts.length > 1 ? pathParts[0] : this.selectedDbConnection;
+    const linksForDb = this.getEffectiveLinks().filter(
+      l => l.db.toLowerCase() === (inferredDb || '').toLowerCase() || l.db === '*'
+    );
+    const linkedMap = new Map<string, string>();
+    linksForDb.forEach(l => linkedMap.set(l.repo, l.role));
+
+    const targetRepos = this.localRepos
+      .filter(r => r.folderName !== sourceRepo && !r.isMemoryRepo)
+      .map(r => ({
+        folderName: r.folderName,
+        linked: linkedMap.has(r.folderName),
+        role: linkedMap.get(r.folderName)
+      }))
+      .sort((a, b) => (a.linked === b.linked ? a.folderName.localeCompare(b.folderName) : a.linked ? -1 : 1));
+
+    if (targetRepos.length === 0) {
+      this.snackBar.open('No destination code repository available. Clone or add a repository first.', 'Dismiss', { duration: 5000 });
+      return;
+    }
+
+    // Build a clean default destination path (strip leading <db>/ prefix when copying from visulate-memory)
+    const defaultTargetPath = (isFromMemoryRepo && pathParts.length > 1)
+      ? `db/${pathParts.slice(1).join('/')}`
+      : sourcePath;
+
+    const dialogRef = this.dialog.open(CopyToRepoDialogComponent, {
+      width: '560px',
+      data: {
+        sourceRepo,
+        sourcePath,
+        targetRepos,
+        defaultTargetRepo: targetRepos[0].folderName,
+        defaultTargetPath
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(res => {
+      if (res?.copied) {
+        const count = res.copiedFiles?.length || 1;
+        this.setStatus(`Copied ${count} file(s) to '${res.targetRepo}' (uncommitted)`, false);
+        const snack = this.snackBar.open(
+          `Copied ${count} file(s) to '${res.targetRepo}'`,
+          `Open ${res.targetRepo}`,
+          { duration: 6000 }
+        );
+        snack.onAction().subscribe(() => {
+          this.selectedRepoFolder = res.targetRepo;
+          this.projectId = res.targetRepo;
+          this.selectedFilePath = res.copiedFiles?.[0] || '';
+          this.loadProjectFiles();
+        });
+      }
+    });
+  }
+
+  public commitAndPush(): void {
+    this.openCommitDialog();
   }
 
   public runIndexDependencies(): void {
     const targetId = this.selectedRepoFolder || this.projectId;
-    this.setStatus('Indexing database-to-code dependencies...', false);
+    this.setStatus('Indexing database-to-code dependencies into visulate-memory...', false);
     this.restService.indexDependencies$(targetId, undefined, this.selectedDbConnection).subscribe({
       next: () => {
-        const targetDb = this.selectedDbConnection ? this.selectedDbConnection.toLowerCase().trim() : '';
-        const savedLoc = targetDb ? `visulate/${targetDb}/` : 'visulate/';
-        this.setStatus(`Dependency mapping completed. Saved to ${savedLoc}oracle-code-map.json & codebase-dependencies.md`, false);
-        this.loadProjectFiles();
+        const targetDb = this.selectedDbConnection ? this.selectedDbConnection.toLowerCase().trim() : '_unscoped';
+        const savedLoc = `${this.memoryRepoName}/${targetDb}/code-maps/${targetId}/`;
+        this.setStatus(`Dependency mapping completed. Saved to ${savedLoc} (app repository untouched)`, false);
+        this.loadDbMapData();
+        this.loadGitStatus();
       },
       error: (err) => {
         this.setStatus(`Indexing failed: ${err.message}`, true);

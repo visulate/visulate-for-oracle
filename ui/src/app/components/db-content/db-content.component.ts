@@ -281,76 +281,78 @@ export class DbContentComponent implements OnInit, OnDestroy {
   }
 
   public relatedCodeFiles: string[] = [];
+  public relatedRepositories: Array<{ repoFolder: string; owner?: string; type?: string; files: string[] }> = [];
   public associatedRepo: string = '';
+  public associatedRepos: Array<{ db: string; repo: string; role: string }> = [];
 
   public getLinkedRepo(endpoint?: string): string {
     if (!endpoint) {
       return '';
     }
-    try {
-      const stored = localStorage.getItem('visulate_db_repo_associations');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.dbToRepo?.[endpoint]) {
-          return parsed.dbToRepo[endpoint];
-        }
-      }
-    } catch (_) {}
-    return '';
+    return this.state.getAssociatedRepo(endpoint);
+  }
+
+  public getLinkedRepos(endpoint?: string): Array<{ db: string; repo: string; role: string }> {
+    if (!endpoint) {
+      return [];
+    }
+    return this.state.getReposForDb(endpoint);
   }
 
   public loadRelatedCodeFiles(endpoint: string, objectName: string): void {
     if (!this.enableGitIntegration || !endpoint || !objectName) return;
 
-    let linkedRepo: string | undefined;
-    try {
-      const stored = localStorage.getItem('visulate_db_repo_associations');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        linkedRepo = parsed.dbToRepo?.[endpoint];
-      }
-    } catch (_) {}
+    this.associatedRepos = this.getLinkedRepos(endpoint);
+    const primaryLinkedRepo = this.associatedRepos.length > 0 ? this.associatedRepos[0].repo : '';
 
-    this.restService.getObjectCodeDependencies$(endpoint, objectName, linkedRepo).subscribe({
+    // Query across ALL indexed repositories in visulate-memory so cross-codebase impacts are visible
+    this.restService.getObjectCodeDependencies$(endpoint, objectName).subscribe({
       next: (res) => {
         if (res && res.found && Array.isArray(res.files)) {
           this.relatedCodeFiles = res.files;
-          this.associatedRepo = res.repoFolder || linkedRepo || '';
+          this.relatedRepositories = Array.isArray(res.repositories) && res.repositories.length > 0
+            ? res.repositories
+            : [{ repoFolder: res.repoFolder || primaryLinkedRepo || '', files: res.files }];
+          this.associatedRepo = res.repoFolder || primaryLinkedRepo || '';
         } else {
           this.relatedCodeFiles = [];
-          this.associatedRepo = linkedRepo || '';
+          this.relatedRepositories = [];
+          this.associatedRepo = primaryLinkedRepo || '';
         }
       },
       error: () => {
         this.relatedCodeFiles = [];
-        this.associatedRepo = '';
+        this.relatedRepositories = [];
+        this.associatedRepo = primaryLinkedRepo || '';
       }
     });
   }
 
-  public openInWorkbench(filePath: string): void {
+  public openInWorkbench(filePath: string, repoFolder?: string): void {
     if (!this.currentContext) return;
+    const targetRepo = repoFolder || this.associatedRepo;
     const queryParams: any = {
       db: this.currentContext.endpoint,
       file: filePath
     };
-    if (this.associatedRepo) {
-      queryParams.projectId = this.associatedRepo;
+    if (targetRepo) {
+      queryParams.projectId = targetRepo;
     }
-    this.state.setLastSelectedFile(filePath, this.associatedRepo || undefined);
+    this.state.setLastSelectedFile(filePath, targetRepo || undefined);
     this.state.setLastWorkbenchQueryParams(queryParams);
     this.router.navigate(['/workbench'], {
       queryParams
     });
   }
 
-  public openRepoInWorkbench(event?: Event): void {
+  public openRepoInWorkbench(event?: Event, repoFolder?: string): void {
     if (event) {
       event.stopPropagation();
     }
-    if (!this.associatedRepo) return;
+    const targetRepo = repoFolder || this.associatedRepo;
+    if (!targetRepo) return;
     const queryParams: any = {
-      projectId: this.associatedRepo
+      projectId: targetRepo
     };
     if (this.currentContext?.endpoint) {
       queryParams.db = this.currentContext.endpoint;
@@ -364,8 +366,10 @@ export class DbContentComponent implements OnInit, OnDestroy {
   public updateAssociatedRepo(): void {
     if (!this.currentContext?.endpoint) {
       this.associatedRepo = '';
+      this.associatedRepos = [];
     } else {
-      this.associatedRepo = this.state.getAssociatedRepo(this.currentContext.endpoint);
+      this.associatedRepos = this.state.getReposForDb(this.currentContext.endpoint);
+      this.associatedRepo = this.associatedRepos.length > 0 ? this.associatedRepos[0].repo : '';
     }
   }
 

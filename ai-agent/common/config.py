@@ -1,10 +1,140 @@
 import json
 import logging
 import os
+import subprocess
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MEMORY_REPO_FALLBACK = "visulate-memory"
+
+
+def get_default_memory_repo_name() -> str:
+    """Returns the configured folder name for the shared Visulate memory repository."""
+    raw = (os.getenv("DEFAULT_MEMORY_REPO") or DEFAULT_MEMORY_REPO_FALLBACK).strip()
+    safe = "".join([c if c.isalnum() or c in "._-" else "_" for c in raw]).strip("_")
+    if not safe or safe in (".", ".."):
+        return DEFAULT_MEMORY_REPO_FALLBACK
+    return safe
+
+
+def get_memory_repo_path(username: str = None) -> str:
+    """
+    Resolves the directory path for the Visulate memory repository.
+    Defaults to shared scope (<GIT_REPOS_DIR>/visulate-memory) so database memories
+    are shared across users and repositories without storing sensitive credentials.
+    """
+    scope = (os.getenv("MEMORY_REPO_SCOPE") or "shared").lower()
+    memory_repo_name = get_default_memory_repo_name()
+    if scope == "user":
+        base_dir = resolve_repos_base_dir(username)
+    else:
+        root = os.getenv("GIT_REPOS_DIR")
+        if not root:
+            home_git = os.path.expanduser("~/git")
+            root = home_git if os.path.exists(home_git) else os.path.expanduser("~/visulate-repos")
+        base_dir = root
+    return os.path.join(base_dir, memory_repo_name)
+
+
+def ensure_memory_repo(username: str = None) -> Tuple[str, str]:
+    """
+    Ensures the shared Visulate memory repository exists as a local Git repo
+    (no upstream remote required). Bootstraps .gitignore, associations.json,
+    and README.md with a single initial commit if HEAD does not exist yet.
+    Subsequent AI writes remain uncommitted so the user retains commit control.
+    """
+    repo_name = get_default_memory_repo_name()
+    repo_path = get_memory_repo_path(username)
+    os.makedirs(repo_path, exist_ok=True)
+
+    git_dir = os.path.join(repo_path, ".git")
+    freshly_initialized = False
+    if not os.path.exists(git_dir):
+        try:
+            res = subprocess.run(
+                ["git", "-c", "safe.directory=*", "init", "-b", "main"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if res.returncode != 0:
+                subprocess.run(
+                    ["git", "-c", "safe.directory=*", "init"],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            freshly_initialized = True
+        except Exception as err:
+            logger.warning(f"Could not initialize git in memory repo {repo_path}: {err}")
+
+    gitignore_path = os.path.join(repo_path, ".gitignore")
+    if not os.path.exists(gitignore_path):
+        with open(gitignore_path, "w", encoding="utf-8") as f:
+            f.write(
+                "# Temporary Ora2Pg runtime configs and large archives\n"
+                "**/ora2pg.conf\n"
+                "**/*.tar.gz\n"
+                "**/data/*.sql\n"
+                "**/copy/*.sql\n"
+                ".DS_Store\n"
+            )
+
+    assoc_path = os.path.join(repo_path, "associations.json")
+    if not os.path.exists(assoc_path):
+        with open(assoc_path, "w", encoding="utf-8") as f:
+            json.dump({"version": 1, "links": []}, f, indent=2)
+            f.write("\n")
+
+    readme_path = os.path.join(repo_path, "README.md")
+    if not os.path.exists(readme_path):
+        with open(readme_path, "w", encoding="utf-8") as f:
+            f.write(
+                "# Visulate Architectural Knowledge Base\n\n"
+                "This repository stores database architectural memories, dependency code maps, "
+                "generated artifacts, and database-to-repository associations managed by Visulate.\n\n"
+                "No upstream remote is required. You may configure an upstream remote at any time from the Application Workbench.\n"
+            )
+
+    if freshly_initialized:
+        try:
+            head_check = subprocess.run(
+                ["git", "-c", "safe.directory=*", "rev-parse", "--verify", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if head_check.returncode != 0:
+                subprocess.run(
+                    ["git", "-c", "safe.directory=*", "add", ".gitignore", "README.md", "associations.json"],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                subprocess.run(
+                    [
+                        "git",
+                        "-c", "safe.directory=*",
+                        "-c", "user.name=Visulate",
+                        "-c", "user.email=visulate@localhost",
+                        "commit",
+                        "-m", "Initial Visulate memory repository",
+                    ],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+        except Exception as err:
+            logger.warning(f"Initial bootstrap commit skipped for {repo_path}: {err}")
+
+    return repo_name, repo_path
 
 
 def get_mcp_urls():
@@ -91,49 +221,19 @@ def resolve_repo_path(project_id: str, username: str = None) -> str:
     safe_project = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_")
     if not safe_project or safe_project in (".", ".."):
         return ""
+    if safe_project == get_default_memory_repo_name():
+        return get_memory_repo_path(username)
     base_dir = resolve_repos_base_dir(username)
     return os.path.join(base_dir, safe_project)
 
 
 def resolve_repo_for_db(database: str = None, project_id: str = None, username: str = None) -> Tuple[Optional[str], Optional[str]]:
     """
-    Finds the repository associated with a database or project_id.
-    Returns (repo_name, repo_path) or (None, None).
+    Resolves the repository for storing database-level knowledge and generated artifacts
+    (memories, structures, ERDs, comments, remediation scripts, test data, reports).
+    Always targets the central Visulate memory repository so findings are universally
+    available across databases without dirtying application repositories.
     """
-    # 1. If project_id is given and resolves to an existing directory
-    if project_id:
-        path = resolve_repo_path(project_id, username)
-        if path and os.path.exists(path):
-            safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_")
-            return safe_name, path
-
-    # 2. If database is given, scan repositories for visulate/<database>
-    if database:
-        safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(database)]).strip("_").lower()
-        base_dir = resolve_repos_base_dir(username)
-        if os.path.exists(base_dir):
-            try:
-                for entry in os.listdir(base_dir):
-                    if entry.startswith(".") or entry == "users":
-                        continue
-                    repo_dir = os.path.join(base_dir, entry)
-                    if os.path.isdir(repo_dir):
-                        # Check visulate/<safe_db>
-                        if os.path.exists(os.path.join(repo_dir, "visulate", safe_db)):
-                            return entry, repo_dir
-                        # Check visulate/oracle-code-map.json
-                        code_map = os.path.join(repo_dir, "visulate", "oracle-code-map.json")
-                        if os.path.exists(code_map):
-                            try:
-                                with open(code_map, "r", encoding="utf-8") as f:
-                                    data = json.load(f)
-                                    if (data.get("dbConnectionId") or "").lower().strip() == safe_db:
-                                        return entry, repo_dir
-                            except Exception:
-                                pass
-            except Exception as e:
-                logger.warning(f"Error scanning repositories in {base_dir}: {e}")
-
-    return None, None
+    return ensure_memory_repo(username)
 
 

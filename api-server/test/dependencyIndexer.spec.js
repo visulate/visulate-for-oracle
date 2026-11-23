@@ -27,12 +27,16 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     }
   });
 
-  it('should create visulate/dev/ with oracle-code-map.json and codebase-dependencies.md when db is "dev"', async () => {
+  it('should create code-maps in visulate-memory/dev/ without modifying the app repo', async () => {
+    const gitService = require('../services/gitService');
     const map = await dependencyIndexer.indexProjectDependencies(repoName, null, null, 'dev');
     expect(map.dbConnectionId).to.equal('dev');
 
-    const devDir = path.join(repoDir, 'visulate', 'dev');
+    const memDir = gitService.getMemoryRepoDir();
+    const devDir = path.join(memDir, 'dev', 'code-maps', repoName);
     expect(fs.existsSync(devDir)).to.be.true;
+    // App repo should remain untouched (no visulate/ directory created inside it)
+    expect(fs.existsSync(path.join(repoDir, 'visulate'))).to.be.false;
 
     const mapFile = path.join(devDir, 'oracle-code-map.json');
     const mdFile = path.join(devDir, 'codebase-dependencies.md');
@@ -48,12 +52,14 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     expect(mdContent).to.include('EMP');
   });
 
-  it('should create visulate/prod/ without overwriting visulate/dev/ when indexing for "prod"', async () => {
+  it('should create visulate-memory/prod/code-maps/ without overwriting dev when indexing for "prod"', async () => {
+    const gitService = require('../services/gitService');
     const map = await dependencyIndexer.indexProjectDependencies(repoName, null, null, 'prod');
     expect(map.dbConnectionId).to.equal('prod');
 
-    const prodDir = path.join(repoDir, 'visulate', 'prod');
-    const devDir = path.join(repoDir, 'visulate', 'dev');
+    const memDir = gitService.getMemoryRepoDir();
+    const prodDir = path.join(memDir, 'prod', 'code-maps', repoName);
+    const devDir = path.join(memDir, 'dev', 'code-maps', repoName);
 
     expect(fs.existsSync(prodDir)).to.be.true;
     expect(fs.existsSync(devDir)).to.be.true;
@@ -65,14 +71,26 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     expect(devMap.dbConnectionId).to.equal('dev');
   });
 
-  it('should resolve codebase dependencies from visulate/<db>/ in getObjectCodeDependencies', async () => {
-    const devResult = await dependencyIndexer.getObjectCodeDependencies('dev', 'EMP', null, repoName);
-    expect(devResult.found).to.be.true;
-    expect(devResult.files).to.include('emp.sql');
+  it('should resolve codebase dependencies across multiple repos from visulate-memory', async () => {
+    const secondRepo = 'second-app';
+    const secondDir = path.join(baseDir, secondRepo);
+    fs.mkdirSync(path.join(secondDir, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(secondDir, 'payroll.sql'), 'SELECT * FROM EMP;\n', 'utf8');
+    await dependencyIndexer.indexProjectDependencies(secondRepo, null, null, 'dev');
+
+    const devAll = await dependencyIndexer.getObjectCodeDependencies('dev', 'EMP');
+    expect(devAll.found).to.be.true;
+    expect(devAll.files).to.include('emp.sql');
+    expect(devAll.files).to.include('payroll.sql');
+    expect(devAll.repositories.map(r => r.repoFolder)).to.include.members([repoName, secondRepo]);
 
     const prodResult = await dependencyIndexer.getObjectCodeDependencies('prod', 'EMP', null, repoName);
     expect(prodResult.found).to.be.true;
     expect(prodResult.files).to.include('emp.sql');
+
+    const loadedMap = dependencyIndexer.getProjectCodeMap(repoName, 'dev');
+    expect(loadedMap).to.be.an('object');
+    expect(loadedMap.objects['EMP']).to.exist;
   });
 
   it('should resolve safe file path for download using gitService.getSafeFilePath', () => {
@@ -81,7 +99,8 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     expect(filePath).to.equal(path.join(repoDir, 'emp.sql'));
 
     expect(() => gitService.getSafeFilePath(repoName, 'nonexistent.sql')).to.throw();
-    expect(() => gitService.getSafeFilePath(repoName, 'visulate')).to.throw('directory');
+    fs.mkdirSync(path.join(repoDir, 'subdir'), { recursive: true });
+    expect(() => gitService.getSafeFilePath(repoName, 'subdir')).to.throw('directory');
 
     // Reject .git control metadata
     expect(() => gitService.getSafeFilePath(repoName, '.git/config')).to.throw('repository metadata is not downloadable');
@@ -142,7 +161,8 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
     }
   });
 
-  it('should save comparison report to repository via compareEntities without ReferenceError', async () => {
+  it('should save comparison report to visulate-memory via compareEntities without ReferenceError', async () => {
+    const gitService = require('../services/gitService');
     const compareService = require('../services/compare-service');
     const controller = require('../services/controller');
     const dbConfig = require('../config/database');
@@ -161,8 +181,9 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
 
       const result = await compareService.compareEntities(sourceReq, targetReq);
       expect(result).to.have.property('savedPath');
-      expect(result.savedPath).to.include('visulate/dev/reports/comparison_dev_vs_prod.md');
-      expect(fs.existsSync(path.join(repoDir, result.savedPath))).to.be.true;
+      expect(result.repo).to.equal(gitService.getDefaultMemoryRepoName());
+      expect(result.savedPath).to.include('dev/reports/comparison_dev_vs_prod.md');
+      expect(fs.existsSync(path.join(gitService.getMemoryRepoDir(), result.savedPath))).to.be.true;
     } finally {
       controller.endpoints = origEndpoints;
       controller.getObjectDetails = origGetObj;

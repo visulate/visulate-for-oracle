@@ -156,3 +156,22 @@ def test_get_okf_context_server_mode_tenant(temp_repo_dir, monkeypatch):
     res_other = get_okf_context("tenant-project", "dev", username="other_user")
     assert res_other == ""
 
+
+def test_get_okf_context_from_visulate_memory_without_project_id(temp_repo_dir):
+    mem_base = os.path.join(temp_repo_dir, "visulate-memory", "pdb21")
+    os.makedirs(os.path.join(mem_base, "memories"), exist_ok=True)
+    os.makedirs(os.path.join(mem_base, "code-maps", "rental-portal"), exist_ok=True)
+    os.makedirs(os.path.join(mem_base, "code-maps", "billing-service"), exist_ok=True)
+
+    with open(os.path.join(mem_base, "memories", "schema_rnt_summary.md"), "w", encoding="utf-8") as f:
+        f.write("# RNT Schema\nCore property leasing tables.")
+    with open(os.path.join(mem_base, "code-maps", "rental-portal", "codebase-dependencies.md"), "w", encoding="utf-8") as f:
+        f.write("# Dependencies (rental-portal)\n- PR_PROPERTIES -> src/prop.js")
+    with open(os.path.join(mem_base, "code-maps", "billing-service", "codebase-dependencies.md"), "w", encoding="utf-8") as f:
+        f.write("# Dependencies (billing-service)\n- PR_PROPERTIES -> src/invoice.py")
+
+    res = get_okf_context(None, "pdb21")
+    assert "Core property leasing tables." in res
+    assert "src/prop.js" in res
+    assert "src/invoice.py" in res
+

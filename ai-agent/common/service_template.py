@@ -22,13 +22,13 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from common.config import resolve_repo_path
+from common.config import resolve_repo_path, get_default_memory_repo_name, get_memory_repo_path
 
 logger = logging.getLogger(__name__)
 
 
 def get_okf_context(
-    project_id: str,
+    project_id: str = None,
     db_endpoint: str = None,
     active_owner: str = None,
     active_object: str = None,
@@ -36,45 +36,65 @@ def get_okf_context(
     username: str = None
 ) -> str:
     try:
-        safe_project_id = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_") or "default-project"
-        repo_path = resolve_repo_path(project_id, username)
-        if not repo_path or not os.path.exists(repo_path):
-            return ""
+        memory_repo_name = get_default_memory_repo_name()
+        memory_repo_path = get_memory_repo_path(username)
+        safe_project_id = (
+            "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_")
+            if project_id else memory_repo_name
+        ) or memory_repo_name
 
-        visulate_dir = os.path.join(repo_path, "visulate")
+        # Collect scan roots:
+        # 1. Central visulate-memory repository (root-level <db>/ striping)
+        # 2. Legacy <project_id>/visulate/ if a separate code repository is selected
+        scan_sources = []
+        if memory_repo_path and os.path.exists(memory_repo_path):
+            scan_sources.append((memory_repo_name, memory_repo_path, memory_repo_path))
 
-        target_dirs = []
-        if os.path.exists(visulate_dir):
-            target_dirs.append(visulate_dir)
+        if project_id and project_id != memory_repo_name:
+            repo_path = resolve_repo_path(project_id, username)
+            if repo_path and os.path.exists(repo_path):
+                visulate_dir = os.path.join(repo_path, "visulate")
+                if os.path.exists(visulate_dir):
+                    scan_sources.append((safe_project_id, repo_path, visulate_dir))
 
-        if not target_dirs:
+        if not scan_sources:
             return ""
 
         normalized_db = db_endpoint.lower().strip() if db_endpoint else None
         collected_files = []
+        seen_rel_keys = set()
 
-        for base_dir in target_dirs:
+        for src_name, src_repo_root, base_dir in scan_sources:
             for root, dirs, files in os.walk(base_dir):
+                dirs[:] = [d for d in dirs if d != ".git"]
                 for file in sorted(files):
+                    if file in ("README.md", "associations.json") and os.path.abspath(root) == os.path.abspath(base_dir):
+                        continue
                     if file.endswith(".md") or file.endswith(".json"):
                         full_path = os.path.join(root, file)
-                        rel_to_repo = os.path.relpath(full_path, repo_path)
+                        rel_to_repo = os.path.relpath(full_path, src_repo_root)
                         rel_to_base = os.path.relpath(full_path, base_dir)
                         parts = rel_to_base.split(os.sep)
 
                         # Check if file is striped by database
-                        is_in_db_subdir = len(parts) > 1 and parts[0] not in ("structures", "memories")
+                        is_in_db_subdir = len(parts) > 1 and parts[0] not in ("structures", "memories", "code-maps", "queries")
                         db_folder = parts[0].lower() if is_in_db_subdir else None
 
                         if normalized_db and is_in_db_subdir and db_folder != normalized_db:
                             continue
 
-                        collected_files.append((rel_to_repo, full_path, file))
+                        dedup_key = rel_to_base.lower()
+                        if dedup_key in seen_rel_keys:
+                            continue
+                        seen_rel_keys.add(dedup_key)
+                        display_rel = f"{src_name}/{rel_to_repo}" if len(scan_sources) > 1 else rel_to_repo
+                        collected_files.append((display_rel, full_path, file))
 
         if not collected_files:
             return ""
 
-        header_details = f"Repository: {safe_project_id}"
+        header_repo = safe_project_id if project_id else memory_repo_name
+        header_details = f"Repository: {header_repo}"
         if db_endpoint:
             header_details += f", Database: {db_endpoint}"
 
@@ -290,7 +310,7 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
                                     content_str = content_str[:100000] + "\n[Content truncated due to size limit]"
                                 preamble += f"--- START OF FILE: {filename} ---\n"
                                 preamble += content_str
-                        project_id = context_data.get("projectId") or "default-project"
+                        project_id = context_data.get("projectId")
                         endpoint = context_data.get("endpoint")
                         user_tenant = context_data.get("username")
                         okf_context = get_okf_context(
@@ -305,9 +325,8 @@ def create_agent_app(agent_factory: Callable[[], LlmAgent], agent_name: str) -> 
 
                         full_message = f"{preamble}\nUser Request: {message}"
                     else:
-                        project_id = "default-project"
                         user_tenant = data.get("username")
-                        okf_context = get_okf_context(project_id, username=user_tenant)
+                        okf_context = get_okf_context(None, username=user_tenant)
                         full_message = f"{okf_context}\nUser Request: {message}" if okf_context else message
 
                     agent_message = types.Content(role="user", parts=[types.Part(text=full_message)])

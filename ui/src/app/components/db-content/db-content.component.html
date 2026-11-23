@@ -275,18 +275,42 @@
           Related Repository Code Files
         </mat-panel-title>
         <mat-panel-description>
+          @if (relatedRepositories && relatedRepositories.length > 1) {
+          Mapped codebase files across {{ relatedRepositories.length }} repositories ({{ relatedCodeFiles.length }})
+          } @else {
           Mapped codebase files {{ associatedRepo ? 'in ' + associatedRepo : '' }} ({{ relatedCodeFiles.length }})
+          }
         </mat-panel-description>
       </mat-expansion-panel-header>
       <div class="code-files-list">
-        @for (file of relatedCodeFiles; track file) {
-        <div class="code-file-item" (click)="openInWorkbench(file)">
-          <mat-icon class="file-icon">description</mat-icon>
-          <span class="file-path">{{ file }}</span>
-          <button mat-stroked-button color="primary" class="open-btn">
-            <mat-icon>edit</mat-icon> Open in Workbench
-          </button>
-        </div>
+        @if (relatedRepositories && relatedRepositories.length > 0) {
+          @for (repoGroup of relatedRepositories; track repoGroup.repoFolder) {
+            @if (relatedRepositories.length > 1 && repoGroup.repoFolder) {
+            <div class="repo-group-header" style="font-weight: 600; margin: 8px 0 4px 0; display: flex; align-items: center; gap: 6px;">
+              <mat-icon style="font-size: 16px; width: 16px; height: 16px;">folder_special</mat-icon>
+              <span>{{ repoGroup.repoFolder }}</span>
+            </div>
+            }
+            @for (file of repoGroup.files; track file) {
+            <div class="code-file-item" (click)="openInWorkbench(file, repoGroup.repoFolder)">
+              <mat-icon class="file-icon">description</mat-icon>
+              <span class="file-path">{{ file }}</span>
+              <button mat-stroked-button color="primary" class="open-btn">
+                <mat-icon>edit</mat-icon> Open in Workbench
+              </button>
+            </div>
+            }
+          }
+        } @else {
+          @for (file of relatedCodeFiles; track file) {
+          <div class="code-file-item" (click)="openInWorkbench(file)">
+            <mat-icon class="file-icon">description</mat-icon>
+            <span class="file-path">{{ file }}</span>
+            <button mat-stroked-button color="primary" class="open-btn">
+              <mat-icon>edit</mat-icon> Open in Workbench
+            </button>
+          </div>
+          }
         }
       </div>
     </mat-expansion-panel>

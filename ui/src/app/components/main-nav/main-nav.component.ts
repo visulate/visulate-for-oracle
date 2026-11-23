@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { MatSidenav } from '@angular/material/sidenav';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { Subject, combineLatest } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { StateService } from '../../services/state.service';
+import { RestService } from '../../services/rest.service';
 import { CurrentContextModel } from 'src/app/models/current-context.model';
 import { environment } from '../../../environments/environment';
 
@@ -32,18 +34,22 @@ import { environment } from '../../../environments/environment';
 })
 export class MainNavComponent implements OnInit, OnDestroy {
 
+  @ViewChild('snav') snav?: MatSidenav;
   mobileQuery: MediaQueryList;
   opened: String = null;
   public activeTab: 'database' | 'application' = 'database';
   public currentContext: CurrentContextModel;
   public hasActivatedApplicationTab = false;
   public enableGitIntegration = environment.enableGitIntegration;
+  public workbenchToolbar$ = this.state.workbenchToolbar$;
+  public workbenchSidenav$ = this.state.workbenchSidenav$;
 
   constructor(
     media: MediaMatcher,
     private route: ActivatedRoute,
     private router: Router,
-    private state: StateService) {
+    private state: StateService,
+    private restService: RestService) {
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
   }
 
@@ -161,6 +167,27 @@ export class MainNavComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Load server-side M:N database <-> repository associations when Git integration is enabled
+    if (this.enableGitIntegration && this.restService && typeof this.restService.getGitAssociations$ === 'function') {
+      this.restService.getGitAssociations$().pipe(takeUntil(this.unsubscribe$)).subscribe({
+        next: (res) => {
+          if (res && Array.isArray(res.links)) {
+            this.state.setAssociations(res.links);
+          }
+        },
+        error: () => { /* ignore if backend unavailable */ }
+      });
+    }
+
+    if (this.state.sidenavCommand$) {
+      this.state.sidenavCommand$.pipe(takeUntil(this.unsubscribe$)).subscribe(cmd => {
+        if (!this.snav) return;
+        if (cmd === 'open') this.snav.open();
+        else if (cmd === 'close') this.snav.close();
+        else this.snav.toggle();
+      });
+    }
+
     // Check for saved theme preference
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
@@ -186,6 +213,9 @@ export class MainNavComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(targetUrl);
     } else if (tab === 'application') {
       this.hasActivatedApplicationTab = true;
+      if (this.snav) {
+        this.snav.close();
+      }
       const queryParams = this.getWorkbenchQueryParams();
       this.router.navigate(['/workbench'], { queryParams });
     }
@@ -230,20 +260,10 @@ export class MainNavComponent implements OnInit, OnDestroy {
     const currentDb = this.currentContext?.endpoint || params.db;
     if (currentDb) {
       params.db = currentDb;
-      try {
-        const stored = localStorage.getItem('visulate_db_repo_associations');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const associatedRepo = parsed.dbToRepo?.[currentDb];
-          if (associatedRepo) {
-            params.projectId = associatedRepo;
-          } else {
-            delete params.projectId;
-          }
-        } else {
-          delete params.projectId;
-        }
-      } catch (_) {
+      const associatedRepo = this.state.getAssociatedRepo(currentDb);
+      if (associatedRepo) {
+        params.projectId = associatedRepo;
+      } else {
         delete params.projectId;
       }
     }

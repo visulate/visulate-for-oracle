@@ -12,6 +12,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { Component, Directive, EventEmitter, Input, Output } from '@angular/core';
 
@@ -66,6 +69,10 @@ describe('MonacoComponent - New File Creation', () => {
       'setSelectedRepo',
       'getSelectedRepo',
       'notifyRepoAssociationChanged',
+      'setWorkbenchToolbar',
+      'setWorkbenchSidenav',
+      'openSidenav',
+      'closeSidenav',
       'addMessage'
     ]);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
@@ -91,7 +98,17 @@ describe('MonacoComponent - New File Creation', () => {
 
     await TestBed.configureTestingModule({
       declarations: [MonacoComponent, MockChatComponent, MockMarkdownDirective],
-      imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule, MatSnackBarModule],
+      imports: [
+        FormsModule,
+        MatButtonModule,
+        MatIconModule,
+        MatProgressBarModule,
+        MatTooltipModule,
+        MatSnackBarModule,
+        MatMenuModule,
+        MatDividerModule,
+        NoopAnimationsModule
+      ],
       providers: [
         { provide: RestService, useValue: mockRestService },
         { provide: StateService, useValue: mockStateService },
@@ -750,6 +767,192 @@ describe('MonacoComponent - New File Creation', () => {
 
       expect(anchor.getAttribute('target')).toBe('_blank');
       expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Granular Git Controls, M:N Associations & Copy to Repo', () => {
+    it('should group linked databases and linked repositories for M:N modernization and DBA roles', () => {
+      component.dbEndpoints = [
+        { endpoint: 'pdb21', description: 'Source Oracle' },
+        { endpoint: 'cmbs-postgres', description: 'Target Postgres' },
+        { endpoint: 'other-db', description: 'Unlinked DB' }
+      ];
+      component.localRepos = [
+        { folderName: 'visulate-memory', fullPath: '/repos/visulate-memory', isGitRepo: true, isMemoryRepo: true },
+        { folderName: 'rental-portal', fullPath: '/repos/rental-portal', isGitRepo: true },
+        { folderName: 'dba-common', fullPath: '/repos/dba-common', isGitRepo: true }
+      ];
+      component.associations = [
+        { db: 'pdb21', repo: 'rental-portal', role: 'source' },
+        { db: 'cmbs-postgres', repo: 'rental-portal', role: 'target' },
+        { db: '*', repo: 'dba-common', role: 'dba' }
+      ];
+
+      component.selectedRepoFolder = 'rental-portal';
+      component.selectedDbConnection = 'pdb21';
+
+      expect(component.linkedDbEndpointsForCurrentRepo.map(d => `${d.endpoint}:${d.role}`)).toEqual([
+        'pdb21:source',
+        'cmbs-postgres:target'
+      ]);
+      expect(component.otherDbEndpointsForCurrentRepo.map(d => d.endpoint)).toEqual(['other-db']);
+      expect(component.linkedReposForCurrentDb.map(r => `${r.folderName}:${r.role}`)).toEqual([
+        'rental-portal:source',
+        'dba-common:dba'
+      ]);
+      expect(component.otherReposForCurrentDb.map(r => r.folderName)).toEqual(['visulate-memory']);
+    });
+
+    it('should open Commit dialog (never auto-pushing) and switch to diff mode when requested from dialog', () => {
+      (mockRestService as any).getGitStatus$ = jasmine.createSpy('getGitStatus$').and.returnValue(of({
+        projectId: 'rental-portal',
+        branch: 'main',
+        upstream: null,
+        remotes: [],
+        hasRemote: false,
+        isMemoryRepo: false,
+        ahead: 0,
+        behind: 0,
+        files: [{ path: 'src/app.sql', indexStatus: ' ', workTreeStatus: 'M', status: 'M' }]
+      }));
+      mockDialog.open.and.returnValue({
+        afterClosed: () => of({ action: 'diff', filePath: 'src/app.sql' })
+      } as any);
+      spyOn(component, 'openFile');
+
+      component.selectedRepoFolder = 'rental-portal';
+      component.openCommitDialog();
+
+      expect(mockDialog.open).toHaveBeenCalled();
+      expect(component.viewMode).toBe('diff');
+      expect(component.openFile).toHaveBeenCalledWith('src/app.sql');
+    });
+
+    it('should open Remote dialog when Push is clicked on a repo without an upstream remote', () => {
+      component.selectedRepoFolder = 'visulate-memory';
+      component.gitStatus = {
+        projectId: 'visulate-memory',
+        branch: 'main',
+        upstream: null,
+        remotes: [],
+        hasRemote: false,
+        isMemoryRepo: true,
+        ahead: 0,
+        behind: 0,
+        files: []
+      };
+      spyOn(component, 'openRemoteDialog');
+
+      component.pushChanges();
+      expect(component.openRemoteDialog).toHaveBeenCalled();
+    });
+
+    it('should open CopyToRepoDialog with linked repos prioritized and clean default target path', () => {
+      component.memoryRepoName = 'visulate-memory';
+      component.selectedRepoFolder = 'visulate-memory';
+      component.localRepos = [
+        { folderName: 'visulate-memory', fullPath: '/repos/visulate-memory', isGitRepo: true, isMemoryRepo: true },
+        { folderName: 'alpha-repo', fullPath: '/repos/alpha-repo', isGitRepo: true },
+        { folderName: 'rental-portal', fullPath: '/repos/rental-portal', isGitRepo: true }
+      ];
+      component.associations = [
+        { db: 'pdb21', repo: 'rental-portal', role: 'source' }
+      ];
+
+      component.openCopyToRepoDialog('pdb21/comments/comments_pdb21_hr.sql');
+
+      expect(mockDialog.open).toHaveBeenCalled();
+      const args = mockDialog.open.calls.mostRecent().args[1] as any;
+      expect(args.data.sourceRepo).toBe('visulate-memory');
+      expect(args.data.defaultTargetRepo).toBe('rental-portal');
+      expect(args.data.defaultTargetPath).toBe('db/comments/comments_pdb21_hr.sql');
+    });
+
+    it('should order multi-root workspaces with linked repos, visulate-memory, and unlinked repos always accessible', () => {
+      component.memoryRepoName = 'visulate-memory';
+      component.selectedDbConnection = 'pdb21';
+      component.localRepos = [
+        { folderName: 'zeta-unlinked', fullPath: '/repos/zeta-unlinked', isGitRepo: true },
+        { folderName: 'visulate-memory', fullPath: '/repos/visulate-memory', isGitRepo: true, isMemoryRepo: true },
+        { folderName: 'rental-portal', fullPath: '/repos/rental-portal', isGitRepo: true },
+        { folderName: 'dba-common', fullPath: '/repos/dba-common', isGitRepo: true }
+      ];
+      component.associations = [
+        { db: 'pdb21', repo: 'rental-portal', role: 'source' },
+        { db: '*', repo: 'dba-common', role: 'dba' }
+      ];
+
+      const ordered = component.orderedWorkspaces.map(w => w.folderName);
+      expect(ordered).toEqual(['rental-portal', 'dba-common', 'visulate-memory', 'zeta-unlinked']);
+    });
+
+    it('should compare two arbitrary files across different workspaces via Select for Compare / Compare with Selected', () => {
+      mockRestService.getGitFile$.and.callFake((repo: string, path: string) => {
+        if (repo === 'visulate-memory' && path === 'pdb21/comments/a.sql') {
+          return of({ content: '-- generated' });
+        }
+        return of({ content: '-- modified in app repo' });
+      });
+      spyOn(component as any, 'initMonaco');
+      spyOn(component as any, 'updateDiffEditorModels');
+
+      component.selectForCompare('visulate-memory', 'pdb21/comments/a.sql');
+      expect(component.compareSource).toEqual({ repo: 'visulate-memory', path: 'pdb21/comments/a.sql' });
+
+      component.compareWithSelected('rental-portal', 'db/a.sql');
+      expect(component.viewMode).toBe('diff');
+      expect(component.originalContent).toBe('-- generated');
+      expect(component.modifiedContent).toBe('-- modified in app repo');
+      expect(component.activeCompare).toEqual({
+        leftRepo: 'visulate-memory',
+        leftPath: 'pdb21/comments/a.sql',
+        rightRepo: 'rental-portal',
+        rightPath: 'db/a.sql'
+      });
+    });
+
+    it('should project workbench toolbar and custom hamburger sidenav into main-nav after view init and clear on destroy', fakeAsync(() => {
+      spyOn(component as any, 'initMonaco');
+      fixture.detectChanges();
+      tick();
+      expect(mockStateService.setWorkbenchToolbar).toHaveBeenCalledWith(component.workbenchToolbarTpl);
+      expect(mockStateService.setWorkbenchSidenav).toHaveBeenCalledWith(component.workbenchSidenavTpl);
+      component.openAppMenu();
+      expect(mockStateService.openSidenav).toHaveBeenCalled();
+      component.closeAppMenu();
+      expect(mockStateService.closeSidenav).toHaveBeenCalled();
+      component.ngOnDestroy();
+      expect(mockStateService.setWorkbenchToolbar).toHaveBeenCalledWith(null);
+      expect(mockStateService.setWorkbenchSidenav).toHaveBeenCalledWith(null);
+    }));
+
+    it('should compute human-readable file language labels for the VS Code-style footer', () => {
+      component.selectedFilePath = 'db/queries/rental_report.sql';
+      expect(component.activeFileLanguageLabel).toBe('SQL');
+      component.selectedFilePath = 'docs/README.md';
+      expect(component.activeFileLanguageLabel).toBe('Markdown');
+      component.selectedFilePath = 'src/pkg.pkb';
+      expect(component.activeFileLanguageLabel).toBe('PL/SQL');
+    });
+
+    it('should open Git Status dialog and handle diff/commit actions returned from it', () => {
+      component.localRepos = [
+        { folderName: 'visulate-memory', fullPath: '/repos/visulate-memory', isGitRepo: true, isMemoryRepo: true },
+        { folderName: 'rental-portal', fullPath: '/repos/rental-portal', isGitRepo: true }
+      ];
+      component.selectedRepoFolder = 'rental-portal';
+      mockDialog.open.and.returnValue({
+        afterClosed: () => of({ action: 'diff', repo: 'visulate-memory', filePath: 'pdb21/memories/note.md' })
+      } as any);
+      spyOn(component, 'openFileInWorkspace');
+
+      component.openGitStatusDialog();
+
+      expect(mockDialog.open).toHaveBeenCalled();
+      const cfg = mockDialog.open.calls.mostRecent().args[1] as any;
+      expect(cfg.data.projectId).toBe('rental-portal');
+      expect(cfg.data.repos.length).toBe(2);
+      expect(component.openFileInWorkspace).toHaveBeenCalledWith('visulate-memory', 'pdb21/memories/note.md', 'diff');
     });
   });
 });

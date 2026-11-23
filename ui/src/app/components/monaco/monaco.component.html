@@ -1,111 +1,228 @@
 <div class="workbench-container">
-  <!-- Top Navigation & Association Header -->
-  <div class="workbench-header">
-    <div class="header-left">
-      <span class="header-title"><mat-icon>dashboard</mat-icon> Application Workbench</span>
-
-      <span class="toolbar-label"><mat-icon>storage</mat-icon> Database:</span>
-      <select class="nav-select" [(ngModel)]="selectedDbConnection" (change)="onDbChange()">
-        <option *ngFor="let db of dbEndpoints; trackBy: trackByDbEndpoint" [value]="db.endpoint">{{ db.endpoint }} ({{ db.description }})</option>
-      </select>
-
-      <!-- Database <-> Repository Link / Unlink Association Button -->
-      <button mat-icon-button 
-        class="link-assoc-btn"
-        [color]="isCurrentPairAssociated ? 'accent' : ''"
-        [class.is-linked]="isCurrentPairAssociated"
-        [disabled]="!selectedDbConnection || !selectedRepoFolder"
-        [matTooltip]="isCurrentPairAssociated ? 'Database and Repository are linked (Alt+L to unlink)' : 'Link this Database and Repository in browser storage (Alt+L)'"
-        (click)="toggleDbRepoAssociation()">
-        <mat-icon>{{ isCurrentPairAssociated ? 'link' : 'link_off' }}</mat-icon>
+  <!-- Projected into the main-nav top toolbar so no second header row is needed -->
+  <ng-template #workbenchToolbarTpl>
+    <div class="wb-top-controls">
+      <!-- Consolidated Git Menu -->
+      <button mat-stroked-button class="wb-top-menu-btn" [matMenuTriggerFor]="gitMenu"
+        [title]="'Git actions for ' + (selectedRepoFolder || 'repository')">
+        <mat-icon>commit</mat-icon>
+        Git{{ totalGitBadgeCount > 0 ? ' (' + totalGitBadgeCount + ')' : '' }}
+        <mat-icon class="wb-top-caret">arrow_drop_down</mat-icon>
       </button>
 
-      <span class="toolbar-label"><mat-icon>folder_special</mat-icon> Git Repo:</span>
-      <select class="nav-select" [(ngModel)]="selectedRepoFolder" (change)="onRepoChange()">
-        <option value="">-- Select Repository --</option>
-        <option *ngFor="let repo of localRepos; trackBy: trackByRepoFolder" [value]="repo.folderName">{{ repo.folderName }}</option>
-      </select>
-      <button mat-icon-button color="primary" matTooltip="Clone remote repository into base folder"
-        (click)="showCloneForm = !showCloneForm">
-        <mat-icon>add_link</mat-icon>
+      <!-- Consolidated Tools Menu -->
+      <button mat-stroked-button class="wb-top-menu-btn" [matMenuTriggerFor]="toolsMenu"
+        title="Workspace tools: new file, DB links, indexing, READMEs">
+        <mat-icon>build</mat-icon>
+        Tools
+        <mat-icon class="wb-top-caret">arrow_drop_down</mat-icon>
       </button>
-
-      <!-- Branch Selector -->
-      <ng-container *ngIf="selectedRepoFolder">
-        <span class="toolbar-label"><mat-icon>fork_right</mat-icon> Branch:</span>
-        <select class="nav-select" [ngModel]="currentBranch" (ngModelChange)="onBranchChange($event)">
-          <option *ngFor="let b of availableBranches; trackBy: trackByString" [value]="b">{{ b }}</option>
-        </select>
-        <button mat-icon-button color="primary" matTooltip="Create new branch"
-          (click)="showNewBranchInput = !showNewBranchInput">
-          <mat-icon>add</mat-icon>
-        </button>
-
-        <div *ngIf="showNewBranchInput" class="inline-branch-input">
-          <input type="text" placeholder="New branch name..." [(ngModel)]="newBranchName"
-            (keyup.enter)="createNewBranch()" />
-          <button mat-button color="primary" (click)="createNewBranch()">Create</button>
-          <button mat-button (click)="showNewBranchInput = false">Cancel</button>
-        </div>
-      </ng-container>
     </div>
+  </ng-template>
 
-    <div class="header-right">
-      <!-- Git Auth Session Status & Configuration -->
-      <button mat-stroked-button class="action-btn auth-btn" (click)="openGitAuthDialog()"
-        [title]="isGitAuthenticated ? 'Git session authenticated' : 'Configure session Git credentials'">
-        <mat-icon [color]="isGitAuthenticated ? 'primary' : ''">vpn_key</mat-icon>
-        <span>{{ isGitAuthenticated ? 'Git Auth Active' : 'Git Auth' }}</span>
-      </button>
-
-      <!-- Mode Switcher -->
-      <div class="mode-toggle">
-        <button mat-button [class.active-mode]="viewMode === 'editor'" (click)="toggleViewMode('editor')">
-          <mat-icon>code</mat-icon> Code Editor
-        </button>
-        <button mat-button [class.active-mode]="viewMode === 'diff'" (click)="toggleViewMode('diff')">
-          <mat-icon>difference</mat-icon> Diff View
+  <!-- Projected into the main-nav hamburger sidenav when on the Application page -->
+  <ng-template #workbenchSidenavTpl>
+    <div class="wb-sidenav">
+      <div class="wb-sidenav-header">
+        <span class="wb-sidenav-title"><mat-icon>tune</mat-icon> Application Menu</span>
+        <button mat-icon-button type="button" (click)="closeAppMenu()" aria-label="Close menu" matTooltip="Close">
+          <mat-icon>close</mat-icon>
         </button>
       </div>
 
-      <button mat-stroked-button class="action-btn" (click)="toggleNewFileInput()"
-        [disabled]="!selectedRepoFolder" title="Create new file in repository (Alt+N)">
-        <mat-icon>note_add</mat-icon> New File
-      </button>
+      <div class="wb-sidenav-section">
+        <div class="wb-sidenav-section-label">Active Context</div>
 
-      <button mat-raised-button color="accent" class="action-btn" (click)="saveDraft()"
-        [disabled]="!selectedRepoFolder || !selectedFilePath" title="Save file (Ctrl+S)">
-        <mat-icon>save</mat-icon> Save
-      </button>
+        <label class="wb-sidenav-field">
+          <span class="wb-field-label"><mat-icon>storage</mat-icon> Target Database</span>
+          <select class="wb-sidenav-select" [(ngModel)]="selectedDbConnection" (change)="onDbChange()">
+            <optgroup *ngIf="linkedDbEndpointsForCurrentRepo.length > 0" label="Linked Databases">
+              <option *ngFor="let db of linkedDbEndpointsForCurrentRepo; trackBy: trackByDbEndpoint" [value]="db.endpoint">
+                {{ db.endpoint }} {{ db.role ? '[' + db.role + ']' : '' }} ({{ db.description }})
+              </option>
+            </optgroup>
+            <optgroup [label]="linkedDbEndpointsForCurrentRepo.length > 0 ? 'Other Databases' : 'Databases'">
+              <option *ngFor="let db of otherDbEndpointsForCurrentRepo; trackBy: trackByDbEndpoint" [value]="db.endpoint">
+                {{ db.endpoint }} ({{ db.description }})
+              </option>
+            </optgroup>
+          </select>
+        </label>
 
-      <button mat-stroked-button class="action-btn" (click)="pullRepo()"
-        [disabled]="!selectedRepoFolder" title="Pull latest changes from remote">
-        <mat-icon>file_download</mat-icon> Pull
-      </button>
+        <label class="wb-sidenav-field">
+          <span class="wb-field-label"><mat-icon>workspaces</mat-icon> Active Repository</span>
+          <select class="wb-sidenav-select" [ngModel]="selectedRepoFolder" (ngModelChange)="onSidenavRepoChange($event)">
+            <optgroup *ngIf="linkedReposForCurrentDb.length > 0" [label]="'Linked to ' + (selectedDbConnection || 'DB')">
+              <option *ngFor="let r of linkedReposForCurrentDb" [value]="r.folderName">
+                {{ r.folderName }}{{ r.role ? ' [' + r.role + ']' : '' }}
+              </option>
+            </optgroup>
+            <optgroup label="All Repositories">
+              <option *ngFor="let r of otherReposForCurrentDb" [value]="r.folderName">
+                {{ r.folderName }}{{ r.isMemoryRepo ? ' (Knowledge Base)' : '' }}
+              </option>
+            </optgroup>
+          </select>
+        </label>
 
-      <button mat-raised-button color="primary" class="action-btn" (click)="commitAndPush()"
-        [disabled]="!selectedRepoFolder" title="Commit & Push Branch">
-        <mat-icon>publish</mat-icon> Commit & Push
-      </button>
+        <label class="wb-sidenav-field" *ngIf="selectedRepoFolder">
+          <span class="wb-field-label"><mat-icon>fork_right</mat-icon> Branch</span>
+          <div class="wb-branch-row">
+            <select class="wb-sidenav-select" [ngModel]="currentBranch" (ngModelChange)="onBranchChange($event)">
+              <option *ngFor="let b of availableBranches; trackBy: trackByString" [value]="b">{{ b }}</option>
+            </select>
+            <button mat-icon-button type="button" class="wb-inline-icon-btn"
+              matTooltip="Create New Branch" (click)="closeAppMenu(); showNewBranchInput = true">
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+        </label>
+      </div>
 
-      <button mat-stroked-button class="action-btn" (click)="runIndexDependencies()"
-        [disabled]="!selectedRepoFolder" title="Scan codebase and map database dependencies to repo">
-        <mat-icon>account_tree</mat-icon> Index Dependencies
-      </button>
+      <mat-divider></mat-divider>
 
-      <button mat-stroked-button class="action-btn ai-toolbar-btn" (click)="triggerReadmeGeneration('selected')"
-        [disabled]="!selectedRepoFolder" [title]="selectedNodeDir ? 'Generate READMEs for ' + selectedNodeDir : 'Generate READMEs for repository'">
-        <mat-icon color="accent">auto_awesome</mat-icon> Generate READMEs{{ selectedNodeDir ? ' (' + selectedNodeDir + ')' : '' }}
-      </button>
+      <div class="wb-sidenav-section">
+        <div class="wb-sidenav-section-label">Git Tasks</div>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder"
+          (click)="closeAppMenu(); openGitStatusDialog()">
+          <mat-icon>info</mat-icon>
+          <span>Git Status...{{ dirtyFileCount > 0 ? ' (' + dirtyFileCount + ')' : '' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder"
+          (click)="closeAppMenu(); openCommitDialog()">
+          <mat-icon>commit</mat-icon>
+          <span>Commit Locally...{{ dirtyFileCount > 0 ? ' (' + dirtyFileCount + ')' : '' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || !hasConfiguredRemote"
+          (click)="closeAppMenu(); pushChanges()">
+          <mat-icon>publish</mat-icon>
+          <span>Push to Remote...{{ aheadCount > 0 ? ' (' + aheadCount + ')' : '' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || !hasConfiguredRemote"
+          (click)="closeAppMenu(); pullRepo()">
+          <mat-icon>file_download</mat-icon>
+          <span>Pull from Remote{{ behindCount > 0 ? ' (' + behindCount + ')' : '' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder"
+          (click)="closeAppMenu(); openRemoteDialog()">
+          <mat-icon>cloud_upload</mat-icon>
+          <span>{{ hasConfiguredRemote ? 'Configure Remote...' : 'Set Upstream Remote...' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" (click)="closeAppMenu(); showCloneForm = true">
+          <mat-icon>cloud_download</mat-icon>
+          <span>Clone Repository...</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" (click)="closeAppMenu(); openGitAuthDialog()">
+          <mat-icon [color]="isGitAuthenticated ? 'primary' : ''">vpn_key</mat-icon>
+          <span>{{ isGitAuthenticated ? 'Git Auth (Active)' : 'Configure Git Auth...' }}</span>
+        </button>
+      </div>
 
-      <button mat-button class="action-btn ai-toggle-btn" [class.active-mode]="rightPanelTab === 'ai'" (click)="setRightPanelTab(rightPanelTab === 'ai' ? 'context' : 'ai')"
-        title="Toggle AI Assistant sidebar">
-        <mat-icon>smart_toy</mat-icon> AI Assistant
-      </button>
+      <mat-divider></mat-divider>
+
+      <div class="wb-sidenav-section">
+        <div class="wb-sidenav-section-label">Workspace Tools</div>
+        <button mat-button class="wb-sidenav-action" (click)="closeAppMenu(); openAssociationsDialogForRepo(selectedRepoFolder)">
+          <mat-icon>link</mat-icon>
+          <span>Manage DB ↔ Repo Links...</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder"
+          (click)="closeAppMenu(); toggleNewFileInput()">
+          <mat-icon>note_add</mat-icon>
+          <span>New File...</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || isMemoryRepoSelected"
+          (click)="closeAppMenu(); runIndexDependencies()">
+          <mat-icon>account_tree</mat-icon>
+          <span>Index DB Dependencies</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || isMemoryRepoSelected"
+          (click)="closeAppMenu(); triggerReadmeGeneration('selected')">
+          <mat-icon color="accent">auto_awesome</mat-icon>
+          <span>Generate READMEs</span>
+        </button>
+      </div>
     </div>
+  </ng-template>
+
+  <!-- Shared Top Toolbar Menus -->
+  <mat-menu #gitMenu="matMenu">
+    <button mat-menu-item (click)="openGitStatusDialog()" [disabled]="!selectedRepoFolder">
+      <mat-icon>info</mat-icon>
+      <span>Status...{{ dirtyFileCount > 0 ? ' (' + dirtyFileCount + ' modified)' : '' }}</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="openCommitDialog()" [disabled]="!selectedRepoFolder">
+      <mat-icon>commit</mat-icon>
+      <span>Commit Locally...{{ dirtyFileCount > 0 ? ' (' + dirtyFileCount + ')' : '' }}</span>
+    </button>
+    <button mat-menu-item (click)="pushChanges()" [disabled]="!selectedRepoFolder || !hasConfiguredRemote">
+      <mat-icon>publish</mat-icon>
+      <span>Push to Remote...{{ aheadCount > 0 ? ' (' + aheadCount + ')' : '' }}</span>
+    </button>
+    <button mat-menu-item (click)="pullRepo()" [disabled]="!selectedRepoFolder || !hasConfiguredRemote">
+      <mat-icon>file_download</mat-icon>
+      <span>Pull from Remote{{ behindCount > 0 ? ' (' + behindCount + ')' : '' }}</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="showNewBranchInput = !showNewBranchInput" [disabled]="!selectedRepoFolder">
+      <mat-icon>fork_right</mat-icon>
+      <span>New Branch...</span>
+    </button>
+    <button mat-menu-item (click)="openRemoteDialog()" [disabled]="!selectedRepoFolder">
+      <mat-icon>cloud_upload</mat-icon>
+      <span>{{ hasConfiguredRemote ? 'Configure Remote...' : 'Set Upstream Remote...' }}</span>
+    </button>
+    <button mat-menu-item (click)="openGitAuthDialog()">
+      <mat-icon [color]="isGitAuthenticated ? 'primary' : ''">vpn_key</mat-icon>
+      <span>{{ isGitAuthenticated ? 'Git Auth (Active)' : 'Configure Git Auth...' }}</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="showCloneForm = !showCloneForm">
+      <mat-icon>cloud_download</mat-icon>
+      <span>Clone Repository...</span>
+    </button>
+  </mat-menu>
+
+  <mat-menu #toolsMenu="matMenu">
+    <button mat-menu-item (click)="toggleNewFileInput()" [disabled]="!selectedRepoFolder">
+      <mat-icon>note_add</mat-icon>
+      <span>New File... (Alt+N)</span>
+    </button>
+    <button mat-menu-item (click)="openAssociationsDialogForRepo(selectedRepoFolder)">
+      <mat-icon>link</mat-icon>
+      <span>Manage DB ↔ Repo Links...</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="runIndexDependencies()" [disabled]="!selectedRepoFolder || isMemoryRepoSelected">
+      <mat-icon>account_tree</mat-icon>
+      <span>Index DB Dependencies</span>
+    </button>
+    <button mat-menu-item (click)="triggerReadmeGeneration('selected')" [disabled]="!selectedRepoFolder || isMemoryRepoSelected">
+      <mat-icon color="accent">auto_awesome</mat-icon>
+      <span>Generate READMEs{{ selectedNodeDir ? ' (' + selectedNodeDir + ')' : '' }}</span>
+    </button>
+    <button mat-menu-item *ngIf="selectedFilePath && isMemoryRepoSelected" (click)="openCopyToRepoDialog(selectedFilePath)">
+      <mat-icon>drive_file_move</mat-icon>
+      <span>Copy Current File to Code Repo...</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="loadLocalRepos()">
+      <mat-icon>refresh</mat-icon>
+      <span>Refresh Workspaces</span>
+    </button>
+  </mat-menu>
+
+  <!-- Inline New Branch Form (shown only when triggered from Git menu) -->
+  <div *ngIf="showNewBranchInput && selectedRepoFolder" class="clone-bar">
+    <span class="clone-label">New branch in <strong>{{ selectedRepoFolder }}</strong>:</span>
+    <input type="text" class="clone-input" placeholder="e.g. feat/migrate-to-postgres" [(ngModel)]="newBranchName"
+      (keyup.enter)="createNewBranch()" />
+    <button mat-raised-button color="primary" (click)="createNewBranch()" [disabled]="!newBranchName.trim()">Create Branch</button>
+    <button mat-button (click)="showNewBranchInput = false">Cancel</button>
   </div>
 
-  <!-- Inline Clone Form -->
+  <!-- Inline Clone Form (shown only when triggered from Git/Explorer menu) -->
   <div *ngIf="showCloneForm" class="clone-bar">
     <span class="clone-label">Base Directory: <code>{{ baseReposDir }}</code></span>
     <input type="text" class="clone-input" placeholder="Git Remote URL (https://...)" [(ngModel)]="cloneRemoteUrl" />
@@ -118,13 +235,13 @@
   <mat-progress-bar *ngIf="isLoading" mode="indeterminate" color="primary"
     class="workbench-progress"></mat-progress-bar>
 
-  <!-- Status Notification Bar -->
-  <div *ngIf="statusMessage" class="status-bar" [ngClass]="{ 'status-error': isError, 'status-info': !isError }">
+  <!-- Error Notification Bar (informational messages display unobtrusively in the VS Code-style footer) -->
+  <div *ngIf="statusMessage && isError" class="status-bar status-error">
     <span class="status-text">{{ statusMessage }}</span>
-    <button *ngIf="isError && showAuthAction" mat-stroked-button class="status-action-btn" (click)="openGitAuthDialog()">
+    <button *ngIf="showAuthAction" mat-stroked-button class="status-action-btn" (click)="openGitAuthDialog()">
       <mat-icon>vpn_key</mat-icon> Configure Git Credentials
     </button>
-    <button *ngIf="isError" mat-icon-button class="status-close-btn" (click)="statusMessage = ''; showAuthAction = false;" title="Dismiss">
+    <button mat-icon-button class="status-close-btn" (click)="statusMessage = ''; showAuthAction = false;" title="Dismiss">
       <mat-icon>close</mat-icon>
     </button>
   </div>
@@ -132,16 +249,35 @@
   <!-- Main 3-Pane Body Workspace -->
   <div class="workbench-body">
 
-    <!-- LEFT PANEL: Repository File Tree Explorer -->
+    <!-- LEFT PANEL: VS Code-style Multi-Root Workspace Explorer -->
     <div class="sidebar-panel file-explorer">
       <div class="panel-header">
-        <span><mat-icon>folder</mat-icon> Repository Files ({{ filteredFiles.length }})</span>
-        <button mat-icon-button class="header-action-btn"
-          [disabled]="!selectedRepoFolder"
-          matTooltip="Create new file (Alt+N)"
-          (click)="toggleNewFileInput()">
-          <mat-icon>note_add</mat-icon>
-        </button>
+        <span><mat-icon>workspaces</mat-icon> Workspaces ({{ orderedWorkspaces.length }})</span>
+        <div class="explorer-header-actions">
+          <button mat-icon-button class="header-action-btn" [matMenuTriggerFor]="explorerAddMenu"
+            matTooltip="Workspace Actions">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #explorerAddMenu="matMenu">
+            <button mat-menu-item (click)="toggleNewFileInput()" [disabled]="!selectedRepoFolder">
+              <mat-icon>note_add</mat-icon>
+              <span>New File in Active Repo</span>
+            </button>
+            <button mat-menu-item (click)="showCloneForm = !showCloneForm">
+              <mat-icon>cloud_download</mat-icon>
+              <span>Clone Repository...</span>
+            </button>
+            <button mat-menu-item (click)="openAssociationsDialogForRepo(selectedRepoFolder)">
+              <mat-icon>link</mat-icon>
+              <span>Manage DB ↔ Repo Links...</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="loadLocalRepos()">
+              <mat-icon>refresh</mat-icon>
+              <span>Refresh Workspaces</span>
+            </button>
+          </mat-menu>
+        </div>
       </div>
 
       <div class="filter-box">
@@ -150,10 +286,21 @@
           (input)="applyFileFilter()" />
       </div>
 
+      <!-- Compare Selection Indicator -->
+      <div *ngIf="compareSource" class="compare-selection-bar">
+        <mat-icon class="mini-compare-icon">compare</mat-icon>
+        <span class="compare-selection-text" [title]="'Compare base: ' + compareSource.repo + '/' + compareSource.path">
+          Base: {{ compareSourceLabel }}
+        </span>
+        <button mat-icon-button class="mini-icon-btn" matTooltip="Clear compare selection" (click)="compareSource = null">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
       <!-- Inline New File Form -->
       <div *ngIf="showNewFileInput" class="new-file-box">
         <mat-icon class="new-file-icon">insert_drive_file</mat-icon>
-        <input #newFileInputRef type="text" placeholder="filename.sql or path/to/file.sql"
+        <input #newFileInputRef type="text" [placeholder]="'New file in ' + selectedRepoFolder + '...'"
           [(ngModel)]="newFilePath"
           (keyup.enter)="createNewFile()"
           (keyup.escape)="cancelNewFile()" />
@@ -165,32 +312,45 @@
         </button>
       </div>
 
-      <!-- Recursive Tree Template -->
-      <ng-template #treeNodeTemplate let-nodes let-depth="depth">
+      <!-- Recursive Folder/File Tree Template (scoped per workspace) -->
+      <ng-template #treeNodeTemplate let-nodes let-depth="depth" let-repoName="repoName" let-isMem="isMem">
         <div *ngFor="let node of nodes; trackBy: trackByNodePath">
           <!-- Folder Row -->
-          <div *ngIf="node.type === 'folder'" class="tree-folder-row" [class.selected-folder]="node.path === selectedFolderPath"
-            [style.padding-left.px]="depth * 12 + 6"
-            (click)="toggleFolder(node, $event)">
+          <div *ngIf="node.type === 'folder'" class="tree-folder-row"
+            [class.selected-folder]="repoName === selectedRepoFolder && node.path === selectedFolderPath"
+            [style.padding-left.px]="depth * 12 + 16"
+            (click)="activateWorkspace(repoName, false); toggleFolder(node, $event)"
+            (contextmenu)="onNodeContextMenu($event, folderMenuTrigger)">
             <span class="node-icon folder-icon">{{ node.expanded ? '📂' : '📁' }}</span>
             <span class="folder-name">{{ node.name }}</span>
-            <button mat-icon-button class="tree-readme-btn" matTooltip="Generate READMEs for this directory"
-              (click)="triggerReadmeForNode(node.path, $event)" aria-label="Generate READMEs for this directory">
-              <mat-icon>auto_awesome</mat-icon>
+
+            <button mat-icon-button class="node-menu-btn"
+              #folderMenuTrigger="matMenuTrigger"
+              [matMenuTriggerFor]="folderNodeMenu"
+              [matMenuTriggerData]="{ repoName: repoName, folderPath: node.path, isMem: isMem }"
+              (click)="$event.stopPropagation()"
+              matTooltip="Folder actions" aria-label="Folder actions">
+              <mat-icon>more_vert</mat-icon>
             </button>
           </div>
 
           <!-- Folder Children -->
           <div *ngIf="node.type === 'folder' && node.expanded">
             <ng-container
-              *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: node.children, depth: depth + 1 }"></ng-container>
+              *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: node.children, depth: depth + 1, repoName: repoName, isMem: isMem }"></ng-container>
           </div>
 
           <!-- File Row -->
-          <div *ngIf="node.type === 'file'" class="file-item" [class.selected-file]="node.path === selectedFilePath"
-            [style.padding-left.px]="depth * 12 + 6" (click)="openFile(node.path)">
+          <div *ngIf="node.type === 'file'" class="file-item"
+            [class.selected-file]="repoName === selectedRepoFolder && node.path === selectedFilePath"
+            [class.compare-base-file]="compareSource?.repo === repoName && compareSource?.path === node.path"
+            [style.padding-left.px]="depth * 12 + 16"
+            (click)="openFileInWorkspace(repoName, node.path, 'editor')"
+            (contextmenu)="onNodeContextMenu($event, fileMenuTrigger)">
             <span class="node-icon file-icon">📄</span>
-            <span class="file-name" [title]="node.path">{{ node.name }}</span>
+            <span class="file-name" [title]="repoName + '/' + node.path">{{ node.name }}</span>
+            <span *ngIf="node.gitStatus" class="git-status-badge" [ngClass]="'git-status-' + node.gitStatus"
+              [title]="'Uncommitted change (' + node.gitStatus + ')'">{{ node.gitStatus }}</span>
 
             <!-- DB Badges -->
             <div class="db-badges" *ngIf="node.dbBadges && node.dbBadges.length > 0">
@@ -203,45 +363,221 @@
               </span>
             </div>
 
-            <!-- Download and Delete Buttons on File Row -->
-            <button mat-icon-button class="tree-download-btn" matTooltip="Download file"
-              (click)="downloadFile(node.path, $event)" aria-label="Download file">
-              <mat-icon>download</mat-icon>
-            </button>
-            <button mat-icon-button class="tree-delete-btn" matTooltip="Delete file"
-              (click)="confirmDeleteFile(node.path, $event)" aria-label="Delete file">
-              <mat-icon>delete_outline</mat-icon>
+            <button mat-icon-button class="node-menu-btn"
+              #fileMenuTrigger="matMenuTrigger"
+              [matMenuTriggerFor]="fileNodeMenu"
+              [matMenuTriggerData]="{ repoName: repoName, filePath: node.path, isMem: isMem, gitStatus: node.gitStatus }"
+              (click)="$event.stopPropagation()"
+              matTooltip="File actions" aria-label="File actions">
+              <mat-icon>more_vert</mat-icon>
             </button>
           </div>
         </div>
       </ng-template>
 
+      <!-- Multi-Root Workspace List -->
       <div class="file-tree-list">
-        <ng-container *ngIf="selectedRepoFolder; else selectRepoPrompt">
-          <ng-container
-            *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: fileTreeNodes, depth: 0 }"></ng-container>
+        <ng-container *ngIf="orderedWorkspaces.length > 0; else noWorkspacesPrompt">
+          <div *ngFor="let ws of orderedWorkspaces; trackBy: trackByWorkspaceName" class="workspace-group">
+            <!-- Workspace Root Row -->
+            <div class="workspace-root-row"
+              [class.active-workspace]="ws.folderName === selectedRepoFolder"
+              [class.memory-workspace]="ws.isMemoryRepo"
+              (click)="toggleWorkspace(ws)"
+              (contextmenu)="onNodeContextMenu($event, wsMenuTrigger)">
+              <mat-icon class="ws-chevron">{{ ws.expanded ? 'expand_more' : 'chevron_right' }}</mat-icon>
+              <mat-icon class="ws-icon">{{ ws.isMemoryRepo ? 'auto_stories' : 'folder_special' }}</mat-icon>
+              <span class="ws-name" [title]="ws.fullPath">{{ ws.folderName }}</span>
+
+              <span *ngIf="ws.isMemoryRepo" class="ws-chip ws-chip-memory" matTooltip="Shared Visulate Knowledge Base">Memory</span>
+              <span *ngIf="!ws.isMemoryRepo && getRepoRoleForCurrentDb(ws.folderName) as role"
+                class="ws-chip" [ngClass]="'ws-chip-' + role"
+                [matTooltip]="'Linked to ' + selectedDbConnection + ' (' + role + ')'">{{ role }}</span>
+              <span *ngIf="ws.gitStatus?.files?.length > 0" class="ws-dirty-badge"
+                [matTooltip]="ws.gitStatus.files.length + ' uncommitted change(s)'">{{ ws.gitStatus.files.length }}</span>
+
+              <button mat-icon-button class="node-menu-btn ws-menu-btn"
+                #wsMenuTrigger="matMenuTrigger"
+                [matMenuTriggerFor]="workspaceNodeMenu"
+                [matMenuTriggerData]="{ ws: ws }"
+                (click)="$event.stopPropagation()"
+                matTooltip="Repository actions (or right-click)" aria-label="Repository actions">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+            </div>
+
+            <!-- Workspace Expanded Tree -->
+            <div *ngIf="ws.expanded" class="workspace-children">
+              <div *ngIf="ws.loading" class="ws-loading">Loading files...</div>
+              <div *ngIf="!ws.loading && ws.treeNodes.length === 0" class="ws-empty">No matching files</div>
+              <ng-container *ngIf="!ws.loading && ws.treeNodes.length > 0">
+                <ng-container
+                  *ngTemplateOutlet="treeNodeTemplate; context: { $implicit: ws.treeNodes, depth: 0, repoName: ws.folderName, isMem: ws.isMemoryRepo }"></ng-container>
+              </ng-container>
+            </div>
+          </div>
         </ng-container>
-        <ng-template #selectRepoPrompt>
+
+        <ng-template #noWorkspacesPrompt>
           <div class="no-repo-prompt">
             <mat-icon class="prompt-icon">folder_open</mat-icon>
-            <p class="prompt-title">No Repository Selected</p>
-            <p class="prompt-text">Select a Git repository from the drop-down menu above or clone a new repository to
-              view codebase files.</p>
+            <p class="prompt-title">No Workspaces Found</p>
+            <p class="prompt-text">Clone a Git repository from the menu above to explore and edit files.</p>
           </div>
         </ng-template>
       </div>
     </div>
 
+    <!-- Shared Context Menus for Workspaces, Folders, and Files -->
+    <mat-menu #workspaceNodeMenu="matMenu">
+      <ng-template matMenuContent let-ws="ws">
+        <button mat-menu-item (click)="startNewFileInWorkspace(ws.folderName)">
+          <mat-icon>note_add</mat-icon>
+          <span>New File...</span>
+        </button>
+        <button mat-menu-item (click)="loadWorkspaceFiles(ws.folderName, true)">
+          <mat-icon>refresh</mat-icon>
+          <span>Refresh Files &amp; Status</span>
+        </button>
+        <mat-divider *ngIf="!ws.isMemoryRepo"></mat-divider>
+        <button mat-menu-item *ngIf="!ws.isMemoryRepo && selectedDbConnection && !isRepoLinkedToCurrentDb(ws.folderName)"
+          (click)="quickLinkRepoToCurrentDb(ws.folderName, 'app')">
+          <mat-icon>add_link</mat-icon>
+          <span>Link to {{ selectedDbConnection }}</span>
+        </button>
+        <button mat-menu-item *ngIf="!ws.isMemoryRepo && selectedDbConnection && isRepoLinkedToCurrentDb(ws.folderName)"
+          (click)="quickUnlinkRepoFromCurrentDb(ws.folderName)">
+          <mat-icon>link_off</mat-icon>
+          <span>Unlink from {{ selectedDbConnection }}</span>
+        </button>
+        <button mat-menu-item *ngIf="!ws.isMemoryRepo" (click)="openAssociationsDialogForRepo(ws.folderName)">
+          <mat-icon>link</mat-icon>
+          <span>Manage DB Associations...</span>
+        </button>
+        <mat-divider *ngIf="!ws.isMemoryRepo"></mat-divider>
+        <button mat-menu-item *ngIf="!ws.isMemoryRepo" (click)="activateWorkspace(ws.folderName, false); runIndexDependencies()">
+          <mat-icon>account_tree</mat-icon>
+          <span>Index DB Dependencies</span>
+        </button>
+        <button mat-menu-item *ngIf="!ws.isMemoryRepo" (click)="activateWorkspace(ws.folderName, false); triggerReadmeGeneration('repo')">
+          <mat-icon color="accent">auto_awesome</mat-icon>
+          <span>Generate READMEs</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="openGitStatusDialog(ws.folderName)">
+          <mat-icon>info</mat-icon>
+          <span>Git Status...{{ ws.gitStatus?.files?.length ? ' (' + ws.gitStatus.files.length + ')' : '' }}</span>
+        </button>
+        <button mat-menu-item (click)="activateWorkspace(ws.folderName, false); openCommitDialog()">
+          <mat-icon>commit</mat-icon>
+          <span>Commit Changes...{{ ws.gitStatus?.files?.length ? ' (' + ws.gitStatus.files.length + ')' : '' }}</span>
+        </button>
+        <button mat-menu-item *ngIf="ws.gitStatus?.hasRemote" (click)="activateWorkspace(ws.folderName, false); pushChanges()">
+          <mat-icon>publish</mat-icon>
+          <span>Push...{{ ws.gitStatus?.ahead ? ' (' + ws.gitStatus.ahead + ')' : '' }}</span>
+        </button>
+        <button mat-menu-item *ngIf="ws.gitStatus?.hasRemote" (click)="activateWorkspace(ws.folderName, false); pullRepo()">
+          <mat-icon>file_download</mat-icon>
+          <span>Pull</span>
+        </button>
+        <button mat-menu-item (click)="activateWorkspace(ws.folderName, false); openRemoteDialog()">
+          <mat-icon>cloud_upload</mat-icon>
+          <span>{{ ws.gitStatus?.hasRemote ? 'Configure Remote...' : 'Set Upstream Remote...' }}</span>
+        </button>
+      </ng-template>
+    </mat-menu>
+
+    <mat-menu #folderNodeMenu="matMenu">
+      <ng-template matMenuContent let-repoName="repoName" let-folderPath="folderPath" let-isMem="isMem">
+        <button mat-menu-item (click)="startNewFileInWorkspace(repoName, folderPath)">
+          <mat-icon>note_add</mat-icon>
+          <span>New File in Folder...</span>
+        </button>
+        <button mat-menu-item *ngIf="!isMem" (click)="activateWorkspace(repoName, false); triggerReadmeForNode(folderPath)">
+          <mat-icon color="accent">auto_awesome</mat-icon>
+          <span>Generate READMEs for Folder</span>
+        </button>
+        <button mat-menu-item (click)="openCopyToRepoDialog(folderPath, undefined, repoName)">
+          <mat-icon>drive_file_move</mat-icon>
+          <span>Copy Folder to Repo...</span>
+        </button>
+      </ng-template>
+    </mat-menu>
+
+    <mat-menu #fileNodeMenu="matMenu">
+      <ng-template matMenuContent let-repoName="repoName" let-filePath="filePath" let-isMem="isMem" let-gitStatus="gitStatus">
+        <button mat-menu-item (click)="openFileInWorkspace(repoName, filePath, 'editor')">
+          <mat-icon>code</mat-icon>
+          <span>Open in Editor</span>
+        </button>
+        <button mat-menu-item (click)="openFileInWorkspace(repoName, filePath, 'diff')">
+          <mat-icon>difference</mat-icon>
+          <span>View Git Diff (HEAD)</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="selectForCompare(repoName, filePath)">
+          <mat-icon>compare</mat-icon>
+          <span>Select for Compare</span>
+        </button>
+        <button mat-menu-item *ngIf="compareSource && !(compareSource.repo === repoName && compareSource.path === filePath)"
+          (click)="compareWithSelected(repoName, filePath)">
+          <mat-icon>compare_arrows</mat-icon>
+          <span>Compare with {{ compareSourceLabel }}</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="explainFileFromMenu(repoName, filePath)">
+          <mat-icon>smart_toy</mat-icon>
+          <span>Explain with AI</span>
+        </button>
+        <button mat-menu-item (click)="openCopyToRepoDialog(filePath, undefined, repoName)">
+          <mat-icon>drive_file_move</mat-icon>
+          <span>Copy to Code Repo...</span>
+        </button>
+        <button mat-menu-item (click)="activateWorkspace(repoName, false); downloadFile(filePath)">
+          <mat-icon>download</mat-icon>
+          <span>Download</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item *ngIf="gitStatus" (click)="discardFileFromMenu(repoName, filePath)">
+          <mat-icon color="warn">undo</mat-icon>
+          <span>Discard Changes</span>
+        </button>
+        <button mat-menu-item (click)="activateWorkspace(repoName, false); confirmDeleteFile(filePath)">
+          <mat-icon color="warn">delete_outline</mat-icon>
+          <span>Delete File</span>
+        </button>
+      </ng-template>
+    </mat-menu>
+
     <!-- CENTER PANEL: Editor Viewport -->
     <div class="editor-panel">
       <div class="editor-header">
         <span class="active-file-title">
-          <mat-icon>insert_drive_file</mat-icon> {{ selectedFilePath || 'Select a file to edit' }}
+          <mat-icon>{{ activeCompare ? 'compare_arrows' : 'insert_drive_file' }}</mat-icon>
+          <ng-container *ngIf="activeCompare; else standardTitle">
+            {{ activeCompare.leftRepo }}/{{ activeCompare.leftPath }} ↔ {{ activeCompare.rightRepo }}/{{ activeCompare.rightPath }}
+          </ng-container>
+          <ng-template #standardTitle>
+            {{ selectedFilePath ? (selectedRepoFolder + '/' + selectedFilePath) : 'Select a file to edit' }}
+          </ng-template>
         </span>
-        <span class="view-indicator" *ngIf="selectedFilePath">
-          {{ viewMode === 'editor' ? 'Single File Code Editor' : 'Side-by-Side Diff (HEAD vs Working Tree)' }}
+        <span class="view-indicator" *ngIf="selectedFilePath && !activeCompare">
+          {{ viewMode === 'editor' ? 'Editor' : 'Diff (HEAD vs Working Tree)' }}
         </span>
+        <button *ngIf="activeCompare" mat-stroked-button class="clear-compare-btn" (click)="clearCustomCompare()">
+          <mat-icon>close</mat-icon> Exit Compare
+        </button>
         <span class="editor-header-spacer"></span>
+
+        <!-- Compact Editor / Diff Toggle -->
+        <div class="mode-toggle editor-mode-toggle" *ngIf="selectedFilePath">
+          <button mat-button [class.active-mode]="viewMode === 'editor'" (click)="toggleViewMode('editor')" matTooltip="Single File Editor">
+            <mat-icon>code</mat-icon> Editor
+          </button>
+          <button mat-button [class.active-mode]="viewMode === 'diff'" (click)="toggleViewMode('diff')" matTooltip="Side-by-Side Diff (HEAD vs Working Tree)">
+            <mat-icon>difference</mat-icon> Diff
+          </button>
+        </div>
 
         <!-- Markdown View Mode Toggles (Edit / Split / Preview) -->
         <div class="md-mode-toggle-group" *ngIf="selectedFilePath && isMarkdownFile && viewMode === 'editor'">
@@ -256,22 +592,27 @@
           </button>
         </div>
 
+        <!-- Save Active File -->
+        <button *ngIf="selectedFilePath" mat-stroked-button color="primary" class="editor-save-btn" (click)="saveDraft()"
+          [disabled]="!selectedRepoFolder || !selectedFilePath" matTooltip="Save file (Ctrl+S)">
+          <mat-icon>save</mat-icon> Save
+        </button>
+
         <!-- Soft-Wrap Toggle Button -->
         <button *ngIf="selectedFilePath && (!isMarkdownFile || mdViewMode !== 'preview')" mat-icon-button class="header-action-btn wrap-toggle-btn"
           [class.active-toggle]="isWordWrap"
           (click)="toggleWordWrap()"
-          [matTooltip]="isWordWrap ? 'Disable Word Wrap (Soft Wrap)' : 'Enable Word Wrap (Soft Wrap)'"
+          [matTooltip]="isWordWrap ? 'Disable Word Wrap' : 'Enable Word Wrap'"
           aria-label="Toggle Word Wrap">
           <mat-icon>wrap_text</mat-icon>
         </button>
 
-        <button *ngIf="selectedFilePath" mat-icon-button class="header-download-btn" matTooltip="Download current file"
-          (click)="downloadFile(selectedFilePath)" aria-label="Download current file">
-          <mat-icon>download</mat-icon>
-        </button>
-        <button *ngIf="selectedFilePath" mat-icon-button class="header-delete-btn" color="warn" matTooltip="Delete current file"
-          (click)="confirmDeleteFile(selectedFilePath)" aria-label="Delete current file">
-          <mat-icon>delete_outline</mat-icon>
+        <!-- Consolidated Active File Actions Menu -->
+        <button *ngIf="selectedFilePath" mat-icon-button class="header-action-btn"
+          [matMenuTriggerFor]="fileNodeMenu"
+          [matMenuTriggerData]="{ repoName: selectedRepoFolder, filePath: selectedFilePath, isMem: isMemoryRepoSelected, gitStatus: gitFileStatusMap[selectedFilePath] }"
+          matTooltip="Current file actions" aria-label="Current file actions">
+          <mat-icon>more_vert</mat-icon>
         </button>
       </div>
 
@@ -279,7 +620,7 @@
         <div *ngIf="!selectedFilePath && selectedRepoFolder" class="no-file-selected-overlay">
           <mat-icon class="no-file-icon">note_add</mat-icon>
           <h3>No File Selected</h3>
-          <p>Select a file from the repository tree or create a new file.</p>
+          <p>Expand any workspace on the left to open a file, or create a new file.</p>
           <button mat-stroked-button color="primary" (click)="toggleNewFileInput()">
             <mat-icon>note_add</mat-icon> Create New File
           </button>
@@ -327,13 +668,13 @@
       <div *ngIf="rightPanelTab === 'ai'" class="ai-assistant-body">
         <!-- Quick Action Chips -->
         <div class="ai-quick-actions">
-          <button mat-stroked-button class="quick-chip-btn action-readme" (click)="triggerReadmeGeneration('selected')" [disabled]="!selectedRepoFolder" [matTooltip]="selectedNodeDir ? 'Generate READMEs for directory: ' + selectedNodeDir : 'Generate READMEs for entire repository'">
-            <mat-icon color="accent">auto_awesome</mat-icon> Generate READMEs{{ selectedNodeDir ? ' (' + selectedNodeDir + ')' : '' }}
+          <button mat-stroked-button class="quick-chip-btn action-readme" (click)="triggerReadmeGeneration('selected')" [disabled]="!selectedRepoFolder || isMemoryRepoSelected" [matTooltip]="selectedNodeDir ? 'Generate READMEs for directory: ' + selectedNodeDir : 'Generate READMEs for repository'">
+            <mat-icon color="accent">auto_awesome</mat-icon> READMEs{{ selectedNodeDir ? ' (' + selectedNodeDir + ')' : '' }}
           </button>
           <button mat-stroked-button class="quick-chip-btn" (click)="triggerExplainCode()" [disabled]="!selectedFilePath" matTooltip="Explain active file and database interactions">
             <mat-icon>description</mat-icon> Explain Code
           </button>
-          <button mat-stroked-button class="quick-chip-btn" (click)="runIndexDependencies()" [disabled]="!selectedRepoFolder" matTooltip="Index repository database dependencies">
+          <button mat-stroked-button class="quick-chip-btn" (click)="runIndexDependencies()" [disabled]="!selectedRepoFolder || isMemoryRepoSelected" matTooltip="Index repository database dependencies">
             <mat-icon>account_tree</mat-icon> Index DB
           </button>
         </div>
@@ -341,7 +682,7 @@
         <!-- Active Context Indicator -->
         <div class="ai-context-indicator" *ngIf="selectedRepoFolder">
           <span class="indicator-chip" [title]="'Repository: ' + selectedRepoFolder">
-            <mat-icon class="mini-icon">folder_special</mat-icon> {{ selectedRepoFolder }}
+            <mat-icon class="mini-icon">{{ isMemoryRepoSelected ? 'auto_stories' : 'folder_special' }}</mat-icon> {{ selectedRepoFolder }}
           </span>
           <span class="indicator-chip" *ngIf="selectedFilePath" [title]="'Active file: ' + selectedFilePath">
             <mat-icon class="mini-icon">insert_drive_file</mat-icon> {{ selectedFilePath.split('/').pop() }}
@@ -365,7 +706,7 @@
         </div>
 
         <div class="context-card">
-          <div class="card-title">Referenced Oracle Objects in File</div>
+          <div class="card-title">Referenced DB Objects in File</div>
           <div *ngIf="currentFileDbObjects.length === 0" class="no-deps-text">
             No mapped DB objects in this file.
           </div>
@@ -395,7 +736,7 @@
           </ng-template>
           <div style="margin-top: 10px;">
             <button mat-raised-button color="primary" class="card-action-btn" (click)="runIndexDependencies()"
-              [disabled]="!selectedRepoFolder" title="Scan repository to discover database dependencies">
+              [disabled]="!selectedRepoFolder || isMemoryRepoSelected" title="Scan repository to discover database dependencies">
               <mat-icon>account_tree</mat-icon> {{ dbMapData ? 'Re-index Dependencies' : 'Index Dependencies' }}
             </button>
           </div>
@@ -404,6 +745,68 @@
     </div>
 
   </div>
+
+  <!-- VS Code-style Context & Status Footer Bar -->
+  <footer class="workbench-footer" role="status" aria-label="Application Workbench Status Bar">
+    <div class="footer-left">
+      <button type="button" class="footer-item footer-primary" (click)="openAppMenu()"
+        [title]="'Target Database: ' + (selectedDbConnection || 'None') + ' — click to switch database, repository, or branch'">
+        <mat-icon>storage</mat-icon>
+        <span>{{ selectedDbConnection || 'No DB' }}</span>
+        <span *ngIf="activeDbRoleLabel" class="footer-role">[{{ activeDbRoleLabel }}]</span>
+      </button>
+
+      <button type="button" class="footer-item" *ngIf="selectedRepoFolder" (click)="openAppMenu()"
+        [title]="'Active Repository: ' + selectedRepoFolder + ' — click to switch'">
+        <mat-icon>{{ isMemoryRepoSelected ? 'auto_stories' : 'folder_special' }}</mat-icon>
+        <span>{{ selectedRepoFolder }}</span>
+      </button>
+
+      <button type="button" class="footer-item" *ngIf="selectedRepoFolder" (click)="openGitStatusDialog()"
+        [title]="'Branch: ' + (currentBranch || 'HEAD') + ' — click to open Git Status'">
+        <mat-icon>fork_right</mat-icon>
+        <span>{{ currentBranch || 'HEAD' }}</span>
+        <span *ngIf="dirtyFileCount > 0" class="footer-dirty-badge" [title]="dirtyFileCount + ' uncommitted changes'">*{{ dirtyFileCount }}</span>
+        <span *ngIf="hasConfiguredRemote && (aheadCount > 0 || behindCount > 0)" class="footer-sync-badge">
+          {{ aheadCount > 0 ? '↑' + aheadCount : '' }}{{ behindCount > 0 ? ' ↓' + behindCount : '' }}
+        </span>
+      </button>
+
+      <button type="button" class="footer-item footer-muted" *ngIf="selectedRepoFolder" (click)="openRemoteDialog()"
+        [title]="hasConfiguredRemote ? 'Upstream remote: ' + activeRemoteName + ' (click to configure)' : 'Local-only repository (click to set upstream remote)'">
+        <mat-icon>{{ hasConfiguredRemote ? 'cloud_done' : 'cloud_off' }}</mat-icon>
+        <span>{{ hasConfiguredRemote ? activeRemoteName : 'local-only' }}</span>
+      </button>
+    </div>
+
+    <div class="footer-center" [title]="statusMessage">
+      <span *ngIf="statusMessage && !isError" class="footer-status-msg">{{ statusMessage }}</span>
+    </div>
+
+    <div class="footer-right">
+      <button type="button" class="footer-item" *ngIf="currentFileDbObjects.length > 0"
+        (click)="rightPanelTab = 'context'"
+        [title]="'Referenced DB objects: ' + currentFileDbObjects.join(', ')">
+        <mat-icon>table_chart</mat-icon>
+        <span>{{ currentFileDbObjects.length }} DB {{ currentFileDbObjects.length === 1 ? 'obj' : 'objs' }}</span>
+      </button>
+
+      <button type="button" class="footer-item" *ngIf="selectedFilePath"
+        (click)="setViewMode(viewMode === 'editor' ? 'diff' : 'editor')"
+        title="Toggle Editor / Diff View">
+        <mat-icon>{{ viewMode === 'diff' ? 'difference' : 'code' }}</mat-icon>
+        <span>{{ viewMode === 'diff' ? 'Diff' : 'Editor' }}</span>
+      </button>
+
+      <span class="footer-item footer-static" *ngIf="activeFileLanguageLabel" title="File language">
+        {{ activeFileLanguageLabel }}
+      </span>
+
+      <button type="button" class="footer-item" (click)="toggleWordWrap()" title="Toggle Word Wrap">
+        <span>Wrap: {{ isWordWrap ? 'On' : 'Off' }}</span>
+      </button>
+    </div>
+  </footer>
 
   <!-- Confirm Delete Dialog Template -->
   <ng-template #confirmDeleteDialog let-data>

@@ -238,22 +238,23 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
     safeDbId = rawDb;
   }
 
-  // Target directory: if safeDbId is provided, write to .visulate/<safeDbId>/, else .visulate/
-  const targetDir = safeDbId
-    ? path.join(visulateDir, safeDbId)
-    : visulateDir;
+  // Write dependency maps into the central visulate-memory repository so user code repos remain clean
+  // and AI agents can perform cross-codebase impact analysis across all indexed repos.
+  const memoryRepoDir = await gitService.ensureMemoryRepoInitialized(userContext);
+  const dbFolder = safeDbId || '_unscoped';
+  const targetDir = path.join(memoryRepoDir, dbFolder, 'code-maps', projectId);
 
-  gitService.resolveSafePath(repoDir, path.relative(repoDir, targetDir), false);
+  gitService.resolveSafePath(memoryRepoDir, path.relative(memoryRepoDir, targetDir), false);
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
   const mapPath = path.join(targetDir, 'oracle-code-map.json');
-  gitService.resolveSafePath(repoDir, path.relative(repoDir, mapPath), false);
+  gitService.resolveSafePath(memoryRepoDir, path.relative(memoryRepoDir, mapPath), false);
   fs.writeFileSync(mapPath, JSON.stringify(mapData, null, 2), 'utf8');
 
-  // Also generate OKF Markdown document (.visulate/<db>/codebase-dependencies.md)
+  // Also generate OKF Markdown document (<memoryRepo>/<db>/code-maps/<projectId>/codebase-dependencies.md)
   let mdContent = `# Database-to-Codebase Dependency Index\n\n`;
   mdContent += `> **Indexed At:** ${mapData.indexedAt}\n`;
   mdContent += `> **Database Endpoint:** \`${mapData.dbConnectionId || 'N/A'}\` \n`;
@@ -282,19 +283,69 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   }
 
   const mdPath = path.join(targetDir, 'codebase-dependencies.md');
-  gitService.resolveSafePath(repoDir, path.relative(repoDir, mdPath), false);
+  gitService.resolveSafePath(memoryRepoDir, path.relative(memoryRepoDir, mdPath), false);
   fs.writeFileSync(mdPath, mdContent, 'utf8');
-
 
   logger.log('info', `Successfully generated oracle-code-map.json and codebase-dependencies.md for project ${projectId} in ${targetDir}`);
 
-  return mapData;
+  return {
+    ...mapData,
+    memoryRepo: gitService.getDefaultMemoryRepoName(),
+    savedPath: path.relative(memoryRepoDir, mapPath).replace(/\\/g, '/')
+  };
+}
+
+/**
+ * Loads the oracle-code-map.json for a specific project and database.
+ * Checks visulate-memory/<db>/code-maps/<projectId>/ first, then falls back to legacy paths inside the code repo.
+ */
+function getProjectCodeMap(projectId, dbConnectionId = null, userContext = null) {
+  if (!projectId) return null;
+  const safeProject = String(projectId).trim();
+  if (!/^[a-zA-Z0-9._-]+$/.test(safeProject) || safeProject === '.' || safeProject === '..') {
+    throw new Error('Invalid repository identifier');
+  }
+
+  const normalizedDb = dbConnectionId ? String(dbConnectionId).trim().toLowerCase() : null;
+  if (normalizedDb && (!/^[a-zA-Z0-9._-]+$/.test(normalizedDb) || normalizedDb === '.' || normalizedDb === '..')) {
+    throw new Error('Invalid database connection identifier');
+  }
+
+  const memoryDir = gitService.getMemoryRepoDir(userContext);
+  const candidates = [];
+
+  if (normalizedDb) {
+    candidates.push(path.join(memoryDir, normalizedDb, 'code-maps', safeProject, 'oracle-code-map.json'));
+  }
+  candidates.push(path.join(memoryDir, '_unscoped', 'code-maps', safeProject, 'oracle-code-map.json'));
+
+  // Legacy fallback inside the code repository itself
+  try {
+    const repoDir = gitService.getProjectRepoDir(safeProject, userContext);
+    if (repoDir && fs.existsSync(repoDir)) {
+      if (normalizedDb) {
+        candidates.push(path.join(repoDir, 'visulate', normalizedDb, 'oracle-code-map.json'));
+      }
+      candidates.push(path.join(repoDir, 'visulate', 'oracle-code-map.json'));
+    }
+  } catch (_) {}
+
+  for (const mapPath of candidates) {
+    if (fs.existsSync(mapPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+      } catch (err) {
+        logger.log('warn', `Error parsing code map at ${mapPath}: ${err.message}`);
+      }
+    }
+  }
+  return null;
 }
 
 
 /**
  * Resolves repository codebase files that reference or depend on a given database object.
- * Searches across repositories with dependency indexes matching the database endpoint.
+ * Searches visulate-memory/<db>/code-maps/<repo>/ first, then falls back to legacy <repo>/visulate/<db>/ indexes.
  *
  * @param {string} db - The database endpoint/connection identifier (e.g. 'pdb21')
  * @param {string} objectName - Name of the database object (e.g. 'PR_PROPERTIES')
@@ -316,75 +367,103 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
   if (repoFolder && (!/^[a-zA-Z0-9._-]+$/.test(repoFolder) || repoFolder === '.' || repoFolder === '..')) {
     throw new Error('Invalid repository identifier');
   }
-  const repos = gitService.listLocalRepositories(userContext);
-
-
-  if (!repos || repos.length === 0) {
-    return { found: false, files: [], objectName: targetObject, dbConnectionId: db };
-  }
-
-  // If repoFolder is provided, sort it to the front
-  if (repoFolder) {
-    repos.sort((a, b) => {
-      if (a.folderName === repoFolder) return -1;
-      if (b.folderName === repoFolder) return 1;
-      return 0;
-    });
-  }
 
   const matches = [];
+  const seenRepos = new Set();
   let primaryRepo = null;
   let primaryOwner = null;
   let primaryType = null;
   const allFiles = new Set();
   const allDependencies = new Set();
 
-  for (const repo of repos) {
-    const visulateDbMap = path.join(repo.fullPath, 'visulate', normalizedDb, 'oracle-code-map.json');
-    const visulateLegacyMap = path.join(repo.fullPath, 'visulate', 'oracle-code-map.json');
+  function inspectMapData(repoName, mapData, isDbSpecific) {
+    if (seenRepos.has(repoName)) return;
+    const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
+    const shouldInspect = repoFolder
+      ? repoName === repoFolder && (repoDb === normalizedDb || isDbSpecific)
+      : (repoDb === normalizedDb || isDbSpecific);
 
-    const mapPath = fs.existsSync(visulateDbMap) ? visulateDbMap : (
-      fs.existsSync(visulateLegacyMap) ? visulateLegacyMap : null
-    );
-    if (!mapPath) continue;
+    if (!shouldInspect) return;
+    seenRepos.add(repoName);
 
+    if (mapData.objects && mapData.objects[targetObject]) {
+      const info = mapData.objects[targetObject];
+      if (targetOwner && info.owner && info.owner.toUpperCase().trim() !== targetOwner) {
+        return;
+      }
+      const repoFiles = info.files || [];
+      if (!primaryRepo) {
+        primaryRepo = repoName;
+        primaryOwner = info.owner || null;
+        primaryType = info.type || null;
+      }
+      repoFiles.forEach(f => allFiles.add(f));
+      if (info.dependencies) {
+        info.dependencies.forEach(d => allDependencies.add(d));
+      }
+      matches.push({
+        repoFolder: repoName,
+        owner: info.owner,
+        type: info.type,
+        files: repoFiles
+      });
+    }
+  }
+
+  // 1. Primary source: central visulate-memory/<db>/code-maps/<repo>/oracle-code-map.json
+  const memoryDir = gitService.getMemoryRepoDir(userContext);
+  const codeMapsRoot = path.join(memoryDir, normalizedDb, 'code-maps');
+  if (fs.existsSync(codeMapsRoot)) {
     try {
-      const raw = fs.readFileSync(mapPath, 'utf8');
-      const mapData = JSON.parse(raw);
-      const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
-      const isDbSpecific = (mapPath === visulateDbMap);
-
-      const shouldInspect = repoFolder
-        ? repo.folderName === repoFolder && (repoDb === normalizedDb || isDbSpecific)
-        : (repoDb === normalizedDb || isDbSpecific);
-
-      if (shouldInspect) {
-        if (mapData.objects && mapData.objects[targetObject]) {
-          const info = mapData.objects[targetObject];
-          // If schema owner was specified, verify it matches
-          if (targetOwner && info.owner && info.owner.toUpperCase().trim() !== targetOwner) {
-            continue;
-          }
-          const repoFiles = info.files || [];
-          if (!primaryRepo) {
-            primaryRepo = repo.folderName;
-            primaryOwner = info.owner || null;
-            primaryType = info.type || null;
-          }
-          repoFiles.forEach(f => allFiles.add(f));
-          if (info.dependencies) {
-            info.dependencies.forEach(d => allDependencies.add(d));
-          }
-          matches.push({
-            repoFolder: repo.folderName,
-            owner: info.owner,
-            type: info.type,
-            files: repoFiles
-          });
+      let repoEntries = fs.readdirSync(codeMapsRoot, { withFileTypes: true })
+        .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+        .map(e => e.name)
+        .sort();
+      if (repoFolder) {
+        repoEntries.sort((a, b) => (a === repoFolder ? -1 : b === repoFolder ? 1 : a.localeCompare(b)));
+      }
+      for (const rName of repoEntries) {
+        const mapPath = path.join(codeMapsRoot, rName, 'oracle-code-map.json');
+        if (!fs.existsSync(mapPath)) continue;
+        try {
+          const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+          inspectMapData(rName, mapData, true);
+        } catch (err) {
+          logger.log('warn', `Error reading memory dependency map for ${rName}: ${err.message}`);
         }
       }
     } catch (err) {
-      logger.log('warn', `Error reading dependency map in ${repo.folderName}: ${err.message}`);
+      logger.log('warn', `Error scanning code-maps in ${codeMapsRoot}: ${err.message}`);
+    }
+  }
+
+  // 2. Legacy fallback: <repo>/visulate/<db>/oracle-code-map.json or <repo>/visulate/oracle-code-map.json
+  const repos = gitService.listLocalRepositories(userContext);
+  if (repos && repos.length > 0) {
+    if (repoFolder) {
+      repos.sort((a, b) => {
+        if (a.folderName === repoFolder) return -1;
+        if (b.folderName === repoFolder) return 1;
+        return 0;
+      });
+    }
+
+    for (const repo of repos) {
+      if (repo.isMemoryRepo || seenRepos.has(repo.folderName)) continue;
+      const visulateDbMap = path.join(repo.fullPath, 'visulate', normalizedDb, 'oracle-code-map.json');
+      const visulateLegacyMap = path.join(repo.fullPath, 'visulate', 'oracle-code-map.json');
+
+      const mapPath = fs.existsSync(visulateDbMap) ? visulateDbMap : (
+        fs.existsSync(visulateLegacyMap) ? visulateLegacyMap : null
+      );
+      if (!mapPath) continue;
+
+      try {
+        const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+        inspectMapData(repo.folderName, mapData, mapPath === visulateDbMap);
+      } catch (err) {
+        logger.log('warn', `Error reading dependency map in ${repo.folderName}: ${err.message}`);
+      }
     }
   }
 
@@ -403,6 +482,7 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
 
 module.exports = {
   indexProjectDependencies,
+  getProjectCodeMap,
   getObjectCodeDependencies
 };
 

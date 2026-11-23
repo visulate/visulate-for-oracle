@@ -98,4 +98,137 @@ describe('Git Service Authentication and Error Handling', function () {
       }
     });
   });
+
+  describe('visulate-memory repo, M:N associations, granular commit/push/remote, and copy', () => {
+    it('should bootstrap visulate-memory with no upstream remote and list it', async () => {
+      const memDir = await gitService.ensureMemoryRepoInitialized();
+      expect(fs.existsSync(path.join(memDir, '.git'))).to.be.true;
+      expect(fs.existsSync(path.join(memDir, 'README.md'))).to.be.true;
+      expect(fs.existsSync(path.join(memDir, 'associations.json'))).to.be.true;
+
+      const status = await gitService.getRepoStatus(gitService.getDefaultMemoryRepoName());
+      expect(status.isMemoryRepo).to.be.true;
+      expect(status.hasRemote).to.be.false;
+      expect(status.files).to.have.lengthOf(0);
+
+      const repos = gitService.listLocalRepositories();
+      const memEntry = repos.find(r => r.folderName === gitService.getDefaultMemoryRepoName());
+      expect(memEntry).to.exist;
+      expect(memEntry.isMemoryRepo).to.be.true;
+      expect(memEntry.hasRemote).to.be.false;
+    });
+
+    it('should manage M:N associations in visulate-memory/associations.json without auto-committing', async () => {
+      await gitService.saveAssociation('pdb21', 'rental-portal', 'source');
+      await gitService.saveAssociation('cmbs-postgres', 'rental-portal', 'target');
+      await gitService.saveAssociation('*', 'dba-common-tools', 'dba');
+
+      const assoc = await gitService.getAssociations();
+      expect(assoc.links).to.have.lengthOf(3);
+      expect(assoc.links.find(l => l.db === 'pdb21' && l.repo === 'rental-portal').role).to.equal('source');
+      expect(assoc.links.find(l => l.db === 'cmbs-postgres' && l.repo === 'rental-portal').role).to.equal('target');
+      expect(assoc.links.find(l => l.db === '*' && l.repo === 'dba-common-tools').role).to.equal('dba');
+
+      // Associations change stays uncommitted so user retains commit control
+      const status = await gitService.getRepoStatus(gitService.getDefaultMemoryRepoName());
+      expect(status.files.some(f => f.path === 'associations.json')).to.be.true;
+
+      await gitService.deleteAssociation('pdb21', 'rental-portal');
+      const afterDel = await gitService.getAssociations();
+      expect(afterDel.links).to.have.lengthOf(2);
+    });
+
+    it('should selectively commit locally without pushing, then push explicitly to a configured remote', async () => {
+      const bareRemote = path.join(baseDir, '_bare_remote.git');
+      fs.mkdirSync(bareRemote, { recursive: true });
+      await gitService.runGitCommand(bareRemote, ['init', '--bare']);
+
+      const localRepo = 'granular-repo';
+      const localDir = path.join(baseDir, localRepo);
+      fs.mkdirSync(localDir, { recursive: true });
+      await gitService.runGitCommand(localDir, ['init', '-b', 'main']);
+
+      fs.writeFileSync(path.join(localDir, 'fileA.sql'), 'SELECT 1;\n', 'utf8');
+      fs.writeFileSync(path.join(localDir, 'fileB.sql'), 'SELECT 2;\n', 'utf8');
+
+      // Commit ONLY fileA.sql locally
+      const commitRes = await gitService.commitChanges(localRepo, {
+        commitMessage: 'Add fileA only',
+        files: ['fileA.sql']
+      });
+      expect(commitRes.success).to.be.true;
+      expect(commitRes.commitHash).to.be.a('string');
+
+      // fileB.sql must remain untracked
+      const statusAfterCommit = await gitService.getRepoStatus(localRepo);
+      expect(statusAfterCommit.files.map(f => f.path)).to.deep.equal(['fileB.sql']);
+
+      // Explicit push before remote is configured should fail clearly
+      try {
+        await gitService.pushChanges(localRepo, { remote: 'origin' });
+        expect.fail('Should fail when no remote configured');
+      } catch (err) {
+        expect(err.message).to.include('not configured');
+      }
+
+      // Configure remote via raw git (file:// path for local bare test) and push explicitly
+      await gitService.runGitCommand(localDir, ['remote', 'add', 'origin', bareRemote]);
+      const pushRes = await gitService.pushChanges(localRepo, { remote: 'origin', setUpstream: true });
+      expect(pushRes.success).to.be.true;
+      expect(pushRes.status.ahead).to.equal(0);
+      expect(pushRes.status.upstream).to.include('origin/');
+
+      // Discard untracked fileB.sql
+      const discardRes = await gitService.discardFileChanges(localRepo, 'fileB.sql');
+      expect(discardRes.success).to.be.true;
+      expect(fs.existsSync(path.join(localDir, 'fileB.sql'))).to.be.false;
+    });
+
+    it('should validate remote URLs in setRemote', async () => {
+      const memName = gitService.getDefaultMemoryRepoName();
+      await gitService.setRemote(memName, 'origin', 'https://github.com/example/visulate-memory.git');
+      const remotes = await gitService.getRemotes(memName);
+      expect(remotes).to.deep.equal([{ name: 'origin', url: 'https://github.com/example/visulate-memory.git' }]);
+
+      try {
+        await gitService.setRemote(memName, 'origin', '--upload-pack=evil');
+        expect.fail('Should reject unsafe remote URL');
+      } catch (err) {
+        expect(err.message).to.include('Invalid remote URL');
+      }
+    });
+
+    it('should copy files from visulate-memory to a target code repo without committing', async () => {
+      const memName = gitService.getDefaultMemoryRepoName();
+      const memDir = await gitService.ensureMemoryRepoInitialized();
+      const srcDir = path.join(memDir, 'pdb21', 'comments');
+      fs.mkdirSync(srcDir, { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'rnt_comments.sql'), 'COMMENT ON TABLE emp IS \'Employees\';\n', 'utf8');
+
+      const targetRepo = 'granular-repo';
+      const copyRes = await gitService.copyBetweenRepos(
+        memName,
+        'pdb21/comments/rnt_comments.sql',
+        targetRepo,
+        'db/scripts/rnt_comments.sql'
+      );
+      expect(copyRes.success).to.be.true;
+      expect(copyRes.copiedFiles).to.deep.equal(['db/scripts/rnt_comments.sql']);
+      expect(fs.existsSync(path.join(baseDir, targetRepo, 'db', 'scripts', 'rnt_comments.sql'))).to.be.true;
+
+      // Second copy without overwrite should throw EEXIST
+      try {
+        await gitService.copyBetweenRepos(
+          memName,
+          'pdb21/comments/rnt_comments.sql',
+          targetRepo,
+          'db/scripts/rnt_comments.sql',
+          { overwrite: false }
+        );
+        expect.fail('Should fail on existing target file without overwrite');
+      } catch (err) {
+        expect(err.code).to.equal('EEXIST');
+      }
+    });
+  });
 });

@@ -1,7 +1,7 @@
 .workbench-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 70px);
+  height: calc(100vh - 64px);
   width: 100%;
   background-color: var(--app-bg-color);
   color: var(--app-text-color);
@@ -877,6 +877,7 @@
   padding: 12px;
   overflow-y: auto;
   flex: 1;
+  background-color: var(--app-bg-color);
 }
 
 .context-card {
@@ -1133,7 +1134,7 @@
 .right-panel-tabs-header {
   padding: 0 4px 0 0 !important;
   border-bottom: 1px solid var(--app-border-color);
-  background-color: var(--app-card-bg);
+  background-color: var(--app-sidebar-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1144,6 +1145,7 @@
 .panel-tabs {
   display: flex;
   flex: 1;
+  height: 100%;
 }
 
 .panel-header-actions {
@@ -1180,13 +1182,15 @@
   font-size: 12px !important;
   font-weight: 500;
   color: var(--app-text-color) !important;
-  opacity: 0.75;
+  opacity: 0.72;
+  background-color: transparent;
   display: flex !important;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-bottom: 2px solid transparent !important;
-  transition: all 0.2s ease;
+  border-top: 2px solid transparent !important;
+  border-bottom: 1px solid var(--app-border-color) !important;
+  transition: all 0.15s ease;
 }
 
 .tab-btn mat-icon {
@@ -1200,13 +1204,14 @@
   opacity: 1;
   font-weight: 600;
   color: var(--app-link-color, #1976d2) !important;
-  border-bottom: 2px solid var(--app-link-color, #1976d2) !important;
-  background-color: var(--app-sidebar-bg);
+  background-color: var(--app-bg-color) !important;
+  border-top: 2px solid var(--app-link-color, #1976d2) !important;
+  border-bottom: 1px solid var(--app-bg-color) !important;
 }
 
 .tab-btn:hover:not(.active-tab) {
-  opacity: 1;
-  background-color: var(--app-active-bg);
+  opacity: 0.95;
+  background-color: rgba(128, 128, 128, 0.08);
 }
 
 /* AI Assistant Body & Quick Actions */
@@ -1354,4 +1359,603 @@ body.dark-theme .indicator-chip.db-chip {
   width: 16px !important;
   height: 16px !important;
   margin-right: 4px;
+}
+
+/* Git status badges & Copy to Repo button */
+.git-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.git-status-M {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.git-status-U,
+.git-status-A {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+.git-status-D {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #b91c1c;
+}
+
+.git-status-R {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #1d4ed8;
+}
+
+.tree-copy-btn {
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  padding: 0 !important;
+  opacity: 0.65;
+  flex-shrink: 0;
+}
+
+.tree-copy-btn:hover {
+  opacity: 1;
+}
+
+.tree-copy-btn mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
+}
+
+/* Consolidated Toolbar & Multi-Root Workspace Explorer */
+.dropdown-caret {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin-left: 2px;
+  margin-right: -4px !important;
+}
+
+.active-repo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: var(--app-bg-color);
+  border: 1px solid var(--app-border-color);
+  color: var(--app-heading-color);
+}
+
+.active-repo-pill mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  color: var(--app-link-color);
+}
+
+.active-repo-pill.memory-pill {
+  border-color: rgba(139, 92, 246, 0.45);
+}
+
+.active-repo-pill.memory-pill mat-icon {
+  color: #7c3aed;
+}
+
+.branch-select {
+  max-width: 140px;
+}
+
+.workspace-group {
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.workspace-root-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-heading-color);
+  background-color: rgba(128, 128, 128, 0.04);
+  user-select: none;
+  transition: background-color 0.12s ease;
+}
+
+.workspace-root-row:hover {
+  background-color: var(--app-active-bg);
+}
+
+.workspace-root-row.active-workspace {
+  background-color: rgba(38, 139, 210, 0.12);
+  color: var(--app-link-color);
+}
+
+.ws-chevron {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.ws-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--app-link-color);
+}
+
+.memory-workspace .ws-icon {
+  color: #7c3aed;
+}
+
+.ws-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-chip {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.ws-chip-memory {
+  background: rgba(139, 92, 246, 0.16);
+  color: #6d28d9;
+}
+
+.ws-chip-source {
+  background: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.ws-chip-target {
+  background: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+.ws-chip-app {
+  background: rgba(59, 130, 246, 0.16);
+  color: #1d4ed8;
+}
+
+.ws-chip-dba {
+  background: rgba(236, 72, 153, 0.16);
+  color: #be185d;
+}
+
+.ws-dirty-badge {
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 8px;
+  padding: 0 4px;
+  background-color: rgba(245, 158, 11, 0.22);
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+.workspace-children {
+  padding-bottom: 4px;
+}
+
+.ws-loading,
+.ws-empty {
+  padding: 6px 24px;
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.node-menu-btn {
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  padding: 0 !important;
+  margin-left: auto;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.workspace-root-row:hover .node-menu-btn,
+.tree-folder-row:hover .node-menu-btn,
+.file-item:hover .node-menu-btn,
+.node-menu-btn:focus {
+  opacity: 1;
+}
+
+.node-menu-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+}
+
+.compare-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  background-color: rgba(38, 139, 210, 0.12);
+  border-bottom: 1px solid var(--app-border-color);
+  color: var(--app-link-color);
+}
+
+.mini-compare-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.compare-selection-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.compare-base-file {
+  outline: 1px dashed var(--app-link-color);
+}
+
+.clear-compare-btn {
+  font-size: 11px !important;
+  height: 26px !important;
+  line-height: 26px !important;
+  margin-left: 8px;
+}
+
+.explorer-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.editor-mode-toggle {
+  margin-right: 6px;
+}
+
+.editor-mode-toggle button {
+  font-size: 11px !important;
+  padding: 0 8px !important;
+  min-height: 24px !important;
+  line-height: 24px !important;
+}
+
+.editor-mode-toggle button mat-icon {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.editor-save-btn {
+  font-size: 11px !important;
+  height: 26px !important;
+  line-height: 26px !important;
+  padding: 0 10px !important;
+  margin-right: 4px;
+}
+
+.editor-save-btn mat-icon {
+  font-size: 15px !important;
+  width: 15px !important;
+  height: 15px !important;
+  margin-right: 3px;
+}
+
+/* Projected Workbench controls rendered in the main-nav top toolbar via ngTemplateOutlet */
+.wb-top-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 4px;
+}
+
+.wb-top-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--app-toolbar-text);
+  opacity: 0.85;
+}
+
+.wb-top-label mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.wb-top-select {
+  background-color: var(--app-input-bg);
+  color: var(--app-text-color);
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  height: 30px;
+  outline: none;
+  max-width: 185px;
+}
+
+.wb-top-select.wb-branch-select {
+  max-width: 135px;
+}
+
+.wb-top-select:focus {
+  border-color: var(--app-link-color);
+}
+
+.wb-top-menu-btn {
+  font-size: 12px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 10px !important;
+  color: var(--app-toolbar-text) !important;
+  border-color: var(--app-border-color) !important;
+}
+
+.wb-top-menu-btn mat-icon {
+  font-size: 17px !important;
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.wb-top-caret {
+  margin-left: 2px;
+  margin-right: -4px !important;
+}
+
+/* Custom Hamburger Sidenav Drawer for Application Page */
+.wb-sidenav {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: var(--app-text-color);
+  background-color: var(--app-sidebar-bg);
+}
+
+.wb-sidenav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid var(--app-border-color);
+  background-color: var(--app-toolbar-bg);
+}
+
+.wb-sidenav-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-heading-color);
+}
+
+.wb-sidenav-title mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.wb-sidenav-section {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.wb-sidenav-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.wb-sidenav-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wb-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-color);
+}
+
+.wb-field-label mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  opacity: 0.8;
+}
+
+.wb-sidenav-select {
+  width: 100%;
+  background-color: var(--app-input-bg);
+  color: var(--app-text-color);
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+}
+
+.wb-sidenav-select:focus {
+  border-color: var(--app-link-color);
+}
+
+.wb-branch-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wb-branch-row .wb-sidenav-select {
+  flex: 1;
+}
+
+.wb-inline-icon-btn {
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+}
+
+.wb-sidenav-action {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  height: 34px !important;
+  padding: 0 8px !important;
+  color: var(--app-text-color) !important;
+}
+
+.wb-sidenav-action mat-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin-right: 10px !important;
+  opacity: 0.85;
+}
+
+.wb-sidenav-action:hover:not([disabled]) {
+  background-color: var(--app-active-bg) !important;
+}
+
+/* VS Code-style Bottom Context & Status Footer */
+.workbench-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  background-color: var(--app-toolbar-bg);
+  border-top: 1px solid var(--app-border-color);
+  color: var(--app-text-color);
+  font-size: 11px;
+  user-select: none;
+  flex-shrink: 0;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.footer-left,
+.footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.footer-center {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  opacity: 0.85;
+}
+
+.footer-status-msg {
+  font-size: 11px;
+}
+
+.footer-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.12s ease;
+}
+
+.footer-item:hover {
+  background-color: var(--app-active-bg);
+}
+
+.footer-item.footer-static {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.footer-item.footer-static:hover {
+  background-color: transparent;
+}
+
+.footer-item mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+}
+
+.footer-primary {
+  background-color: var(--app-link-color);
+  color: #ffffff;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.footer-primary:hover {
+  background-color: var(--app-link-color);
+  filter: brightness(1.08);
+}
+
+.footer-role {
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.footer-dirty-badge {
+  color: #d97706;
+  font-weight: 700;
+}
+
+.footer-sync-badge {
+  color: var(--app-link-color);
+  font-weight: 600;
+}
+
+.footer-muted {
+  opacity: 0.75;
 }

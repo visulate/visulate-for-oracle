@@ -141,8 +141,9 @@ def build_directory_tree_bottom_up(repo_path: str, target_subpath: str = "") -> 
 
 def load_indexed_dependencies(repo_path: str, db_endpoint: str = None) -> Dict[str, Any]:
     """
-    Loads database dependency indexing data from visulate/<db>/oracle-code-map.json
-    and codebase-dependencies.md.
+    Loads database dependency indexing data from the central visulate-memory repository
+    (<visulate-memory>/<db>/code-maps/<repo>/oracle-code-map.json and codebase-dependencies.md),
+    falling back to legacy <repo>/visulate/<db>/oracle-code-map.json paths if present.
 
     Returns:
         Dict with:
@@ -158,32 +159,58 @@ def load_indexed_dependencies(repo_path: str, db_endpoint: str = None) -> Dict[s
         "dependency_markdown": ""
     }
 
-    visulate_dir = os.path.join(repo_path, "visulate")
-    if not os.path.exists(visulate_dir):
-        return result
-
     candidate_files = []
-    if db_endpoint:
-        safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(db_endpoint)]).strip("_").lower()
-        db_map = os.path.join(visulate_dir, safe_db, "oracle-code-map.json")
-        if os.path.exists(db_map):
-            candidate_files.append((safe_db, db_map))
+    repo_name = os.path.basename(os.path.normpath(repo_path))
+    safe_db = (
+        "".join([c if c.isalnum() or c in "._-" else "_" for c in str(db_endpoint)]).strip("_").lower()
+        if db_endpoint else None
+    )
 
-    # Also scan any database subdirectories in visulate/
+    # 1. Primary source: central visulate-memory/<db>/code-maps/<repo>/oracle-code-map.json
+    try:
+        from common.config import get_memory_repo_path
+        memory_dir = get_memory_repo_path()
+        if memory_dir and os.path.exists(memory_dir):
+            if safe_db:
+                mem_map = os.path.join(memory_dir, safe_db, "code-maps", repo_name, "oracle-code-map.json")
+                if os.path.exists(mem_map):
+                    candidate_files.append((safe_db, mem_map))
+            if not candidate_files:
+                for entry in sorted(os.listdir(memory_dir)):
+                    if entry.startswith("."):
+                        continue
+                    entry_path = os.path.join(memory_dir, entry)
+                    if os.path.isdir(entry_path):
+                        mem_map = os.path.join(entry_path, "code-maps", repo_name, "oracle-code-map.json")
+                        if os.path.exists(mem_map):
+                            candidate_files.append((entry, mem_map))
+    except Exception as e:
+        logger.warning(f"Error scanning central memory repo for code maps: {e}")
+
+    # 2. Legacy fallback: <repo>/visulate/<db>/oracle-code-map.json or <repo>/visulate/oracle-code-map.json
+    visulate_dir = os.path.join(repo_path, "visulate")
+    if not candidate_files and os.path.exists(visulate_dir):
+        if safe_db:
+            db_map = os.path.join(visulate_dir, safe_db, "oracle-code-map.json")
+            if os.path.exists(db_map):
+                candidate_files.append((safe_db, db_map))
+
+        if not candidate_files:
+            try:
+                for entry in sorted(os.listdir(visulate_dir)):
+                    entry_path = os.path.join(visulate_dir, entry)
+                    if os.path.isdir(entry_path):
+                        code_map = os.path.join(entry_path, "oracle-code-map.json")
+                        if os.path.exists(code_map):
+                            candidate_files.append((entry, code_map))
+                root_code_map = os.path.join(visulate_dir, "oracle-code-map.json")
+                if os.path.exists(root_code_map):
+                    candidate_files.append(("global", root_code_map))
+            except Exception as e:
+                logger.warning(f"Error scanning visulate directory: {e}")
+
     if not candidate_files:
-        try:
-            for entry in sorted(os.listdir(visulate_dir)):
-                entry_path = os.path.join(visulate_dir, entry)
-                if os.path.isdir(entry_path):
-                    code_map = os.path.join(entry_path, "oracle-code-map.json")
-                    if os.path.exists(code_map):
-                        candidate_files.append((entry, code_map))
-            # Check root visulate/oracle-code-map.json
-            root_code_map = os.path.join(visulate_dir, "oracle-code-map.json")
-            if os.path.exists(root_code_map):
-                candidate_files.append(("global", root_code_map))
-        except Exception as e:
-            logger.warning(f"Error scanning visulate directory: {e}")
+        return result
 
     for db_name, map_file in candidate_files:
         try:

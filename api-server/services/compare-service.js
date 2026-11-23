@@ -378,22 +378,23 @@ async function compareEntities(sourceReq, targetReq) {
 
   const sourceDb = sourceReq && sourceReq.db;
   const targetDb = targetReq && targetReq.db;
-  const repo = findRepoForDb(sourceDb) || findRepoForDb(targetDb);
-  if (repo) {
+  if (sourceDb || targetDb) {
+    const memoryRepoDir = await gitService.ensureMemoryRepoInitialized();
+    const memoryRepoName = gitService.getDefaultMemoryRepoName();
     const safeDb = String(sourceDb || targetDb).toLowerCase().trim().replace(/[^a-z0-9_-]/gi, '_');
     const safeTargetDb = String(targetDb || 'target').toLowerCase().trim().replace(/[^a-z0-9_-]/gi, '_');
-    const targetDir = path.join(repo.fullPath, 'visulate', safeDb, 'reports');
+    const targetDir = path.join(memoryRepoDir, safeDb, 'reports');
     await fs.promises.mkdir(targetDir, { recursive: true });
     const targetFilename = `comparison_${safeDb}_vs_${safeTargetDb}.md`;
     const targetFilePath = path.join(targetDir, targetFilename);
     await fs.promises.writeFile(targetFilePath, report, 'utf8');
-    const relPath = path.relative(repo.fullPath, targetFilePath);
+    const relPath = path.relative(memoryRepoDir, targetFilePath).replace(/\\/g, '/');
 
     return {
-      reportSummary: `Comparison complete! Saved diff report to repository \`${repo.folderName}\` at \`${relPath}\`.\n\nPreview:\n\n${apiReport.substring(0, 1500)}${apiReport.length > 1500 ? '\n\n... (report truncated to save space, view file in repository)' : ''}`,
+      reportSummary: `Comparison complete! Saved diff report to repository \`${memoryRepoName}\` at \`${relPath}\`.\n\nPreview:\n\n${apiReport.substring(0, 1500)}${apiReport.length > 1500 ? '\n\n... (report truncated to save space, view file in repository)' : ''}`,
       rawMarkdown: apiReport,
       savedPath: relPath,
-      repo: repo.folderName
+      repo: memoryRepoName
     };
   }
 

@@ -110,16 +110,16 @@ def create_app() -> FastAPI:
                 project_id = context.get("projectId")
                 if project_id:
                     preamble += f"- Selected Repository: {project_id}\n"
-                    tenant_user = context.get("username")
-                    okf_context = get_okf_context(
-                        project_id,
-                        context.get("endpoint"),
-                        context.get("owner"),
-                        context.get("objectName"),
-                        username=tenant_user
-                    )
-                    if okf_context:
-                        preamble += f"\n{okf_context}\n"
+                tenant_user = context.get("username")
+                okf_context = get_okf_context(
+                    project_id,
+                    context.get("endpoint"),
+                    context.get("owner"),
+                    context.get("objectName"),
+                    username=tenant_user
+                )
+                if okf_context:
+                    preamble += f"\n{okf_context}\n"
 
                 prompt_text = f"{preamble}\nUser Request: {message}"
 

@@ -6,7 +6,8 @@ from google.adk.tools.function_tool import FunctionTool
 # Import from local modules
 from comment_generator.main import CommentGenerator, MCPClient
 from common.credentials import CredentialManager
-from common.config import resolve_repo_for_db
+from common.config import resolve_repo_for_db, get_default_memory_repo_name
+from common.readme_builder import update_visulate_readme
 from common.context import session_id_var, browser_session_id_var, progress_callback_var, auth_token_var, cancelled_var, ui_context_var, db_credentials_var, timeout_signal_var, cancelled_sessions
 import asyncio
 from datetime import datetime
@@ -74,7 +75,8 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
             repo_name, repo_path = resolve_repo_for_db(database=database, project_id=project_id, username=username_ctx)
 
             if repo_path:
-                output_dir = Path(repo_path) / "visulate" / safe_database / "comments"
+                is_memory = (repo_name == get_default_memory_repo_name())
+                output_dir = (Path(repo_path) / safe_database / "comments") if is_memory else (Path(repo_path) / "visulate" / safe_database / "comments")
                 output_dir.mkdir(parents=True, exist_ok=True)
                 output_file = output_dir / filename
                 rel_file_path = os.path.relpath(str(output_file), repo_path)
@@ -133,6 +135,12 @@ def create_generate_comments_tool(api_server_tools: McpToolset, query_engine_too
                 return f"{loc_header}\n\nAll requested objects in {schema} are already up-to-date in your database or session file."
 
             # Fail-safe: Always post download link or repo save path to progress callback so it is visible in the UI
+            if is_repo and repo_path:
+                try:
+                    update_visulate_readme(repo_path)
+                except Exception as readme_err:
+                    logger.warning(f"Error updating README after generating comments: {readme_err}")
+
             callback = progress_callback_var.get()
             if callback:
                  if is_repo:

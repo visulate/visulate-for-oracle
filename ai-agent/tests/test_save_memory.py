@@ -5,10 +5,15 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from common.context import ui_context_var, progress_callback_var
-from common.tools import create_save_memory_tool
+from common.tools import (
+    create_save_memory_tool,
+    create_read_memory_tool,
+    create_maintain_visulate_readme_tool,
+    create_copy_artifact_to_repo_tool,
+)
 from schema_analysis_agent.agent import create_schema_analysis_agent
 from object_analysis_agent.agent import create_object_analysis_agent
-from root_agent.agent import create_root_agent
+
 
 @pytest.fixture
 def temp_repo():
@@ -17,6 +22,7 @@ def temp_repo():
     os.makedirs(repo_dir, exist_ok=True)
     yield temp_dir, "test-repo", repo_dir
     shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 @pytest.mark.asyncio
 async def test_save_memory_record_schema_summary(temp_repo):
@@ -45,16 +51,21 @@ async def test_save_memory_record_schema_summary(temp_repo):
         )
 
         assert "Successfully saved" in res
-        expected_path = os.path.join(repo_dir, "visulate", "pdb21", "memories", "schema_rntmgr2_summary.md")
+        assert "visulate-memory" in res
+
+        mem_dir = os.path.join(base_dir, "visulate-memory")
+        expected_path = os.path.join(mem_dir, "pdb21", "memories", "schema_rntmgr2_summary.md")
         assert os.path.exists(expected_path)
+        # Application repo must remain untouched
+        assert not os.path.exists(os.path.join(repo_dir, "visulate"))
 
         with open(expected_path, "r", encoding="utf-8") as f:
             saved_content = f.read()
         assert "Property management schema" in saved_content
         assert any("Architectural memory saved" in m for m in progress_messages)
 
-        # Verify visulate/README.md was automatically updated
-        readme_path = os.path.join(repo_dir, "visulate", "README.md")
+        # Verify visulate-memory/README.md was automatically updated
+        readme_path = os.path.join(mem_dir, "README.md")
         assert os.path.exists(readme_path)
         with open(readme_path, "r", encoding="utf-8") as f:
             readme_text = f.read()
@@ -62,6 +73,7 @@ async def test_save_memory_record_schema_summary(temp_repo):
         assert "pdb21" in readme_text
         assert "schema_rntmgr2_summary.md" in readme_text
         assert "Schema RNTMGR2" in readme_text
+
 
 @pytest.mark.asyncio
 async def test_save_memory_record_object_structure(temp_repo):
@@ -84,20 +96,28 @@ async def test_save_memory_record_object_structure(temp_repo):
         )
 
         assert "Successfully saved" in res
-        expected_path = os.path.join(repo_dir, "visulate", "pdb21", "structures", "rental_agreements.md")
+        expected_path = os.path.join(base_dir, "visulate-memory", "pdb21", "structures", "rental_agreements.md")
         assert os.path.exists(expected_path)
 
         with open(expected_path, "r", encoding="utf-8") as f:
             saved_content = f.read()
         assert "Core table holding active and historical leases" in saved_content
 
-@pytest.mark.asyncio
-async def test_save_memory_record_no_project():
-    save_tool = create_save_memory_tool()
-    ui_context_var.set({"endpoint": "pdb21"})
 
-    res = await save_tool.func(content="Some architectural memory")
-    assert "No active Git repository linked" in res
+@pytest.mark.asyncio
+async def test_save_memory_record_without_linked_project(temp_repo):
+    """Memory must persist into visulate-memory even when no app repository is linked."""
+    base_dir, _, _ = temp_repo
+    save_tool = create_save_memory_tool()
+
+    with patch.dict(os.environ, {"GIT_REPOS_DIR": base_dir}):
+        ui_context_var.set({"endpoint": "pdb21"})
+        res = await save_tool.func(content="# Unlinked DB Memory\nCaptured without an app repo.")
+        assert "Successfully saved" in res
+        assert "visulate-memory" in res
+        expected_path = os.path.join(base_dir, "visulate-memory", "pdb21", "memories", "architecture_summary.md")
+        assert os.path.exists(expected_path)
+
 
 def test_agents_equipped_with_memory_tool():
     with patch("common.tools.get_mcp_urls", return_value=("http://localhost:3000", "http://localhost:3001")):
@@ -109,6 +129,7 @@ def test_agents_equipped_with_memory_tool():
         tool_names_obj = [getattr(t, "name", "") for t in obj_agent.tools]
         assert "save_memory_record" not in tool_names_obj
 
+
 @pytest.mark.asyncio
 async def test_root_agent_has_memory_tools():
     from root_agent.agent import create_root_agent
@@ -119,11 +140,12 @@ async def test_root_agent_has_memory_tools():
         assert "save_memory_record" in tool_names_root
         assert "read_memory_record" in tool_names_root
         assert "maintain_visulate_readme" in tool_names_root
+        assert "copy_artifact_to_repo" in tool_names_root
+
 
 @pytest.mark.asyncio
 async def test_maintain_visulate_readme_tool(temp_repo):
-    from common.tools import create_maintain_visulate_readme_tool
-    base_dir, project_id, repo_dir = temp_repo
+    base_dir, project_id, _ = temp_repo
     tool = create_maintain_visulate_readme_tool()
 
     ui_ctx = {
@@ -131,8 +153,7 @@ async def test_maintain_visulate_readme_tool(temp_repo):
         "endpoint": "pdb21"
     }
 
-    # Populate a memory file in the repository
-    mem_dir = os.path.join(repo_dir, "visulate", "pdb21", "memories")
+    mem_dir = os.path.join(base_dir, "visulate-memory", "pdb21", "memories")
     os.makedirs(mem_dir, exist_ok=True)
     with open(os.path.join(mem_dir, "overview.md"), "w", encoding="utf-8") as f:
         f.write("# System Overview\nCore microservices architecture.\n")
@@ -146,10 +167,10 @@ async def test_maintain_visulate_readme_tool(temp_repo):
         progress_callback_var.set(mock_prog)
 
         res = await tool.func(notes="Test architectural note.")
-        assert "Successfully generated and updated `visulate/README.md`" in res
-        assert any("Maintained visulate/README.md" in m for m in progress_messages)
+        assert "Successfully generated and updated `README.md`" in res
+        assert any("Maintained README.md" in m for m in progress_messages)
 
-        readme_file = os.path.join(repo_dir, "visulate", "README.md")
+        readme_file = os.path.join(base_dir, "visulate-memory", "README.md")
         assert os.path.exists(readme_file)
         with open(readme_file, "r", encoding="utf-8") as f:
             content = f.read()
@@ -157,13 +178,20 @@ async def test_maintain_visulate_readme_tool(temp_repo):
         assert "System Overview" in content
         assert "Test architectural note." in content
 
+
 @pytest.mark.asyncio
-async def test_read_memory_record(temp_repo):
-    from common.tools import create_read_memory_tool
+async def test_read_memory_record_and_legacy_fallback(temp_repo):
     base_dir, project_id, repo_dir = temp_repo
     read_tool = create_read_memory_tool()
 
-    mem_dir = os.path.join(repo_dir, "visulate", "pdb21", "memories")
+    # Legacy file inside app repo
+    legacy_dir = os.path.join(repo_dir, "visulate", "pdb21", "memories")
+    os.makedirs(legacy_dir, exist_ok=True)
+    with open(os.path.join(legacy_dir, "legacy_arch.md"), "w", encoding="utf-8") as f:
+        f.write("# Legacy Arch\nStored inside app repo.")
+
+    # Primary file inside visulate-memory
+    mem_dir = os.path.join(base_dir, "visulate-memory", "pdb21", "memories")
     os.makedirs(mem_dir, exist_ok=True)
     with open(os.path.join(mem_dir, "architecture.md"), "w", encoding="utf-8") as f:
         f.write("# Architecture\nMicroservices with Oracle DB backend.")
@@ -176,56 +204,120 @@ async def test_read_memory_record(temp_repo):
     with patch.dict(os.environ, {"GIT_REPOS_DIR": base_dir}):
         ui_context_var.set(ui_ctx)
 
-        # Read by filename
         content = await read_tool.func("architecture.md")
         assert "Microservices with Oracle DB backend" in content
 
-        # Read non-existent
+        legacy_content = await read_tool.func("legacy_arch.md")
+        assert "Stored inside app repo." in legacy_content
+
         missing = await read_tool.func("non_existent.md")
         assert "not found" in missing
 
+
 @pytest.mark.asyncio
-async def test_save_and_read_memory_record_server_mode_tenant():
-    from common.tools import create_read_memory_tool
+async def test_shared_memory_across_users_and_copy_to_repo():
     temp_dir = tempfile.mkdtemp()
     try:
-        user_repo_dir = os.path.join(temp_dir, "users", "alice", "tenant-repo")
-        os.makedirs(user_repo_dir, exist_ok=True)
+        app_repo_dir = os.path.join(temp_dir, "rental-portal")
+        os.makedirs(app_repo_dir, exist_ok=True)
         save_tool = create_save_memory_tool()
         read_tool = create_read_memory_tool()
+        copy_tool = create_copy_artifact_to_repo_tool()
 
-        ui_ctx = {
-            "projectId": "tenant-repo",
-            "endpoint": "pdb21",
-            "username": "alice"
-        }
-
-        with patch.dict(os.environ, {"GIT_REPOS_DIR": temp_dir, "GIT_MODE": "server"}):
-            ui_context_var.set(ui_ctx)
-
-            # 1. Save in server mode under users/alice/
+        with patch.dict(os.environ, {"GIT_REPOS_DIR": temp_dir, "GIT_MODE": "local"}):
+            # Alice saves a memory
+            ui_context_var.set({"endpoint": "pdb21", "username": "alice"})
             res = await save_tool.func(
-                content="# Alice's Private Notes\nTenant isolated memory.",
-                filename="alice_notes.md",
+                content="# Shared DB Notes\nShared across users.",
+                filename="shared_notes.md",
                 category="memories",
-                description="Alice Notes"
+                description="Shared Notes"
             )
             assert "Successfully saved" in res
-            expected_file = os.path.join(user_repo_dir, "visulate", "pdb21", "memories", "alice_notes.md")
-            assert os.path.exists(expected_file)
 
-            # 2. Read back in server mode
-            content = await read_tool.func("alice_notes.md")
-            assert "Alice's Private Notes" in content
+            # Bob reads the same shared memory
+            ui_context_var.set({"endpoint": "pdb21", "username": "bob"})
+            bob_content = await read_tool.func("shared_notes.md")
+            assert "Shared across users." in bob_content
 
-            # 3. Another user cannot see alice's repo
-            ui_context_var.set({
-                "projectId": "tenant-repo",
-                "endpoint": "pdb21",
-                "username": "bob"
-            })
-            bob_content = await read_tool.func("alice_notes.md")
-            assert "not found" in bob_content
+            # Copy artifact explicitly from visulate-memory to rental-portal
+            copy_res = await copy_tool.func(
+                source_path="pdb21/memories/shared_notes.md",
+                target_repo="rental-portal",
+                target_path="docs/shared_notes.md"
+            )
+            assert "Copied 1 file(s)" in copy_res
+            assert os.path.exists(os.path.join(app_repo_dir, "docs", "shared_notes.md"))
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
+
+@pytest.mark.asyncio
+async def test_save_nl2sql_query_memory_for_postgres(temp_repo):
+    from nl2sql_agent.agent import create_nl2sql_agent
+    base_dir, _, _ = temp_repo
+    save_tool = create_save_memory_tool()
+
+    with patch("common.tools.get_mcp_toolsets", return_value=(MagicMock(), MagicMock())):
+        nl2sql = create_nl2sql_agent()
+        tool_names = [getattr(t, "name", "") for t in nl2sql.tools]
+        assert "save_memory_record" in tool_names
+
+    with patch.dict(os.environ, {"GIT_REPOS_DIR": base_dir}):
+        # Even if UI context has no endpoint set, explicit database parameter routes to cmbs-postgres/queries/
+        ui_context_var.set({})
+        res = await save_tool.func(
+            content="# Top Loans by Balance\nPostgreSQL query joining loans and properties.\n```sql\nSELECT l.id, p.name FROM public.loans l JOIN public.properties p ON p.id = l.property_id LIMIT 10;\n```",
+            filename="top_loans_by_balance.md",
+            category="queries",
+            description="NL2SQL Query Pattern",
+            database="cmbs-postgres"
+        )
+        assert "Successfully saved" in res
+        expected_path = os.path.join(base_dir, "visulate-memory", "cmbs-postgres", "queries", "top_loans_by_balance.md")
+        assert os.path.exists(expected_path)
+
+        readme_path = os.path.join(base_dir, "visulate-memory", "README.md")
+        with open(readme_path, "r", encoding="utf-8") as f:
+            readme_text = f.read()
+        assert "Saved SQL Queries & Patterns" in readme_text
+        assert "top_loans_by_balance.md" in readme_text
+
+
+def test_specialists_equipped_with_save_memory_and_readme_reads_central_code_map(temp_repo):
+    from schema_comparison_agent.agent import create_schema_comparison_agent
+    from invalid_objects.agent import create_invalid_objects_agent
+    from app_developer.agent import create_app_developer_agent
+    from readme_generator.generator import load_indexed_dependencies
+    import json
+
+    base_dir, project_id, repo_dir = temp_repo
+
+    with patch("common.tools.get_mcp_toolsets", return_value=(MagicMock(), MagicMock())), \
+         patch("schema_comparison_agent.agent.get_mcp_toolsets", return_value=(MagicMock(), MagicMock())), \
+         patch("invalid_objects.agent.get_mcp_toolsets", return_value=(MagicMock(), MagicMock())), \
+         patch("app_developer.agent.get_mcp_toolsets", return_value=(MagicMock(), MagicMock())):
+        comp_agent = create_schema_comparison_agent()
+        inv_agent = create_invalid_objects_agent()
+        dev_agent = create_app_developer_agent()
+
+        assert "save_memory_record" in [getattr(t, "name", "") for t in comp_agent.tools]
+        assert "save_memory_record" in [getattr(t, "name", "") for t in inv_agent.tools]
+        assert "save_memory_record" in [getattr(t, "name", "") for t in dev_agent.tools]
+        assert "NEVER write `visulate/` memory files" in dev_agent.instruction
+
+    # Verify readme_generator loads code maps from central visulate-memory/<db>/code-maps/<repo>/
+    mem_code_map_dir = os.path.join(base_dir, "visulate-memory", "pdb21", "code-maps", project_id)
+    os.makedirs(mem_code_map_dir, exist_ok=True)
+    with open(os.path.join(mem_code_map_dir, "oracle-code-map.json"), "w", encoding="utf-8") as f:
+        json.dump({
+            "dbConnectionId": "pdb21",
+            "objects": {"PR_PROPERTIES": {"owner": "RNTMGR2", "type": "TABLE", "files": ["src/props.js"]}},
+            "files": {"src/props.js": ["PR_PROPERTIES"]}
+        }, f)
+
+    with patch.dict(os.environ, {"GIT_REPOS_DIR": base_dir}):
+        deps = load_indexed_dependencies(repo_dir, "pdb21")
+        assert deps["db_connection"] == "pdb21"
+        assert "PR_PROPERTIES" in deps["objects"]
+        assert deps["file_to_objects"].get("src/props.js") == ["PR_PROPERTIES"]
