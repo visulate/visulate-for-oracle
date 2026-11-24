@@ -1,5 +1,6 @@
-import { Component, Inject, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Subscription } from 'rxjs';
 import { RestService } from '../../services/rest.service';
 
 export interface GitStatusFileItem {
@@ -140,21 +141,23 @@ export interface GitStatusDialogData {
     <mat-dialog-actions class="dialog-actions">
       <div class="left-actions">
         <button mat-stroked-button color="primary" type="button"
-          [disabled]="!status || status.files.length === 0"
+          [disabled]="isLoading || !loadedRepo || !status || status.files.length === 0"
           (click)="triggerAction('commit')">
           <mat-icon>commit</mat-icon> Commit Locally...
         </button>
         <button mat-stroked-button type="button"
           *ngIf="status?.hasRemote"
+          [disabled]="isLoading || !loadedRepo"
           (click)="triggerAction('push')">
           <mat-icon>publish</mat-icon> Push{{ status && status.ahead > 0 ? ' (' + status.ahead + ')' : '' }}
         </button>
         <button mat-stroked-button type="button"
           *ngIf="status?.hasRemote"
+          [disabled]="isLoading || !loadedRepo"
           (click)="triggerAction('pull')">
           <mat-icon>file_download</mat-icon> Pull{{ status && status.behind > 0 ? ' (' + status.behind + ')' : '' }}
         </button>
-        <button mat-button type="button" (click)="triggerAction('remote')">
+        <button mat-button type="button" [disabled]="isLoading || !loadedRepo" (click)="triggerAction('remote')">
           <mat-icon>cloud_upload</mat-icon> {{ status?.hasRemote ? 'Remote...' : 'Set Remote...' }}
         </button>
       </div>
@@ -232,12 +235,15 @@ export interface GitStatusDialogData {
     .left-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
   `]
 })
-export class GitStatusDialogComponent implements OnInit {
+export class GitStatusDialogComponent implements OnInit, OnDestroy {
   public selectedRepo: string = '';
   public status: GitStatusPayload | null = null;
   public isLoading: boolean = false;
   public errorMessage: string = '';
   public didMutate: boolean = false;
+  private statusSub: Subscription | null = null;
+  private discardSub: Subscription | null = null;
+  private requestSeq: number = 0;
 
   constructor(
     public dialogRef: MatDialogRef<GitStatusDialogComponent>,
@@ -251,8 +257,17 @@ export class GitStatusDialogComponent implements OnInit {
     }
   }
 
+  get loadedRepo(): string {
+    return this.status && this.status.projectId === this.selectedRepo ? this.status.projectId : '';
+  }
+
   ngOnInit(): void {
     this.loadStatus();
+  }
+
+  ngOnDestroy(): void {
+    this.statusSub?.unsubscribe();
+    this.discardSub?.unsubscribe();
   }
 
   get counts(): { modified: number; untracked: number; added: number; deleted: number; other: number } {
@@ -286,15 +301,33 @@ export class GitStatusDialogComponent implements OnInit {
 
   loadStatus(): void {
     if (!this.selectedRepo) return;
+    this.statusSub?.unsubscribe();
+    this.discardSub?.unsubscribe();
+
+    const repoForRequest = this.selectedRepo;
+    const seq = ++this.requestSeq;
+    // Clear stale status from any previously viewed repository immediately
+    if (this.status && this.status.projectId !== repoForRequest) {
+      this.status = null;
+    }
     this.isLoading = true;
     this.errorMessage = '';
-    this.restService.getGitStatus$(this.selectedRepo).subscribe({
+    this.cdRef.detectChanges();
+
+    this.statusSub = this.restService.getGitStatus$(repoForRequest).subscribe({
       next: (status) => {
+        if (seq !== this.requestSeq || repoForRequest !== this.selectedRepo) {
+          return;
+        }
         this.status = status;
         this.isLoading = false;
         this.cdRef.detectChanges();
       },
       error: (err) => {
+        if (seq !== this.requestSeq || repoForRequest !== this.selectedRepo) {
+          return;
+        }
+        this.status = null;
         this.isLoading = false;
         this.errorMessage = err.error?.error || err.message || 'Failed to load Git status';
         this.cdRef.detectChanges();
@@ -303,23 +336,34 @@ export class GitStatusDialogComponent implements OnInit {
   }
 
   openFile(filePath: string): void {
-    this.dialogRef.close({ action: 'open', repo: this.selectedRepo, filePath, didMutate: this.didMutate });
+    const targetRepo = this.loadedRepo;
+    if (!targetRepo) return;
+    this.dialogRef.close({ action: 'open', repo: targetRepo, filePath, didMutate: this.didMutate });
   }
 
   viewDiff(filePath: string): void {
-    this.dialogRef.close({ action: 'diff', repo: this.selectedRepo, filePath, didMutate: this.didMutate });
+    const targetRepo = this.loadedRepo;
+    if (!targetRepo) return;
+    this.dialogRef.close({ action: 'diff', repo: targetRepo, filePath, didMutate: this.didMutate });
   }
 
   discardFile(filePath: string): void {
-    if (!confirm(`Discard uncommitted changes to '${filePath}' in '${this.selectedRepo}'?`)) {
+    const targetRepo = this.loadedRepo;
+    if (!targetRepo) return;
+    if (!confirm(`Discard uncommitted changes to '${filePath}' in '${targetRepo}'?`)) {
       return;
     }
+    this.discardSub?.unsubscribe();
+    const seq = this.requestSeq;
     this.isLoading = true;
     this.errorMessage = '';
-    this.restService.discardGitFile$(this.selectedRepo, filePath).subscribe({
+    this.discardSub = this.restService.discardGitFile$(targetRepo, filePath).subscribe({
       next: (res) => {
-        this.isLoading = false;
         this.didMutate = true;
+        if (seq !== this.requestSeq || targetRepo !== this.selectedRepo) {
+          return;
+        }
+        this.isLoading = false;
         if (res?.status) {
           this.status = res.status;
         } else {
@@ -328,6 +372,9 @@ export class GitStatusDialogComponent implements OnInit {
         this.cdRef.detectChanges();
       },
       error: (err) => {
+        if (seq !== this.requestSeq || targetRepo !== this.selectedRepo) {
+          return;
+        }
         this.isLoading = false;
         this.errorMessage = err.error?.error || err.message || 'Failed to discard changes';
         this.cdRef.detectChanges();
@@ -336,10 +383,12 @@ export class GitStatusDialogComponent implements OnInit {
   }
 
   triggerAction(action: 'commit' | 'push' | 'pull' | 'remote'): void {
-    this.dialogRef.close({ action, repo: this.selectedRepo, didMutate: this.didMutate });
+    const targetRepo = this.loadedRepo;
+    if (!targetRepo) return;
+    this.dialogRef.close({ action, repo: targetRepo, didMutate: this.didMutate });
   }
 
   onClose(): void {
-    this.dialogRef.close({ didMutate: this.didMutate, repo: this.selectedRepo });
+    this.dialogRef.close({ didMutate: this.didMutate, repo: this.loadedRepo || this.selectedRepo });
   }
 }

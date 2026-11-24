@@ -94,7 +94,8 @@ def create_generate_all_readmes_tool() -> FunctionTool:
                 target_subpath=effective_target,
                 progress_callback=progress_callback_var.get(),
                 stream_callback=stream_callback_var.get(),
-                genai_client=client
+                genai_client=client,
+                username=username
             )
 
             processed = result["processed_count"]
@@ -125,6 +126,8 @@ def create_generate_all_readmes_tool() -> FunctionTool:
                         if endpoint else "global"
                     )
                     safe_proj = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_").lower() or "repo"
+                    if not safe_db or safe_db in (".", ".."):
+                        raise ValueError("Invalid database identifier")
                     mem_dir = os.path.join(memory_path, safe_db, "memories")
                     os.makedirs(mem_dir, exist_ok=True)
                     overview_file = os.path.join(mem_dir, f"repo_{safe_proj}_overview.md")

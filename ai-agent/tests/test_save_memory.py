@@ -321,3 +321,79 @@ def test_specialists_equipped_with_save_memory_and_readme_reads_central_code_map
         assert deps["db_connection"] == "pdb21"
         assert "PR_PROPERTIES" in deps["objects"]
         assert deps["file_to_objects"].get("src/props.js") == ["PR_PROPERTIES"]
+
+
+@pytest.mark.asyncio
+async def test_security_and_scope_hardening():
+    from common.config import get_default_memory_repo_name
+    from readme_generator.generator import load_indexed_dependencies
+    import json
+
+    temp_dir = tempfile.mkdtemp()
+    outside_dir = tempfile.mkdtemp()
+    try:
+        # 1. DEFAULT_MEMORY_REPO preserves valid names verbatim (including leading/trailing underscores)
+        with patch.dict(os.environ, {"DEFAULT_MEMORY_REPO": "_team_mem_"}):
+            assert get_default_memory_repo_name() == "_team_mem_"
+        with patch.dict(os.environ, {"DEFAULT_MEMORY_REPO": ".."}):
+            assert get_default_memory_repo_name() == "visulate-memory"
+
+        save_tool = create_save_memory_tool()
+        read_tool = create_read_memory_tool()
+        copy_tool = create_copy_artifact_to_repo_tool()
+
+        app_repo_dir = os.path.join(temp_dir, "target-app")
+        os.makedirs(app_repo_dir, exist_ok=True)
+        os.symlink(outside_dir, os.path.join(app_repo_dir, "docs_link"))
+
+        with patch.dict(os.environ, {"GIT_REPOS_DIR": temp_dir, "GIT_MODE": "local"}):
+            ui_context_var.set({"endpoint": "pdb21"})
+
+            # 2. Reject dot-directory database identifiers in save_memory_record
+            res_dotdot = await save_tool.func(content="# Bad", filename="bad.md", database="..")
+            assert "Invalid database identifier" in res_dotdot
+            assert not os.path.exists(os.path.join(temp_dir, "memories", "bad.md"))
+
+            # Seed memory repo and test read_memory_record blocks .git/config, .conf, and symlinks
+            res_ok = await save_tool.func(content="# Good", filename="good.md", database="pdb21")
+            assert "Successfully saved" in res_ok
+            mem_root = os.path.join(temp_dir, "visulate-memory")
+            with open(os.path.join(mem_root, "ora2pg.conf"), "w", encoding="utf-8") as f:
+                f.write("ORACLE_PWD secret\n")
+            outside_secret = os.path.join(outside_dir, "secret.md")
+            with open(outside_secret, "w", encoding="utf-8") as f:
+                f.write("TOP SECRET")
+            os.symlink(outside_secret, os.path.join(mem_root, "pdb21", "memories", "leak.md"))
+
+            assert "Invalid memory record path" in await read_tool.func(".git/config")
+            assert "Invalid memory record path" in await read_tool.func("ora2pg.conf")
+            assert "Invalid memory record path" in await read_tool.func("pdb21/memories/leak.md")
+
+            # 3. copy_artifact_to_repo rejects symlinked destination directories
+            copy_err = await copy_tool.func(
+                source_path="pdb21/memories/good.md",
+                target_repo="target-app",
+                target_path="docs_link/escaped.md"
+            )
+            assert "symbolic link" in copy_err.lower() or "escapes" in copy_err.lower()
+            assert not os.path.exists(os.path.join(outside_dir, "escaped.md"))
+
+        # 4. load_indexed_dependencies honors user scope when GIT_MODE=server & MEMORY_REPO_SCOPE=user
+        user_repo_dir = os.path.join(temp_dir, "users", "alice", "my-app")
+        user_mem_map_dir = os.path.join(temp_dir, "users", "alice", "visulate-memory", "pdb21", "code-maps", "my-app")
+        os.makedirs(user_repo_dir, exist_ok=True)
+        os.makedirs(user_mem_map_dir, exist_ok=True)
+        with open(os.path.join(user_mem_map_dir, "oracle-code-map.json"), "w", encoding="utf-8") as f:
+            json.dump({
+                "dbConnectionId": "pdb21",
+                "objects": {"ALICE_TBL": {"owner": "HR", "type": "TABLE", "files": ["a.sql"]}},
+                "files": {"a.sql": ["ALICE_TBL"]}
+            }, f)
+
+        with patch.dict(os.environ, {"GIT_REPOS_DIR": temp_dir, "GIT_MODE": "server", "MEMORY_REPO_SCOPE": "user"}):
+            deps = load_indexed_dependencies(user_repo_dir, "pdb21", username="alice")
+            assert "ALICE_TBL" in deps["objects"]
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        shutil.rmtree(outside_dir, ignore_errors=True)
+

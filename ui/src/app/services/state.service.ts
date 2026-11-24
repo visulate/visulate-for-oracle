@@ -88,6 +88,7 @@ export class StateService {
   repoAssociation$ = this.repoAssociationSubject.asObservable();
   private associationsSubject = new BehaviorSubject<Array<{ db: string; repo: string; role: string }>>([]);
   associations$ = this.associationsSubject.asObservable();
+  private associationsLoaded: boolean = false;
   private workbenchToolbarSubject = new BehaviorSubject<TemplateRef<any> | null>(null);
   workbenchToolbar$ = this.workbenchToolbarSubject.asObservable();
   private workbenchSidenavSubject = new BehaviorSubject<TemplateRef<any> | null>(null);
@@ -126,8 +127,12 @@ export class StateService {
   }
 
   public setAssociations(links: Array<{ db: string; repo: string; role: string }>): void {
+    this.associationsLoaded = true;
     this.associationsSubject.next(Array.isArray(links) ? links : []);
     this.repoAssociationSubject.next();
+    try {
+      localStorage.removeItem('visulate_db_repo_associations');
+    } catch (_) {}
   }
 
   public getAssociations(): Array<{ db: string; repo: string; role: string }> {
@@ -142,10 +147,10 @@ export class StateService {
     const exact = links.filter(l => l.db.toLowerCase() === normDb);
     const wildcard = links.filter(l => l.db === '*' && !exact.some(e => e.repo === l.repo));
     const combined = [...exact, ...wildcard];
-    if (combined.length > 0) {
+    if (combined.length > 0 || this.associationsLoaded) {
       return combined;
     }
-    // Legacy localStorage fallback
+    // Legacy localStorage fallback only before server-side associations have loaded
     try {
       const stored = localStorage.getItem('visulate_db_repo_associations');
       if (stored) {

@@ -491,6 +491,20 @@ router.route('/api/git/file')
     }
   });
 
+router.route('/api/git/file/rename')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', oldPath, newPath } = req.body;
+      if (!oldPath || !newPath) {
+        return res.status(400).json({ error: 'oldPath and newPath are required' });
+      }
+      const result = await gitService.renameFile(projectId, oldPath, newPath, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
 router.route('/api/git/download')
   .get(async (req, res) => {
     try {
@@ -558,8 +572,31 @@ router.route('/api/git/commit-push')
 router.route('/api/git/pull')
   .post(async (req, res) => {
     try {
-      const { projectId = 'default-project', branchName } = req.body;
-      const result = await gitService.pullRepo(projectId, branchName, req.authContext, req.userContext);
+      const { projectId = 'default-project', branchName, rebase = false } = req.body;
+      const result = await gitService.pullRepo(
+        projectId,
+        branchName,
+        req.authContext,
+        req.userContext,
+        'origin',
+        { rebase: Boolean(rebase) }
+      );
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/prune-branches')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', dryRun = false, branches = null, remote = 'origin' } = req.body;
+      const result = await gitService.pruneGoneBranches(
+        projectId,
+        { dryRun: Boolean(dryRun), branches, remote },
+        req.userContext,
+        req.authContext
+      );
       res.json(result);
     } catch (err) {
       handleGitError(res, err);

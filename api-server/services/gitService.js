@@ -15,7 +15,9 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 const util = require('util');
 const execFileAsync = util.promisify(execFile);
@@ -23,6 +25,94 @@ const logger = require('./logger');
 
 const DEFAULT_MEMORY_REPO_FALLBACK = 'visulate-memory';
 const VALID_ASSOCIATION_ROLES = ['app', 'dba', 'source', 'target'];
+
+/**
+ * Resolves a lock file path inside .git/ (so it never pollutes git status),
+ * falling back to os.tmpdir() if .git does not exist yet.
+ */
+function getRepoLockPath(repoDir, lockName) {
+  const gitDir = path.join(repoDir, '.git');
+  if (fs.existsSync(gitDir) && fs.statSync(gitDir).isDirectory()) {
+    return path.join(gitDir, `.visulate-${lockName}.lock`);
+  }
+  const hash = crypto.createHash('sha256').update(path.resolve(repoDir)).digest('hex').slice(0, 16);
+  return path.join(os.tmpdir(), `visulate-${lockName}-${hash}.lock`);
+}
+
+/**
+ * Cross-process file lock using exclusive atomic creation (O_CREAT | O_EXCL).
+ * Handles stale lock recovery and retries with backoff until timeoutMs.
+ */
+async function withFileLock(lockPath, fn, { timeoutMs = 15000, staleMs = 30000, retryMs = 25 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let acquired = false;
+
+  while (!acquired) {
+    try {
+      const handle = await fs.promises.open(lockPath, 'wx');
+      try {
+        await handle.writeFile(JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }), 'utf8');
+      } finally {
+        await handle.close();
+      }
+      acquired = true;
+    } catch (err) {
+      if (err.code !== 'EEXIST') {
+        throw err;
+      }
+      // Recover stale lock left behind by a crashed process
+      try {
+        const stat = await fs.promises.stat(lockPath);
+        if (Date.now() - stat.mtimeMs > staleMs) {
+          await fs.promises.unlink(lockPath).catch(() => {});
+          continue;
+        }
+      } catch (statErr) {
+        if (statErr.code === 'ENOENT') {
+          continue;
+        }
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(`Timed out waiting for repository lock: ${path.basename(lockPath)}`);
+      }
+      await new Promise(resolve => setTimeout(resolve, retryMs + Math.floor(Math.random() * 15)));
+    }
+  }
+
+  try {
+    return await fn();
+  } finally {
+    await fs.promises.unlink(lockPath).catch(() => {});
+  }
+}
+
+/**
+ * Verifies that neither targetAbsPath nor any intermediate directory component
+ * under rootDir is a symbolic link.
+ */
+function assertNoSymlinkComponents(rootDir, targetAbsPath) {
+  const realRoot = fs.realpathSync(rootDir);
+  const rel = path.relative(realRoot, targetAbsPath);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new Error(`Path escapes repository boundary: ${rel}`);
+  }
+  const parts = rel.split(path.sep);
+  let current = realRoot;
+  for (const part of parts) {
+    current = path.join(current, part);
+    try {
+      const st = fs.lstatSync(current);
+      if (st.isSymbolicLink()) {
+        throw new Error(`Symbolic link not allowed in path: ${rel}`);
+      }
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        break;
+      }
+      throw err;
+    }
+  }
+}
 
 /**
  * Returns the configured folder name for the shared Visulate memory repository.
@@ -249,7 +339,7 @@ function formatGitAuthHeader(authContext) {
  * Never executes through a shell and never writes secrets to repository .git/config.
  */
 async function runGitCommand(repoDir, args, options = {}) {
-  const { logError = true } = options;
+  const { logError = true, raw = false } = options;
   const env = {
     ...process.env,
     GIT_TERMINAL_PROMPT: '0',
@@ -261,7 +351,11 @@ async function runGitCommand(repoDir, args, options = {}) {
 
   try {
     const { stdout, stderr } = await execFileAsync('git', gitArgs, { cwd: repoDir, env });
-    return { success: true, stdout: (stdout || '').trim(), stderr: (stderr || '').trim() };
+    return {
+      success: true,
+      stdout: raw ? (stdout || '') : (stdout || '').trim(),
+      stderr: raw ? (stderr || '') : (stderr || '').trim()
+    };
   } catch (error) {
     const sanitize = (value) => String(value || '').replace(/(Authorization:\s*(?:Bearer|Basic)\s+)\S+/gi, '$1***');
     if (logError) {
@@ -270,8 +364,8 @@ async function runGitCommand(repoDir, args, options = {}) {
     return {
       success: false,
       error: sanitize(error.message),
-      stderr: sanitize(error.stderr).trim(),
-      stdout: sanitize(error.stdout).trim()
+      stderr: raw ? sanitize(error.stderr) : sanitize(error.stderr).trim(),
+      stdout: raw ? sanitize(error.stdout) : sanitize(error.stdout).trim()
     };
   }
 }
@@ -331,45 +425,81 @@ async function cloneRepoToFolder(remoteUrl, folderName, branch = null, userConte
 
 /**
  * Pulls latest remote changes into the checked-out branch using active session credentials.
+ * When options.rebase is true, executes `git pull --rebase` and automatically runs
+ * `git rebase --abort` on conflict so the repository is never left in a half-rebased state.
  */
-async function pullRepo(identifier, branch = null, authContext = {}, userContext = null, remote = 'origin') {
+async function pullRepo(identifier, branch = null, authContext = {}, userContext = null, remote = 'origin', options = {}) {
+  const { rebase = false } = options || {};
   const repoDir = getProjectRepoDir(identifier, userContext);
   if (!repoDir || !fs.existsSync(repoDir)) {
     throw new Error('Repository directory does not exist');
   }
 
-  const currentBranch = branch || await getCurrentBranch(repoDir);
-  const gitArgs = [];
-  const authHeader = formatGitAuthHeader(authContext);
-  if (authHeader) {
-    gitArgs.push('-c', `http.extraHeader=${authHeader}`);
+  const targetRemote = String(remote || 'origin').trim();
+  if (!targetRemote || !/^[a-zA-Z0-9._-]+$/.test(targetRemote) || targetRemote.startsWith('-')) {
+    throw new Error('Invalid remote name');
   }
 
-  // Check if remote exists
-  const targetRemote = remote || 'origin';
-  const remoteCheck = await runGitCommand(repoDir, ['remote']);
-  const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
-  if (!remoteCheck.success || !remotes.includes(targetRemote)) {
-    throw new Error(`Remote '${targetRemote}' does not exist for this repository`);
-  }
-
-  gitArgs.push('pull', targetRemote, currentBranch);
-  const res = await runGitCommand(repoDir, gitArgs, { authContext });
-
-  if (!res.success) {
-    if (res.stderr && res.stderr.includes("couldn't find remote ref")) {
-      throw new Error(`Branch '${currentBranch}' does not exist on remote '${targetRemote}'. Use Commit & Push to publish it first.`);
+  const lockPath = getRepoLockPath(repoDir, 'tx');
+  return withFileLock(lockPath, async () => {
+    const currentBranch = branch || await getCurrentBranch(repoDir);
+    if (!/^[0-9A-Za-z._\/-]+$/.test(currentBranch)) {
+      throw new Error('Invalid branch name: contains unsafe characters');
     }
-    let pullErr = res.stderr || res.error || 'Failed to pull changes from remote';
-    if (/could not read Username|Authentication failed|terminal prompts disabled/i.test(pullErr)) {
-      pullErr = `Git authentication failed for remote '${targetRemote}'. Please configure your Personal Access Token (PAT) via the Git Session Credentials dialog. (${pullErr})`;
-    } else if (/Permission to .* denied|returned error: 403/i.test(pullErr)) {
-      pullErr = `Permission denied (HTTP 403) accessing remote '${targetRemote}'. Please ensure your Personal Access Token (PAT) has access to this repository. (${pullErr})`;
-    }
-    throw new Error(pullErr);
-  }
 
-  return { success: true, stdout: res.stdout, branch: currentBranch, summary: res.stdout || 'Already up to date' };
+    const gitArgs = [];
+    const authHeader = formatGitAuthHeader(authContext);
+    if (authHeader) {
+      gitArgs.push('-c', `http.extraHeader=${authHeader}`);
+    }
+
+    // Check if remote exists
+    const remoteCheck = await runGitCommand(repoDir, ['remote']);
+    const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
+    if (!remoteCheck.success || !remotes.includes(targetRemote)) {
+      throw new Error(`Remote '${targetRemote}' does not exist for this repository`);
+    }
+
+    gitArgs.push('pull');
+    if (rebase) {
+      gitArgs.push('--rebase');
+    }
+    gitArgs.push(targetRemote, currentBranch);
+    const res = await runGitCommand(repoDir, gitArgs, { authContext });
+
+    if (!res.success) {
+      let abortedRebase = false;
+      if (rebase) {
+        const rebaseMergeDir = path.join(repoDir, '.git', 'rebase-merge');
+        const rebaseApplyDir = path.join(repoDir, '.git', 'rebase-apply');
+        if (fs.existsSync(rebaseMergeDir) || fs.existsSync(rebaseApplyDir)) {
+          await runGitCommand(repoDir, ['rebase', '--abort'], { logError: false });
+          abortedRebase = true;
+        }
+      }
+
+      if (res.stderr && res.stderr.includes("couldn't find remote ref")) {
+        throw new Error(`Branch '${currentBranch}' does not exist on remote '${targetRemote}'. Use Push to Remote to publish it first.`);
+      }
+      let pullErr = res.stderr || res.error || 'Failed to pull changes from remote';
+      if (abortedRebase) {
+        pullErr = `Pull (Rebase) encountered conflicts and was automatically aborted so the repository remains clean. (${pullErr})`;
+      } else if (/could not read Username|Authentication failed|terminal prompts disabled/i.test(pullErr)) {
+        pullErr = `Git authentication failed for remote '${targetRemote}'. Please configure your Personal Access Token (PAT) via the Git Session Credentials dialog. (${pullErr})`;
+      } else if (/Permission to .* denied|returned error: 403/i.test(pullErr)) {
+        pullErr = `Permission denied (HTTP 403) accessing remote '${targetRemote}'. Please ensure your Personal Access Token (PAT) has access to this repository. (${pullErr})`;
+      }
+      throw new Error(pullErr);
+    }
+
+    return {
+      success: true,
+      rebase: Boolean(rebase),
+      stdout: res.stdout,
+      branch: currentBranch,
+      summary: res.stdout || 'Already up to date'
+    };
+  });
 }
 
 /**
@@ -513,6 +643,89 @@ async function deleteFile(identifier, filePath, userContext = null) {
   fs.unlinkSync(fullPath);
   logger.log('info', `Deleted ${filePath} in repository ${identifier}`);
   return { success: true, filePath, message: `Deleted ${filePath}` };
+}
+
+/**
+ * Renames or moves a regular file within a repository working tree.
+ * Uses `git mv` for tracked files (preserving Git rename history) and `fs.renameSync` for untracked files.
+ * Rejects symlink escapes, `.git` paths, directories, and overwriting existing targets.
+ */
+async function renameFile(identifier, oldPath, newPath, userContext = null) {
+  const repoDir = await ensureRepoInitialized(identifier, userContext);
+  const normOld = String(oldPath || '').trim().replace(/^[\\\/]+/, '').replace(/\\/g, '/');
+  const normNew = String(newPath || '').trim().replace(/^[\\\/]+/, '').replace(/\\/g, '/');
+
+  if (!normOld || !normNew) {
+    throw new Error('oldPath and newPath are required');
+  }
+  if (normOld === normNew) {
+    throw new Error('New file path must be different from the current path');
+  }
+  if (normOld.split('/').includes('.git') || normNew.split('/').includes('.git')) {
+    throw new Error('Invalid file path: repository metadata cannot be renamed');
+  }
+
+  const realRepoDir = fs.realpathSync(repoDir);
+  const unresolvedOld = path.resolve(realRepoDir, normOld);
+  if (!unresolvedOld.startsWith(realRepoDir + path.sep)) {
+    throw new Error(`Path escapes repository boundary: ${normOld}`);
+  }
+  assertNoSymlinkComponents(realRepoDir, unresolvedOld);
+
+  const srcFull = resolveSafePath(repoDir, normOld, true);
+  if (path.relative(realRepoDir, srcFull).split(path.sep).includes('.git')) {
+    throw new Error('Invalid source path: repository metadata cannot be renamed');
+  }
+  const srcStat = fs.lstatSync(srcFull);
+  if (srcStat.isDirectory() || srcStat.isSymbolicLink()) {
+    throw new Error('Only regular files can be renamed');
+  }
+
+  const dstFull = resolveSafePath(repoDir, normNew, false);
+  assertNoSymlinkComponents(realRepoDir, dstFull);
+  if (path.relative(realRepoDir, dstFull).split(path.sep).includes('.git')) {
+    throw new Error('Invalid target path: repository metadata cannot be modified');
+  }
+
+  const lockPath = getRepoLockPath(repoDir, 'tx');
+  return withFileLock(lockPath, async () => {
+    let dstExists = false;
+    try {
+      fs.lstatSync(dstFull);
+      dstExists = true;
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+    if (dstExists) {
+      const err = new Error(`Target file already exists: ${normNew}`);
+      err.code = 'EEXIST';
+      throw err;
+    }
+
+    fs.mkdirSync(path.dirname(dstFull), { recursive: true });
+
+    const isGit = fs.existsSync(path.join(repoDir, '.git'));
+    const trackedCheck = isGit
+      ? await runGitCommand(repoDir, ['ls-files', '--error-unmatch', '--', normOld], { logError: false })
+      : { success: false };
+
+    if (trackedCheck.success) {
+      const mvRes = await runGitCommand(repoDir, ['mv', '--', normOld, normNew]);
+      if (!mvRes.success) {
+        throw new Error(mvRes.stderr || mvRes.error || `Failed to rename ${normOld} to ${normNew}`);
+      }
+    } else {
+      fs.renameSync(srcFull, dstFull);
+    }
+
+    logger.log('info', `Renamed ${normOld} to ${normNew} in repository ${identifier}`);
+    return {
+      success: true,
+      oldPath: normOld,
+      newPath: normNew,
+      message: `Renamed ${normOld} to ${normNew}`
+    };
+  });
 }
 
 
@@ -764,20 +977,25 @@ async function saveAssociation(db, repo, role = 'app', userContext = null) {
   }
 
   const memoryDir = await ensureMemoryRepoInitialized(userContext);
-  const data = await getAssociations(userContext);
-  const existingIdx = data.links.findIndex(
-    l => l.db.toLowerCase() === cleanDb.toLowerCase() && l.repo === cleanRepo
-  );
-  const linkObj = { db: cleanDb, repo: cleanRepo, role: cleanRole };
-  if (existingIdx >= 0) {
-    data.links[existingIdx] = linkObj;
-  } else {
-    data.links.push(linkObj);
-  }
+  const lockPath = getRepoLockPath(memoryDir, 'associations');
+  return withFileLock(lockPath, async () => {
+    const data = await getAssociations(userContext);
+    const existingIdx = data.links.findIndex(
+      l => l.db.toLowerCase() === cleanDb.toLowerCase() && l.repo === cleanRepo
+    );
+    const linkObj = { db: cleanDb, repo: cleanRepo, role: cleanRole };
+    if (existingIdx >= 0) {
+      data.links[existingIdx] = linkObj;
+    } else {
+      data.links.push(linkObj);
+    }
 
-  const assocPath = path.join(memoryDir, 'associations.json');
-  fs.writeFileSync(assocPath, JSON.stringify({ version: 1, links: data.links }, null, 2) + '\n', 'utf8');
-  return { version: 1, links: data.links };
+    const assocPath = path.join(memoryDir, 'associations.json');
+    const tmpPath = path.join(memoryDir, `.associations.${process.pid}.${Date.now()}.tmp`);
+    fs.writeFileSync(tmpPath, JSON.stringify({ version: 1, links: data.links }, null, 2) + '\n', 'utf8');
+    fs.renameSync(tmpPath, assocPath);
+    return { version: 1, links: data.links };
+  });
 }
 
 /**
@@ -791,14 +1009,19 @@ async function deleteAssociation(db, repo, userContext = null) {
   }
 
   const memoryDir = await ensureMemoryRepoInitialized(userContext);
-  const data = await getAssociations(userContext);
-  const filtered = data.links.filter(
-    l => !(l.db.toLowerCase() === cleanDb.toLowerCase() && l.repo === cleanRepo)
-  );
+  const lockPath = getRepoLockPath(memoryDir, 'associations');
+  return withFileLock(lockPath, async () => {
+    const data = await getAssociations(userContext);
+    const filtered = data.links.filter(
+      l => !(l.db.toLowerCase() === cleanDb.toLowerCase() && l.repo === cleanRepo)
+    );
 
-  const assocPath = path.join(memoryDir, 'associations.json');
-  fs.writeFileSync(assocPath, JSON.stringify({ version: 1, links: filtered }, null, 2) + '\n', 'utf8');
-  return { version: 1, links: filtered };
+    const assocPath = path.join(memoryDir, 'associations.json');
+    const tmpPath = path.join(memoryDir, `.associations.${process.pid}.${Date.now()}.tmp`);
+    fs.writeFileSync(tmpPath, JSON.stringify({ version: 1, links: filtered }, null, 2) + '\n', 'utf8');
+    fs.renameSync(tmpPath, assocPath);
+    return { version: 1, links: filtered };
+  });
 }
 
 /**
@@ -859,6 +1082,92 @@ async function setRemote(identifier, name = 'origin', url, userContext = null) {
 }
 
 /**
+ * Parses NUL-delimited `git status --porcelain=v1 -b -uall -z` output.
+ * Preserves verbatim filenames (no C-escaping, no ambiguous ' -> ' splitting)
+ * and captures rename/copy source paths (`origPath`).
+ */
+function parsePorcelainStatusZ(rawStdout, branchFallback = 'HEAD') {
+  let branch = branchFallback;
+  let upstream = null;
+  let ahead = 0;
+  let behind = 0;
+  const files = [];
+
+  if (!rawStdout) {
+    return { branch, upstream, ahead, behind, files };
+  }
+
+  const tokens = rawStdout.split('\0');
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (!token) continue;
+
+    if (token.startsWith('## ')) {
+      const header = token.slice(3).trim();
+      if (header.startsWith('No commits yet on ')) {
+        branch = header.slice('No commits yet on '.length).trim();
+      } else if (header.startsWith('Initial commit on ')) {
+        branch = header.slice('Initial commit on '.length).trim();
+      } else if (!header.startsWith('HEAD (no branch)')) {
+        const trackMatch = header.match(/^([^\s]+?)(?:\.\.\.([^\s\[]+))?(?:\s+\[(.+)\])?$/);
+        if (trackMatch) {
+          branch = trackMatch[1] || branch;
+          upstream = trackMatch[2] || null;
+          if (trackMatch[3]) {
+            const aheadMatch = trackMatch[3].match(/ahead (\d+)/);
+            const behindMatch = trackMatch[3].match(/behind (\d+)/);
+            if (aheadMatch) ahead = parseInt(aheadMatch[1], 10);
+            if (behindMatch) behind = parseInt(behindMatch[1], 10);
+          }
+        }
+      }
+      continue;
+    }
+
+    if (token.length >= 4 && token[2] === ' ') {
+      const indexStatus = token[0];
+      const workTreeStatus = token[1];
+      const filePath = token.slice(3);
+      let origPath = null;
+
+      // In `-z` porcelain v1 format, rename (R) and copy (C) entries are followed by
+      // an extra NUL-terminated token containing the original source path.
+      if (indexStatus === 'R' || indexStatus === 'C' || workTreeStatus === 'R' || workTreeStatus === 'C') {
+        if (i + 1 < tokens.length) {
+          origPath = tokens[++i] || null;
+        }
+      }
+
+      let status = 'M';
+      if (indexStatus === '?' && workTreeStatus === '?') {
+        status = '?';
+      } else if (indexStatus === 'A' || workTreeStatus === 'A') {
+        status = 'A';
+      } else if (indexStatus === 'D' || workTreeStatus === 'D') {
+        status = 'D';
+      } else if (indexStatus === 'R' || workTreeStatus === 'R') {
+        status = 'R';
+      } else if (indexStatus === 'C' || workTreeStatus === 'C') {
+        status = 'C';
+      }
+
+      const entry = {
+        path: filePath,
+        indexStatus,
+        workTreeStatus,
+        status
+      };
+      if (origPath) {
+        entry.origPath = origPath;
+      }
+      files.push(entry);
+    }
+  }
+
+  return { branch, upstream, ahead, behind, files };
+}
+
+/**
  * Returns full working-tree and upstream status for a repository.
  */
 async function getRepoStatus(identifier, userContext = null) {
@@ -868,71 +1177,14 @@ async function getRepoStatus(identifier, userContext = null) {
   }
 
   const [statusRes, remotes, branchFallback] = await Promise.all([
-    runGitCommand(repoDir, ['status', '--porcelain=v1', '-b', '-uall'], { logError: false }),
+    runGitCommand(repoDir, ['status', '--porcelain=v1', '-b', '-uall', '-z'], { logError: false, raw: true }),
     getRemotes(identifier, userContext),
     getCurrentBranch(repoDir)
   ]);
 
-  let branch = branchFallback;
-  let upstream = null;
-  let ahead = 0;
-  let behind = 0;
-  const files = [];
-
-  if (statusRes.success && statusRes.stdout) {
-    const lines = statusRes.stdout.split('\n');
-    for (const rawLine of lines) {
-      if (!rawLine) continue;
-      if (rawLine.startsWith('## ')) {
-        const header = rawLine.slice(3).trim();
-        if (header.startsWith('No commits yet on ')) {
-          branch = header.replace('No commits yet on ', '').trim();
-        } else {
-          const trackMatch = header.match(/^([^\s.]+)(?:\.\.\.([^\s\[]+))?(?:\s+\[(.+)\])?/);
-          if (trackMatch) {
-            branch = trackMatch[1] || branch;
-            upstream = trackMatch[2] || null;
-            if (trackMatch[3]) {
-              const aheadMatch = trackMatch[3].match(/ahead (\d+)/);
-              const behindMatch = trackMatch[3].match(/behind (\d+)/);
-              if (aheadMatch) ahead = parseInt(aheadMatch[1], 10);
-              if (behindMatch) behind = parseInt(behindMatch[1], 10);
-            }
-          }
-        }
-        continue;
-      }
-
-      if (rawLine.length >= 4) {
-        const indexStatus = rawLine[0];
-        const workTreeStatus = rawLine[1];
-        let filePath = rawLine.slice(3).trim();
-        // Handle quoted paths or rename format "old -> new"
-        if (filePath.includes(' -> ')) {
-          filePath = filePath.split(' -> ').pop().trim();
-        }
-        if (filePath.startsWith('"') && filePath.endsWith('"')) {
-          filePath = filePath.slice(1, -1);
-        }
-        let status = 'M';
-        if (indexStatus === '?' && workTreeStatus === '?') {
-          status = '?';
-        } else if (indexStatus === 'A' || workTreeStatus === 'A') {
-          status = 'A';
-        } else if (indexStatus === 'D' || workTreeStatus === 'D') {
-          status = 'D';
-        } else if (indexStatus === 'R') {
-          status = 'R';
-        }
-        files.push({
-          path: filePath,
-          indexStatus,
-          workTreeStatus,
-          status
-        });
-      }
-    }
-  }
+  let { branch, upstream, ahead, behind, files } = statusRes.success
+    ? parsePorcelainStatusZ(statusRes.stdout, branchFallback)
+    : { branch: branchFallback, upstream: null, ahead: 0, behind: 0, files: [] };
 
   // If remotes exist but no upstream tracking branch is set yet, count local commits so UI knows branch can be pushed
   if (!upstream && remotes.length > 0) {
@@ -957,6 +1209,7 @@ async function getRepoStatus(identifier, userContext = null) {
 
 /**
  * Commits selected (or all) working tree changes LOCALLY without pushing.
+ * Serialized with a cross-process repository lock spanning branch selection through commit.
  */
 async function commitChanges(identifier, options = {}, userContext = null, authContext = {}) {
   const {
@@ -972,79 +1225,105 @@ async function commitChanges(identifier, options = {}, userContext = null, authC
   }
 
   const repoDir = await ensureRepoInitialized(identifier, userContext);
+  const lockPath = getRepoLockPath(repoDir, 'tx');
 
-  if (branchName) {
-    const current = await getCurrentBranch(repoDir);
-    if (branchName !== current) {
-      const branchRes = await createAndCheckoutBranch(identifier, branchName, userContext);
-      if (!branchRes.success) {
-        throw new Error(branchRes.stderr || branchRes.error || `Failed to switch to branch ${branchName}`);
+  return withFileLock(lockPath, async () => {
+    if (branchName) {
+      const current = await getCurrentBranch(repoDir);
+      if (branchName !== current) {
+        const branchRes = await createAndCheckoutBranch(identifier, branchName, userContext);
+        if (!branchRes.success) {
+          throw new Error(branchRes.stderr || branchRes.error || `Failed to switch to branch ${branchName}`);
+        }
       }
     }
-  }
 
-  if (Array.isArray(files) && files.length > 0) {
-    // Validate every file path stays inside the repo and outside .git
-    const safeRelPaths = [];
-    for (const f of files) {
-      const normalized = String(f || '').replace(/^[\\\/]+/, '');
-      if (!normalized || normalized.split(/[\\\/]/).includes('.git')) {
-        throw new Error(`Invalid file path for commit: ${f}`);
+    if (Array.isArray(files) && files.length > 0) {
+      // Validate every file path stays inside the repo and outside .git
+      const safeRelPaths = [];
+      for (const f of files) {
+        const normalized = String(f || '').replace(/^[\\\/]+/, '');
+        if (!normalized || normalized.split(/[\\\/]/).includes('.git')) {
+          throw new Error(`Invalid file path for commit: ${f}`);
+        }
+        resolveSafePath(repoDir, normalized, false);
+        safeRelPaths.push(normalized);
       }
-      resolveSafePath(repoDir, normalized, false);
-      safeRelPaths.push(normalized);
-    }
 
-    // Clear previously staged index entries so only selected files are committed
-    const headCheck = await runGitCommand(repoDir, ['rev-parse', '--verify', 'HEAD'], { logError: false });
-    if (headCheck.success) {
-      await runGitCommand(repoDir, ['reset', '--quiet', 'HEAD'], { logError: false });
+      // Inspect staged renames BEFORE resetting HEAD so selecting a renamed destination
+      // also stages the removal of its original source path.
+      const preResetStatus = await runGitCommand(repoDir, ['status', '--porcelain=v1', '-uall', '-z'], { logError: false, raw: true });
+      const renameDestToOrig = new Map();
+      if (preResetStatus.success && preResetStatus.stdout) {
+        const parsed = parsePorcelainStatusZ(preResetStatus.stdout);
+        for (const entry of parsed.files) {
+          if ((entry.indexStatus === 'R' || entry.workTreeStatus === 'R') && entry.origPath) {
+            renameDestToOrig.set(entry.path, entry.origPath);
+          }
+        }
+      }
+
+      const pathsToStageSet = new Set(safeRelPaths);
+      for (const p of safeRelPaths) {
+        const orig = renameDestToOrig.get(p);
+        if (orig && !orig.split(/[\\\/]/).includes('.git')) {
+          resolveSafePath(repoDir, orig, false);
+          pathsToStageSet.add(orig);
+        }
+      }
+      const pathsToStage = Array.from(pathsToStageSet);
+
+      // Clear previously staged index entries so only selected files are committed
+      const headCheck = await runGitCommand(repoDir, ['rev-parse', '--verify', 'HEAD'], { logError: false });
+      if (headCheck.success) {
+        await runGitCommand(repoDir, ['reset', '--quiet', 'HEAD'], { logError: false });
+      } else {
+        await runGitCommand(repoDir, ['rm', '--cached', '-r', '--quiet', '.'], { logError: false });
+      }
+
+      const addRes = await runGitCommand(repoDir, ['add', '-A', '--', ...pathsToStage]);
+      if (!addRes.success) {
+        throw new Error(addRes.stderr || addRes.error || 'Failed to stage selected files');
+      }
+    } else if (stageAll) {
+      const addRes = await runGitCommand(repoDir, ['add', '-A']);
+      if (!addRes.success) {
+        throw new Error(addRes.stderr || addRes.error || 'Failed to stage files');
+      }
     } else {
-      await runGitCommand(repoDir, ['rm', '--cached', '-r', '--quiet', '.'], { logError: false });
+      throw new Error('No files selected for commit');
     }
 
-    const addRes = await runGitCommand(repoDir, ['add', '-A', '--', ...safeRelPaths]);
-    if (!addRes.success) {
-      throw new Error(addRes.stderr || addRes.error || 'Failed to stage selected files');
+    const authorName = (authContext && authContext.authorName) || 'Visulate Workbench';
+    const authorEmail = (authContext && authContext.authorEmail) || 'workbench@visulate.com';
+
+    const commitArgs = [
+      '-c', `user.name=${authorName}`,
+      '-c', `user.email=${authorEmail}`,
+      'commit',
+      '-m', trimmedMessage
+    ];
+    let commitRes = await runGitCommand(repoDir, commitArgs);
+
+    if (!commitRes.success) {
+      const combinedOutput = `${commitRes.stdout || ''} ${commitRes.stderr || ''} ${commitRes.error || ''}`;
+      if (/nothing to commit|working tree clean/i.test(combinedOutput)) {
+        commitRes = { success: true, stdout: 'Nothing to commit, working tree clean' };
+      } else {
+        throw new Error(commitRes.stderr || commitRes.error || 'Failed to commit changes');
+      }
     }
-  } else if (stageAll) {
-    const addRes = await runGitCommand(repoDir, ['add', '-A']);
-    if (!addRes.success) {
-      throw new Error(addRes.stderr || addRes.error || 'Failed to stage files');
-    }
-  } else {
-    throw new Error('No files selected for commit');
-  }
 
-  const authorName = (authContext && authContext.authorName) || 'Visulate Workbench';
-  const authorEmail = (authContext && authContext.authorEmail) || 'workbench@visulate.com';
+    const hashRes = await runGitCommand(repoDir, ['rev-parse', '--short', 'HEAD'], { logError: false });
+    const status = await getRepoStatus(identifier, userContext);
 
-  const commitArgs = [
-    '-c', `user.name=${authorName}`,
-    '-c', `user.email=${authorEmail}`,
-    'commit',
-    '-m', trimmedMessage
-  ];
-  let commitRes = await runGitCommand(repoDir, commitArgs);
-
-  if (!commitRes.success) {
-    const combinedOutput = `${commitRes.stdout || ''} ${commitRes.stderr || ''} ${commitRes.error || ''}`;
-    if (/nothing to commit|working tree clean/i.test(combinedOutput)) {
-      commitRes = { success: true, stdout: 'Nothing to commit, working tree clean' };
-    } else {
-      throw new Error(commitRes.stderr || commitRes.error || 'Failed to commit changes');
-    }
-  }
-
-  const hashRes = await runGitCommand(repoDir, ['rev-parse', '--short', 'HEAD'], { logError: false });
-  const status = await getRepoStatus(identifier, userContext);
-
-  return {
-    success: true,
-    commitHash: hashRes.success ? hashRes.stdout : null,
-    commit: commitRes,
-    status
-  };
+    return {
+      success: true,
+      commitHash: hashRes.success ? hashRes.stdout : null,
+      commit: commitRes,
+      status
+    };
+  });
 }
 
 /**
@@ -1115,7 +1394,9 @@ async function pushChanges(identifier, options = {}, userContext = null, authCon
 }
 
 /**
- * Discards uncommitted working tree changes for a single file.
+ * Discards uncommitted working tree and index changes for a single file.
+ * - If the file exists in HEAD (modified or deleted, staged or unstaged), restores both index and worktree from HEAD.
+ * - If the file does not exist in HEAD (untracked or staged addition), removes it from both index and worktree.
  */
 async function discardFileChanges(identifier, filePath, userContext = null) {
   const repoDir = getProjectRepoDir(identifier, userContext);
@@ -1127,26 +1408,50 @@ async function discardFileChanges(identifier, filePath, userContext = null) {
     throw new Error('Invalid file path');
   }
   const fullPath = resolveSafePath(repoDir, normalizedRel, false);
+  const lockPath = getRepoLockPath(repoDir, 'tx');
 
-  const trackedCheck = await runGitCommand(repoDir, ['ls-files', '--error-unmatch', '--', normalizedRel], { logError: false });
-  if (trackedCheck.success) {
-    const res = await runGitCommand(repoDir, ['checkout', 'HEAD', '--', normalizedRel]);
-    if (!res.success) {
-      throw new Error(res.stderr || res.error || `Failed to discard changes for ${normalizedRel}`);
-    }
-  } else if (fs.existsSync(fullPath)) {
-    const stat = fs.lstatSync(fullPath);
-    if (stat.isDirectory() || stat.isSymbolicLink()) {
-      throw new Error('Only regular files can be discarded');
-    }
-    fs.unlinkSync(fullPath);
-  }
+  return withFileLock(lockPath, async () => {
+    const headExists = await runGitCommand(repoDir, ['rev-parse', '--verify', 'HEAD'], { logError: false });
+    const inHead = headExists.success
+      ? await runGitCommand(repoDir, ['cat-file', '-e', `HEAD:${normalizedRel}`], { logError: false })
+      : { success: false };
 
-  return {
-    success: true,
-    filePath: normalizedRel,
-    status: await getRepoStatus(identifier, userContext)
-  };
+    if (inHead.success) {
+      const res = await runGitCommand(repoDir, ['checkout', 'HEAD', '--', normalizedRel]);
+      if (!res.success) {
+        throw new Error(res.stderr || res.error || `Failed to discard changes for ${normalizedRel}`);
+      }
+    } else {
+      // File is either untracked or a staged addition not present in HEAD
+      const inIndex = await runGitCommand(repoDir, ['ls-files', '--error-unmatch', '--', normalizedRel], { logError: false });
+      if (inIndex.success) {
+        if (headExists.success) {
+          const resetRes = await runGitCommand(repoDir, ['reset', '--quiet', 'HEAD', '--', normalizedRel]);
+          if (!resetRes.success) {
+            throw new Error(resetRes.stderr || resetRes.error || `Failed to unstage ${normalizedRel}`);
+          }
+        } else {
+          const rmRes = await runGitCommand(repoDir, ['rm', '--cached', '--quiet', '--', normalizedRel]);
+          if (!rmRes.success) {
+            throw new Error(rmRes.stderr || rmRes.error || `Failed to unstage ${normalizedRel}`);
+          }
+        }
+      }
+      if (fs.existsSync(fullPath)) {
+        const stat = fs.lstatSync(fullPath);
+        if (stat.isDirectory() || stat.isSymbolicLink()) {
+          throw new Error('Only regular files can be discarded');
+        }
+        fs.unlinkSync(fullPath);
+      }
+    }
+
+    return {
+      success: true,
+      filePath: normalizedRel,
+      status: await getRepoStatus(identifier, userContext)
+    };
+  });
 }
 
 /**
@@ -1177,8 +1482,25 @@ async function copyBetweenRepos(sourceRepo, sourcePath, targetRepo, targetPath, 
     throw new Error('Invalid target path');
   }
 
+  const realSrcRepoDir = fs.realpathSync(srcRepoDir);
+  const realDstRepoDir = fs.realpathSync(dstRepoDir);
+  const unresolvedSrc = path.resolve(realSrcRepoDir, normSrc);
+  if (!unresolvedSrc.startsWith(realSrcRepoDir + path.sep)) {
+    throw new Error(`Path escapes repository boundary: ${normSrc}`);
+  }
+  // Check unresolved source components for symlinks BEFORE realpath dereferencing
+  assertNoSymlinkComponents(realSrcRepoDir, unresolvedSrc);
+
   const srcFull = resolveSafePath(srcRepoDir, normSrc, true);
+  if (path.relative(realSrcRepoDir, srcFull).split(path.sep).includes('.git')) {
+    throw new Error('Invalid source path: repository metadata cannot be copied');
+  }
+
   const dstFull = resolveSafePath(dstRepoDir, normDst, false);
+  assertNoSymlinkComponents(realDstRepoDir, dstFull);
+  if (path.relative(realDstRepoDir, dstFull).split(path.sep).includes('.git')) {
+    throw new Error('Invalid target path: repository metadata cannot be modified');
+  }
 
   const srcStat = fs.lstatSync(srcFull);
   if (srcStat.isSymbolicLink()) {
@@ -1188,19 +1510,36 @@ async function copyBetweenRepos(sourceRepo, sourcePath, targetRepo, targetPath, 
   const copiedFiles = [];
 
   function copySingleFile(srcFile, dstFile) {
-    resolveSafePath(dstRepoDir, path.relative(dstRepoDir, dstFile), false);
-    if (fs.existsSync(dstFile) && !overwrite) {
-      const rel = path.relative(dstRepoDir, dstFile);
-      const err = new Error(`Target file already exists: ${rel}`);
+    const relDst = path.relative(realDstRepoDir, dstFile);
+    if (!relDst || relDst.startsWith('..') || path.isAbsolute(relDst) || relDst.split(path.sep).includes('.git')) {
+      throw new Error(`Invalid target path: ${relDst}`);
+    }
+    resolveSafePath(dstRepoDir, relDst, false);
+    assertNoSymlinkComponents(realDstRepoDir, dstFile);
+
+    let exists = false;
+    try {
+      const dstStat = fs.lstatSync(dstFile);
+      if (dstStat.isSymbolicLink()) {
+        throw new Error(`Cannot write to symbolic link: ${relDst}`);
+      }
+      exists = true;
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+
+    if (exists && !overwrite) {
+      const err = new Error(`Target file already exists: ${relDst}`);
       err.code = 'EEXIST';
       throw err;
     }
     fs.mkdirSync(path.dirname(dstFile), { recursive: true });
     fs.copyFileSync(srcFile, dstFile);
-    copiedFiles.push(path.relative(dstRepoDir, dstFile).replace(/\\/g, '/'));
+    copiedFiles.push(relDst.replace(/\\/g, '/'));
   }
 
   function copyDirRecursive(srcDir, dstDir) {
+    assertNoSymlinkComponents(realDstRepoDir, dstDir);
     const entries = fs.readdirSync(srcDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.name === '.git') continue;
@@ -1233,6 +1572,135 @@ async function copyBetweenRepos(sourceRepo, sourcePath, targetRepo, targetPath, 
   };
 }
 
+/**
+ * Runs `git fetch --prune` against the remote and finds (or deletes) local branches
+ * whose upstream tracking branch is gone (`[gone]`), mirroring:
+ *   git fetch -p && git branch -vv | grep ': gone]' | ... | xargs git branch -D
+ *
+ * Uses `git for-each-ref` for safe, locale-independent parsing and never deletes the
+ * currently checked-out branch. When `dryRun: true`, returns the candidate branches
+ * without deleting anything so the UI can prompt for confirmation.
+ */
+async function pruneGoneBranches(identifier, options = {}, userContext = null, authContext = {}) {
+  const {
+    remote = 'origin',
+    dryRun = false,
+    branches = null
+  } = options || {};
+
+  const targetRemote = String(remote || 'origin').trim();
+  if (!targetRemote || !/^[a-zA-Z0-9._-]+$/.test(targetRemote) || targetRemote.startsWith('-')) {
+    throw new Error('Invalid remote name');
+  }
+
+  const repoDir = getProjectRepoDir(identifier, userContext);
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    throw new Error(`Repository folder '${identifier}' does not exist or is not a git repository.`);
+  }
+
+  const lockPath = getRepoLockPath(repoDir, 'tx');
+  return withFileLock(lockPath, async () => {
+    const remoteCheck = await runGitCommand(repoDir, ['remote']);
+    const remotes = remoteCheck.success ? remoteCheck.stdout.split(/\s+/).filter(Boolean) : [];
+    if (!remoteCheck.success || !remotes.includes(targetRemote)) {
+      throw new Error(`Remote '${targetRemote}' is not configured for repository '${identifier}'.`);
+    }
+
+    // 1. Fetch and prune stale remote-tracking refs
+    const fetchArgs = [];
+    const authHeader = formatGitAuthHeader(authContext);
+    if (authHeader) {
+      fetchArgs.push('-c', `http.extraHeader=${authHeader}`);
+    }
+    fetchArgs.push('fetch', '--prune', targetRemote);
+    const fetchRes = await runGitCommand(repoDir, fetchArgs, { authContext });
+    if (!fetchRes.success) {
+      let fetchErr = fetchRes.stderr || fetchRes.error || `Failed to fetch from remote '${targetRemote}'`;
+      if (/could not read Username|Authentication failed|terminal prompts disabled/i.test(fetchErr)) {
+        fetchErr = `Git authentication failed for remote '${targetRemote}'. Please configure your Personal Access Token (PAT) via the Git Session Credentials dialog. (${fetchErr})`;
+      } else if (/Permission to .* denied|returned error: 403/i.test(fetchErr)) {
+        fetchErr = `Permission denied (HTTP 403) accessing remote '${targetRemote}'. (${fetchErr})`;
+      }
+      throw new Error(fetchErr);
+    }
+
+    // 2. Inspect local branches whose upstream tracking ref is [gone]
+    const refRes = await runGitCommand(
+      repoDir,
+      ['for-each-ref', '--format=%(refname:short)%00%(upstream:short)%00%(upstream:track)%00%(HEAD)', 'refs/heads'],
+      { logError: false, raw: true }
+    );
+    if (!refRes.success) {
+      throw new Error(refRes.stderr || refRes.error || 'Failed to inspect local branches');
+    }
+
+    let currentBranch = await getCurrentBranch(repoDir);
+    const goneBranches = [];
+    let skippedCurrent = null;
+
+    for (const line of (refRes.stdout || '').split('\n')) {
+      if (!line) continue;
+      const [name, upstream, track, headMarker] = line.split('\0');
+      if (!name) continue;
+      const isCurrent = headMarker === '*';
+      if (isCurrent) {
+        currentBranch = name;
+      }
+      if (track === '[gone]') {
+        if (isCurrent) {
+          skippedCurrent = { name, upstream };
+        } else {
+          goneBranches.push({ name, upstream });
+        }
+      }
+    }
+
+    if (dryRun) {
+      return {
+        success: true,
+        dryRun: true,
+        remote: targetRemote,
+        currentBranch,
+        goneBranches,
+        skippedCurrent
+      };
+    }
+
+    // Intersect user-requested branch list with actually gone non-current branches
+    const goneNames = new Set(goneBranches.map(b => b.name));
+    const toDelete = Array.isArray(branches) && branches.length > 0
+      ? branches.filter(b => typeof b === 'string' && goneNames.has(b))
+      : Array.from(goneNames);
+
+    const deleted = [];
+    const failed = [];
+    for (const branchName of toDelete) {
+      if (!/^[0-9A-Za-z._\/-]+$/.test(branchName) || branchName.startsWith('-')) {
+        failed.push({ name: branchName, error: 'Invalid branch name' });
+        continue;
+      }
+      const delRes = await runGitCommand(repoDir, ['branch', '-D', '--', branchName], { logError: false });
+      if (delRes.success) {
+        deleted.push(branchName);
+      } else {
+        failed.push({ name: branchName, error: delRes.stderr || delRes.error || 'Failed to delete branch' });
+      }
+    }
+
+    const updatedBranches = await getRepoBranches(identifier, userContext);
+    return {
+      success: true,
+      dryRun: false,
+      remote: targetRemote,
+      currentBranch: updatedBranches.current || currentBranch,
+      deleted,
+      failed,
+      skippedCurrent,
+      branches: updatedBranches.branches || []
+    };
+  });
+}
+
 module.exports = {
   getDefaultMemoryRepoName,
   getMemoryRepoDir,
@@ -1244,9 +1712,11 @@ module.exports = {
   listLocalRepositories,
   cloneRepoToFolder,
   pullRepo,
+  pruneGoneBranches,
   getFileContent,
   saveFileContent,
   deleteFile,
+  renameFile,
   createAndCheckoutBranch,
   commitAndPush,
   commitChanges,

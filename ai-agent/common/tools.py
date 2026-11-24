@@ -170,11 +170,20 @@ def create_save_memory_tool() -> FunctionTool:
                 filename += ".md"
 
             safe_filename = os.path.basename(filename)
+            if not safe_db or safe_db in (".", ".."):
+                return "Invalid database identifier."
+            if not safe_filename or safe_filename in (".", ".."):
+                return "Invalid filename."
+
             target_dir = os.path.join(repo_path, safe_db, clean_category)
             os.makedirs(target_dir, exist_ok=True)
 
             target_file = os.path.join(target_dir, safe_filename)
-            rel_file_path = os.path.relpath(target_file, repo_path)
+            real_repo = os.path.realpath(repo_path)
+            real_target = os.path.realpath(target_file)
+            if not real_target.startswith(real_repo + os.sep):
+                return "Invalid memory record path."
+            rel_file_path = os.path.relpath(real_target, real_repo)
 
             with open(target_file, "w", encoding="utf-8") as f:
                 f.write(content.strip() + "\n")
@@ -259,6 +268,8 @@ def create_read_memory_tool() -> FunctionTool:
                 clean_name += ".md"
 
             safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(endpoint)]).strip("_").lower() if endpoint else None
+            if safe_db in (".", ".."):
+                safe_db = None
 
             search_roots = []
             if memory_path and os.path.exists(memory_path):
@@ -303,8 +314,18 @@ def create_read_memory_tool() -> FunctionTool:
                 return f"Memory record '{name_or_path}' not found in `{memory_repo_name}`."
 
             r_name, r_root, target_file = candidates[0]
-            rel_path = os.path.relpath(target_file, r_root)
-            with open(target_file, "r", encoding="utf-8") as f:
+            allowed_root = r_root if r_name == memory_repo_name else os.path.join(r_root, "visulate")
+            real_root = os.path.realpath(allowed_root)
+            real_target = os.path.realpath(target_file)
+            if (
+                not real_target.startswith(real_root + os.sep)
+                or ".git" in os.path.relpath(real_target, real_root).split(os.sep)
+                or not real_target.lower().endswith((".md", ".json", ".sql"))
+            ):
+                return "Invalid memory record path."
+
+            rel_path = os.path.relpath(real_target, os.path.realpath(r_root))
+            with open(real_target, "r", encoding="utf-8") as f:
                 content = f.read()
 
             if len(content) > 50000:
@@ -357,31 +378,77 @@ def create_copy_artifact_to_repo_tool() -> FunctionTool:
 
             real_mem = os.path.realpath(memory_dir)
             real_dst_root = os.path.realpath(target_repo_dir)
-            src_full = os.path.realpath(os.path.join(real_mem, norm_src))
-            dst_full = os.path.abspath(os.path.join(real_dst_root, norm_dst))
 
-            if not src_full.startswith(real_mem + os.sep) or not os.path.exists(src_full):
+            def _has_symlink_component(root_dir: str, candidate_path: str) -> bool:
+                rel_parts = os.path.relpath(candidate_path, root_dir).split(os.sep)
+                cur = root_dir
+                for part in rel_parts:
+                    cur = os.path.join(cur, part)
+                    if os.path.islink(cur):
+                        return True
+                return False
+
+            def _validate_destination(candidate_dst: str) -> Optional[str]:
+                abs_dst = os.path.abspath(candidate_dst)
+                if not abs_dst.startswith(real_dst_root + os.sep):
+                    return f"Target path '{target_path}' escapes repository boundary."
+                rel_parts = os.path.relpath(abs_dst, real_dst_root).split(os.sep)
+                if ".git" in rel_parts:
+                    return "Invalid target path: repository metadata cannot be modified."
+                if _has_symlink_component(real_dst_root, abs_dst):
+                    return f"Target path '{os.path.relpath(abs_dst, real_dst_root)}' cannot traverse or write to a symbolic link."
+                # Verify canonical path of the deepest existing ancestor stays inside target_repo
+                check_dir = abs_dst
+                while not os.path.exists(check_dir) and check_dir != os.path.dirname(check_dir):
+                    check_dir = os.path.dirname(check_dir)
+                if os.path.exists(check_dir):
+                    real_ancestor = os.path.realpath(check_dir)
+                    if real_ancestor != real_dst_root and not real_ancestor.startswith(real_dst_root + os.sep):
+                        return f"Target path '{target_path}' escapes repository boundary."
+                return None
+
+            unresolved_src = os.path.abspath(os.path.join(real_mem, norm_src))
+            if not unresolved_src.startswith(real_mem + os.sep) or not os.path.lexists(unresolved_src):
                 return f"Source path '{source_path}' not found in `{memory_repo_name}`."
-            if not dst_full.startswith(real_dst_root + os.sep):
-                return f"Target path '{target_path}' escapes repository boundary."
+            if _has_symlink_component(real_mem, unresolved_src):
+                return f"Source path '{source_path}' cannot be a symbolic link."
+
+            src_full = os.path.realpath(unresolved_src)
+            if (
+                not src_full.startswith(real_mem + os.sep)
+                or ".git" in os.path.relpath(src_full, real_mem).split(os.sep)
+                or not os.path.exists(src_full)
+            ):
+                return f"Source path '{source_path}' not found in `{memory_repo_name}`."
+
+            dst_full = os.path.abspath(os.path.join(real_dst_root, norm_dst))
+            dst_err = _validate_destination(dst_full)
+            if dst_err:
+                return dst_err
 
             copied = []
             if os.path.isdir(src_full):
                 for root, dirs, files in os.walk(src_full):
-                    dirs[:] = [d for d in dirs if d != ".git"]
+                    dirs[:] = [
+                        d for d in dirs
+                        if d != ".git" and not os.path.islink(os.path.join(root, d))
+                    ]
                     for fn in files:
                         s_file = os.path.join(root, fn)
                         if os.path.islink(s_file):
                             continue
                         rel = os.path.relpath(s_file, src_full)
-                        d_file = os.path.join(dst_full, rel)
-                        if os.path.exists(d_file) and not overwrite:
+                        d_file = os.path.abspath(os.path.join(dst_full, rel))
+                        d_err = _validate_destination(d_file)
+                        if d_err:
+                            return d_err
+                        if os.path.lexists(d_file) and not overwrite:
                             return f"Target file already exists: `{os.path.relpath(d_file, real_dst_root)}` (pass overwrite=True to replace)."
                         os.makedirs(os.path.dirname(d_file), exist_ok=True)
                         shutil.copy2(s_file, d_file)
                         copied.append(os.path.relpath(d_file, real_dst_root))
             else:
-                if os.path.exists(dst_full) and not overwrite:
+                if os.path.lexists(dst_full) and not overwrite:
                     return f"Target file already exists: `{norm_dst}` (pass overwrite=True to replace)."
                 os.makedirs(os.path.dirname(dst_full), exist_ok=True)
                 shutil.copy2(src_full, dst_full)

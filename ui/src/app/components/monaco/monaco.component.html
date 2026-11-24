@@ -99,9 +99,19 @@
           <span>Push to Remote...{{ aheadCount > 0 ? ' (' + aheadCount + ')' : '' }}</span>
         </button>
         <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || !hasConfiguredRemote"
-          (click)="closeAppMenu(); pullRepo()">
+          (click)="closeAppMenu(); pullRepo(false)">
           <mat-icon>file_download</mat-icon>
           <span>Pull from Remote{{ behindCount > 0 ? ' (' + behindCount + ')' : '' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || !hasConfiguredRemote"
+          (click)="closeAppMenu(); pullRepo(true)">
+          <mat-icon>sync</mat-icon>
+          <span>Pull (Rebase){{ behindCount > 0 ? ' (' + behindCount + ')' : '' }}</span>
+        </button>
+        <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder || !hasConfiguredRemote"
+          (click)="closeAppMenu(); pruneGoneBranches()">
+          <mat-icon>cleaning_services</mat-icon>
+          <span>Prune Gone Branches...</span>
         </button>
         <button mat-button class="wb-sidenav-action" [disabled]="!selectedRepoFolder"
           (click)="closeAppMenu(); openRemoteDialog()">
@@ -160,14 +170,22 @@
       <mat-icon>publish</mat-icon>
       <span>Push to Remote...{{ aheadCount > 0 ? ' (' + aheadCount + ')' : '' }}</span>
     </button>
-    <button mat-menu-item (click)="pullRepo()" [disabled]="!selectedRepoFolder || !hasConfiguredRemote">
+    <button mat-menu-item (click)="pullRepo(false)" [disabled]="!selectedRepoFolder || !hasConfiguredRemote">
       <mat-icon>file_download</mat-icon>
       <span>Pull from Remote{{ behindCount > 0 ? ' (' + behindCount + ')' : '' }}</span>
+    </button>
+    <button mat-menu-item (click)="pullRepo(true)" [disabled]="!selectedRepoFolder || !hasConfiguredRemote">
+      <mat-icon>sync</mat-icon>
+      <span>Pull (Rebase){{ behindCount > 0 ? ' (' + behindCount + ')' : '' }}</span>
     </button>
     <mat-divider></mat-divider>
     <button mat-menu-item (click)="showNewBranchInput = !showNewBranchInput" [disabled]="!selectedRepoFolder">
       <mat-icon>fork_right</mat-icon>
       <span>New Branch...</span>
+    </button>
+    <button mat-menu-item (click)="pruneGoneBranches()" [disabled]="!selectedRepoFolder || !hasConfiguredRemote">
+      <mat-icon>cleaning_services</mat-icon>
+      <span>Prune Gone Branches...</span>
     </button>
     <button mat-menu-item (click)="openRemoteDialog()" [disabled]="!selectedRepoFolder">
       <mat-icon>cloud_upload</mat-icon>
@@ -476,9 +494,17 @@
           <mat-icon>publish</mat-icon>
           <span>Push...{{ ws.gitStatus?.ahead ? ' (' + ws.gitStatus.ahead + ')' : '' }}</span>
         </button>
-        <button mat-menu-item *ngIf="ws.gitStatus?.hasRemote" (click)="activateWorkspace(ws.folderName, false); pullRepo()">
+        <button mat-menu-item *ngIf="ws.gitStatus?.hasRemote" (click)="activateWorkspace(ws.folderName, false); pullRepo(false)">
           <mat-icon>file_download</mat-icon>
           <span>Pull</span>
+        </button>
+        <button mat-menu-item *ngIf="ws.gitStatus?.hasRemote" (click)="activateWorkspace(ws.folderName, false); pullRepo(true)">
+          <mat-icon>sync</mat-icon>
+          <span>Pull (Rebase)</span>
+        </button>
+        <button mat-menu-item *ngIf="ws.gitStatus?.hasRemote" (click)="activateWorkspace(ws.folderName, false); pruneGoneBranches()">
+          <mat-icon>cleaning_services</mat-icon>
+          <span>Prune Gone Branches...</span>
         </button>
         <button mat-menu-item (click)="activateWorkspace(ws.folderName, false); openRemoteDialog()">
           <mat-icon>cloud_upload</mat-icon>
@@ -532,6 +558,10 @@
         <button mat-menu-item (click)="openCopyToRepoDialog(filePath, undefined, repoName)">
           <mat-icon>drive_file_move</mat-icon>
           <span>Copy to Code Repo...</span>
+        </button>
+        <button mat-menu-item (click)="renameFileFromMenu(repoName, filePath)">
+          <mat-icon>drive_file_rename_outline</mat-icon>
+          <span>Rename / Move...</span>
         </button>
         <button mat-menu-item (click)="activateWorkspace(repoName, false); downloadFile(filePath)">
           <mat-icon>download</mat-icon>

@@ -558,6 +558,55 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  public renameFileFromMenu(repoName: string, filePath: string): void {
+    if (!repoName || !filePath) return;
+    const proposed = prompt(`Rename or move '${filePath}' in '${repoName}':`, filePath);
+    if (proposed === null) {
+      return;
+    }
+    const newPath = proposed.trim().replace(/^[\\\/]+/, '').replace(/\\/g, '/');
+    if (!newPath) {
+      this.setStatus('Please enter a valid file path.', true);
+      return;
+    }
+    if (newPath === filePath) {
+      return;
+    }
+    if (newPath.split('/').includes('..') || newPath.split('/').includes('.git')) {
+      this.setStatus("New file path cannot contain '..' or '.git'.", true);
+      return;
+    }
+
+    this.isLoading = true;
+    this.setStatus(`Renaming '${filePath}' to '${newPath}'...`, false);
+    this.restService.renameGitFile$(repoName, filePath, newPath).subscribe({
+      next: () => {
+        this.isLoading = false;
+        if (this.compareSource && this.compareSource.repo === repoName && this.compareSource.path === filePath) {
+          this.compareSource = { repo: repoName, path: newPath };
+        }
+        const wasOpen = repoName === this.selectedRepoFolder && filePath === this.selectedFilePath;
+        if (wasOpen) {
+          this.selectedFilePath = newPath;
+          this.state.setLastSelectedFile(newPath, repoName);
+        }
+        this.setStatus(`Renamed '${filePath}' to '${newPath}'`, false);
+        this.snackBar.open(`Renamed to '${newPath}'`, 'Dismiss', { duration: 4000 });
+        this.loadWorkspaceFiles(repoName, repoName === this.selectedRepoFolder);
+        if (wasOpen) {
+          this.loadFileContent();
+        }
+        this.cdRef.detectChanges();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        const msg = err.error?.error || err.message || 'Rename failed';
+        this.setStatus(`Failed to rename file: ${msg}`, true);
+        this.snackBar.open(`Rename failed: ${msg}`, 'Dismiss', { duration: 5000 });
+      }
+    });
+  }
+
   public trackByWorkspaceName(index: number, ws: WorkspaceState): string {
     return ws ? ws.folderName : String(index);
   }
@@ -1471,22 +1520,23 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadProjectFiles();
   }
 
-  public pullRepo(): void {
+  public pullRepo(rebase: boolean = false): void {
     const targetId = this.selectedRepoFolder || this.projectId;
     if (!targetId) return;
 
+    const opLabel = rebase ? 'Git pull (rebase)' : 'Git pull';
     this.showAuthAction = false;
-    this.setStatus(`Pulling latest changes for branch '${this.currentBranch || this.branchName}'...`, false);
+    this.setStatus(`${rebase ? 'Pulling (rebase)' : 'Pulling'} latest changes for branch '${this.currentBranch || this.branchName}'...`, false);
     this.isLoading = true;
-    this.restService.pullRepository$(targetId, this.currentBranch || this.branchName).subscribe({
+    this.restService.pullRepository$(targetId, this.currentBranch || this.branchName, rebase).subscribe({
       next: (res) => {
         this.isLoading = false;
         if (res && res.success === false) {
-          this.handleGitOperationError('Git pull', res.error || res.message || 'Pull failed');
+          this.handleGitOperationError(opLabel, res.error || res.message || 'Pull failed');
           return;
         }
-        this.setStatus(`Git pull completed: ${res.summary || 'up to date'}`, false);
-        this.snackBar.open(`Git pull completed: ${res.summary || 'up to date'}`, 'Dismiss', { duration: 4000 });
+        this.setStatus(`${opLabel} completed: ${res.summary || 'up to date'}`, false);
+        this.snackBar.open(`${opLabel} completed: ${res.summary || 'up to date'}`, 'Dismiss', { duration: 4000 });
         this.loadProjectFiles();
         if (this.selectedFilePath) {
           this.loadFileContent();
@@ -1495,7 +1545,86 @@ export class MonacoComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => {
         this.isLoading = false;
         const rawMsg = err.error?.error || err.error?.message || err.message || 'Unknown error';
-        this.handleGitOperationError('Git pull', rawMsg);
+        this.handleGitOperationError(opLabel, rawMsg);
+      }
+    });
+  }
+
+  public pruneGoneBranches(): void {
+    const targetId = this.selectedRepoFolder || this.projectId;
+    if (!targetId) return;
+
+    const remoteName = this.gitStatus?.remotes?.[0]?.name || 'origin';
+    this.showAuthAction = false;
+    this.isLoading = true;
+    this.setStatus(`Fetching and pruning stale remote branches in '${targetId}'...`, false);
+
+    this.restService.pruneGoneBranches$(targetId, { dryRun: true, remote: remoteName }).subscribe({
+      next: (preview) => {
+        this.isLoading = false;
+        const gone: Array<{ name: string; upstream?: string }> = preview?.goneBranches || [];
+        const skippedCurrent = preview?.skippedCurrent;
+
+        if (gone.length === 0) {
+          const msg = skippedCurrent
+            ? `Fetched & pruned remote refs. Currently checked-out branch '${skippedCurrent.name}' has a gone upstream — switch to main first before pruning it.`
+            : `Fetched & pruned remote refs in '${targetId}'. No gone local branches to clean up.`;
+          this.setStatus(msg, false);
+          this.snackBar.open(msg, 'Dismiss', { duration: 5000 });
+          this.loadGitStatus();
+          return;
+        }
+
+        const listText = gone.map(b => `  • ${b.name}`).join('\n');
+        const skippedNote = skippedCurrent
+          ? `\n\n(Note: current branch '${skippedCurrent.name}' will not be deleted while checked out.)`
+          : '';
+        const confirmed = confirm(
+          `Delete ${gone.length} local branch${gone.length === 1 ? '' : 'es'} in '${targetId}' whose remote upstream is gone?\n\n${listText}${skippedNote}`
+        );
+        if (!confirmed) {
+          this.setStatus('Branch cleanup cancelled (remote refs were still fetched & pruned).', false);
+          return;
+        }
+
+        this.isLoading = true;
+        this.setStatus(`Deleting ${gone.length} gone local branch${gone.length === 1 ? '' : 'es'}...`, false);
+        this.restService.pruneGoneBranches$(targetId, {
+          dryRun: false,
+          branches: gone.map(b => b.name),
+          remote: remoteName
+        }).subscribe({
+          next: (res) => {
+            this.isLoading = false;
+            const deleted: string[] = res?.deleted || [];
+            const failed: Array<{ name: string; error: string }> = res?.failed || [];
+            if (Array.isArray(res?.branches)) {
+              this.availableBranches = res.branches;
+            } else {
+              this.loadBranches();
+            }
+            const summary = deleted.length > 0
+              ? `Pruned ${deleted.length} branch${deleted.length === 1 ? '' : 'es'}: ${deleted.join(', ')}`
+              : 'No branches were deleted.';
+            const failNote = failed.length > 0
+              ? ` (${failed.length} failed: ${failed.map(f => f.name).join(', ')})`
+              : '';
+            this.setStatus(summary + failNote, failed.length > 0);
+            this.snackBar.open(summary + failNote, 'Dismiss', { duration: 5000 });
+            this.loadGitStatus();
+            this.cdRef.detectChanges();
+          },
+          error: (err) => {
+            this.isLoading = false;
+            const rawMsg = err.error?.error || err.error?.message || err.message || 'Failed to delete branches';
+            this.handleGitOperationError('Prune branches', rawMsg);
+          }
+        });
+      },
+      error: (err) => {
+        this.isLoading = false;
+        const rawMsg = err.error?.error || err.error?.message || err.message || 'Failed to fetch & prune';
+        this.handleGitOperationError('Prune branches', rawMsg);
       }
     });
   }

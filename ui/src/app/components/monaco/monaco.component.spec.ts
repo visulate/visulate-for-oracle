@@ -954,5 +954,78 @@ describe('MonacoComponent - New File Creation', () => {
       expect(cfg.data.repos.length).toBe(2);
       expect(component.openFileInWorkspace).toHaveBeenCalledWith('visulate-memory', 'pdb21/memories/note.md', 'diff');
     });
+
+    it('should pass rebase flag to pullRepository$ when Pull (Rebase) is triggered', () => {
+      (mockRestService as any).pullRepository$ = jasmine.createSpy('pullRepository$').and.returnValue(of({
+        success: true,
+        rebase: true,
+        summary: 'Successfully rebased'
+      }));
+      spyOn(component, 'loadProjectFiles');
+      component.selectedRepoFolder = 'rental-portal';
+      component.currentBranch = 'main';
+
+      component.pullRepo(true);
+
+      expect((mockRestService as any).pullRepository$).toHaveBeenCalledWith('rental-portal', 'main', true);
+      expect(component.statusMessage).toContain('Git pull (rebase) completed');
+    });
+
+    it('should preview and confirm before deleting gone branches via pruneGoneBranches', () => {
+      const pruneSpy = jasmine.createSpy('pruneGoneBranches$').and.callFake((_repo: string, opts: any) => {
+        if (opts.dryRun) {
+          return of({
+            success: true,
+            dryRun: true,
+            goneBranches: [{ name: 'feat/old-pr', upstream: 'origin/feat/old-pr' }],
+            skippedCurrent: null
+          });
+        }
+        return of({
+          success: true,
+          dryRun: false,
+          deleted: ['feat/old-pr'],
+          failed: [],
+          branches: ['main']
+        });
+      });
+      (mockRestService as any).pruneGoneBranches$ = pruneSpy;
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(component, 'loadGitStatus');
+
+      component.selectedRepoFolder = 'rental-portal';
+      component.pruneGoneBranches();
+
+      expect(pruneSpy.calls.count()).toBe(2);
+      expect(pruneSpy.calls.argsFor(0)[1].dryRun).toBe(true);
+      expect(pruneSpy.calls.argsFor(1)[1]).toEqual({
+        dryRun: false,
+        branches: ['feat/old-pr'],
+        remote: 'origin'
+      });
+      expect(component.availableBranches).toEqual(['main']);
+      expect(component.statusMessage).toContain('Pruned 1 branch: feat/old-pr');
+    });
+
+    it('should rename a file from the file menu and update active selection if open', () => {
+      const renameSpy = jasmine.createSpy('renameGitFile$').and.returnValue(of({
+        success: true,
+        oldPath: 'sql/old.sql',
+        newPath: 'sql/new.sql'
+      }));
+      (mockRestService as any).renameGitFile$ = renameSpy;
+      spyOn(window, 'prompt').and.returnValue('sql/new.sql');
+      spyOn(component, 'loadWorkspaceFiles');
+      spyOn(component, 'loadFileContent');
+
+      component.selectedRepoFolder = 'rental-portal';
+      component.selectedFilePath = 'sql/old.sql';
+      component.renameFileFromMenu('rental-portal', 'sql/old.sql');
+
+      expect(renameSpy).toHaveBeenCalledWith('rental-portal', 'sql/old.sql', 'sql/new.sql');
+      expect(component.selectedFilePath).toBe('sql/new.sql');
+      expect(component.loadWorkspaceFiles).toHaveBeenCalledWith('rental-portal', true);
+      expect(component.loadFileContent).toHaveBeenCalled();
+    });
   });
 });

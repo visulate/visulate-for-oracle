@@ -460,6 +460,12 @@ export class RestService {
     });
   }
 
+  renameGitFile$(projectId: string, oldPath: string, newPath: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/file/rename`, { projectId, oldPath, newPath }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
   copyGitArtifact$(payload: { sourceRepo: string; sourcePath: string; targetRepo: string; targetPath: string; overwrite?: boolean }): Observable<any> {
     return this.http.post<any>(`${environment.apiBase}/git/copy`, payload, {
       headers: this.getGitHeaders()
@@ -494,8 +500,17 @@ export class RestService {
     });
   }
 
-  pullRepository$(projectId: string, branchName?: string): Observable<any> {
-    return this.http.post<any>(`${environment.apiBase}/git/pull`, { projectId, branchName }, {
+  pullRepository$(projectId: string, branchName?: string, rebase: boolean = false): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/pull`, { projectId, branchName, rebase }, {
+      headers: this.getGitHeaders()
+    });
+  }
+
+  pruneGoneBranches$(projectId: string, options: { dryRun?: boolean; branches?: string[]; remote?: string } = {}): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/git/prune-branches`, {
+      projectId,
+      ...options
+    }, {
       headers: this.getGitHeaders()
     });
   }

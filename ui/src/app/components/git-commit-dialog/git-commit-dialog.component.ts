@@ -131,10 +131,11 @@ export class GitCommitDialogComponent {
       next: (res) => {
         this.isSubmitting = false;
         const updatedFiles = res?.status?.files || [];
+        const previousSelection = new Map(this.fileItems.map(item => [item.path, item.selected]));
         this.fileItems = updatedFiles.map((f: any) => ({
           path: f.path,
           status: f.status,
-          selected: true
+          selected: previousSelection.get(f.path) ?? false
         }));
       },
       error: (err) => {

@@ -13,10 +13,13 @@ DEFAULT_MEMORY_REPO_FALLBACK = "visulate-memory"
 def get_default_memory_repo_name() -> str:
     """Returns the configured folder name for the shared Visulate memory repository."""
     raw = (os.getenv("DEFAULT_MEMORY_REPO") or DEFAULT_MEMORY_REPO_FALLBACK).strip()
-    safe = "".join([c if c.isalnum() or c in "._-" else "_" for c in raw]).strip("_")
-    if not safe or safe in (".", ".."):
+    if (
+        not raw
+        or raw in (".", "..")
+        or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for c in raw)
+    ):
         return DEFAULT_MEMORY_REPO_FALLBACK
-    return safe
+    return raw
 
 
 def get_memory_repo_path(username: str = None) -> str:

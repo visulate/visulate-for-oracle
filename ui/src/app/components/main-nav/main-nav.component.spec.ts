@@ -25,15 +25,20 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { RouterTestingModule } from '@angular/router/testing';
-
+import { of } from 'rxjs';
 
 import { MainNavComponent } from './main-nav.component';
+import { RestService } from '../../services/rest.service';
 
 describe('MainNavComponent', () => {
   let component: MainNavComponent;
   let fixture: ComponentFixture<MainNavComponent>;
 
   beforeEach(waitForAsync(() => {
+    const mockRestService = {
+      getGitAssociations$: jasmine.createSpy('getGitAssociations$').and.returnValue(of({ links: [] }))
+    };
+
     TestBed.configureTestingModule({
       schemas: [ CUSTOM_ELEMENTS_SCHEMA ],
       declarations: [MainNavComponent],
@@ -47,6 +52,9 @@ describe('MainNavComponent', () => {
         MatToolbarModule,
         MatTooltipModule,
         RouterTestingModule
+      ],
+      providers: [
+        { provide: RestService, useValue: mockRestService }
       ]
     }).compileComponents();
   }));

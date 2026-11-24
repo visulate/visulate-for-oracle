@@ -155,7 +155,7 @@ async function getObjectData(db, owner, type, name, endpoints) {
   return details;
 }
 
-async function compareEntities(sourceReq, targetReq) {
+async function compareEntities(sourceReq, targetReq, userContext = null) {
   // Fetch endpoints once to improve performance
   const endpoints = await controller.endpoints('');
 
@@ -379,10 +379,13 @@ async function compareEntities(sourceReq, targetReq) {
   const sourceDb = sourceReq && sourceReq.db;
   const targetDb = targetReq && targetReq.db;
   if (sourceDb || targetDb) {
-    const memoryRepoDir = await gitService.ensureMemoryRepoInitialized();
+    const memoryRepoDir = await gitService.ensureMemoryRepoInitialized(userContext);
     const memoryRepoName = gitService.getDefaultMemoryRepoName();
     const safeDb = String(sourceDb || targetDb).toLowerCase().trim().replace(/[^a-z0-9_-]/gi, '_');
     const safeTargetDb = String(targetDb || 'target').toLowerCase().trim().replace(/[^a-z0-9_-]/gi, '_');
+    if (!safeDb || safeDb === '.' || safeDb === '..') {
+      throw new Error('Invalid database identifier for comparison report');
+    }
     const targetDir = path.join(memoryRepoDir, safeDb, 'reports');
     await fs.promises.mkdir(targetDir, { recursive: true });
     const targetFilename = `comparison_${safeDb}_vs_${safeTargetDb}.md`;

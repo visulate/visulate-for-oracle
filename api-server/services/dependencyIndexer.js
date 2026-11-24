@@ -21,6 +21,33 @@ const dbConfig = require('../config/database');
 const dbService = require('./database');
 const logger = require('./logger');
 
+/**
+ * Computes a stable, collision-free code-map identity for a repository.
+ * In GIT_MODE=server with a shared memory repository, per-user workspaces can each
+ * contain a repository with the same folder name (e.g. Alice's 'app' and Bob's 'app').
+ * Namespacing under `users/<username>/<projectId>` isolates them cleanly.
+ */
+function getRepoCodeMapIdentity(projectId, userContext = null) {
+  const mode = (process.env.GIT_MODE || 'local').toLowerCase();
+  const memScope = (process.env.MEMORY_REPO_SCOPE || 'shared').toLowerCase();
+  const rawUser = userContext && userContext.username ? String(userContext.username).trim() : '';
+  if (mode === 'server' && memScope !== 'user' && rawUser) {
+    const safeUser = rawUser.replace(/[^a-zA-Z0-9._-]/g, '_');
+    if (safeUser && safeUser !== '.' && safeUser !== '..') {
+      return {
+        relSegments: ['users', safeUser, projectId],
+        repoIdentity: `users/${safeUser}/${projectId}`,
+        repoOwner: safeUser
+      };
+    }
+  }
+  return {
+    relSegments: [projectId],
+    repoIdentity: projectId,
+    repoOwner: null
+  };
+}
+
 async function getValidCatalogObjects(dbConnectionId, targetOwner = null) {
   if (!dbConnectionId) return null;
   const ep = dbConfig.endpoints.find(e => e.namespace === dbConnectionId || e.connect.poolAlias === dbConnectionId);
@@ -148,8 +175,11 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   const catalogObjects = await getValidCatalogObjects(dbConnectionId, owner);
 
   const codeFiles = await gitService.listProjectFiles(projectId, '', userContext);
+  const { relSegments, repoIdentity, repoOwner } = getRepoCodeMapIdentity(projectId, userContext);
   const mapData = {
     projectId,
+    repoIdentity,
+    ...(repoOwner ? { repoOwner } : {}),
     indexedAt: new Date().toISOString(),
     dbConnectionId,
     objects: {},
@@ -242,7 +272,7 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   // and AI agents can perform cross-codebase impact analysis across all indexed repos.
   const memoryRepoDir = await gitService.ensureMemoryRepoInitialized(userContext);
   const dbFolder = safeDbId || '_unscoped';
-  const targetDir = path.join(memoryRepoDir, dbFolder, 'code-maps', projectId);
+  const targetDir = path.join(memoryRepoDir, dbFolder, 'code-maps', ...relSegments);
 
   gitService.resolveSafePath(memoryRepoDir, path.relative(memoryRepoDir, targetDir), false);
 
@@ -254,11 +284,15 @@ async function indexProjectDependencies(projectId, owner = null, userContext = n
   gitService.resolveSafePath(memoryRepoDir, path.relative(memoryRepoDir, mapPath), false);
   fs.writeFileSync(mapPath, JSON.stringify(mapData, null, 2), 'utf8');
 
-  // Also generate OKF Markdown document (<memoryRepo>/<db>/code-maps/<projectId>/codebase-dependencies.md)
+  // Also generate OKF Markdown document (<memoryRepo>/<db>/code-maps/<repoIdentity>/codebase-dependencies.md)
   let mdContent = `# Database-to-Codebase Dependency Index\n\n`;
   mdContent += `> **Indexed At:** ${mapData.indexedAt}\n`;
   mdContent += `> **Database Endpoint:** \`${mapData.dbConnectionId || 'N/A'}\` \n`;
-  mdContent += `> **Project ID:** \`${projectId}\` \n\n`;
+  mdContent += `> **Project ID:** \`${projectId}\` \n`;
+  if (repoOwner) {
+    mdContent += `> **Workspace Owner:** \`${repoOwner}\` (\`${repoIdentity}\`) \n`;
+  }
+  mdContent += `\n`;
   mdContent += `## Mapped Oracle Objects & Codebase Dependencies\n\n`;
 
   const objectKeys = Object.keys(mapData.objects);
@@ -312,12 +346,19 @@ function getProjectCodeMap(projectId, dbConnectionId = null, userContext = null)
   }
 
   const memoryDir = gitService.getMemoryRepoDir(userContext);
+  const { relSegments, repoOwner } = getRepoCodeMapIdentity(safeProject, userContext);
   const candidates = [];
 
   if (normalizedDb) {
-    candidates.push(path.join(memoryDir, normalizedDb, 'code-maps', safeProject, 'oracle-code-map.json'));
+    candidates.push(path.join(memoryDir, normalizedDb, 'code-maps', ...relSegments, 'oracle-code-map.json'));
+    if (repoOwner) {
+      candidates.push(path.join(memoryDir, normalizedDb, 'code-maps', safeProject, 'oracle-code-map.json'));
+    }
   }
-  candidates.push(path.join(memoryDir, '_unscoped', 'code-maps', safeProject, 'oracle-code-map.json'));
+  candidates.push(path.join(memoryDir, '_unscoped', 'code-maps', ...relSegments, 'oracle-code-map.json'));
+  if (repoOwner) {
+    candidates.push(path.join(memoryDir, '_unscoped', 'code-maps', safeProject, 'oracle-code-map.json'));
+  }
 
   // Legacy fallback inside the code repository itself
   try {
@@ -369,22 +410,39 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
   }
 
   const matches = [];
-  const seenRepos = new Set();
+  const seenIdentities = new Set();
   let primaryRepo = null;
+  let primaryIdentity = null;
   let primaryOwner = null;
   let primaryType = null;
   const allFiles = new Set();
   const allDependencies = new Set();
 
-  function inspectMapData(repoName, mapData, isDbSpecific) {
-    if (seenRepos.has(repoName)) return;
+  const mode = (process.env.GIT_MODE || 'local').toLowerCase();
+  const memScope = (process.env.MEMORY_REPO_SCOPE || 'shared').toLowerCase();
+  const currentSafeUser = (mode === 'server' && memScope !== 'user' && userContext && userContext.username)
+    ? String(userContext.username).trim().replace(/[^a-zA-Z0-9._-]/g, '_')
+    : null;
+
+  function inspectMapData(repoName, mapData, isDbSpecific, identityOverride = null, ownerOverride = null) {
+    const mapOwner = ownerOverride || mapData.repoOwner || null;
+    const identity = identityOverride || mapData.repoIdentity || (mapOwner ? `users/${mapOwner}/${repoName}` : repoName);
+    if (seenIdentities.has(identity)) return;
+
+    // In server mode with a shared memory repo, isolate lookups for a requesting user to their
+    // own user-namespaced workspace maps (plus shared un-namespaced maps) so Alice's and Bob's
+    // identically-named repositories never leak into each other's dependency lookups.
+    if (currentSafeUser && mapOwner && mapOwner !== currentSafeUser) {
+      return;
+    }
+
     const repoDb = (mapData.dbConnectionId || '').toLowerCase().trim();
     const shouldInspect = repoFolder
       ? repoName === repoFolder && (repoDb === normalizedDb || isDbSpecific)
       : (repoDb === normalizedDb || isDbSpecific);
 
     if (!shouldInspect) return;
-    seenRepos.add(repoName);
+    seenIdentities.add(identity);
 
     if (mapData.objects && mapData.objects[targetObject]) {
       const info = mapData.objects[targetObject];
@@ -394,6 +452,7 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
       const repoFiles = info.files || [];
       if (!primaryRepo) {
         primaryRepo = repoName;
+        primaryIdentity = identity;
         primaryOwner = info.owner || null;
         primaryType = info.type || null;
       }
@@ -401,35 +460,90 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
       if (info.dependencies) {
         info.dependencies.forEach(d => allDependencies.add(d));
       }
-      matches.push({
+      const matchEntry = {
         repoFolder: repoName,
+        repoIdentity: identity,
         owner: info.owner,
         type: info.type,
         files: repoFiles
-      });
+      };
+      if (mapOwner) {
+        matchEntry.repoOwner = mapOwner;
+      }
+      matches.push(matchEntry);
     }
   }
 
-  // 1. Primary source: central visulate-memory/<db>/code-maps/<repo>/oracle-code-map.json
+  // 1. Primary source: central visulate-memory/<db>/code-maps/[users/<user>/]<repo>/oracle-code-map.json
   const memoryDir = gitService.getMemoryRepoDir(userContext);
   const codeMapsRoot = path.join(memoryDir, normalizedDb, 'code-maps');
   if (fs.existsSync(codeMapsRoot)) {
     try {
-      let repoEntries = fs.readdirSync(codeMapsRoot, { withFileTypes: true })
-        .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      const discoveredMaps = [];
+
+      // Collect user-namespaced code maps: code-maps/users/<user>/<repo>/oracle-code-map.json
+      const usersDir = path.join(codeMapsRoot, 'users');
+      if (fs.existsSync(usersDir) && fs.statSync(usersDir).isDirectory()) {
+        const userDirs = fs.readdirSync(usersDir, { withFileTypes: true })
+          .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+          .map(e => e.name)
+          .sort();
+        for (const uName of userDirs) {
+          const uPath = path.join(usersDir, uName);
+          const uRepos = fs.readdirSync(uPath, { withFileTypes: true })
+            .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+            .map(e => e.name)
+            .sort();
+          for (const rName of uRepos) {
+            const mapPath = path.join(uPath, rName, 'oracle-code-map.json');
+            if (fs.existsSync(mapPath)) {
+              discoveredMaps.push({
+                repoName: rName,
+                identity: `users/${uName}/${rName}`,
+                repoOwner: uName,
+                mapPath
+              });
+            }
+          }
+        }
+      }
+
+      // Collect top-level (local / shared) code maps: code-maps/<repo>/oracle-code-map.json
+      const repoEntries = fs.readdirSync(codeMapsRoot, { withFileTypes: true })
+        .filter(e => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'users')
         .map(e => e.name)
         .sort();
-      if (repoFolder) {
-        repoEntries.sort((a, b) => (a === repoFolder ? -1 : b === repoFolder ? 1 : a.localeCompare(b)));
-      }
       for (const rName of repoEntries) {
         const mapPath = path.join(codeMapsRoot, rName, 'oracle-code-map.json');
-        if (!fs.existsSync(mapPath)) continue;
+        if (fs.existsSync(mapPath)) {
+          discoveredMaps.push({
+            repoName: rName,
+            identity: rName,
+            repoOwner: null,
+            mapPath
+          });
+        }
+      }
+
+      // Prioritize requesting user's workspace and requested repoFolder first
+      discoveredMaps.sort((a, b) => {
+        const aOwn = currentSafeUser && a.repoOwner === currentSafeUser ? 0 : 1;
+        const bOwn = currentSafeUser && b.repoOwner === currentSafeUser ? 0 : 1;
+        if (aOwn !== bOwn) return aOwn - bOwn;
+        if (repoFolder) {
+          const aMatch = a.repoName === repoFolder ? 0 : 1;
+          const bMatch = b.repoName === repoFolder ? 0 : 1;
+          if (aMatch !== bMatch) return aMatch - bMatch;
+        }
+        return a.identity.localeCompare(b.identity);
+      });
+
+      for (const item of discoveredMaps) {
         try {
-          const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
-          inspectMapData(rName, mapData, true);
+          const mapData = JSON.parse(fs.readFileSync(item.mapPath, 'utf8'));
+          inspectMapData(item.repoName, mapData, true, item.identity, item.repoOwner);
         } catch (err) {
-          logger.log('warn', `Error reading memory dependency map for ${rName}: ${err.message}`);
+          logger.log('warn', `Error reading memory dependency map for ${item.identity}: ${err.message}`);
         }
       }
     } catch (err) {
@@ -449,7 +563,9 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
     }
 
     for (const repo of repos) {
-      if (repo.isMemoryRepo || seenRepos.has(repo.folderName)) continue;
+      if (repo.isMemoryRepo) continue;
+      const { repoIdentity, repoOwner } = getRepoCodeMapIdentity(repo.folderName, userContext);
+      if (seenIdentities.has(repoIdentity) || seenIdentities.has(repo.folderName)) continue;
       const visulateDbMap = path.join(repo.fullPath, 'visulate', normalizedDb, 'oracle-code-map.json');
       const visulateLegacyMap = path.join(repo.fullPath, 'visulate', 'oracle-code-map.json');
 
@@ -460,7 +576,7 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
 
       try {
         const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
-        inspectMapData(repo.folderName, mapData, mapPath === visulateDbMap);
+        inspectMapData(repo.folderName, mapData, mapPath === visulateDbMap, repoIdentity, repoOwner);
       } catch (err) {
         logger.log('warn', `Error reading dependency map in ${repo.folderName}: ${err.message}`);
       }
@@ -470,6 +586,7 @@ async function getObjectCodeDependencies(db, objectName, userContext = null, rep
   return {
     found: allFiles.size > 0,
     repoFolder: primaryRepo || repoFolder,
+    repoIdentity: primaryIdentity || (primaryRepo || repoFolder),
     dbConnectionId: db,
     objectName: targetObject,
     owner: primaryOwner || targetOwner,

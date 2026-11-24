@@ -190,5 +190,50 @@ describe('Dependency Indexer - Multi-Database .okf/<db>/ Support', function () {
       dbConfig.endpoints = origConfigEndpoints;
     }
   });
+
+  it('should namespace shared code maps by user identity in GIT_MODE=server to prevent workspace collisions', async () => {
+    const origMode = process.env.GIT_MODE;
+    const origScope = process.env.MEMORY_REPO_SCOPE;
+    try {
+      process.env.GIT_MODE = 'server';
+      process.env.MEMORY_REPO_SCOPE = 'shared';
+
+      const aliceRepoDir = path.join(baseDir, 'users', 'alice', 'app');
+      const bobRepoDir = path.join(baseDir, 'users', 'bob', 'app');
+      fs.mkdirSync(aliceRepoDir, { recursive: true });
+      fs.mkdirSync(bobRepoDir, { recursive: true });
+      fs.writeFileSync(path.join(aliceRepoDir, 'alice.sql'), 'SELECT * FROM ALICE_CUSTOMERS;\n', 'utf8');
+      fs.writeFileSync(path.join(bobRepoDir, 'bob.sql'), 'SELECT * FROM BOB_ORDERS;\n', 'utf8');
+
+      const aliceIdx = await dependencyIndexer.indexProjectDependencies('app', null, { username: 'alice' }, 'test-db');
+      const bobIdx = await dependencyIndexer.indexProjectDependencies('app', null, { username: 'bob' }, 'test-db');
+
+      expect(aliceIdx.repoIdentity).to.equal('users/alice/app');
+      expect(bobIdx.repoIdentity).to.equal('users/bob/app');
+      expect(aliceIdx.savedPath).to.include('code-maps/users/alice/app/oracle-code-map.json');
+      expect(bobIdx.savedPath).to.include('code-maps/users/bob/app/oracle-code-map.json');
+
+      const aliceMap = dependencyIndexer.getProjectCodeMap('app', 'test-db', { username: 'alice' });
+      const bobMap = dependencyIndexer.getProjectCodeMap('app', 'test-db', { username: 'bob' });
+      expect(Object.keys(aliceMap.objects)).to.include('ALICE_CUSTOMERS');
+      expect(Object.keys(aliceMap.objects)).to.not.include('BOB_ORDERS');
+      expect(Object.keys(bobMap.objects)).to.include('BOB_ORDERS');
+      expect(Object.keys(bobMap.objects)).to.not.include('ALICE_CUSTOMERS');
+
+      const aliceDeps = await dependencyIndexer.getObjectCodeDependencies('test-db', 'ALICE_CUSTOMERS', { username: 'alice' });
+      expect(aliceDeps.found).to.be.true;
+      expect(aliceDeps.repoIdentity).to.equal('users/alice/app');
+      expect(aliceDeps.repositories[0].repoOwner).to.equal('alice');
+
+      // Alice's lookup must not return Bob's colliding repo map
+      const bobFromAlice = await dependencyIndexer.getObjectCodeDependencies('test-db', 'BOB_ORDERS', { username: 'alice' });
+      expect(bobFromAlice.found).to.be.false;
+    } finally {
+      if (origMode === undefined) delete process.env.GIT_MODE;
+      else process.env.GIT_MODE = origMode;
+      if (origScope === undefined) delete process.env.MEMORY_REPO_SCOPE;
+      else process.env.MEMORY_REPO_SCOPE = origScope;
+    }
+  });
 });
 
