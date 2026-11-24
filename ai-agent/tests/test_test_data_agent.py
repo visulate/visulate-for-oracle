@@ -19,12 +19,13 @@ def test_test_data_generator_agent_creation():
     assert "generate_test_data_suite" in tool_names
 
 @pytest.mark.asyncio
+@patch("test_data_generator.agent.resolve_repo_for_db", return_value=(None, None))
 @patch("test_data_generator.agent.session_id_var")
 @patch("test_data_generator.agent.progress_callback_var")
 @patch("test_data_generator.agent.create_zip_archive")
 @patch("test_data_generator.agent.TestDataGenerator")
 @patch("os.makedirs")
-async def test_generate_test_data_suite(mock_makedirs, mock_generator_class, mock_zip, mock_progress, mock_session_id):
+async def test_generate_test_data_suite(mock_makedirs, mock_generator_class, mock_zip, mock_progress, mock_session_id, mock_resolve_repo):
     """Test the generate_test_data_suite tool."""
     from test_data_generator.agent import generate_test_data_suite
 

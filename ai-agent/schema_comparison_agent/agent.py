@@ -1,6 +1,6 @@
 import logging
 from google.adk.agents import LlmAgent
-from common.tools import get_mcp_toolsets
+from common.tools import get_mcp_toolsets, create_save_memory_tool
 
 from common.context import progress_callback_var
 
@@ -27,7 +27,8 @@ When asked to compare entities:
    - To compare Object Types (e.g., all Synonyms): provide `sourceDb`, `sourceOwner`, `sourceType`, `targetDb`, `targetOwner`, `targetType`.
    - To compare specific Objects: provide all parameters including `sourceName` and `targetName`.
 2. **Analysis**: You will receive a summary of the comparison and a download link to the full Markdown report.
-3. **Final Report**: Output a friendly message containing the download link to the full report exactly as provided by the tool. Then, below the link, add a newly titled section `### Expert Analysis & Patterns`.
+3. **Save Comparison Memory (`save_memory_record`)**: After completing your analysis, call `save_memory_record` with `category="memories"`, `database=<sourceDb>`, and `filename="comparison_<sourceDb>_vs_<targetDb>.md"` to persist your key findings (missing objects, extra objects, row-count drift, migration readiness gaps) in `visulate-memory`. Never store sensitive credentials or raw PII.
+4. **Final Report**: Output a friendly message containing the download link or repository path to the full report exactly as provided by the tool. Then, below the link, add a newly titled section `### Expert Analysis & Patterns`.
    - In this section, you must provide a detailed, structured analysis of the findings. DO NOT just provide a 3-sentence summary.
    - Break your analysis down into the following sub-sections:
      - **Missing in Target**: Identify key objects (tables, views, packages) or grants that exist in the source but are missing in the target. Explain the potential impact (e.g., "Missing RNT_MENU_PAGES may impact UI functionality").
@@ -55,10 +56,11 @@ def create_schema_comparison_agent() -> LlmAgent:
 
     from google.adk.tools.function_tool import FunctionTool
     progress_tool = FunctionTool(report_progress)
+    save_memory_tool = create_save_memory_tool()
     return LlmAgent(
         model="gemini-flash-latest",
         name="schema_comparison_agent",
         description="Specialized agent for comparing database schemas, object counts, row counts, and grants",
         instruction=SYSTEM_INSTRUCTION,
-        tools=[api_server_tools, progress_tool]
+        tools=[api_server_tools, progress_tool, save_memory_tool]
     )

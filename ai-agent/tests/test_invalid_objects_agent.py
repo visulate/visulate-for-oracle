@@ -13,10 +13,11 @@ def test_invalid_objects_agent_creation():
     assert "save_remediation_script" in tool_names
 
 @pytest.mark.asyncio
+@patch("invalid_objects.agent.resolve_repo_for_db", return_value=(None, None))
 @patch("invalid_objects.agent.session_id_var")
 @patch("invalid_objects.agent.report_progress")
 @patch("os.makedirs")
-async def test_save_remediation_script(mock_makedirs, mock_report, mock_session_id):
+async def test_save_remediation_script(mock_makedirs, mock_report, mock_session_id, mock_resolve_repo):
     """Test the save_remediation_script function."""
     from invalid_objects.agent import save_remediation_script
 

@@ -7,7 +7,8 @@ from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
 from common.context import session_id_var, progress_callback_var, auth_token_var, ui_context_var
-from common.config import resolve_repo_for_db
+from common.config import resolve_repo_for_db, get_default_memory_repo_name
+from common.readme_builder import update_visulate_readme
 from erd_agent.diagram_generator import DiagramGenerator
 
 logger = logging.getLogger(__name__)
@@ -192,11 +193,16 @@ async def generate_erd_file(database: str, schema: str, tables_json: str, relati
         repo_name, repo_path = resolve_repo_for_db(database=database, project_id=project_id, username=username)
 
         if repo_path:
-            output_dir = os.path.join(repo_path, "visulate", safe_database, "erd")
+            is_memory = (repo_name == get_default_memory_repo_name())
+            output_dir = os.path.join(repo_path, safe_database, "erd") if is_memory else os.path.join(repo_path, "visulate", safe_database, "erd")
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, filename)
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(xml_content)
+            try:
+                update_visulate_readme(repo_path)
+            except Exception as readme_err:
+                logger.warning(f"Error updating README after saving ERD: {readme_err}")
             rel_path = os.path.relpath(output_path, repo_path)
             report_progress(f"ERD saved to repository '{repo_name}': {rel_path}")
             return f"Successfully generated ERD for {schema} and saved to repository `{repo_name}` at `{rel_path}`."

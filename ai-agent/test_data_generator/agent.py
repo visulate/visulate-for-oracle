@@ -8,7 +8,8 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
 from common.tools import get_mcp_toolsets
-from common.config import get_mcp_urls, resolve_repo_for_db
+from common.config import get_mcp_urls, resolve_repo_for_db, get_default_memory_repo_name
+from common.readme_builder import update_visulate_readme
 from common.context import session_id_var, progress_callback_var, ui_context_var
 from common.utils import create_zip_archive
 from test_data_generator.generator import TestDataGenerator
@@ -86,7 +87,8 @@ async def generate_test_data_suite(database: str, schema: str, tables: List[str]
         session_id = session_id_var.get()
 
         if repo_path:
-            output_dir = os.path.join(repo_path, "visulate", safe_database, "test-data", safe_schema)
+            is_memory = (repo_name == get_default_memory_repo_name())
+            output_dir = os.path.join(repo_path, safe_database, "test-data", safe_schema) if is_memory else os.path.join(repo_path, "visulate", safe_database, "test-data", safe_schema)
             os.makedirs(output_dir, exist_ok=True)
 
             generator = TestDataGenerator(api_server_url, session_id)
@@ -100,6 +102,11 @@ async def generate_test_data_suite(database: str, schema: str, tables: List[str]
                 if errors:
                     fallback_msg += f" Reasons:\n{err_summary}"
                 return f"{fallback_msg}\n\nPlease verify table names and database connectivity."
+
+            try:
+                update_visulate_readme(repo_path)
+            except Exception as readme_err:
+                logger.warning(f"Error updating README after saving test data: {readme_err}")
 
             rel_dir = os.path.relpath(output_dir, repo_path)
             individual_files_str = ", ".join(file_list)

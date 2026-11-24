@@ -4,9 +4,10 @@ from datetime import datetime
 from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
-from common.tools import get_mcp_toolsets
+from common.tools import get_mcp_toolsets, create_save_memory_tool
 from common.context import session_id_var, progress_callback_var, ui_context_var
-from common.config import resolve_repo_for_db
+from common.config import resolve_repo_for_db, get_default_memory_repo_name
+from common.readme_builder import update_visulate_readme
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,12 @@ Follow this systematic diagnostic flow for each invalid object:
    - Check if a database link is required and verify its existence using `getDbLinks`.
 6. **Generate Remediation Script**:
    - You **MUST** call the `save_remediation_script` tool to provide the remediation SQL script.
-   - If the database has an associated repository, the script is saved directly to `visulate/<db>/remediation/<filename>.sql`.
-   - If no repository is associated, the tool provides a download link.
+   - The script is saved directly to `visulate-memory` under `<db>/remediation/<filename>.sql`.
    - The script must include specific fixes (e.g., `GRANT EXECUTE`, `CREATE SYNONYM`) for **verified** missing dependencies.
    - **The script MUST end with a call to compile the entire schema**: `exec dbms_utility.compile_schema('YOUR_SCHEMA_NAME', false);`
-7. **Final Report**: Provide a summary of your findings, identifying exactly why each object is invalid (e.g., "Missing package UTL_MAIL", "Inaccessible table CUSTOMERS via broken DB Link SALES_LINK").
+7. **Save Diagnostic Memory (`save_memory_record`)**:
+   - Call `save_memory_record` with `category="memories"`, `database=<database>`, and `filename="invalid_objects_<schema>.md"` to record the verified root causes (invalid object names, error lines, verified missing objects/grants/synonyms/DB links, and the remediation script path) in `visulate-memory`. Never store sensitive credentials.
+8. **Final Report**: Provide a summary of your findings, identifying exactly why each object is invalid (e.g., "Missing package UTL_MAIL", "Inaccessible table CUSTOMERS via broken DB Link SALES_LINK").
 
 ## Guidelines
 - **Verification First**: Never suggest a `GRANT` on an object unless you have verified that the object actually exists using `findObject`.
@@ -89,11 +91,16 @@ async def save_remediation_script(database: str, schema: str, sql_content: str, 
         )
 
         if repo_path:
-            output_dir = os.path.join(repo_path, "visulate", safe_database, "remediation")
+            is_memory = (repo_name == get_default_memory_repo_name())
+            output_dir = os.path.join(repo_path, safe_database, "remediation") if is_memory else os.path.join(repo_path, "visulate", safe_database, "remediation")
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, filename)
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(file_body)
+            try:
+                update_visulate_readme(repo_path)
+            except Exception as readme_err:
+                logger.warning(f"Error updating README after saving remediation script: {readme_err}")
             rel_path = os.path.relpath(output_path, repo_path)
             report_progress(f"Remediation script saved to repository '{repo_name}': {rel_path}")
             return f"Successfully generated remediation script and saved to repository `{repo_name}` at `{rel_path}`."
@@ -117,11 +124,12 @@ def create_invalid_objects_agent() -> LlmAgent:
 
     progress_tool = FunctionTool(report_progress)
     save_tool = FunctionTool(save_remediation_script)
+    save_memory_tool = create_save_memory_tool()
 
     return LlmAgent(
         model="gemini-flash-latest",
         name="invalid_objects_agent",
         description="Specialized agent for deep-dive diagnostics of invalid Oracle database objects",
         instruction=SYSTEM_INSTRUCTION,
-        tools=[api_server_tools, progress_tool, save_tool]
+        tools=[api_server_tools, progress_tool, save_tool, save_memory_tool]
     )

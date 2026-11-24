@@ -139,10 +139,11 @@ def build_directory_tree_bottom_up(repo_path: str, target_subpath: str = "") -> 
     return collected_dirs
 
 
-def load_indexed_dependencies(repo_path: str, db_endpoint: str = None) -> Dict[str, Any]:
+def load_indexed_dependencies(repo_path: str, db_endpoint: str = None, username: str = None) -> Dict[str, Any]:
     """
-    Loads database dependency indexing data from visulate/<db>/oracle-code-map.json
-    and codebase-dependencies.md.
+    Loads database dependency indexing data from the central visulate-memory repository
+    (<visulate-memory>/<db>/code-maps/[users/<user>/]<repo>/oracle-code-map.json and codebase-dependencies.md),
+    falling back to legacy <repo>/visulate/<db>/oracle-code-map.json paths if present.
 
     Returns:
         Dict with:
@@ -158,32 +159,78 @@ def load_indexed_dependencies(repo_path: str, db_endpoint: str = None) -> Dict[s
         "dependency_markdown": ""
     }
 
-    visulate_dir = os.path.join(repo_path, "visulate")
-    if not os.path.exists(visulate_dir):
-        return result
-
     candidate_files = []
-    if db_endpoint:
-        safe_db = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(db_endpoint)]).strip("_").lower()
-        db_map = os.path.join(visulate_dir, safe_db, "oracle-code-map.json")
-        if os.path.exists(db_map):
-            candidate_files.append((safe_db, db_map))
+    repo_name = os.path.basename(os.path.normpath(repo_path))
+    safe_db = (
+        "".join([c if c.isalnum() or c in "._-" else "_" for c in str(db_endpoint)]).strip("_").lower()
+        if db_endpoint else None
+    )
+    if safe_db in (".", ".."):
+        safe_db = None
 
-    # Also scan any database subdirectories in visulate/
+    # 1. Primary source: central visulate-memory/<db>/code-maps/[users/<user>/]<repo>/oracle-code-map.json
+    try:
+        from common.config import get_memory_repo_path
+        memory_dir = get_memory_repo_path(username)
+        git_mode = (os.getenv("GIT_MODE") or "local").lower()
+        mem_scope = (os.getenv("MEMORY_REPO_SCOPE") or "shared").lower()
+        safe_user = (
+            "".join([c if c.isalnum() or c in "._-" else "_" for c in str(username)])
+            if username else None
+        )
+
+        def _candidate_rel_subdirs():
+            subdirs = []
+            if git_mode == "server" and mem_scope != "user" and safe_user and safe_user not in (".", ".."):
+                subdirs.append(os.path.join("code-maps", "users", safe_user, repo_name))
+            subdirs.append(os.path.join("code-maps", repo_name))
+            return subdirs
+
+        if memory_dir and os.path.exists(memory_dir):
+            if safe_db:
+                for rel_sub in _candidate_rel_subdirs():
+                    mem_map = os.path.join(memory_dir, safe_db, rel_sub, "oracle-code-map.json")
+                    if os.path.exists(mem_map):
+                        candidate_files.append((safe_db, mem_map))
+                        break
+            if not candidate_files:
+                for entry in sorted(os.listdir(memory_dir)):
+                    if entry.startswith("."):
+                        continue
+                    entry_path = os.path.join(memory_dir, entry)
+                    if os.path.isdir(entry_path):
+                        for rel_sub in _candidate_rel_subdirs():
+                            mem_map = os.path.join(entry_path, rel_sub, "oracle-code-map.json")
+                            if os.path.exists(mem_map):
+                                candidate_files.append((entry, mem_map))
+                                break
+    except Exception as e:
+        logger.warning(f"Error scanning central memory repo for code maps: {e}")
+
+    # 2. Legacy fallback: <repo>/visulate/<db>/oracle-code-map.json or <repo>/visulate/oracle-code-map.json
+    visulate_dir = os.path.join(repo_path, "visulate")
+    if not candidate_files and os.path.exists(visulate_dir):
+        if safe_db:
+            db_map = os.path.join(visulate_dir, safe_db, "oracle-code-map.json")
+            if os.path.exists(db_map):
+                candidate_files.append((safe_db, db_map))
+
+        if not candidate_files:
+            try:
+                for entry in sorted(os.listdir(visulate_dir)):
+                    entry_path = os.path.join(visulate_dir, entry)
+                    if os.path.isdir(entry_path):
+                        code_map = os.path.join(entry_path, "oracle-code-map.json")
+                        if os.path.exists(code_map):
+                            candidate_files.append((entry, code_map))
+                root_code_map = os.path.join(visulate_dir, "oracle-code-map.json")
+                if os.path.exists(root_code_map):
+                    candidate_files.append(("global", root_code_map))
+            except Exception as e:
+                logger.warning(f"Error scanning visulate directory: {e}")
+
     if not candidate_files:
-        try:
-            for entry in sorted(os.listdir(visulate_dir)):
-                entry_path = os.path.join(visulate_dir, entry)
-                if os.path.isdir(entry_path):
-                    code_map = os.path.join(entry_path, "oracle-code-map.json")
-                    if os.path.exists(code_map):
-                        candidate_files.append((entry, code_map))
-            # Check root visulate/oracle-code-map.json
-            root_code_map = os.path.join(visulate_dir, "oracle-code-map.json")
-            if os.path.exists(root_code_map):
-                candidate_files.append(("global", root_code_map))
-        except Exception as e:
-            logger.warning(f"Error scanning visulate directory: {e}")
+        return result
 
     for db_name, map_file in candidate_files:
         try:
@@ -518,7 +565,8 @@ async def run_bottom_up_readme_generation(
     progress_callback: Optional[Callable[[str], None]] = None,
     stream_callback: Optional[Callable[[str], None]] = None,
     genai_client: Optional[Any] = None,
-    is_cancelled: Optional[Callable[[], bool]] = None
+    is_cancelled: Optional[Callable[[], bool]] = None,
+    username: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Executes bottom-up traversal of the repository to create, validate, or update README files.
@@ -566,7 +614,7 @@ async def run_bottom_up_readme_generation(
 
     target_label = f"in `{target_subpath}`" if target_subpath else "across repository"
     await report(f"Found {len(dirs_bottom_up)} directories {target_label}. Loading database dependencies...")
-    dep_info = load_indexed_dependencies(repo_path, db_endpoint)
+    dep_info = load_indexed_dependencies(repo_path, db_endpoint, username=username)
     mapped_files_count = len(dep_info.get("file_to_objects", {}))
     await report(f"Loaded dependencies ({mapped_files_count} files mapped to database objects).")
 

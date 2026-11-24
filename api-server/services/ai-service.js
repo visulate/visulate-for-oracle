@@ -985,6 +985,7 @@ async function getContext(req, res, next) {
 module.exports.getContext = getContext;
 
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
+const mcpRequestUserStorage = new AsyncLocalStorage();
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 const { z } = require('zod');
 const { randomUUID } = require('node:crypto');
@@ -1396,13 +1397,15 @@ function createMcpServer() {
       targetDb: z.string().describe("The target database endpoint (e.g., pdb21)."),
       targetOwner: z.string().optional().describe("For schema/object comparison, the target schema owner."),
       targetType: z.string().optional().describe("For object comparison, the target object type."),
-      targetName: z.string().optional().describe("For object comparison, the target object name.")
+      targetName: z.string().optional().describe("For object comparison, the target object name."),
+      username: z.string().optional().describe("Optional authenticated username for user-scoped memory repositories.")
     },
-    async ({ sourceDb, sourceOwner, sourceType, sourceName, targetDb, targetOwner, targetType, targetName }) => {
+    async ({ sourceDb, sourceOwner, sourceType, sourceName, targetDb, targetOwner, targetType, targetName, username }) => {
       try {
         const sourceReq = { db: sourceDb, owner: sourceOwner, type: sourceType, name: sourceName };
         const targetReq = { db: targetDb, owner: targetOwner, type: targetType, name: targetName };
-        const result = await compareEntities(sourceReq, targetReq);
+        const reqUserContext = mcpRequestUserStorage.getStore() || (username ? { username } : null);
+        const result = await compareEntities(sourceReq, targetReq, reqUserContext);
         return {
           content: [
             { type: 'text', text: JSON.stringify(result, null, 2) }
@@ -1814,7 +1817,10 @@ async function handleMcpRequest(req, res, next) {
     }
 
     try {
-      await sessionEntry.transport.handleRequest(req, res, req.body);
+      const mcpUserContext = req.userContext || (req.user ? { username: req.user.username || req.user.id || req.user.sub || req.user } : null);
+      await mcpRequestUserStorage.run(mcpUserContext, () =>
+        sessionEntry.transport.handleRequest(req, res, req.body)
+      );
     } catch (transportError) {
       logger.log('error', `Transport handleRequest failed for POST ${sessionEntry.transport?.sessionId || 'unknown'}: ${transportError.message}`);
       logger.log('error', transportError.stack);

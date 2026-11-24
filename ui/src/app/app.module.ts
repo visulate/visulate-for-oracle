@@ -45,6 +45,8 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -69,6 +71,11 @@ import { CredentialDialogComponent } from './components/credential-dialog/creden
 import { DiffDialogComponent } from './components/diff-dialog/diff-dialog.component';
 import { FileViewerDialogComponent } from './components/file-viewer-dialog/file-viewer-dialog.component';
 import { GitAuthDialogComponent } from './components/git-auth-dialog/git-auth-dialog.component';
+import { GitCommitDialogComponent } from './components/git-commit-dialog/git-commit-dialog.component';
+import { GitStatusDialogComponent } from './components/git-status-dialog/git-status-dialog.component';
+import { GitRemoteDialogComponent } from './components/git-remote-dialog/git-remote-dialog.component';
+import { GitAssociationsDialogComponent } from './components/git-associations-dialog/git-associations-dialog.component';
+import { CopyToRepoDialogComponent } from './components/copy-to-repo-dialog/copy-to-repo-dialog.component';
 import { MonacoComponent } from './components/monaco/monaco.component';
 import { RouteReuseStrategy } from '@angular/router';
 import { CustomRouteReuseStrategy } from './custom-route-reuse-strategy';
@@ -94,6 +101,11 @@ import { RestService } from './services/rest.service';
     DiffDialogComponent,
     FileViewerDialogComponent,
     GitAuthDialogComponent,
+    GitCommitDialogComponent,
+    GitStatusDialogComponent,
+    GitRemoteDialogComponent,
+    GitAssociationsDialogComponent,
+    CopyToRepoDialogComponent,
     MonacoComponent,
     BreadcrumbsComponent,
     RegistrationHelperComponent
@@ -129,6 +141,8 @@ import { RestService } from './services/rest.service';
     MatSnackBarModule,
     MatTooltipModule,
     MatTabsModule,
+    MatMenuModule,
+    MatDividerModule,
     OverlayModule,
     PortalModule,
     MarkdownModule.forRoot(),

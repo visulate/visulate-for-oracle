@@ -234,7 +234,10 @@ router.use('/api/git', (req, res, next) => {
 
 function handleGitError(res, err) {
   const msg = err && err.message ? err.message : String(err || 'Unknown error');
-  if (msg.includes('Invalid') || msg.includes('required') || msg.includes('unsafe')) {
+  if (err && err.code === 'EEXIST') {
+    return res.status(409).json({ error: msg });
+  }
+  if (msg.includes('Invalid') || msg.includes('required') || msg.includes('unsafe') || msg.includes('not configured') || msg.includes('No files selected') || msg.includes('Cannot associate')) {
     return res.status(400).json({ error: msg });
   }
   if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('not a git repository')) {
@@ -251,11 +254,174 @@ function handleGitError(res, err) {
 
 /* Git REST Endpoints */
 router.route('/api/git/repositories')
-  .get((req, res) => {
+  .get(async (req, res) => {
     try {
+      await gitService.ensureMemoryRepoInitialized(req.userContext);
       const baseDir = gitService.getBaseReposDir(req.userContext);
       const repos = gitService.listLocalRepositories(req.userContext);
-      res.json({ baseDir, repositories: repos });
+      const memoryRepoName = gitService.getDefaultMemoryRepoName();
+      res.json({ baseDir, memoryRepoName, repositories: repos });
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/associations')
+  .get(async (req, res) => {
+    try {
+      const data = await gitService.getAssociations(req.userContext);
+      res.json(data);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  })
+  .post(async (req, res) => {
+    try {
+      const { db, repo, role = 'app' } = req.body;
+      if (!db || !repo) {
+        return res.status(400).json({ error: 'db and repo are required' });
+      }
+      const data = await gitService.saveAssociation(db, repo, role, req.userContext);
+      res.json(data);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  })
+  .delete(async (req, res) => {
+    try {
+      const db = req.query.db || req.body?.db;
+      const repo = req.query.repo || req.body?.repo;
+      if (!db || !repo) {
+        return res.status(400).json({ error: 'db and repo are required' });
+      }
+      const data = await gitService.deleteAssociation(db, repo, req.userContext);
+      res.json(data);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/status')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || gitService.getDefaultMemoryRepoName();
+      const status = await gitService.getRepoStatus(projectId, req.userContext);
+      res.json(status);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/commit')
+  .post(async (req, res) => {
+    try {
+      const { projectId, branchName, commitMessage, files, stageAll } = req.body;
+      if (!projectId) {
+        return res.status(400).json({ error: 'projectId is required' });
+      }
+      const result = await gitService.commitChanges(
+        projectId,
+        { branchName, commitMessage, files, stageAll },
+        req.userContext,
+        req.authContext
+      );
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/push')
+  .post(async (req, res) => {
+    try {
+      const { projectId, remote = 'origin', branchName, setUpstream = false } = req.body;
+      if (!projectId) {
+        return res.status(400).json({ error: 'projectId is required' });
+      }
+      const result = await gitService.pushChanges(
+        projectId,
+        { remote, branchName, setUpstream },
+        req.userContext,
+        req.authContext
+      );
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/remotes')
+  .get(async (req, res) => {
+    try {
+      const projectId = req.query.projectId || gitService.getDefaultMemoryRepoName();
+      const remotes = await gitService.getRemotes(projectId, req.userContext);
+      res.json({ projectId, remotes });
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/remote')
+  .post(async (req, res) => {
+    try {
+      const { projectId, name = 'origin', url } = req.body;
+      if (!projectId || !url) {
+        return res.status(400).json({ error: 'projectId and url are required' });
+      }
+      const result = await gitService.setRemote(projectId, name, url, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/discard')
+  .post(async (req, res) => {
+    try {
+      const { projectId, filePath } = req.body;
+      if (!projectId || !filePath) {
+        return res.status(400).json({ error: 'projectId and filePath are required' });
+      }
+      const result = await gitService.discardFileChanges(projectId, filePath, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/copy')
+  .post(async (req, res) => {
+    try {
+      const { sourceRepo, sourcePath, targetRepo, targetPath, overwrite = false } = req.body;
+      if (!sourceRepo || !sourcePath || !targetRepo || !targetPath) {
+        return res.status(400).json({ error: 'sourceRepo, sourcePath, targetRepo, and targetPath are required' });
+      }
+      const result = await gitService.copyBetweenRepos(
+        sourceRepo,
+        sourcePath,
+        targetRepo,
+        targetPath,
+        { overwrite },
+        req.userContext
+      );
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/code-map')
+  .get(async (req, res) => {
+    try {
+      const { projectId, db } = req.query;
+      if (!projectId) {
+        return res.status(400).json({ error: 'projectId is required' });
+      }
+      const mapData = dependencyIndexer.getProjectCodeMap(projectId, db || null, req.userContext);
+      if (!mapData) {
+        return res.status(404).json({ error: 'Code map not found' });
+      }
+      res.json(mapData);
     } catch (err) {
       handleGitError(res, err);
     }
@@ -319,6 +485,20 @@ router.route('/api/git/file')
         return res.status(400).json({ error: 'filePath is required' });
       }
       const result = await gitService.deleteFile(projectId, filePath, req.userContext);
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/file/rename')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', oldPath, newPath } = req.body;
+      if (!oldPath || !newPath) {
+        return res.status(400).json({ error: 'oldPath and newPath are required' });
+      }
+      const result = await gitService.renameFile(projectId, oldPath, newPath, req.userContext);
       res.json(result);
     } catch (err) {
       handleGitError(res, err);
@@ -392,8 +572,31 @@ router.route('/api/git/commit-push')
 router.route('/api/git/pull')
   .post(async (req, res) => {
     try {
-      const { projectId = 'default-project', branchName } = req.body;
-      const result = await gitService.pullRepo(projectId, branchName, req.authContext, req.userContext);
+      const { projectId = 'default-project', branchName, rebase = false } = req.body;
+      const result = await gitService.pullRepo(
+        projectId,
+        branchName,
+        req.authContext,
+        req.userContext,
+        'origin',
+        { rebase: Boolean(rebase) }
+      );
+      res.json(result);
+    } catch (err) {
+      handleGitError(res, err);
+    }
+  });
+
+router.route('/api/git/prune-branches')
+  .post(async (req, res) => {
+    try {
+      const { projectId = 'default-project', dryRun = false, branches = null, remote = 'origin' } = req.body;
+      const result = await gitService.pruneGoneBranches(
+        projectId,
+        { dryRun: Boolean(dryRun), branches, remote },
+        req.userContext,
+        req.authContext
+      );
       res.json(result);
     } catch (err) {
       handleGitError(res, err);

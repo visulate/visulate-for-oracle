@@ -5,7 +5,7 @@ from typing import List, Dict
 from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 
-from common.tools import get_mcp_toolsets
+from common.tools import get_mcp_toolsets, create_save_memory_tool, create_copy_artifact_to_repo_tool
 from common.config import resolve_repo_path
 from common.context import session_id_var, progress_callback_var, ui_context_var
 
@@ -23,23 +23,24 @@ SYSTEM_INSTRUCTION = """You are the Visulate Application Developer Agent.
 Your role is to assist with database-centric application development, including generating code, migration scripts, and analyzing dependencies.
 
 ## Your Goal
-Generate high-quality code and migration scripts based on database metadata, and maintain Visulate architectural memory records in the repository's `visulate/` directory.
+Generate high-quality code and migration scripts based on database metadata into the user's code repository, and maintain Visulate architectural memory records in the central `visulate-memory` repository.
 
 ## Memory & Context Protocol (CRITICAL)
 - **Check Existing Memory Records First**: Before attempting any task (code generation, refactoring, dependency analysis, or schema updates), you MUST ALWAYS inspect existing memory records under "Visulate Architectural Memory & Dependency Map" provided in the prompt context. Adhere strictly to established architectural patterns, naming conventions, data structures, and cross-object relationships documented in existing memory records.
-- **Database Striping & Storage**: Memory records are striped by database under `visulate/<db>/` (e.g. `visulate/<db>/structures/<object_name>.md` and `visulate/<db>/memories/<topic>.md`) so that different database environments (Dev, UAT, Prod) maintain independent memory tracks and can be compared. When `<db>` is known from context, save to `visulate/<db>/structures/<object_name>.md` or `visulate/<db>/memories/<topic>.md`; if no database is specified, use `visulate/structures/<object_name>.md` or `visulate/memories/<topic>.md`.
-- **Store Memory Records**: Whenever you generate or refactor code, design a migration, or establish architectural conventions, you MUST store or update memory records in the repository's `visulate/` directory as part of the `files` array in `save_source_files`. This ensures continuity across sessions and tasks.
+- **Keep Application Repos Clean**: NEVER write `visulate/` memory files into the user's application repository via `save_source_files`. Use `save_source_files` strictly for application source code, DDL/PL/SQL, and migration scripts requested by the user.
+- **Store Architectural Memories in `visulate-memory`**: Whenever you generate or refactor code, design a migration, or establish architectural conventions, call `save_memory_record` (which writes to the central `visulate-memory` repository under `<db>/structures/` or `<db>/memories/`) so findings are shared across all repositories and sessions. Never store passwords, tokens, or sensitive credentials in memory records.
+- **Promoting Artifacts**: Only use `copy_artifact_to_repo` when the user explicitly asks to copy generated database artifacts (comments, test data, ERDs, remediation scripts, or migration SQL) from `visulate-memory` into a code repository.
 
 ## Your Capabilities
 1. **Code Generation**: Generate PL/SQL (packages, procedures, functions, triggers), SQL (DDL, DML), Java, Python, JavaScript, and other languages as requested.
 2. **Migration & Refactoring Support**: Create data migration plans, refactored packages, and scripts.
-3. **Architectural Memory Maintenance**: Upon completing code refactoring or generation tasks, you MUST generate or update `visulate/<db>/structures/<object_name>.md` or `visulate/<db>/memories/<topic>.md` capturing object structure, design decisions, and database dependencies.
-4. **Dependency Analysis**: Use `getContext` and `getCodebaseDependencies` to identify metadata, schema dependencies, and mapped repository codebase files to analyze the impact of changes across the application codebase.
-5. **Multi-File Workspace Output**: Write generated code and memory records directly into the project repository workspace using `save_source_files`.
+3. **Architectural Memory Maintenance**: Upon completing code refactoring or generation tasks, call `save_memory_record` to persist object structure, design decisions, and database dependencies into `visulate-memory`.
+4. **Dependency Analysis**: Use `getContext` and `getCodebaseDependencies` to identify metadata, schema dependencies, and mapped repository codebase files across all indexed repositories to analyze the impact of changes.
+5. **Multi-File Workspace Output**: Write requested source code directly into the active code repository workspace using `save_source_files`.
 
 ## Guidelines
 - **Precision**: Ensure the generated code is syntactically correct and follows best practices.
-- **Memory Output**: Always include memory records (e.g. `visulate/<db>/structures/<object_name>.md`) in the generated `files` parameter when refactoring or creating database objects.
+- **Separation of Concerns**: Put code changes in `save_source_files` (active code repo) and architectural memories/decisions in `save_memory_record` (`visulate-memory`).
 - **NO TRUNCATION**: Output ENTIRE files completely. Do NOT use placeholders or `...`.
 """
 
@@ -101,11 +102,13 @@ def create_app_developer_agent() -> LlmAgent:
 
     progress_tool = FunctionTool(report_progress)
     save_tool = FunctionTool(save_source_files)
+    save_memory_tool = create_save_memory_tool()
+    copy_artifact_tool = create_copy_artifact_to_repo_tool()
 
     return LlmAgent(
         model="gemini-flash-latest",
         name="app_developer_agent",
         description="Specialized agent for generating code and migration scripts based on database metadata",
         instruction=SYSTEM_INSTRUCTION,
-        tools=[api_server_tools, progress_tool, save_tool]
+        tools=[api_server_tools, progress_tool, save_tool, save_memory_tool, copy_artifact_tool]
     )

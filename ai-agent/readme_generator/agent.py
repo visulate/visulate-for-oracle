@@ -5,9 +5,10 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 from google import genai
 
-from common.config import resolve_repo_path
+from common.config import resolve_repo_path, ensure_memory_repo
 from common.context import progress_callback_var, session_id_var, stream_callback_var, ui_context_var
 from common.tools import get_mcp_toolsets
+from common.readme_builder import update_visulate_readme
 from readme_generator.generator import (
     run_bottom_up_readme_generation,
     build_directory_tree_bottom_up,
@@ -32,7 +33,7 @@ Your purpose is to create, validate, and update README files across the codebase
 ## Traversal & Generation Protocol (CRITICAL)
 1. **Bottom-Up Traversal**: You start at the lowest point in the directory structure (leaf directories first), summarize the contents of each directory, and navigate up to the parent directory until reaching the root.
 2. **Verify Existing READMEs First**: For each directory, you MUST inspect and read any existing `README.md` first. Verify its content against actual files and indexed database dependencies, correcting any outdated or missing details while preserving accurate human context and design decisions.
-3. **Database Dependency Integration**: Incorporate indexed dependency knowledge from `visulate/<db>/oracle-code-map.json` and `codebase-dependencies.md`. Clearly explain how the application code interacts with Oracle and PostgreSQL catalog objects (tables, views, packages, procedures, triggers).
+3. **Database Dependency Integration**: Incorporate indexed dependency knowledge from `visulate-memory/<db>/code-maps/<repo>/oracle-code-map.json` (and legacy `visulate/<db>/oracle-code-map.json`). Clearly explain how the application code interacts with Oracle and PostgreSQL catalog objects (tables, views, packages, procedures, triggers).
 4. **Foundation for Modernization**: The generated READMEs must explain the code's function, document data contracts, and provide clear guidance for maintenance tasks and application rewrites.
 
 ## Tools
@@ -93,7 +94,8 @@ def create_generate_all_readmes_tool() -> FunctionTool:
                 target_subpath=effective_target,
                 progress_callback=progress_callback_var.get(),
                 stream_callback=stream_callback_var.get(),
-                genai_client=client
+                genai_client=client,
+                username=username
             )
 
             processed = result["processed_count"]
@@ -114,6 +116,45 @@ def create_generate_all_readmes_tool() -> FunctionTool:
             for item in result["details"]:
                 action_badge = "Created" if item["action"] == "created" else "Verified & Updated"
                 lines.append(f"| **{action_badge}** | [`{item['path']}`](/workbench?file={item['path']}) | {item['summary']} |")
+
+            # Persist a concise codebase overview memory into visulate-memory so DB-catalog chats understand this repo
+            if processed > 0:
+                try:
+                    memory_repo_name, memory_path = ensure_memory_repo(username)
+                    safe_db = (
+                        "".join([c if c.isalnum() or c in "._-" else "_" for c in str(endpoint)]).strip("_").lower()
+                        if endpoint else "global"
+                    )
+                    safe_proj = "".join([c if c.isalnum() or c in "._-" else "_" for c in str(project_id)]).strip("_").lower() or "repo"
+                    if not safe_db or safe_db in (".", ".."):
+                        raise ValueError("Invalid database identifier")
+                    mem_dir = os.path.join(memory_path, safe_db, "memories")
+                    os.makedirs(mem_dir, exist_ok=True)
+                    overview_file = os.path.join(mem_dir, f"repo_{safe_proj}_overview.md")
+                    overview_lines = [
+                        f"# Codebase Overview: {project_id}",
+                        "",
+                        f"- **Database Endpoint**: `{endpoint or 'N/A'}`",
+                        f"- **Scope**: `{effective_target or '/'}`",
+                        f"- **Directories Documented**: {processed}",
+                        "",
+                        "## Directory Summaries",
+                        "",
+                        "| README | Summary |",
+                        "| :--- | :--- |",
+                    ]
+                    for item in result["details"]:
+                        overview_lines.append(f"| `{item['path']}` | {item['summary']} |")
+                    with open(overview_file, "w", encoding="utf-8") as mf:
+                        mf.write("\n".join(overview_lines) + "\n")
+                    update_visulate_readme(memory_path)
+                    rel_mem = os.path.relpath(overview_file, memory_path)
+                    lines.extend([
+                        "",
+                        f"- **Architectural Memory Saved**: `{memory_repo_name}/{rel_mem}`"
+                    ])
+                except Exception as mem_err:
+                    logger.warning(f"Could not save codebase overview memory to visulate-memory: {mem_err}")
 
             lines.extend([
                 "",

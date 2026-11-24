@@ -336,16 +336,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewIni
     if (!this.currentContext?.endpoint) {
       return '';
     }
-    try {
-      const stored = localStorage.getItem('visulate_db_repo_associations');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.dbToRepo?.[this.currentContext.endpoint]) {
-          return parsed.dbToRepo[this.currentContext.endpoint];
-        }
-      }
-    } catch (_) {}
-    return '';
+    return this.stateService.getAssociatedRepo(this.currentContext.endpoint) || '';
   }
 
   openRepoInWorkbench(): void {
